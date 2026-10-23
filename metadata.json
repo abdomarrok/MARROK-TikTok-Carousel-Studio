@@ -1,0 +1,6 @@
+{
+  "name": "MARROK TikTok Carousel Studio",
+  "description": "Multimodal content engine generating bilingual English-Arabic TikTok captions and 1080x1920 engineering carousels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
