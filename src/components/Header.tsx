@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Sparkles, RefreshCw, Palette, Key, ShieldCheck, Grid } from 'lucide-react';
+import { Download, Sparkles, RefreshCw, Palette, Key, ShieldCheck, Grid, FileCheck2 } from 'lucide-react';
 import { ThemePalette } from '../types';
 import type { QAReport } from '../lib/qaChecks';
 
@@ -11,6 +11,7 @@ interface HeaderProps {
   onExportAll: () => void;
   onRunQA?: () => void;
   onOpenContactSheet?: () => void;
+  onOpenPlanInspector?: () => void;
   isExporting: boolean;
   exportProgress?: { current: number; total: number } | null;
   lastQAReport?: QAReport | null;
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onExportAll,
   onRunQA,
   onOpenContactSheet,
+  onOpenPlanInspector,
   isExporting,
   exportProgress,
   lastQAReport,
@@ -114,6 +116,18 @@ export const Header: React.FC<HeaderProps> = ({
                     : '✓'}
                 </span>
               )}
+            </button>
+          )}
+
+          {/* Project Plan & Intelligence Inspector Button */}
+          {onOpenPlanInspector && (
+            <button
+              onClick={onOpenPlanInspector}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-white/15 bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer whitespace-nowrap"
+              title="Inspect Project Plan, Extracted Facts & Verification (Spec §4, §5, §7)"
+            >
+              <FileCheck2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden md:inline">Plan</span>
             </button>
           )}
 

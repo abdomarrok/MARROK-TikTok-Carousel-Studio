@@ -65,7 +65,23 @@ export interface CaptionVariant {
   caption: string;
 }
 
+export interface ExtractedFact {
+  text: string;
+  type: 'number' | 'date' | 'name' | 'quote' | 'claim';
+  verified: 'verified' | 'partially_verified' | 'unconfirmed';
+  evidence?: string;
+}
+
+export interface PostSourceMeta {
+  type?: 'article' | 'screenshot' | 'youtube' | 'notes';
+  title?: string;
+  creator?: string;
+  url?: string;
+  published?: string;
+}
+
 export interface CarouselData {
+  id?: string;
   theme: string;
   category: string;
   brand?: string;    // Brand wordmark / watermark (defaults to 'MARROK' or creator handle)
@@ -74,6 +90,10 @@ export interface CarouselData {
   firstComment?: string; // Spec §8 & §18: Pinned first comment with reference links
   shortCaption?: string; // Spec §8: 2-line short caption variant
   screenHook?: string;   // Spec §8: 3-second on-screen hook
+  sourceMeta?: PostSourceMeta; // Spec §4 & §11: Source metadata
+  facts?: ExtractedFact[];     // Spec §4 & §11: Extracted and verified facts
+  notesForHuman?: string[];    // Spec §11 & §18: Human review notes and caveats
+  scheduleSlot?: string;       // Spec §14 & §17: Recommended posting slot (e.g. "18:00 DZ")
   captionVariants?: CaptionVariant[];
   hookVariants?: HookVariant[];
   slides: SlideData[];

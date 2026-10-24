@@ -8,6 +8,8 @@ import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { QAModal } from './components/QAModal';
 import { ContactSheetModal } from './components/ContactSheetModal';
+import { SmartPipelineBar } from './components/SmartPipelineBar';
+import { PlanInspectorModal } from './components/PlanInspectorModal';
 import { CarouselData, DEFAULT_PALETTES, HookVariant, SlideData, ThemePalette } from './types';
 import { PRESET_CAROUSELS } from './lib/presets';
 import { downloadAllSlidesZip } from './lib/canvasExporter';
@@ -30,6 +32,7 @@ export default function App() {
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isQAModalOpen, setIsQAModalOpen] = useState(false);
   const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
+  const [isPlanInspectorOpen, setIsPlanInspectorOpen] = useState(false);
 
   // Export State
   const [isExporting, setIsExporting] = useState(false);
@@ -215,6 +218,7 @@ export default function App() {
         onExportAll={handleExportAll}
         onRunQA={handleRunQA}
         onOpenContactSheet={() => setIsContactSheetOpen(true)}
+        onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
         isExporting={isExporting}
         exportProgress={exportProgress}
         lastQAReport={lastQAReport}
@@ -222,9 +226,18 @@ export default function App() {
 
       {/* Main Studio Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Step 1: Multimodal Ingestion Hub */}
-        {isGeneratorOpen ? (
-          <div className="w-full">
+        {/* Spec §4-§8 One-Input Smart Pipeline Command Center */}
+        <SmartPipelineBar
+          theme={currentPalette}
+          onApplyCarousel={handleApplyCarousel}
+          onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
+          currentCarousel={carousel}
+          onShowToast={showToast}
+        />
+
+        {/* Optional Secondary Ingestion Panel if toggled */}
+        {isGeneratorOpen && (
+          <div className="w-full animate-fade-in">
             <MultimodalInputPanel
               theme={currentPalette}
               onApplyCarousel={(newCarousel) => {
@@ -233,37 +246,6 @@ export default function App() {
               }}
               onClose={() => setIsGeneratorOpen(false)}
             />
-          </div>
-        ) : (
-          <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 px-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-all">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-teal-500/15 text-teal-400">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white flex items-center gap-2">
-                  <span>Current Deck: {carousel.category}</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/10 text-slate-300 font-normal">
-                    {carousel.slides.length} Slides
-                  </span>
-                  {carousel.brand && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-300 font-semibold border border-teal-500/20">
-                      Brand: {carousel.brand}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Drop an architecture screenshot, paste terminal notes, or load a transcript to synthesize a new carousel.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsGeneratorOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-white/10 hover:bg-white/15 border border-white/15 transition-all cursor-pointer shrink-0"
-            >
-              <Upload className="w-3.5 h-3.5 text-teal-400" />
-              <span>Ingest New Material</span>
-            </button>
           </div>
         )}
 
@@ -364,6 +346,14 @@ export default function App() {
         onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
         onExport={handleExportAll}
         isExporting={isExporting}
+      />
+
+      {/* Spec §4, §5, §7, §11 Plan & Fact Verification Inspector Modal */}
+      <PlanInspectorModal
+        isOpen={isPlanInspectorOpen}
+        onClose={() => setIsPlanInspectorOpen(false)}
+        carousel={carousel}
+        theme={currentPalette}
       />
 
       {/* Floating Toast Notification */}

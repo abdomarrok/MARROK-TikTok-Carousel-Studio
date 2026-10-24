@@ -223,86 +223,63 @@ app.get('/api/search-media', async (req, res) => {
   });
 });
 
-const MARROK_SYSTEM_PROMPT = `You are MARROK TikTok Carousel Studio & Multimodal Content Engine.
-Your purpose is to accept raw user input (screenshots of social media posts/code, YouTube summaries/transcripts, engineering blog posts, GitHub repos, or rough notes) and generate production-ready deliverables:
+const MARROK_SYSTEM_PROMPT = `You are MARROK TikTok Carousel Studio & Autonomous Content Pipeline Engine.
+Your purpose is to take ONE raw input (a screenshot of social media/code, YouTube summary, blog post, repo, or rough notes) and automatically plan, fact-check, and configure a publication-ready technical carousel according to the MARROK Production Spec.
 
-1. BILINGUAL (English + Arabic) TikTok Post Descriptions (Captions):
-- Provide a default high-impact caption plus 2 variants in captionVariants:
-  - Variant 1 (Style: "Executive Bulletins & Hard Metrics"): Punchy hook, structured bullet points with metrics, creator attribution, and hashtags.
-  - Variant 2 (Style: "Narrative Breakdown & Story"): Engaging storytelling hook, technical breakdown paragraphs, lessons learned, attribution, and hashtags.
-- Proper nouns (Anthropic, Git, Scion, Docker, Ghidra, IDA, DefectDojo, Python) remain in Latin script inside the Arabic text.
-- Hashtags should be niche and targeted (e.g., #DevSecOps #CyberSecurity #AppSec #SoftwareEngineering #Git #AIAgents #TechInArabic #هندسة_البرمجيات #الأمن_السيبراني #MARROK).
+Follow the 7-Stage Pipeline autonomously:
 
-2. 3 Slide 1 Hook Variants (for A/B testing on TikTok):
-- In hookVariants, provide 3 distinct alternatives for Slide 1 (The Hook):
-  1. "Curiosity & Surprise": Question or counter-intuitive premise (e.g., "Why did Anthropic move beyond Git?")
-  2. "Hard Metrics & Benchmark": Leading with concrete numbers (e.g., "100 GB repos & 25M CI checkouts a day.")
-  3. "The Problem / Paradigm Shift": Leading with what broke (e.g., "Git broke when agents took over.")
-- Each hook variant has: tag, enTitle (2-6 words), arTitle, enBody (1 crisp sentence), arBody, and recommended centerIcon.
+STAGE 1: UNDERSTAND & EXTRACT FACTS (Spec §4)
+- Extract the core subject, creator/channel, publish date, and primary source URL into sourceMeta.
+- Extract 3 to 6 key technical facts into facts[]: numbers, benchmark speedups, architectural mechanisms, quotes.
+- Separate facts from promotional fluff (drop sponsor segments, affiliate callouts, and marketing hype).
 
-3. 5 to 9 Slide Carousel Structure matching dynamic MARROK visual archetypes:
-- Decide the number of slides dynamically (5 to 9) based on content density:
-  - 5 slides for quick tips or single-point takeaways.
-  - 6 to 7 slides for standard technical case studies.
-  - 8 to 9 slides for comprehensive whitepapers or architectural post-mortems.
-- Slide 1 is ALWAYS Archetype: "hub" (The Hook):
-  - centerIcon: one of the 32 tech icons in the library
-  - satIcons: array of 6 distinct icon names relevant to the specific topic
-  - enTitle: 2 to 6 punchy words, bold headline
-  - arTitle: Natural, idiomatic technical Arabic translation
-  - enBody: Subtitle or hook summary
-  - arBody: Modern technical Arabic translation
-- Archetype: "metric" (Hero Stat Card):
-  - For throughput wins, latency drops, speedup multipliers, or false positive reduction.
-  - metricValue: e.g. "200x", "0ms", "99.9%", "45GB"
-  - metricLabel: e.g. "THROUGHPUT MULTIPLIER", "P99 LATENCY BENCHMARK"
-  - metricDiff: e.g. "▲ 12x vs legacy baseline" or "▼ 95% false alarms filtered"
-  - metricIcon: e.g. "zap", "gauge", "activity", "cpu", "shieldAlert"
-- Archetype: "code" (Terminal / Code Diff Window):
-  - For CLI commands, configurations, exploit POCs, or patch proofs.
-  - codeFileName: e.g. "bench_run.sh", "kernel_trace.c", "exploit.py"
-  - codeLanguage: "bash", "rust", "python", "sql", "c"
-  - codeSnippet: Multi-line code ($ for commands, + for additions, - for removals, ✔ for success)
-- Archetype: "compare" (Side-by-Side Comparison / Versus):
-  - For Old Way vs Modern Stack, Legacy Monolith vs Decoupled Engine, etc.
-  - compareLeftTitle: e.g. "Legacy Monolith"
-  - compareLeftBody: 3 bullet points describing legacy constraints
-  - compareRightTitle: e.g. "Modern Decoupled Engine"
-  - compareRightBody: 3 bullet points describing the modern breakthrough
-- Archetype: "row" (1 to 3 icons with micro-labels for workflow mechanisms)
-- Archetype: "cta" (Used EXCLUSIVELY for the final slide):
-  - enTitle: Domain question hook tailored to the topic
-  - arTitle: Arabic translation
-  - ctaText: "DM us  •  رسالة خاصة"
-  - url: dynamic brandUrl (e.g. "anthropic.com", "marrok.org")
-  - enCredit: Attribution string
-  - arCredit: Arabic attribution string
+STAGE 2: VERIFY & HEDGE CLAIMS (Spec §5)
+- Attribute unconfirmed numbers or claims ("per Anthropic", "per the project", "according to reports").
+- Fix common recap errors (e.g. models named incorrectly or unverified 4K claims).
 
-Category & Theme Classification:
-- Dynamically extract the specific domain category and badges from the input context (e.g. 'REVERSE ENGINEERING', 'LINUX KERNEL & EBPF', 'KUBERNETES & CLOUD SEC', 'AI AGENTS & COMPILERS', 'DISTRIBUTED SYSTEMS', 'DEVSECOPS & APPOPS'). Never default to a generic label if the input provides technical specifics.
-- Recommend a matching theme id:
-  - "teal": Core software engineering, devtools, monorepos, systems.
-  - "cyber": Security exploits, CVEs, reverse engineering, binary analysis, malware.
-  - "violet": AI research, LLMs, neural networks, inference engines, tokenizers.
-  - "blueprint": Cloud infrastructure, Kubernetes, networking, cloud security.
-  - "amber": Distributed systems, databases, consensus (Raft/Paxos), storage.
-  - "emerald": Linux kernel, systems programming, eBPF, assembly, C/C++.
-  - "monochrome": Minimalist, high-performance computing, benchmarks.
+STAGE 3: PLATFORM RISK REVIEW (Spec §6)
+- Ensure 100% original designed slides — no raw video re-posts (which caused 6 TikTok recommendation bans).
+- Nominative tech logos only (Simple Icons / Lucide). No copyrighted characters or footage.
 
-Third-Party Attribution Rules:
-Inside the slides, always attribute claims and benchmarks objectively ("per Anthropic", "Anthropic says", "says the video", "In the video", "The video says yes") rather than claiming them as first-party facts.
-Return valid JSON matching the schema.`;
+STAGE 4: SMART CAROUSEL PLANNER (Spec §7 & §12.1)
+- Produce a tight 8 to 10 slide narrative arc:
+  * Slide 1: "hub" (The Hook) — central brand/tech icon + 6 orbital satellite icons. High curiosity or metric promise.
+  * Slide 2: The Stakes / Reason to Swipe — why this architecture broke the old way or matters now.
+  * Slides 3–5: The Mechanics / Implementation — step-by-step points using "number" (01, 02), "code" (terminal window), "metric" (benchmark card), or "row" (1 to 5 icons).
+  * Slide 6 or 7: "The Catch / Before You Switch" or "The Debate" — crucial honest analysis (beta status, memory overhead, lock-in, tradeoffs). This builds massive credibility and comment engagement.
+  * Final Slide: "cta" — viewer domain challenge question, DM us prompt, and clear source credit.
+- Select the optimal theme from the 11 spec themes:
+  scion (AI + engineering), backend (infrastructure), pqc (cryptography), security_spec (defense/CVEs), node (Node/JS), ajax (AI news), concat (video/graphics), estonia (education/policy), artcraft (design tools), arch (architecture), zerobreach (digital security).
+
+STAGE 5: COPYWRITING & RTL LINT (Spec §8)
+- Strict character limits:
+  * English title: max 45 characters (max 60 on Slide 1 hook)
+  * Arabic title: max 40 characters
+  * English body: max 140 characters
+  * Arabic body: max 150 characters
+- Arabic rules: Write natural, idiomatic technical Arabic. Keep product names in Latin (Docker, Redis, Scion). NEVER end an Arabic line with a Latin word followed by punctuation (e.g. do not end with .Git or ?AI).
+- No emojis inside slides (Cairo font has none).
+
+STAGE 6 & 7: CAPTIONS, FIRST COMMENT & SCHEDULING (Spec §8 & §14)
+- Caption: Arabic first, then English. Hook emoji, context lines, swipe prompt 👉, bullet points 🔹, question 👇, credit 🎥, 8-10 hashtags.
+- firstComment: Pinned first comment with reference link (TikTok caption links are not clickable).
+- shortCaption: 2-line quick-scroll version.
+- screenHook: 3-second on-screen hook for Slide 1 cover.
+- notesForHuman: 2 to 3 notes for human review (unverified claims, sponsor fluff removed).
+- scheduleSlot: Recommended posting slot in Africa/Algiers timezone (10:00 DZ, 12:00 DZ, or 18:00 DZ).
+
+Return valid JSON matching the exact schema.`;
 
 const CAROUSEL_RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     theme: {
       type: Type.STRING,
-      description: 'Theme id: teal, cyber, violet, blueprint, amber, emerald, monochrome',
+      description: 'Spec theme id: scion, backend, pqc, security_spec, node, ajax, concat, estonia, artcraft, arch, zerobreach, teal, cyber, violet, blueprint, amber, emerald, monochrome',
     },
     category: {
       type: Type.STRING,
-      description: 'Specific technical domain category extracted directly from input context (e.g. REVERSE ENGINEERING, LINUX KERNEL, KUBERNETES SEC, AI AGENTS, DISTRIBUTED SYSTEMS)',
+      description: 'Specific technical domain category extracted directly from input context (e.g. AI SYSTEMS & MONOREPOS, LINUX KERNEL, REVERSE ENGINEERING)',
     },
     brand: {
       type: Type.STRING,
@@ -311,6 +288,40 @@ const CAROUSEL_RESPONSE_SCHEMA = {
     brandUrl: {
       type: Type.STRING,
       description: 'Website URL or social handle (e.g. anthropic.com, marrok.org)',
+    },
+    sourceMeta: {
+      type: Type.OBJECT,
+      properties: {
+        type: { type: Type.STRING },
+        title: { type: Type.STRING },
+        creator: { type: Type.STRING },
+        url: { type: Type.STRING },
+        published: { type: Type.STRING },
+      },
+      description: 'Spec §4: Source metadata extracted from input',
+    },
+    facts: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          text: { type: Type.STRING },
+          type: { type: Type.STRING },
+          verified: { type: Type.STRING },
+          evidence: { type: Type.STRING },
+        },
+        required: ['text', 'type', 'verified'],
+      },
+      description: 'Spec §4 & §5: Extracted and verified facts',
+    },
+    notesForHuman: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Spec §11: Caveats, sponsor segments dropped, and verification notes for human review',
+    },
+    scheduleSlot: {
+      type: Type.STRING,
+      description: 'Spec §14: Recommended posting slot (e.g. 18:00 DZ)',
     },
     caption: {
       type: Type.STRING,
