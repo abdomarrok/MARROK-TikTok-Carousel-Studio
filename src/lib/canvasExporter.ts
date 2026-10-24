@@ -1,15 +1,22 @@
 import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette } from '../types.ts';
 import { getIconDataUrl, getIconSvg } from './icons.ts';
+import { sanitizeArabicSlideText, sanitizeEnglishSlideText } from './textSanitizer.ts';
 import JSZip from 'jszip';
 
-// Helper to wrap text with max width and handle manual newlines
+// Helper to wrap text with max width, handle manual newlines, and prevent splitting metrics
 function wrapTextLines(
   ctx: CanvasRenderingContext2D,
-  text: string,
+  rawText: string,
   maxWidth: number
 ): string[] {
-  if (!text) return [];
-  const paragraphs = text.split('\n');
+  if (!rawText) return [];
+
+  // Protect units and metrics from being split across lines (e.g. "510 GB", "10 ms")
+  const textWithNbsp = rawText
+    .replace(/\b(\d+(?:\.\d+)?)\s+(GB|TB|MB|KB|ms|s|μs|req|rps|x|X)\b/gi, '$1\u00A0$2')
+    .replace(/\b(\d+(?:\.\d+)?)\s+(جيجابايت|تيرابايت|ميجابايت|مللي ثانية|ثواني|ضعفاً)\b/g, '$1\u00A0$2');
+
+  const paragraphs = textWithNbsp.split('\n');
   const lines: string[] = [];
 
   for (const para of paragraphs) {
@@ -934,7 +941,8 @@ export async function renderSlideToCanvas(
     ctx.font = '800 74px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
-    const ctaEnTitle = slide.enTitle || (themeMode === 'security' ? 'Building secure\nsoftware?' : 'Building with AI agents\nat scale?');
+    const rawCtaEnTitle = slide.enTitle || (themeMode === 'security' ? 'Building secure\nsoftware?' : 'Building with AI agents\nat scale?');
+    const ctaEnTitle = sanitizeEnglishSlideText(rawCtaEnTitle, { isTitle: true });
     const enCtaLines = wrapTextLines(ctx, ctaEnTitle, 900);
     let curY = 795;
     for (const line of enCtaLines) {
@@ -946,7 +954,8 @@ export async function renderSlideToCanvas(
     ctx.font = '800 70px "Cairo", sans-serif';
     ctx.fillStyle = theme.accent;
     ctx.direction = 'rtl';
-    const ctaArTitle = slide.arTitle || (themeMode === 'security' ? 'تبني برمجيات\nآمنة؟' : 'تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟');
+    const rawCtaArTitle = slide.arTitle || (themeMode === 'security' ? 'تبني برمجيات\nآمنة؟' : 'تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟');
+    const ctaArTitle = sanitizeArabicSlideText(rawCtaArTitle, { isTitle: true });
     const arCtaLines = wrapTextLines(ctx, ctaArTitle, 900);
     for (const line of arCtaLines) {
       ctx.fillText(line, 540, curY);
@@ -1012,7 +1021,8 @@ export async function renderSlideToCanvas(
       ctx.fillStyle = theme.textWhite;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      const enLines = wrapTextLines(ctx, slide.enTitle, 900);
+      const cleanEnTitle = sanitizeEnglishSlideText(slide.enTitle, { isTitle: true });
+      const enLines = wrapTextLines(ctx, cleanEnTitle, 900);
       for (const line of enLines) {
         ctx.fillText(line, 540, currentY);
         currentY += 86;
@@ -1029,7 +1039,8 @@ export async function renderSlideToCanvas(
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
-      const arLines = wrapTextLines(ctx, slide.arTitle, 900);
+      const cleanArTitle = sanitizeArabicSlideText(slide.arTitle, { isTitle: true });
+      const arLines = wrapTextLines(ctx, cleanArTitle, 900);
       for (const line of arLines) {
         ctx.fillText(line, 540, currentY);
         currentY += 88;
@@ -1045,7 +1056,8 @@ export async function renderSlideToCanvas(
       ctx.fillStyle = theme.textEnBody;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      const enBodyLines = wrapTextLines(ctx, slide.enBody, 860);
+      const cleanEnBody = sanitizeEnglishSlideText(slide.enBody, { isTitle: false });
+      const enBodyLines = wrapTextLines(ctx, cleanEnBody, 860);
       for (const line of enBodyLines) {
         ctx.fillText(line, 540, currentY);
         currentY += 54;
@@ -1062,7 +1074,8 @@ export async function renderSlideToCanvas(
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
-      const arBodyLines = wrapTextLines(ctx, slide.arBody, 860);
+      const cleanArBody = sanitizeArabicSlideText(slide.arBody, { isTitle: false });
+      const arBodyLines = wrapTextLines(ctx, cleanArBody, 860);
       for (const line of arBodyLines) {
         ctx.fillText(line, 540, currentY);
         currentY += 56;

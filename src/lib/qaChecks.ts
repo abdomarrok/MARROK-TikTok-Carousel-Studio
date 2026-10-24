@@ -281,6 +281,39 @@ function checkLastSlideCta(slides: SlideData[]): QACheckResult {
   return { id: 'last-slide-cta', severity: 'pass', message: 'Last slide is CTA.' };
 }
 
+/** Check for raw markdown syntax in slide fields */
+function checkMarkdownAndPunctuation(slide: SlideData, idx: number): QACheckResult[] {
+  const results: QACheckResult[] = [];
+  const textFields: (keyof SlideData)[] = ['enTitle', 'arTitle', 'enBody', 'arBody'];
+
+  for (const field of textFields) {
+    const text = slide[field];
+    if (typeof text !== 'string' || !text) continue;
+
+    if (/(?:^|\s)#+(?=\s|[a-zA-Z0-9\u0600-\u06FF])/.test(text)) {
+      results.push({
+        id: `raw-markdown-hash-${idx}-${field}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field,
+        message: `Slide ${idx + 1} ${field} has raw markdown '#' symbols. Remove '#' for clean canvas typography.`,
+      });
+    }
+
+    if (/\s+\./.test(text) || /\.{2,}/.test(text) || /\.:/.test(text)) {
+      results.push({
+        id: `broken-punctuation-${idx}-${field}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field,
+        message: `Slide ${idx + 1} ${field} has broken punctuation (e.g. ' .', '..', or '.:'). Clean up punctuation.`,
+      });
+    }
+  }
+
+  return results;
+}
+
 // ─── Main QA Runner ─────────────────────────────────────────────────
 
 /**
@@ -301,6 +334,7 @@ export function runQAChecks(carousel: CarouselData): QAReport {
     const isHook = i === 0 && (slides[i].type === 'hub');
     results.push(...checkCharLimits(slides[i], i, isHook));
     results.push(...checkArabicLineEndings(slides[i], i));
+    results.push(...checkMarkdownAndPunctuation(slides[i], i));
     results.push(...checkPlaceholders(slides[i], i));
   }
 

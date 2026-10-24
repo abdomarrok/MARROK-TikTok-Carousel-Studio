@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { synthesizeCarousel } from '../src/lib/synthesizer.ts';
+import { sanitizeFullCarousel } from '../src/lib/textSanitizer.ts';
 
 dotenv.config();
 
@@ -233,6 +234,127 @@ app.get('/api/search-media', async (req, res) => {
   });
 });
 
+// AI Image Generation & Editing endpoint powered by gemini-nano-banana-2.1
+app.post('/api/generate-image', async (req, res) => {
+  const {
+    prompt,
+    baseImageBase64,
+    baseImageMimeType = 'image/png',
+    aspectRatio = '9:16',
+    imageSize = '1K',
+    stylePreset = 'blueprint',
+  } = req.body;
+
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ error: 'Prompt is required for image generation or editing.' });
+  }
+
+  const customKey = (req.headers['x-gemini-key'] as string) || req.body.apiKey;
+  const activeApiKey = customKey || process.env.GEMINI_API_KEY;
+  if (!activeApiKey) {
+    return res.status(401).json({ error: 'Gemini API key is required for image generation.' });
+  }
+
+  const activeAi = new GoogleGenAI({
+    apiKey: activeApiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
+    },
+  });
+
+  // Allowed aspect ratios for nano banana 2.1
+  const validAspectRatios = new Set(['9:16', '16:9', '1:1', '4:3', '3:4']);
+  const safeAspectRatio = validAspectRatios.has(aspectRatio) ? aspectRatio : '9:16';
+  const safeImageSize = imageSize === '2K' ? '2K' : '1K';
+
+  // Apply technical style decorator
+  let decoratedPrompt = prompt.trim();
+  if (stylePreset === 'blueprint') {
+    decoratedPrompt = `Technical software architecture blueprint diagram, isometric system schema, deep carbon dark background (#0c1017), clean neon cyan and emerald vector wireframe lines, high contrast telemetry labels, professional developer infographic, no human faces: ${decoratedPrompt}`;
+  } else if (stylePreset === 'terminal') {
+    decoratedPrompt = `High-tech developer terminal window, dark OLED interface, glowing code syntax, futuristic telemetry HUD brackets, sleek neon accents, ultra-crisp engineering diagram: ${decoratedPrompt}`;
+  } else if (stylePreset === 'flowchart') {
+    decoratedPrompt = `Minimal modern systems flowchart, microservices nodes and data stream pipelines, dark mode UI with sleek accent connections, clean technical vectors: ${decoratedPrompt}`;
+  } else if (stylePreset === 'security') {
+    decoratedPrompt = `Cybersecurity threat intelligence diagram, vulnerability blast radius map, network boundary defense mesh, dark technical theme with neon crimson and teal highlights: ${decoratedPrompt}`;
+  }
+
+  // Model sequence: primary gemini-nano-banana-2.1, fallback gemini-3.1-flash-lite-image
+  const candidateModels = ['gemini-nano-banana-2.1', 'gemini-3.1-flash-lite-image'];
+
+  try {
+    for (const model of candidateModels) {
+      try {
+        console.log(`Generating/editing image using model: ${model} (aspectRatio: ${safeAspectRatio})...`);
+
+        const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+
+        // If baseImageBase64 is provided, this is an image-to-image edit operation
+        if (typeof baseImageBase64 === 'string' && baseImageBase64.length > 50) {
+          const cleanData = baseImageBase64.replace(/^data:[^;]+;base64,/, '');
+          parts.push({
+            inlineData: {
+              data: cleanData,
+              mimeType: baseImageMimeType,
+            },
+          });
+          parts.push({
+            text: `Edit instruction for the provided image: ${decoratedPrompt}. Maintain high visual quality and technical clarity.`,
+          });
+        } else {
+          parts.push({ text: decoratedPrompt });
+        }
+
+        const config: Record<string, unknown> = {
+          imageConfig: {
+            aspectRatio: safeAspectRatio,
+            imageSize: safeImageSize,
+          },
+        };
+
+        const response = await activeAi.models.generateContent({
+          model,
+          contents: { parts },
+          config,
+        });
+
+        // Scan candidate parts for the generated image
+        const candidateParts = response.candidates?.[0]?.content?.parts || [];
+        for (const part of candidateParts) {
+          if (part.inlineData?.data) {
+            const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            return res.json({
+              imageUrl: dataUrl,
+              prompt: decoratedPrompt,
+              model,
+              aspectRatio: safeAspectRatio,
+            });
+          }
+        }
+      } catch (modelErr: unknown) {
+        const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
+        console.log(`Image model ${model} notice: ${msg.slice(0, 150)}`);
+        // If it's the last model, rethrow to outer catch
+        if (model === candidateModels[candidateModels.length - 1]) {
+          throw modelErr;
+        }
+      }
+    }
+
+    return res.status(500).json({ error: 'No image data returned from generation models.' });
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('Image generation error:', errMsg);
+    return res.status(500).json({
+      error: 'Failed to generate image',
+      details: errMsg.slice(0, 200),
+    });
+  }
+});
+
 const MARROK_SYSTEM_PROMPT = `You are MARROK TikTok Carousel Studio & Autonomous Content Pipeline Engine.
 Your purpose is to take ONE raw input (a screenshot of social media/code, YouTube summary, blog post, repo, or rough notes) and automatically plan, fact-check, and configure a publication-ready technical carousel according to the MARROK Production Spec.
 
@@ -270,8 +392,14 @@ STAGE 5: COPYWRITING & RTL LINT (Spec §8)
   * Arabic title: max 40 characters
   * English body: max 140 characters
   * Arabic body: max 150 characters
-- Arabic rules: Write natural, idiomatic technical Arabic. Keep product names in Latin (Docker, Redis, Scion). NEVER end an Arabic line with a Latin word followed by punctuation (e.g. do not end with .Git or ?AI).
-- No emojis inside slides (Cairo font has none).
+- ZERO RAW MARKDOWN: NEVER output '#', '##', '*', '_', or backticks in slide titles or bodies.
+- ZERO LEADING/TRAILING DEFECT PUNCTUATION: Never output orphan dots like "Speedup .", double periods "..", or duplicate colons like ".:".
+- ARABIC INTEGRITY & BIDI:
+  * Write natural, idiomatic technical Arabic. Keep product names in Latin (Docker, Redis, Scion, DeepSeek).
+  * NEVER prepend English titles or colons into Arabic titles (e.g. NEVER output ':Deepseek 4.1 Flash #' or ':DeepSeek:').
+  * NEVER end an Arabic line with a Latin word followed by punctuation (e.g. do not end with .Git or .GB or ?AI).
+  * Express units clearly in Arabic where appropriate (e.g. '510 جيجابايت' instead of '510 .GB').
+- No emojis inside slides (Cairo font has none). Emojis belong in captions only.
 
 STAGE 6 & 7: CAPTIONS, FIRST COMMENT & SCHEDULING (Spec §8 & §14)
 - Caption: Formatted bilingual publication copy:
@@ -601,8 +729,8 @@ app.post('/api/generate', async (req, res) => {
     const activeAi = activeApiKey ? new GoogleGenAI({ apiKey: activeApiKey }) : null;
 
     // Primary: 'gemini-3.8-flash' (recommended model with search grounding & high reasoning)
-    // Fallbacks: 'gemini-flash-latest'
-    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
+    // Fallback: 'gemini-3.1-flash-lite' (high throughput, light reasoning)
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
     let lastError: unknown = null;
     let jsonResult: CarouselData | null = null;
 
@@ -674,6 +802,9 @@ app.post('/api/generate', async (req, res) => {
                   };
                 });
               }
+
+              // Deeply sanitize all slides, titles, bodies, and captions to eliminate markdown & BiDi defects
+              jsonResult = sanitizeFullCarousel(jsonResult);
             }
 
             console.log(`Successfully generated grounded carousel with model ${model} (found ${webSources.length} sources)`);
@@ -681,18 +812,29 @@ app.post('/api/generate', async (req, res) => {
           }
         } catch (err: unknown) {
           const errMsg = err instanceof Error ? err.message : String(err);
-          console.warn(`Model ${model} failed:`, errMsg);
           lastError = err;
-          // If the model is experiencing 503 high demand, UNAVAILABLE, or timeout,
-          // don't waste seconds trying more models. Fast-break immediately!
-          if (
+
+          const isQuotaOrRateLimit =
+            errMsg.includes('429') ||
+            errMsg.includes('RESOURCE_EXHAUSTED') ||
+            errMsg.includes('quota') ||
+            errMsg.includes('rate-limit') ||
+            errMsg.includes('rate limits');
+
+          const isUnavailable =
             errMsg.includes('503') ||
             errMsg.includes('high demand') ||
             errMsg.includes('UNAVAILABLE') ||
-            errMsg.includes('Timeout')
-          ) {
-            console.log('Upstream bottleneck or timeout detected. Fast-breaking to resilient synthesizer.');
+            errMsg.includes('Timeout');
+
+          if (isQuotaOrRateLimit) {
+            console.log(`Gemini API rate/quota limit reached on ${model}. Smoothly activating MARROK resilient synthesizer.`);
+            break; // Stop immediately to avoid redundant quota failures
+          } else if (isUnavailable) {
+            console.log(`Upstream bottleneck or timeout detected on ${model}. Fast-breaking to resilient synthesizer.`);
             break;
+          } else {
+            console.log(`Model ${model} note: ${errMsg.slice(0, 120)}. Proceeding with resilient synthesizer.`);
           }
         }
       }
@@ -702,7 +844,7 @@ app.post('/api/generate', async (req, res) => {
       return res.json(jsonResult);
     }
 
-    // Upstream AI API is experiencing high demand (503) or rate limits.
+    // Upstream AI API is experiencing high demand (503) or rate limits (429).
     // Gracefully activate MARROK intelligent content synthesizer:
     console.log('Activating MARROK resilient content synthesizer for input:', safePrompt || safeImageName);
     const synthesizedData = synthesizeCarousel({
@@ -712,10 +854,10 @@ app.post('/api/generate', async (req, res) => {
       imageFileName: safeImageName,
     });
 
-    res.setHeader('X-Marrok-Engine', 'intelligent-synthesizer');
+    res.setHeader('X-Marrok-Engine', 'resilient-synthesizer');
     return res.json(synthesizedData);
   } catch (error: unknown) {
-    console.error('Error generating carousel, using fallback:', error);
+    console.log('Activating fallback synthesizer after generation error');
     // Never fail with 500: synthesize archetype-compliant output
     const fallbackData = synthesizeCarousel({
       prompt: safePrompt,

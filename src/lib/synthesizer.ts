@@ -1,5 +1,12 @@
 import { CarouselData, SlideData, HookVariant, CaptionVariant, ExtractedFact, PostSourceMeta } from '../types.ts';
 import { KNOWN_TECH_LOGOS } from './icons.ts';
+import {
+  extractCleanHeadline,
+  sanitizeMetricForArabic,
+  sanitizeFullCarousel,
+  stripMarkdown,
+  normalizePunctuation,
+} from './textSanitizer.ts';
 
 interface SynthesisInput {
   prompt?: string;
@@ -228,23 +235,16 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const { brand, brandUrl } = detectBrandAndUrl(lowerText);
 
   // 3. Extract Clean Title and User Points
-  let cleanTitle = rawText.replace(/^https?:\/\/\S+/gi, '').split('\n')[0].trim();
-  if (cleanTitle.length > 60) {
-    cleanTitle = cleanTitle.slice(0, 57) + '...';
-  }
-  if (!cleanTitle || cleanTitle.length < 4) {
-    cleanTitle = domainCategory.split('&')[0].trim();
-  }
-
-  const words = cleanTitle.split(/\s+/);
-  const headline = words.slice(0, 5).join(' ');
+  const { headline, cleanTitle } = extractCleanHeadline(rawText, domainCategory);
 
   const { lines, metrics } = extractUserInsights(rawText);
   const userPoint1 = lines[0] || 'When system frequency increases, legacy architectures become memory bottlenecks.';
   const userPoint2 = lines[1] || 'Decoupled authoritative state ensures compute scales with payload size.';
   const userPoint3 = lines[2] || 'Offloading heavy computations to specialized nodes eliminates user-facing stalls.';
 
-  const metric1 = metrics[0] || activeRule.metricFallback;
+  const rawMetric1 = metrics[0] || activeRule.metricFallback;
+  const metric1 = normalizePunctuation(stripMarkdown(rawMetric1)).replace(/[.?!]+$/, '');
+  const arMetric1 = sanitizeMetricForArabic(metric1);
   const metric2 = metrics[1] || 'Low latency';
   const metric3 = metrics[2] || 'Zero downtime';
 
@@ -282,11 +282,12 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   }
 
   // 6. Generate Hook Variants (A/B testing)
+  const enHook1 = headline.includes(':') ? `${headline}\nWhat broke?` : `${headline}:\nWhat broke?`;
   const hookVariants: HookVariant[] = [
     {
       tag: 'Curiosity & Surprise',
-      enTitle: `${headline}:\nWhat broke?`,
-      arTitle: `${headline}:\nما الذي تغيّر؟`,
+      enTitle: enHook1,
+      arTitle: `نقلة معمارية في ${headline}\nما الذي تغيّر في المنظومة؟`,
       enBody: `How engineering constraints forced a paradigm shift in ${domainCategory.toLowerCase()}.`,
       arBody: `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في منظومة ${headline}.`,
       centerIcon,
@@ -294,15 +295,15 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     {
       tag: 'Hard Metrics & Scale',
       enTitle: `${headline} at scale.`,
-      arTitle: `${headline} عند أقصى ضغط.`,
+      arTitle: `أداء ${headline} تحت أقصى ضغط`,
       enBody: `Key benchmarks (${metric1}) and lessons learned from high-throughput production.`,
-      arBody: `أهم معايير الأداء والدروس المستفادة (${metric1}) من تشغيل الأنظمة تحت ضغط هائل.`,
+      arBody: `أهم معايير الأداء والدروس المستفادة (${arMetric1}) من تشغيل الأنظمة تحت ضغط هائل.`,
       centerIcon: 'gauge',
     },
     {
       tag: 'The Problem & Solution',
       enTitle: `Why standard tools\nfailed for ${headline}.`,
-      arTitle: `لماذا فشلت الأدوات التقليدية أمام ${headline}؟`,
+      arTitle: `لماذا فشلت الأدوات التقليدية\nأمام منظومة ${headline}؟`,
       enBody: `Moving beyond legacy assumptions to build modern high-efficiency software.`,
       arBody: `تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والأمان.`,
       centerIcon: 'shieldAlert',
@@ -324,15 +325,16 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
 
   if (isBenchmark) {
     // Structure A: Benchmark & Metrics Deep Dive (Hub -> Metric Hero -> Compare -> Code Diff -> Rows -> CTA)
+    const enBenchmarkTitle = headline.includes(':') ? `${headline}\n${metric1} Speedup.` : `${headline}:\n${metric1} Speedup.`;
     const candidateSlides: SlideData[] = [
       {
         type: 'hub',
         centerIcon: 'gauge',
         satIcons,
-        enTitle: `${headline}:\n${metric1} Speedup.`,
-        arTitle: `${headline}:\nقفزة في الأداء بنسبة ${metric1}.`,
+        enTitle: enBenchmarkTitle,
+        arTitle: `قفزة في أداء ${headline}\nتسريع العمليات بمعدل ${arMetric1}`,
         enBody: `How an architectural redesign delivered ${metric1} faster execution and lowered infrastructure cost.`,
-        arBody: `كيف حققت إعادة بناء المنظومة تسريعاً بنسبة ${metric1} مع خفض ملحوظ في تكلفة الموارد.`,
+        arBody: `كيف حققت إعادة بناء المنظومة تسريعاً بنسبة ${arMetric1} مع خفض ملحوظ في تكلفة الموارد.`,
       },
       {
         type: 'metric',
@@ -341,7 +343,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         metricDiff: `▲ ${metric1} vs legacy baseline`,
         metricIcon: 'zap',
         enTitle: `${headline} benchmark win.`,
-        arTitle: `قفزة في الأداء بنسبة ${metric1}.`,
+        arTitle: `قفزة في الأداء بنسبة ${arMetric1}`,
         enBody: `Measured throughput and latency reductions across live production workloads.`,
         arBody: `نتائج حقيقية موثقة في بيئة الإنتاج الفعلي أظهرت كفاءة استثنائية واستقراراً تاماً.`,
       },
@@ -411,13 +413,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     slides = trimSlides(candidateSlides, targetSlideCount);
   } else if (isSecurity) {
     // Structure B: Security & Exploits (Hub -> Metric Triage -> Exploit Code -> Compare -> Rows -> CTA)
+    const enSecurityTitle = headline.includes(':') ? `${headline}\nExploit Breakdown.` : `${headline}:\nExploit Breakdown.`;
     const candidateSlides: SlideData[] = [
       {
         type: 'hub',
         centerIcon: 'shieldAlert',
         satIcons,
-        enTitle: `${headline}:\nExploit Breakdown.`,
-        arTitle: `${headline}:\nتشريح الثغرة وآلية الحماية.`,
+        enTitle: enSecurityTitle,
+        arTitle: `تشريح أمني لمنظومة ${headline}\nآليات الثغرة والوقاية`,
         enBody: `A security deep dive into the vulnerability mechanism, exploit reachability, and defensive hardening.`,
         arBody: `تحليل أمني عميق لجذور الخلل، إمكانية الاستغلال، والحلول الدفاعية الموصى بها.`,
       },
@@ -585,13 +588,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     slides = trimSlides(candidateSlides, targetSlideCount);
   } else {
     // Structure D: General Systems & Architecture (Hub -> Metric Win -> Compare -> Code -> Rows -> CTA)
+    const enGeneralTitle = headline.includes(':') ? `${headline}\nNext-Gen Shift.` : `${headline}:\nNext-Gen Shift.`;
     const candidateSlides: SlideData[] = [
       {
         type: 'hub',
         centerIcon,
         satIcons,
-        enTitle: `${headline}:\nNext-Gen Shift.`,
-        arTitle: `${headline}:\nالنقلة النوعية الجديدة.`,
+        enTitle: enGeneralTitle,
+        arTitle: `النقلة المعمارية لمنظومة ${headline}\nتحليل الأداء وهندسة الأنظمة`,
         enBody: `A breakdown of technical mechanisms, benchmarks, and production architecture.`,
         arBody: `تحليل عميق للبنية التحتية، معايير السرعة، وأهم الدروس العملية.`,
       },
@@ -760,10 +764,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     },
   ];
 
-  const formattedBilingualCaption = `⚡ ${slides[0]?.arTitle || headline}
+  // Format single-line headline summaries for captions to prevent broken breaks & double punctuation
+  const slide1ArHeader = (slides[0]?.arTitle || headline).replace(/[:.]\s*\n+/g, ' — ').replace(/\n+/g, ' — ').trim();
+  const slide1EnHeader = (slides[0]?.enTitle || headline).replace(/[:.]\s*\n+/g, ' — ').replace(/\n+/g, ' — ').replace(/[:.]\s*$/, '').trim();
+
+  const formattedBilingualCaption = `⚡ ${slide1ArHeader}
 تحليل تقني ومعماري متعمق لأحدث نقلة برمجية 🛠️
 
-${slides[0]?.enTitle || headline}: Engineering Deep Dive
+${slide1EnHeader} — Engineering Deep Dive
 Why traditional architectures stall at scale and how modern systems solve the bottleneck.
 
 🔹 أبرز آليات العمل والنتائج / Key Technical Takeaways:
@@ -805,8 +813,8 @@ ${hashtags}`,
   ];
 
   const firstComment = `🔗 Primary source documentation & reference post: https://${brandUrl}\n\nWhat are your thoughts on this architecture? Share your take below 👇`;
-  const shortCaption = `${slides[0]?.arTitle || 'تحليل معماري دقيق'} ⚡\n${slides[0]?.enTitle || 'Technical teardown'} — Swipe through the breakdown 👉`;
-  const screenHook = slides[0]?.enTitle ? `${slides[0].enTitle.replace(/[.?!]$/, '')} in 60s` : 'Why this changes everything';
+  const shortCaption = `${slide1ArHeader} ⚡\n${slide1EnHeader} — Swipe through the breakdown 👉`;
+  const screenHook = `${slide1EnHeader} in 60s`;
 
   const sourceMeta: PostSourceMeta = {
     type: (input.inputMode === 'upload' || Boolean(input.imageFileName)) ? 'screenshot' : (rawText.length > 400 ? 'article' : 'notes'),
@@ -828,7 +836,7 @@ ${hashtags}`,
 
   const scheduleSlot = '18:00–21:00 ME / 16:00–19:00 UTC (Peak developer engagement)';
 
-  return {
+  return sanitizeFullCarousel({
     theme: recommendedTheme,
     category: domainCategory,
     brand,
@@ -844,5 +852,5 @@ ${hashtags}`,
     captionVariants,
     hookVariants,
     slides,
-  };
+  });
 }

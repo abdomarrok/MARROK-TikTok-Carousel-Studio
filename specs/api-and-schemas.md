@@ -91,6 +91,27 @@ Subject-based media discovery querying curated tech brand logos and Wikimedia Co
 }
 ```
 
+### 1.5 `POST /api/generate-image`
+Generates high-resolution technical diagrams, system blueprints, and architecture visuals using `gemini-nano-banana-2.1` with native 9:16 vertical aspect ratio. Also supports prompt-based natural language image editing/recoloring when `baseImageBase64` is provided.
+
+**Request Body Parameters:**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `prompt` | `string` | Yes | Technical description of the diagram or prompt edit instruction |
+| `aspectRatio` | `string` | Optional | `'9:16'` (default) \| `'16:9'` \| `'1:1'` |
+| `stylePreset` | `string` | Optional | `'blueprint'` \| `'terminal'` \| `'flowchart'` \| `'security'` \| `'raw'` |
+| `baseImageBase64` | `string` | Optional | Base64-encoded image to edit via natural language instructions |
+| `baseImageMimeType` | `string` | Optional | MIME type of base image (e.g. `'image/png'`) |
+
+**Response Body (HTTP 200):**
+```json
+{
+  "imageUrl": "data:image/png;base64,iVBORw0KGgo...",
+  "prompt": "Isometric system blueprint...",
+  "model": "gemini-nano-banana-2.1"
+}
+```
+
 ---
 
 ## 2. Core TypeScript Interfaces (`src/types.ts`)
@@ -135,7 +156,9 @@ export interface SlideData {
   imageUrl?: string;          // Direct URL or data URL of external tech diagram, logo, or photo
   imageCaption?: string;      // Micro-badge label for the image
   imageFit?: 'contain' | 'cover'; // Fit mode on canvas (defaults to contain)
-  imageFilter?: 'hud' | 'invert' | 'tint' | 'clean'; // Theme integration filter (hud = blueprint dark blend, invert = dark mode inversion, tint = accent wash, clean = original)
+  imageFilter?: 'hud' | 'invert' | 'tint' | 'clean'; // Theme integration filter
+  imagePrompt?: string;       // Prompt used to generate or edit the visual via gemini-nano-banana-2.1
+  imageModel?: string;        // Model used (e.g. "gemini-nano-banana-2.1")
   
   // Bilingual Titles & Body Copy
   enTitle?: string;

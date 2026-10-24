@@ -1,20 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
-import { SlideCanvasPreview } from './components/SlideCanvasPreview';
-import { CaptionBox } from './components/CaptionBox';
-import { SlideEditor } from './components/SlideEditor';
-import { MultimodalInputPanel } from './components/MultimodalInputPanel';
+import { AutonomousStudio } from './components/AutonomousStudio';
 import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { ApiKeyModal } from './components/ApiKeyModal';
-import { QAModal } from './components/QAModal';
 import { ContactSheetModal } from './components/ContactSheetModal';
-import { SmartPipelineBar } from './components/SmartPipelineBar';
 import { PlanInspectorModal } from './components/PlanInspectorModal';
-import { CarouselData, DEFAULT_PALETTES, HookVariant, SlideData, ThemePalette } from './types';
+import { CarouselData, DEFAULT_PALETTES, ThemePalette } from './types';
 import { PRESET_CAROUSELS } from './lib/presets';
-import { downloadAllSlidesZip } from './lib/canvasExporter';
-import { runQAChecks, qaReportSummary, QAReport } from './lib/qaChecks';
-import { Sparkles, Upload, ShieldCheck } from 'lucide-react';
+import { sanitizeFullCarousel } from './lib/textSanitizer';
 
 export default function App() {
   // Local Draft Persistence (Hydrate from browser localStorage if available)
@@ -24,7 +17,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed?.slides && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
-          return parsed;
+          return sanitizeFullCarousel(parsed);
         }
       }
     } catch (err) {
@@ -32,7 +25,7 @@ export default function App() {
     }
     return PRESET_CAROUSELS.scion.data;
   });
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
   // Palette State
@@ -57,19 +50,11 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [carousel]);
 
-  // Modal / Ingestion States
-  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isThemeCustomizerOpen, setIsThemeCustomizerOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
-  const [isQAModalOpen, setIsQAModalOpen] = useState(false);
   const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
   const [isPlanInspectorOpen, setIsPlanInspectorOpen] = useState(false);
-
-  // Export State
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [lastQAReport, setLastQAReport] = useState<QAReport | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -85,275 +70,37 @@ export default function App() {
     }));
   };
 
-  // Update specific slide
-  const handleUpdateSlide = (updatedSlide: SlideData) => {
-    setCarousel((prev) => {
-      const newSlides = [...prev.slides];
-      newSlides[currentSlideIndex] = updatedSlide;
-      return { ...prev, slides: newSlides };
-    });
-  };
-
-  // Swap Slide 1 with selected Hook Variant
-  const handleSelectHookVariant = (variant: HookVariant) => {
-    setCarousel((prev) => {
-      const newSlides = [...prev.slides];
-      newSlides[0] = {
-        ...newSlides[0],
-        enTitle: variant.enTitle,
-        arTitle: variant.arTitle,
-        enBody: variant.enBody,
-        arBody: variant.arBody,
-        centerIcon: variant.centerIcon || newSlides[0].centerIcon,
-      };
-      return { ...prev, slides: newSlides };
-    });
-    showToast(`Applied "${variant.tag}" Hook to Slide 1`);
-  };
-
-  // Update caption
-  const handleUpdateCaption = (newCaption: string) => {
-    setCarousel((prev) => ({ ...prev, caption: newCaption }));
-  };
-
-  // Add new slide at specific index
-  const handleAddSlideAt = (insertIndex: number) => {
-    const newSlide: SlideData = {
-      type: 'row',
-      icons: [{ icon: 'cpu', label: 'Feature' }],
-      enTitle: 'New slide topic.',
-      arTitle: 'عنوان الشريحة الجديدة.',
-      enBody: '1-2 crisp sentences describing the technical mechanism.',
-      arBody: 'شرح دقيق ومختصر من جملة إلى جملتين حول آلية العمل.',
-    };
-
-    setCarousel((prev) => {
-      const newSlides = [...prev.slides];
-      const boundedIndex = Math.max(0, Math.min(insertIndex, newSlides.length));
-      newSlides.splice(boundedIndex, 0, newSlide);
-      return { ...prev, slides: newSlides };
-    });
-    setCurrentSlideIndex(insertIndex);
-    showToast(`Added slide at #${insertIndex + 1}`);
-  };
-
-  // Add new slide
-  const handleAddSlide = () => {
-    handleAddSlideAt(Math.max(carousel.slides.length - 1, 1));
-  };
-
-  // Reset to default draft template
   const handleResetDraft = () => {
-    if (window.confirm('Reset carousel back to default template? Unsaved edits will be replaced.')) {
-      try {
-        localStorage.removeItem('marrok_deck_draft_v1');
-      } catch (err) {
-        // ignore
-      }
-      setCarousel(PRESET_CAROUSELS.scion.data);
-      setCurrentSlideIndex(0);
-      showToast('Reset to default Scion template');
-    }
-  };
-
-  // Duplicate current slide
-  const handleDuplicateSlide = (index: number) => {
-    setCarousel((prev) => {
-      const newSlides = [...prev.slides];
-      const copy = structuredClone(newSlides[index]);
-      newSlides.splice(index + 1, 0, copy);
-      return { ...prev, slides: newSlides };
-    });
-    setCurrentSlideIndex(index + 1);
-    showToast('Slide duplicated');
-  };
-
-  // Delete current slide
-  const handleDeleteSlide = (index: number) => {
-    if (carousel.slides.length <= 3) {
-      showToast('Minimum 3 slides required');
-      return;
-    }
-    setCarousel((prev) => {
-      const newSlides = prev.slides.filter((_, i) => i !== index);
-      return { ...prev, slides: newSlides };
-    });
-    setCurrentSlideIndex((prev) => Math.max(0, Math.min(prev, carousel.slides.length - 2)));
-    showToast('Slide deleted');
-  };
-
-  // Apply new generated carousel
-  const handleApplyCarousel = (newCarousel: CarouselData) => {
-    setCarousel(newCarousel);
-    setCurrentSlideIndex(0);
-
-    // If generated carousel suggests a theme matching a default palette, adopt it
-    if (newCarousel.theme && DEFAULT_PALETTES[newCarousel.theme]) {
-      setCurrentPalette(DEFAULT_PALETTES[newCarousel.theme]);
-    }
-
-    showToast(`Loaded "${newCarousel.category}" carousel (${newCarousel.slides.length} slides)`);
-  };
-
-  // Move / Reorder Slide
-  const handleMoveSlide = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= carousel.slides.length) return;
-    setCarousel((prev) => {
-      const newSlides = [...prev.slides];
-      const [moved] = newSlides.splice(fromIndex, 1);
-      newSlides.splice(toIndex, 0, moved);
-      return { ...prev, slides: newSlides };
-    });
-    setCurrentSlideIndex(toIndex);
-    showToast(`Moved Slide ${fromIndex + 1} to position ${toIndex + 1}`);
-  };
-
-  // Update Brand Wordmark and URL
-  const handleUpdateBrand = (newBrand: string, newBrandUrl?: string) => {
-    setCarousel((prev) => ({
-      ...prev,
-      brand: newBrand,
-      brandUrl: newBrandUrl !== undefined ? newBrandUrl : prev.brandUrl,
-    }));
-  };
-
-  // Run QA checks and open the QA / Checklist modal
-  const handleRunQA = (): QAReport => {
-    const report = runQAChecks(carousel);
-    setLastQAReport(report);
-    setIsQAModalOpen(true);
-    return report;
-  };
-
-  // 1-Click Download All Slides as ZIP (with QA gate)
-  const handleExportAll = async () => {
-    // Run QA checks first
-    const report = runQAChecks(carousel);
-    setLastQAReport(report);
-
-    if (!report.canExport) {
-      setIsQAModalOpen(true);
-      showToast(`Export blocked: ${report.failCount} critical issue(s) must be fixed.`);
-      return;
-    }
-
-    if (report.warnCount > 0) {
-      showToast(`${report.warnCount} warning(s) found — exporting anyway.`);
-    }
-
-    setIsExporting(true);
-    setExportProgress({ current: 0, total: carousel.slides.length });
-    try {
-      await downloadAllSlidesZip(carousel, currentPalette, (current, total) => {
-        setExportProgress({ current, total });
-      });
-      showToast('All 1080×1920 JPG slides exported into ZIP successfully!');
-    } catch (err) {
-      console.error('Export failed:', err);
-      showToast('Failed to export slides.');
-    } finally {
-      setIsExporting(false);
-      setExportProgress(null);
-    }
+    setCarousel(PRESET_CAROUSELS.scion.data);
+    localStorage.removeItem('marrok_deck_draft_v1');
+    showToast('Reset to Scion Architecture starter deck');
   };
 
   return (
     <div className="min-h-screen text-[#CDD5D9] flex flex-col font-jakarta selection:bg-white/20 transition-colors duration-300 bg-[#080d11]">
-      {/* Top Bar Header */}
+      {/* Streamlined Minimalist Header */}
       <Header
         currentPalette={currentPalette}
-        onOpenGenerator={() => setIsGeneratorOpen((prev) => !prev)}
         onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
-        onExportAll={handleExportAll}
-        onRunQA={handleRunQA}
         onOpenContactSheet={() => setIsContactSheetOpen(true)}
         onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
-        isExporting={isExporting}
-        exportProgress={exportProgress}
-        lastQAReport={lastQAReport}
         lastSavedTime={lastSavedTime}
         onResetDraft={handleResetDraft}
       />
 
-      {/* Main Studio Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Spec §4-§8 One-Input Smart Pipeline Command Center */}
-        <SmartPipelineBar
+      {/* Primary Autonomous Studio Viewport */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
+        <AutonomousStudio
+          carousel={carousel}
           theme={currentPalette}
-          onApplyCarousel={handleApplyCarousel}
+          onUpdateCarousel={setCarousel}
+          onSelectTheme={handleSelectPalette}
+          onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
+          onOpenContactSheet={() => setIsContactSheetOpen(true)}
           onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
-          currentCarousel={carousel}
           onShowToast={showToast}
         />
-
-        {/* Optional Secondary Ingestion Panel if toggled */}
-        {isGeneratorOpen && (
-          <div className="w-full animate-fade-in">
-            <MultimodalInputPanel
-              theme={currentPalette}
-              onApplyCarousel={(newCarousel) => {
-                handleApplyCarousel(newCarousel);
-                setIsGeneratorOpen(false);
-              }}
-              onClose={() => setIsGeneratorOpen(false)}
-            />
-          </div>
-        )}
-
-        {/* 2-Column Studio Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: 1080x1920 Canvas Preview (Sticky Desktop Studio Viewport) */}
-          <div id="preview" className="lg:col-span-5 flex flex-col items-center lg:sticky lg:top-20 self-start z-10">
-            <SlideCanvasPreview
-              carousel={carousel}
-              currentSlideIndex={currentSlideIndex}
-              customPalette={currentPalette}
-              onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
-              onSelectHookVariant={handleSelectHookVariant}
-              onAddSlideAt={handleAddSlideAt}
-              onShowToast={showToast}
-            />
-          </div>
-
-          {/* Right Column: TikTok Caption Box & Live Slide Editor */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* Bilingual TikTok Caption Card */}
-            <CaptionBox
-              caption={carousel.caption}
-              captionVariants={carousel.captionVariants}
-              theme={currentPalette}
-              category={carousel.category}
-              firstComment={carousel.firstComment}
-              shortCaption={carousel.shortCaption}
-              screenHook={carousel.screenHook}
-              brandUrl={carousel.brandUrl}
-              slide1={carousel.slides[0]}
-              onUpdateCaption={handleUpdateCaption}
-              onUpdateFirstComment={(c) => setCarousel((prev) => ({ ...prev, firstComment: c }))}
-              onUpdateShortCaption={(c) => setCarousel((prev) => ({ ...prev, shortCaption: c }))}
-              onUpdateScreenHook={(h) => setCarousel((prev) => ({ ...prev, screenHook: h }))}
-              onShowToast={showToast}
-            />
-
-            {/* Active Slide Editor */}
-            <SlideEditor
-              slide={carousel.slides[currentSlideIndex] || carousel.slides[0]}
-              slideIndex={currentSlideIndex}
-              totalSlides={carousel.slides.length}
-              theme={currentPalette}
-              brand={carousel.brand}
-              brandUrl={carousel.brandUrl}
-              onUpdateSlide={handleUpdateSlide}
-              onAddSlide={handleAddSlide}
-              onDuplicateSlide={handleDuplicateSlide}
-              onDeleteSlide={handleDeleteSlide}
-              onMoveSlide={handleMoveSlide}
-              onUpdateBrand={handleUpdateBrand}
-              onShowToast={showToast}
-            />
-          </div>
-        </div>
       </main>
 
       {/* Theme Customizer & Color Palette Studio Modal */}
@@ -370,38 +117,24 @@ export default function App() {
         isOpen={isApiKeyModalOpen}
         onClose={() => setIsApiKeyModalOpen(false)}
         onKeyUpdated={(key) => {
-          if (key) {
-            showToast('Custom Gemini API key active');
-          } else {
-            showToast('Using default environment key');
-          }
+          showToast(key ? 'Custom Gemini API key active' : 'Using default environment key');
         }}
         onShowToast={showToast}
       />
 
-      {/* Spec §10 Visual QA Contact Sheet Modal */}
+      {/* Full Deck Contact Sheet Modal */}
       <ContactSheetModal
         isOpen={isContactSheetOpen}
         onClose={() => setIsContactSheetOpen(false)}
         carousel={carousel}
         theme={currentPalette}
-        onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
+        onSelectSlide={(idx) => {
+          setIsContactSheetOpen(false);
+        }}
         onShowToast={showToast}
       />
 
-      {/* Spec §6, §10, §18 QA & Pre-Publish Gate Modal */}
-      <QAModal
-        isOpen={isQAModalOpen}
-        onClose={() => setIsQAModalOpen(false)}
-        carousel={carousel}
-        theme={currentPalette}
-        report={lastQAReport || runQAChecks(carousel)}
-        onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
-        onExport={handleExportAll}
-        isExporting={isExporting}
-      />
-
-      {/* Spec §4, §5, §7, §11 Plan & Fact Verification Inspector Modal */}
+      {/* Plan & Fact Verification Inspector Modal */}
       <PlanInspectorModal
         isOpen={isPlanInspectorOpen}
         onClose={() => setIsPlanInspectorOpen(false)}
@@ -411,21 +144,11 @@ export default function App() {
 
       {/* Floating Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/20 text-white text-xs font-semibold shadow-2xl flex items-center gap-2 animate-bounce">
+        <div className="fixed bottom-20 right-6 z-50 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/20 text-white text-xs font-semibold shadow-2xl flex items-center gap-2 animate-bounce">
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentPalette.accent }} />
           <span>{toastMessage}</span>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="border-t border-white/[0.08] py-6 px-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto">
-          MARROK · Multimodal TikTok Carousel Studio ·{' '}
-          <a href="https://marrok.org" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-white">
-            marrok.org
-          </a>
-        </div>
-      </footer>
     </div>
   );
 }

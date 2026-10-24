@@ -218,7 +218,7 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn('Cloud generation failed or timed out, executing resilient local synthesis:', errMsg);
+      console.log('Cloud generation route transitioned to local autonomous synthesizer:', errMsg);
 
       // Resilient fallback: Never leave user stuck on mobile "Failed to fetch"!
       try {

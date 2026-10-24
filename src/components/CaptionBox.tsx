@@ -11,6 +11,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { CaptionVariant, ThemeConfig } from '../types';
+import { sanitizeCaption } from '../lib/textSanitizer';
 
 interface CaptionBoxProps {
   caption: string;
@@ -58,13 +59,13 @@ export const CaptionBox: React.FC<CaptionBoxProps> = ({
 
   const defaultShortCaption =
     shortCaption ||
-    `${slide1?.arTitle || 'نظرة هندسية سريعة'} ⚡\n${
-      slide1?.enTitle || 'Technical breakdown'
+    `${(slide1?.arTitle || 'نظرة هندسية سريعة').replace(/\n+/g, ' ')} ⚡\n${
+      (slide1?.enTitle || 'Technical breakdown').replace(/\n+/g, ' ')
     } — Swipe through all slides 👉`;
 
   const defaultScreenHook =
     screenHook ||
-    (slide1?.enTitle ? `${slide1.enTitle.replace(/[.?!]$/, '')} in 60s` : 'Why this changes everything');
+    (slide1?.enTitle ? `${slide1.enTitle.replace(/\n+/g, ' ').replace(/[.?!:]+$/, '')} in 60s` : 'Why this changes everything');
 
   const copyToClipboard = async (text: string, key: string, label: string) => {
     try {

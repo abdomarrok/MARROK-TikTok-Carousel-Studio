@@ -39,6 +39,8 @@ export interface SlideData {
   imageCaption?: string;      // Micro-badge label for the image
   imageFit?: 'contain' | 'cover'; // Fit mode on canvas (defaults to contain)
   imageFilter?: 'hud' | 'invert' | 'tint' | 'clean'; // Theme integration filter (hud = blueprint dark blend, invert = dark mode inversion, tint = accent wash, clean = original)
+  imagePrompt?: string;       // Prompt used to generate or edit with gemini-nano-banana-2.1
+  imageModel?: string;        // Model used (e.g. gemini-nano-banana-2.1)
   // Titles & Body
   enTitle?: string;
   arTitle?: string;

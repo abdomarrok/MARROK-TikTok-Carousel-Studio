@@ -172,3 +172,44 @@ This document records the chronological development history, engineering decisio
   9. **Font Integration (`index.html`):**
      - Added `JetBrains Mono` for monospace terminal and metric typography.
 
+---
+
+## Step 12: Image Generation & Prompt-Based Editing with `gemini-nano-banana-2.1`
+- **Context & User Request:** Integrate high-fidelity server-side AI image generation and natural language image editing for software architecture diagrams and technical visuals.
+- **Engineering Solutions Implemented:**
+  1. **Image Generation API Endpoint (`api/index.ts` - `POST /api/generate-image`):**
+     - Integrated `gemini-nano-banana-2.1` via `@google/genai` TypeScript SDK with native 9:16 vertical ratio (`imageConfig: { aspectRatio: '9:16', imageSize: '1K' }`).
+     - Added multi-part input handling (`{ inlineData }` + text prompt) for prompt-based image editing and recoloring.
+     - Engineered prompt decorators for software engineering (system blueprint wireframes, dark terminal HUD matrices, distributed service topologies, and threat boundary models).
+     - Graceful fallback to `gemini-3.1-flash-lite-image` if quota or rate-limits are reached.
+  2. **Embedded Slide Visual Studio (`src/components/SlideImageStudio.tsx`):**
+     - One-click technical style presets: *System Blueprint*, *Terminal Core*, *Services Flow*, *Security Boundary*, and *Custom Prompt*.
+     - Auto-fill prompt drafted from the active slide's English headline and body copy.
+     - Aspect ratio selector (9:16, 16:9, 1:1) and live preview with direct PNG download and 1-click apply to the slide.
+  3. **Data Schema Extension (`src/types.ts`):**
+     - Extended `SlideData` with `imagePrompt?: string` and `imageModel?: string`.
+
+---
+
+## Step 13: Autonomous Engine & Radical UI/UX Simplification with Progressive Disclosure
+- **Context & User Feedback:** "this is very complicated ui the app should be smart and use the tools by its own to give fine results" followed by "thats good ui but we lost a lot of functionalities ??".
+- **Engineering Solutions Implemented:**
+  1. **End-to-End Autonomous Pipeline (`src/lib/autonomousPipeline.ts`):**
+     - Replaced manual button-clicking with a single unified orchestrator:
+       - **Synthesize:** Calls `/api/generate` or local synthesizer.
+       - **Auto-Sanitize:** Strips markdown syntax (`#`, `**`), orphan dots, and fixes Arabic BiDi character order.
+       - **Auto-Fit Limits:** Trims copy to Spec §8 character limits (Title $\le 45$, Body $\le 110$) without visual overflow.
+       - **Auto-Generate Architecture Diagram:** Calls `gemini-nano-banana-2.1` to generate a 9:16 blueprint diagram for the core mechanism slide.
+       - **Auto-Verify QA:** Silently checks QA compliance and auto-corrects.
+  2. **Minimalist Autonomous Studio (`src/components/AutonomousStudio.tsx`):**
+     - Single prominent command bar at the top with real-time pipeline status feedback.
+     - Integrated **"Ingest Material"** button opening `MultimodalInputPanel` modal for screenshots, code/PDF docs, web URLs, and raw transcripts.
+     - Center 1080×1920 slide preview with keyboard navigation (`←`/`→`), safe zones toggle, and slide thumbnail strip.
+     - Sleek **Slide Management Bar**: Add (+), Clone/Duplicate, Delete (min 3 guarded), Reorder (Move Left / Right), and Slide 1 Hook variants picker.
+     - Direct **Inline Text Editing**: click on any headline or mechanism text (English or Arabic) directly to edit in place.
+     - Expandable **Advanced Customizer Drawer**: full archetype controls (Code diff, Metric card, Compare columns, Hub satellite icons, and AI Diagram Studio / Web Media search).
+     - Floating 1-Click Delivery Bar: Export All 1080×1920 JPGs (ZIP), Copy TikTok Caption, Copy Slide to Clipboard, Download Active Slide JPG, Theme Switcher, Contact Sheet, and Plan Inspector.
+  3. **Streamlined Header (`src/components/Header.tsx`):**
+     - Focused wordmark, theme switcher, API key modal, Contact Sheet, Plan Inspector, and auto-save pill.
+
+

@@ -4,51 +4,56 @@
 
 **MARROK TikTok Carousel Studio** is an agentic multimodal content generation engine that converts complex engineering materials (technical architecture screenshots, code snippets, GitHub repositories, YouTube transcripts, and engineering post-mortems) into high-impact, bilingual (English + Arabic) 1080×1920 TikTok carousels and algorithmic captions.
 
-The system is engineered for zero-latency mobile workflows, high availability during upstream AI service spikes, and strict adherence to the proprietary **MARROK 7-Archetype Visual System**.
+The system is engineered for zero-latency mobile workflows, high availability during upstream AI service spikes, autonomous 1-input generation with silent QA auto-fixing, server-side 9:16 AI architecture diagram generation (`gemini-nano-banana-2.1`), and strict adherence to the proprietary **MARROK 8-Archetype Visual System**.
 
 ```
                            ┌──────────────────────────────────────────┐
                            │            Multimodal Input              │
-                           │  - High-res Screenshots (Code/Arch)      │
-                           │  - Transcripts / GitHub / Technical Text │
+                           │  - Single Prompt / Plain Text Summary    │
+                           │  - Screenshots (Code / Arch Diagrams)    │
+                           │  - Transcripts / GitHub / RFC Text       │
                            └────────────────────┬─────────────────────┘
                                                 │
                                                 ▼
                            ┌──────────────────────────────────────────┐
-                           │      Client-Side Ingestion Pipeline      │
+                           │      Client Ingestion & Auto-Pipeline    │
                            │  - Canvas Downscaler (1280px / ~120KB)   │
-                           │  - MIME normalization & Base64 packing   │
-                           │  - 10s Mobile Timeout Watchdog           │
+                           │  - autonomousPipeline.ts Orchestrator    │
+                           │  - Markdown strip + BiDi fix + §8 fit    │
                            └────────────────────┬─────────────────────┘
                                                 │
                                                 ▼
                            ┌──────────────────────────────────────────┐
                            │         Express Node.js Gateway          │
                            │  - POST /api/generate (Gemini / Synth)   │
+                           │  - POST /api/generate-image (Nano Banana)│
                            │  - GET  /api/proxy-image (CORS & Color)  │
                            │  - GET  /api/search-media (Tech & Wiki)  │
                            └────────┬────────────────────────┬────────┘
                                     │                        │
                    (Cloud Path)     │                        │ (Offline/Fast-break)
-                                    ▼                        ▼
-    ┌────────────────────────────────────────┐   ┌────────────────────────────────┐
-    │          Google GenAI Engine           │   │   MARROK Synthesizer Engine    │
-    │  - gemini-3.1-flash-lite / flash-latest│   │  - Dynamic 5–9 slide density   │
-    │  - Strict 6000ms Promise.race timeout  │   │  - Subject-aware icon curation │
-    │  - 503 / UNAVAILABLE instant break     │   │  - 0ms zero-latency fallback   │
-    └───────────────────┬────────────────────┘   └────────────────┬───────────────┘
-                        │                                         │
-                        └───────────────────┬─────────────────────┘
-                                            │ (Valid CarouselData JSON)
-                                            ▼
+                   ┌────────────────┴───────┐                │
+                   ▼                        ▼                ▼
+    ┌─────────────────────────────┐ ┌───────────────────┐ ┌───────────────────────────┐
+    │     Google GenAI Text       │ │ Google GenAI Img  │ │ MARROK Synthesizer Engine │
+    │ - gemini-3.1-flash-lite     │ │ - gemini-nano-    │ │ - Dynamic 5–9 slide density│
+    │ - gemini-flash-latest       │ │   banana-2.1      │ │ - Subject-aware icons     │
+    │ - 6000ms race timeout       │ │ - 9:16 1K diagrams│ │ - 0ms zero-latency break  │
+    └──────────────┬──────────────┘ └─────────┬─────────┘ └─────────────┬─────────────┘
+                   │                          │                         │
+                   └──────────────────────────┼─────────────────────────┘
+                                              │
+                                              ▼
                            ┌──────────────────────────────────────────┐
-                           │        React 19 Interactive Studio       │
-                           │  - 1080×1920 9:16 Live Canvas Renderer   │
-                           │  - 7 Archetypes (Hub, Row, Metric, Code, │
-                           │    Compare, Image Visual, Final CTA)     │
-                           │  - Web Media & Brand Logo Modal Picker   │
-                           │  - Theme Harmonization & Tinting Engine  │
-                           │  - One-tap Mobile Clipboard & ZIP Export │
+                           │       Autonomous Studio (React 19)       │
+                           │  - 1-Command Bar with Live Progress      │
+                           │  - 1080×1920 Canvas with Inline Editing  │
+                           │  - Slide Bar (Add, Dup, Delete, Reorder) │
+                           │  - Progressive Disclosure Drawer:        │
+                           │    * Code Diffs & Terminal Styling       │
+                           │    * Metric Hero Cards & Comparisons     │
+                           │    * AI Diagram Studio & Web Logos       │
+                           │  - 1-Click Deliverables (ZIP, PNG, Copy) │
                            └──────────────────────────────────────────┘
 ```
 
@@ -98,8 +103,40 @@ The system is engineered for zero-latency mobile workflows, high availability du
   - Batch ZIP packaging via `JSZip` containing numbered PNG slides.
   - Direct 1-click clipboard copy (`navigator.clipboard.write`) for instant mobile posting.
 
+### 2.7 Autonomous Content Pipeline (`src/lib/autonomousPipeline.ts`)
+- **Single-Click Orchestration:** Executes a multi-stage autonomous pipeline transforming raw prompt text or uploaded multimodal files into a finished, publication-ready carousel deck without requiring manual user intervention:
+  1. **Content Synthesis:** Coordinates calls to `/api/generate` with zero-latency deterministic fallback via `src/lib/synthesizer.ts`.
+  2. **Automated Markdown Sanitization:** Strips markdown bolding (`**`), headers (`#`), stray brackets, and trailing ellipsis dots that cause visual clutter in high-density TikTok slides.
+  3. **Arabic BiDi Punctuation Linting:** Automatically detects Latin technical tokens inside right-to-left Arabic phrases and corrects sentence-ending punctuation positions to prevent punctuation-jump artifacts.
+  4. **Spec §8 Limit Enforcement:** Guarantees title copy remains $\le 45$ characters and body copy $\le 110$ characters with natural linguistic truncation.
+  5. **Autonomous Diagram Generation:** Identifies the primary architectural mechanism slide (e.g. `compare`, `image`, or deep technical `row`) and invokes the server-side image generation engine to produce a tailored 9:16 architecture schematic.
+  6. **Silent QA Verification:** Runs pre-publish quality gates (`src/lib/qaChecks.ts`) and auto-corrects soft violations.
+
+### 2.8 AI Diagram Generation & Editing Subsystem (`POST /api/generate-image`)
+- **Model Orchestration:** Integrates `gemini-nano-banana-2.1` via `@google/genai` TypeScript SDK (with automatic fallback to `gemini-3.1-flash-lite-image`).
+- **Aspect Ratio & Geometry:** Enforces `imageConfig: { aspectRatio: '9:16', imageSize: '1K' }` to generate high-resolution vertical visuals that align seamlessly with TikTok viewport dimensions.
+- **Multimodal Edit Support:** Supports multi-part prompts accepting a previous base image alongside natural language edit directives (e.g. "Highlight the distributed cache in amber", "Invert background to dark blueprint").
+- **Engineering Visual Presets:** Supplies domain-tuned prompt wrappers:
+  - *System Blueprint*: Minimalist blueprint schematic with dark terminal background and neon cyan signal pathways.
+  - *Terminal Core*: Deep CLI monospace display with live telemetry and data stream traces.
+  - *Services Flow*: Microservice boundary chart with API gateways and event queues.
+  - *Security Boundary*: Zero-trust threat vector map with isolated firewall zones.
+
+### 2.9 Autonomous Studio & Progressive Disclosure UI (`src/components/AutonomousStudio.tsx`)
+- **Philosophy:** Clean, distraction-free simplicity by default; deep granular control when requested.
+- **Top Command Bar:** Single input field with real-time autonomous progress feedback and integrated "Ingest Material" modal button for uploading screenshots, code files, or web URLs.
+- **Direct Inline Editing:** Allows creators to click directly on English headlines, Arabic translations, and body mechanism copy in the live preview to edit text instantly without navigating complex forms.
+- **Slide Management Bar:** Integrated strip offering quick actions: Add Slide (`+`), Duplicate Slide, Delete Slide (guarded to maintain minimum 3 slides), Reorder (Move Left / Right), and Slide 1 Hook Variant selector (Curiosity, Metric, Contrast).
+- **Expandable Advanced Drawer:** A collapsible power drawer providing deep configuration for slide archetypes:
+  - *Code & Diff Styling*: Language selector, terminal dot styling, line numbers, and diff token formatting.
+  - *Metric Hero Cards*: Value, category label, delta pill, and status badges.
+  - *Comparison Split*: Left vs Right entity titles, bullet points, and advantage pills.
+  - *Visual Diagram Studio*: AI prompt generation, style presets, 1-click diagram creation, and Web Media logo search.
+- **Floating 1-Click Deliverables Dock:** Bottom action bar for immediate batch ZIP download, single-slide PNG export, TikTok caption copying, and Theme switching.
+
 ---
 
 ## 3. Scope Isolation: Site Chrome vs. Carousel Canvas
 - **Studio Chrome:** Maintains a clean, stable dark workspace aesthetic (`#080d11`) with reduced visual noise, collapsible ingestion controls, and uncluttered toolbars.
 - **Carousel Canvas:** Exclusively reacts to the active post theme (e.g., *Solarized Amber*, *Cyber Threat Crimson*, *Electric AI Violet*, *Terminal Teal*). Theme switching transforms the slide visuals without altering the application chrome.
+

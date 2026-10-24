@@ -21,24 +21,34 @@
 
 ## ⚡ Highlights & Key Capabilities
 
-### 🎛️ Linear-Grade Studio UI/UX & Workflow
-Engineered for rapid, precision creation of high-performing technical carousels:
-- **TikTok In-App HUD Simulator:** 1:1 mobile feed safe-zone overlay simulator displaying TikTok's action rail (avatar, like count, comments, bookmarks, share), sound disc, caption ticker, and the critical $y=1760$ baseline boundary. Toggle on/off instantly via button or shortcut **`T`**.
-- **Sticky Dual-Column Viewport:** The 1080×1920 canvas preview stays pinned (`lg:sticky lg:top-20 self-start`) as you scroll through detailed controls, guaranteeing continuous real-time visual feedback.
-- **Bilingual Side-by-Side Editor:** One-click **Split** vs **Stack** view toggle. Edit English headlines and Arabic copy side-by-side in balanced columns.
-- **Dynamic Character Limit Progress Bars:** Color-coded micro-progress bars (emerald $\le 75\%$, amber $75\text{--}100\%$, pulsating rose $>100\%$) ensure headlines ($\le 45$ chars) and body text ($\le 110$ chars) strictly comply with Spec §8 without guesswork.
-- **Interactive Filmstrip & In-Between Inserters:** Slide thumbnails tagged with archetype badges (`HUB`, `CLI`, `VS`, `MTR`, `ROW`, `CTA`) with hover **`+`** buttons between any two slides to insert new slides anywhere in the narrative arc.
-- **Desktop Keyboard Shortcuts:** Navigate with **`←` / `→`**, jump directly to any slide with **`1`--`9`**, and toggle the TikTok overlay with **`T`**.
-- **Local Draft Persistence:** Debounced auto-save to `localStorage` with a subtle **`✓ Saved [Time]`** status pill and 1-click template reset in the header.
+### 🧠 Autonomous Creation Engine (`src/lib/autonomousPipeline.ts`)
+Creators provide a single input (topic prompt, engineering summary, architecture screenshot, or code diff). The engine autonomously executes a complete end-to-end refinement pipeline:
+- **Intelligent Synthesis:** Calls `/api/generate` with zero-latency deterministic fallback (`synthesizer.ts`).
+- **Markdown & Syntax Stripping:** Eliminates noisy bolding markers (`**`), header symbols (`#`), and stray ellipsis dots that clutter high-impact mobile slides.
+- **Arabic BiDi Punctuation Linting:** Automatically detects Latin words in Arabic lines and places punctuation on the correct side, eliminating punctuation jump artifacts.
+- **Spec §8 Limit Fitting:** Autonomously guarantees headlines stay $\le 45$ characters and body text stays $\le 110$ characters.
+- **Auto Architecture Diagram Generation:** Detects technical mechanism slides and generates vertical 9:16 schematics automatically.
+- **Silent QA Verification:** Runs pre-publish quality checks (`qaChecks.ts`) and auto-corrects soft violations before display.
 
-### 🚀 1-Input Smart Pipeline Command Center (Spec §4–§8)
-Creators provide a single input (plain text summary, URL, code snippet, or screenshot). The engine executes an intelligent 6-stage autonomous workflow:
-1. **Material Ingestion:** Downsamples camera uploads, extracts core entities and technical takeaways.
-2. **Domain & Persona Detection:** Identifies the technical category (e.g. *Linux Kernel & eBPF*, *AI Agents*, *Distributed Consensus*) and assigns the optimal color theme.
-3. **Narrative Arc Planning:** Maps slides to the 8-beat viral technical arc (Hook $\to$ The Stakes $\to$ VS Split $\to$ Code Diff $\to$ Step $\to$ The Catch $\to$ SRE Rule $\to$ CTA).
-4. **Hook & Multi-Variant Generation:** Generates 3 psychological Slide 1 hook angles (Curiosity, Hard Metrics, Problem/Contrast) and bilingual caption variants.
-5. **Fact & Claim Verification:** Checks technical credibility, isolates key numbers, and links claims to verifiable source entities (inspectable via the **Plan Inspector**).
-6. **Safe Zone Canvas Rendering:** Formats slides into 1080×1920 (9:16) JPGs guaranteed to render clearly on mobile screens.
+### 🖼️ AI Architecture Diagram Studio (`gemini-nano-banana-2.1`)
+- **Native 9:16 Vertical Diagrams:** Powered by `POST /api/generate-image` utilizing `gemini-nano-banana-2.1` with `{ aspectRatio: '9:16', imageSize: '1K' }` to generate high-resolution vertical visuals that match TikTok feed geometry.
+- **Engineering Style Presets:** 1-click generation presets tailored for developers:
+  - *System Blueprint:* Dark cyan circuit schematics and topology paths.
+  - *Terminal Core:* Monospace CLI telemetry matrix with memory buffer traces.
+  - *Services Flow:* Distributed microservice boundaries and API queues.
+  - *Security Boundary:* Zero-trust firewall perimeters and threat vectors.
+- **Prompt-Based Image Editing:** Pass an existing slide diagram with natural language revision directives (e.g. "Highlight the distributed cache in amber", "Invert background to dark blueprint").
+
+### 🎛️ Minimalist Studio with Progressive Disclosure (`AutonomousStudio.tsx`)
+- **Single-Bar Command Center:** Top prompt bar with live progress stages and an integrated **"Ingest Material"** modal button for screenshots, code files, and web links.
+- **Direct Inline Text Editing:** Click directly on English headlines, Arabic text, or body mechanism copy in the live preview to edit instantly without clumsy forms.
+- **Sleek Slide Management Bar:** Rapid Add (`+`), Duplicate, Delete (safely guarded $\ge 3$ slides), Reorder (Move Left / Right), and Slide 1 Hook Variant selector (Curiosity, Metric, Contrast).
+- **Expandable Advanced Customizer Drawer:** Power features are cleanly tucked into a collapsible side drawer:
+  - *Code Archetype:* Language selector, terminal dot styles, line numbers, and diff syntax (`+`, `-`, `$`).
+  - *Metric Archetype:* Giant contrast value, category label, and delta pill.
+  - *Compare Archetype:* Legacy vs Modern bullet points and advantage tags.
+  - *AI Diagram Studio & Web Logos:* Real-time prompt generation, style presets, and 40+ developer brand SVGs (Docker, Redis, K8s, Linux).
+- **Sticky 1080×1920 Preview with HUD Simulator:** Pinned 9:16 canvas preview with 1-click TikTok In-App Safe Zone HUD overlay simulator (toggle with key **`T`**).
 
 ### 🎨 The MARROK 8-Archetype Visual System
 1. **The Hook (`hub`):** Central pulsing hub icon connected to 6 orbiting satellites via radial vectors.
@@ -60,7 +70,7 @@ Creators provide a single input (plain text summary, URL, code snippet, or scree
 - `README.txt` (Creator publishing guide with step-by-step mobile upload instructions)
 
 ### 🛡️ Pre-Publish QA Gate & Visual Contact Sheet
-- **Automated QA Linter (`src/lib/qaChecks.ts`):** Checks headline character limits, body length, placeholder tokens (`Lorem ipsum`, `00%`), and Arabic punctuation jump bugs (where an Arabic line ending with a Latin word causes punctuation to jump to the wrong side).
+- **Automated QA Linter (`src/lib/qaChecks.ts`):** Checks headline character limits, body length, placeholder tokens (`Lorem ipsum`, `00%`), and Arabic punctuation jump bugs.
 - **Contact Sheet Generator:** Renders all deck slides tiled in a high-resolution master grid for instant visual inspection before posting.
 
 ---

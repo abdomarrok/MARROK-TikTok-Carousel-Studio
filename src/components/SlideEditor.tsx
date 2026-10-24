@@ -24,9 +24,14 @@ import {
   Languages,
   Columns,
   Rows,
+  ChevronDown,
+  ChevronUp,
+  Sliders,
 } from 'lucide-react';
 import { MediaSearchModal } from './MediaSearchModal';
+import { SlideImageStudio } from './SlideImageStudio';
 import { CHAR_LIMITS, hasArabicPunctuationJump } from '../lib/qaChecks';
+import { sanitizeSlide } from '../lib/textSanitizer';
 import {
   detectBestArchetype,
   detectRelevantIcons,
@@ -119,6 +124,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     initialQuery?: string;
   } | null>(null);
   const [layoutMode, setLayoutMode] = useState<'side-by-side' | 'stacked'>('side-by-side');
+  const [showAiImageStudio, setShowAiImageStudio] = useState(false);
+  const [isAdvancedToolsOpen, setIsAdvancedToolsOpen] = useState(false);
+
+  const handleApplyGeneratedImage = (imageUrl: string, prompt?: string, model?: string) => {
+    onUpdateSlide({
+      ...slide,
+      type: 'image',
+      imageUrl,
+      imagePrompt: prompt,
+      imageModel: model,
+    });
+    setShowAiImageStudio(false);
+    onShowToast?.('Applied AI generated visual to slide');
+  };
 
   const handleFieldChange = <K extends keyof SlideData>(field: K, value: SlideData[K]) => {
     onUpdateSlide({
@@ -263,6 +282,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       arBody,
     });
     if (onShowToast) onShowToast('Fixed Arabic punctuation jump bug');
+  };
+
+  const handleSanitizeSlideText = () => {
+    const cleaned = sanitizeSlide(slide);
+    onUpdateSlide(cleaned);
+    if (onShowToast) onShowToast('Sanitized markdown, orphan dots & BiDi characters!');
   };
 
   // Custom Icon File Upload Handler
@@ -903,21 +928,48 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
               <span>Subject Visual / Architecture Diagram Settings</span>
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                setMediaModalTarget({
-                  field: 'imageUrl',
-                  title: 'Search Diagram or Web Visual for Subject',
-                  initialQuery: slide.enTitle?.slice(0, 30) || '',
-                })
-              }
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/25 text-xs font-semibold cursor-pointer transition-colors"
-            >
-              <Globe className="w-3 h-3" />
-              <span>Search Web Media</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAiImageStudio(!showAiImageStudio)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                  showAiImageStudio
+                    ? 'bg-purple-500/25 border-purple-500/50 text-purple-200'
+                    : 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border-purple-500/40 text-purple-200 hover:border-purple-500/60 shadow-sm'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>{showAiImageStudio ? 'Hide AI Studio' : 'AI Diagram Studio'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setMediaModalTarget({
+                    field: 'imageUrl',
+                    title: 'Search Diagram or Web Visual for Subject',
+                    initialQuery: slide.enTitle?.slice(0, 30) || '',
+                  })
+                }
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/25 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                <Globe className="w-3 h-3" />
+                <span>Search Web Media</span>
+              </button>
+            </div>
           </div>
+
+          {/* Embedded AI Diagram Studio */}
+          {(showAiImageStudio || !slide.imageUrl) && (
+            <div className="pt-1">
+              <SlideImageStudio
+                slide={slide}
+                theme={theme}
+                onApplyImage={handleApplyGeneratedImage}
+                onClose={() => setShowAiImageStudio(false)}
+                onShowToast={onShowToast}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div className="sm:col-span-2">
@@ -1060,61 +1112,59 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         </div>
       )}
 
-      {/* Smart Content Assistant Toolbar & Layout Mode Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-black/30 border border-white/[0.08]">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
-          <Wand2 className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-          <span>Smart Text Assistant</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleAutoPolishHeadline}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 hover:text-white transition-colors cursor-pointer"
-            title="Format headline into 2-5 crisp words ending in a period per Spec §8"
-          >
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>Polish Headline</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleAutoFitLimits}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 hover:text-white transition-colors cursor-pointer"
-            title="Trim copy to satisfy Spec §8 character limits (Title ≤ 45, Body ≤ 110)"
-          >
-            <Zap className="w-3 h-3 text-cyan-400" />
-            <span>Fit Spec Limits</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleBilingualTranslate}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 hover:text-white transition-colors cursor-pointer"
-            title="Suggest high-credibility technical Arabic copy"
-          >
-            <Languages className="w-3 h-3 text-purple-400" />
-            <span>Suggest Arabic</span>
-          </button>
-
-          {hasArabicJump && (
+      {/* Smart Content Assistant Toolbar with Progressive Disclosure */}
+      <div className="rounded-xl bg-black/30 border border-white/[0.08] overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2 px-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleFixArabicPunctuation}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 text-[11px] font-bold transition-colors cursor-pointer animate-pulse"
-              title="Fix punctuation jump bug at end of Arabic line"
+              onClick={() => setIsAdvancedToolsOpen(!isAdvancedToolsOpen)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                isAdvancedToolsOpen
+                  ? 'bg-white/15 border-white/30 text-white shadow-sm'
+                  : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08]'
+              }`}
+              title="Toggle Advanced Text Assistant & Generative Tools"
+            >
+              <Wand2 className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+              <span>Advanced Tools</span>
+              {isAdvancedToolsOpen ? (
+                <ChevronUp className="w-3 h-3 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              )}
+            </button>
+
+            {/* Quick Text Sanitize button */}
+            <button
+              type="button"
+              onClick={handleSanitizeSlideText}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[11px] text-emerald-300 font-semibold transition-colors cursor-pointer"
+              title="Clean markdown (#), orphan dots (.), and fix BiDi character order (.GB)"
             >
               <Check className="w-3 h-3" />
-              <span>Fix Arabic Punctuation</span>
+              <span>Clean Text</span>
             </button>
-          )}
+
+            {hasArabicJump && (
+              <button
+                type="button"
+                onClick={handleFixArabicPunctuation}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 text-[11px] font-bold transition-colors cursor-pointer animate-pulse"
+                title="Fix punctuation jump bug at end of Arabic line"
+              >
+                <AlertTriangle className="w-3 h-3" />
+                <span>Fix Arabic Jump</span>
+              </button>
+            )}
+          </div>
 
           {/* Bilingual Layout Mode Switcher (Side-by-Side Split vs Stacked) */}
-          <div className="flex items-center bg-black/50 p-0.5 rounded-lg border border-white/10 ml-1">
+          <div className="flex items-center bg-black/50 p-0.5 rounded-lg border border-white/10">
             <button
               type="button"
               onClick={() => setLayoutMode('side-by-side')}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
                 layoutMode === 'side-by-side'
                   ? 'bg-white/20 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
@@ -1127,7 +1177,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             <button
               type="button"
               onClick={() => setLayoutMode('stacked')}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
                 layoutMode === 'stacked'
                   ? 'bg-white/20 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
@@ -1139,6 +1189,122 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Progressive Disclosure: Advanced Tools Drawer */}
+        {isAdvancedToolsOpen && (
+          <div className="p-3 border-t border-white/[0.08] bg-black/50 space-y-3 animate-fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Group 1: Typography & Polish */}
+              <div className="p-2.5 rounded-lg border border-white/5 bg-white/[0.02] space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Copy & Headlines
+                </span>
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={handleAutoPolishHeadline}
+                    className="w-full flex items-center justify-between p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-xs text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>Polish Headline</span>
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono">2-5 words</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAutoFitLimits}
+                    className="w-full flex items-center justify-between p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-xs text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Zap className="w-3 h-3 text-cyan-400" />
+                      <span>Fit Spec Limits</span>
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono">Trim</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Group 2: Arabic Localization */}
+              <div className="p-2.5 rounded-lg border border-white/5 bg-white/[0.02] space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Localization (Arabic)
+                </span>
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={handleBilingualTranslate}
+                    className="w-full flex items-center justify-between p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-xs text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Languages className="w-3 h-3 text-purple-400" />
+                      <span>Suggest Arabic</span>
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono">AI</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleFixArabicPunctuation}
+                    className="w-full flex items-center justify-between p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-xs text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span>Fix RTL Punctuation</span>
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono">BiDi</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Group 3: Visuals & Diagrams */}
+              <div className="p-2.5 rounded-lg border border-white/5 bg-white/[0.02] space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Diagrams & Media
+                </span>
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (slide.type !== 'image') {
+                        onUpdateSlide({
+                          ...slide,
+                          type: 'image',
+                        });
+                      }
+                      setShowAiImageStudio(true);
+                      setIsAdvancedToolsOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between p-1.5 rounded-md bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-xs text-purple-200 transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-purple-400" />
+                      <span>AI Diagram Studio</span>
+                    </span>
+                    <span className="text-[9px] text-purple-300 font-mono">9:16</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMediaModalTarget({
+                        field: 'imageUrl',
+                        title: 'Search Diagram or Web Visual for Subject',
+                        initialQuery: slide.enTitle?.slice(0, 30) || '',
+                      });
+                      setIsAdvancedToolsOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-xs text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Globe className="w-3 h-3 text-cyan-400" />
+                      <span>Search Web Media</span>
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-mono">Web</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Headlines & Body Copy for non-CTA slides */}

@@ -1,0 +1,1033 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Sparkles,
+  ArrowRight,
+  RefreshCw,
+  Download,
+  Copy,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Palette,
+  Eye,
+  Layers,
+  Wand2,
+  FileCheck2,
+  Cpu,
+  Shield,
+  Code2,
+  Globe,
+  Sliders,
+  Upload,
+  Plus,
+  Trash2,
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown,
+  Code,
+  Gauge,
+  Columns,
+  Grid,
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronUp,
+  X,
+} from 'lucide-react';
+import { CarouselData, SlideData, SlideType, ThemePalette, HookVariant } from '../types';
+import { PRESET_CAROUSELS } from '../lib/presets';
+import { renderSlideToCanvas, downloadAllSlidesZip, downloadSingleSlidePng, copySlideToClipboard } from '../lib/canvasExporter';
+import { runAutonomousPipeline } from '../lib/autonomousPipeline';
+import { sanitizeSlide } from '../lib/textSanitizer';
+import { MultimodalInputPanel } from './MultimodalInputPanel';
+import { SlideImageStudio } from './SlideImageStudio';
+import { MediaSearchModal } from './MediaSearchModal';
+import { ICONS_REGISTRY } from '../lib/icons';
+
+interface AutonomousStudioProps {
+  carousel: CarouselData;
+  theme: ThemePalette;
+  onUpdateCarousel: (updated: CarouselData) => void;
+  onSelectTheme: (palette: ThemePalette) => void;
+  onOpenThemeCustomizer: () => void;
+  onOpenContactSheet?: () => void;
+  onOpenPlanInspector?: () => void;
+  onShowToast: (msg: string) => void;
+}
+
+const STARTER_PRESETS = [
+  { id: 'scion', name: 'Scion Architecture', desc: 'Microkernel isolation & zero-trust service dispatch' },
+  { id: 'valtown', name: 'Val Town MicroVMs', desc: 'Serverless TypeScript execution in secure isolates' },
+  { id: 'zerotrust', name: 'Zero-Trust Mesh', desc: 'mTLS egress perimeters & least-privilege tokens' },
+  { id: 'sqlite', name: 'Client SQLite & Wasm', desc: 'OPFS filesystem & browser database caching' },
+];
+
+const ARCHETYPES: { id: SlideType; label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }> }[] = [
+  { id: 'hub', label: 'Hub', icon: Cpu },
+  { id: 'row', label: 'Mechanism', icon: Layers },
+  { id: 'image', label: 'Diagram / AI', icon: ImageIcon },
+  { id: 'code', label: 'Code Diff', icon: Code },
+  { id: 'metric', label: 'Metric', icon: Gauge },
+  { id: 'compare', label: 'Compare', icon: Columns },
+  { id: 'cta', label: 'CTA', icon: ArrowRight },
+];
+
+export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
+  carousel,
+  theme,
+  onUpdateCarousel,
+  onSelectTheme,
+  onOpenThemeCustomizer,
+  onOpenContactSheet,
+  onOpenPlanInspector,
+  onShowToast,
+}) => {
+  const [promptInput, setPromptInput] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [pipelineStatus, setPipelineStatus] = useState<string | null>(null);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [showSafeZones, setShowSafeZones] = useState(false);
+  const [copiedType, setCopiedType] = useState<'caption' | 'slide' | null>(null);
+  const [isExportingZip, setIsExportingZip] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Deep Customization States
+  const [isIngestModalOpen, setIsIngestModalOpen] = useState(false);
+  const [isAdvancedCustomizerOpen, setIsAdvancedCustomizerOpen] = useState(false);
+  const [showAiImageStudio, setShowAiImageStudio] = useState(false);
+  const [mediaModalTarget, setMediaModalTarget] = useState<{
+    field: 'imageUrl';
+    title?: string;
+    initialQuery?: string;
+  } | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Auto-render current slide on canvas whenever slide data, index, or theme changes
+  useEffect(() => {
+    let isMounted = true;
+    async function updateCanvas() {
+      if (canvasRef.current && carousel.slides[currentSlideIndex]) {
+        try {
+          await renderSlideToCanvas(carousel, currentSlideIndex, canvasRef.current, theme);
+        } catch (err) {
+          console.error('Canvas render error:', err);
+        }
+      }
+    }
+    updateCanvas();
+    return () => {
+      isMounted = false;
+    };
+  }, [carousel, currentSlideIndex, theme]);
+
+  // Keyboard navigation (Left / Right arrows)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        setCurrentSlideIndex((prev) => Math.max(0, prev - 1));
+      } else if (e.key === 'ArrowRight') {
+        setCurrentSlideIndex((prev) => Math.min(carousel.slides.length - 1, prev + 1));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [carousel.slides.length]);
+
+  // Autonomous Generation Handler
+  const handleRunAutonomousPipeline = async (inputPrompt?: string) => {
+    const query = (inputPrompt || promptInput).trim();
+    if (!query) {
+      onShowToast('Please enter a topic, URL, or code notes');
+      return;
+    }
+
+    setIsGenerating(true);
+    setPipelineStatus('Synthesizing architecture story...');
+
+    try {
+      const generated = await runAutonomousPipeline(query, {
+        theme,
+        generateDiagram: true,
+        onProgress: (status) => setPipelineStatus(status),
+      });
+
+      onUpdateCarousel(generated);
+      setCurrentSlideIndex(0);
+      onShowToast('✨ Autonomously generated and perfected 8-slide carousel!');
+    } catch (err) {
+      console.error('Autonomous pipeline error:', err);
+      onShowToast('Pipeline error — loaded resilient backup template.');
+    } finally {
+      setIsGenerating(false);
+      setPipelineStatus(null);
+    }
+  };
+
+  // Instant starter preset loader
+  const handleLoadPreset = (key: string) => {
+    const preset = PRESET_CAROUSELS[key as keyof typeof PRESET_CAROUSELS];
+    if (preset?.data) {
+      onUpdateCarousel(preset.data);
+      setCurrentSlideIndex(0);
+      onShowToast(`Loaded "${preset.name}" deck`);
+    }
+  };
+
+  // Inline Slide Data Updater
+  const handleUpdateCurrentSlide = (field: keyof SlideData, value: any) => {
+    const newSlides = [...carousel.slides];
+    const updated = sanitizeSlide({
+      ...newSlides[currentSlideIndex],
+      [field]: value,
+    });
+    newSlides[currentSlideIndex] = updated;
+    onUpdateCarousel({
+      ...carousel,
+      slides: newSlides,
+    });
+  };
+
+  // Slide Management Handlers
+  const handleAddSlide = () => {
+    const newSlide: SlideData = {
+      type: 'row',
+      icons: [{ icon: 'cpu', label: 'Mechanism' }],
+      enTitle: 'Core technical mechanism.',
+      arTitle: 'آلية العمل التقنية.',
+      enBody: 'Direct architectural explanation of how the system executes under the hood.',
+      arBody: 'شرح معماري مباشر لكيفية عمل النظام في الخلفية.',
+    };
+    const newSlides = [...carousel.slides];
+    newSlides.splice(currentSlideIndex + 1, 0, newSlide);
+    onUpdateCarousel({ ...carousel, slides: newSlides });
+    setCurrentSlideIndex(currentSlideIndex + 1);
+    onShowToast(`Added slide #${currentSlideIndex + 2}`);
+  };
+
+  const handleDuplicateSlide = () => {
+    const current = carousel.slides[currentSlideIndex];
+    if (!current) return;
+    const clone = JSON.parse(JSON.stringify(current));
+    const newSlides = [...carousel.slides];
+    newSlides.splice(currentSlideIndex + 1, 0, clone);
+    onUpdateCarousel({ ...carousel, slides: newSlides });
+    setCurrentSlideIndex(currentSlideIndex + 1);
+    onShowToast(`Duplicated slide #${currentSlideIndex + 1}`);
+  };
+
+  const handleDeleteSlide = () => {
+    if (carousel.slides.length <= 3) {
+      onShowToast('Minimum 3 slides required in carousel');
+      return;
+    }
+    const newSlides = carousel.slides.filter((_, idx) => idx !== currentSlideIndex);
+    onUpdateCarousel({ ...carousel, slides: newSlides });
+    setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1));
+    onShowToast(`Deleted slide #${currentSlideIndex + 1}`);
+  };
+
+  const handleMoveSlide = (direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? currentSlideIndex - 1 : currentSlideIndex + 1;
+    if (targetIndex < 0 || targetIndex >= carousel.slides.length) return;
+    const newSlides = [...carousel.slides];
+    const [removed] = newSlides.splice(currentSlideIndex, 1);
+    newSlides.splice(targetIndex, 0, removed);
+    onUpdateCarousel({ ...carousel, slides: newSlides });
+    setCurrentSlideIndex(targetIndex);
+    onShowToast(`Moved slide to position #${targetIndex + 1}`);
+  };
+
+  const handleApplyHookVariant = (variant: HookVariant) => {
+    const newSlides = [...carousel.slides];
+    newSlides[0] = {
+      ...newSlides[0],
+      enTitle: variant.enTitle,
+      arTitle: variant.arTitle,
+      enBody: variant.enBody,
+      arBody: variant.arBody,
+      centerIcon: variant.centerIcon || newSlides[0].centerIcon,
+    };
+    onUpdateCarousel({ ...carousel, slides: newSlides });
+    onShowToast(`Applied "${variant.tag}" Hook to Slide 1`);
+  };
+
+  // 1-Click Export ZIP
+  const handleExportZip = async () => {
+    setIsExportingZip(true);
+    setExportProgress({ current: 0, total: carousel.slides.length });
+    try {
+      await downloadAllSlidesZip(carousel, theme, (current, total) => {
+        setExportProgress({ current, total });
+      });
+      onShowToast('All 1080×1920 JPG slides exported into ZIP successfully!');
+    } catch (err) {
+      console.error('ZIP export failed:', err);
+      onShowToast('Failed to export ZIP file.');
+    } finally {
+      setIsExportingZip(false);
+      setExportProgress(null);
+    }
+  };
+
+  // Copy Single Slide
+  const handleCopySlide = async () => {
+    try {
+      await copySlideToClipboard(carousel, currentSlideIndex, theme);
+      setCopiedType('slide');
+      onShowToast(`Copied Slide ${currentSlideIndex + 1} to clipboard!`);
+      setTimeout(() => setCopiedType(null), 2000);
+    } catch {
+      onShowToast('Failed to copy slide.');
+    }
+  };
+
+  // Copy TikTok Caption
+  const handleCopyCaption = async () => {
+    const text = `${carousel.caption || ''}\n\n#SoftwareArchitecture #TechTok #Programming #SystemDesign`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedType('caption');
+      onShowToast('Copied TikTok caption and hashtags to clipboard!');
+      setTimeout(() => setCopiedType(null), 2000);
+    } catch {
+      onShowToast('Failed to copy caption.');
+    }
+  };
+
+  const currentSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in">
+      {/* 1. Autonomous Command Bar with Integrated Ingest Button */}
+      <div className="bg-black/50 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl relative overflow-hidden backdrop-blur-md">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-2.5 h-2.5 rounded-full animate-pulse"
+                style={{ backgroundColor: theme.accent, boxShadow: `0 0 10px ${theme.accent}` }}
+              />
+              <span className="text-xs font-bold text-white font-jakarta uppercase tracking-wider">
+                Autonomous Content Engine
+              </span>
+            </div>
+            {pipelineStatus && (
+              <div className="flex items-center gap-2 text-xs font-mono" style={{ color: theme.accent }}>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>{pipelineStatus}</span>
+              </div>
+            )}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleRunAutonomousPipeline();
+            }}
+            className="flex flex-col sm:flex-row gap-2.5"
+          >
+            <div className="relative flex-1 flex items-center gap-2">
+              <input
+                type="text"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                placeholder="What are you explaining? (e.g. Distributed Consensus in Raft, SQLite in Wasm)..."
+                disabled={isGenerating}
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner"
+              />
+
+              {/* Integrated Ingest Button */}
+              <button
+                type="button"
+                onClick={() => setIsIngestModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-3 rounded-xl border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-slate-200 hover:text-white transition-all cursor-pointer whitespace-nowrap shrink-0"
+                title="Ingest screenshot images, code/PDF files, web links, or transcripts"
+              >
+                <Upload className="w-4 h-4 text-cyan-400" />
+                <span className="hidden md:inline">Ingest Material</span>
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isGenerating}
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-lg cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              style={{ backgroundColor: theme.accent }}
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-slate-950" />
+                  <span>Generate Carousel</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Quick Starter Suggestions */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-[11px] text-slate-500 font-medium">Try starter:</span>
+            {STARTER_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => handleLoadPreset(preset.id)}
+                className="px-2.5 py-1 rounded-lg text-xs bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-400 hover:text-white transition-all cursor-pointer"
+                title={preset.desc}
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Main Studio Viewport: Canvas on Left + Direct Inline Edit on Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left: 1080x1920 Slide Preview with Carousel Navigator & Slide Management Bar */}
+        <div className="lg:col-span-5 flex flex-col items-center lg:sticky lg:top-20 self-start z-10 space-y-3.5">
+          {/* Canvas Wrapper */}
+          <div className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-full max-w-[340px] sm:max-w-[360px] aspect-[9/16]">
+            <canvas ref={canvasRef} className="w-full h-full object-contain" />
+
+            {/* Safe Zone Overlay */}
+            {showSafeZones && (
+              <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-rose-500/50 m-6 flex flex-col justify-between text-[10px] text-rose-300 font-mono p-2">
+                <span>Safe Top (Header & Status)</span>
+                <span className="text-right">Safe Bottom (TikTok UI overlay)</span>
+              </div>
+            )}
+
+            {/* Slide Navigation Hover Arrows */}
+            <button
+              type="button"
+              onClick={() => setCurrentSlideIndex((prev) => Math.max(0, prev - 1))}
+              disabled={currentSlideIndex === 0}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 border border-white/20 text-white flex items-center justify-center disabled:opacity-20 cursor-pointer transition-all"
+              title="Previous Slide"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentSlideIndex((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
+              disabled={currentSlideIndex === carousel.slides.length - 1}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 border border-white/20 text-white flex items-center justify-center disabled:opacity-20 cursor-pointer transition-all"
+              title="Next Slide"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Slide Indicator & Thumbnail Strip */}
+          <div className="w-full max-w-[360px] space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-mono">
+              <span>
+                Slide <span className="text-white font-bold">{currentSlideIndex + 1}</span> of {carousel.slides.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowSafeZones(!showSafeZones)}
+                className={`text-[10px] font-sans px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                  showSafeZones ? 'bg-rose-500/20 text-rose-300' : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Safe Zones
+              </button>
+            </div>
+
+            {/* Thumbnail Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5">
+              {carousel.slides.map((slide, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setCurrentSlideIndex(idx)}
+                  className={`h-7 px-2.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1 ${
+                    idx === currentSlideIndex
+                      ? 'bg-white/25 text-white border border-white/40 shadow-sm'
+                      : 'bg-white/[0.04] text-slate-400 hover:text-white border border-white/5'
+                  }`}
+                >
+                  <span>#{idx + 1}</span>
+                  <span className="text-[9px] uppercase font-sans text-slate-500">
+                    {slide.type}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Sleek Slide Management Strip */}
+            <div className="flex items-center justify-between p-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-slate-300">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleAddSlide}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer"
+                  title="Add new slide after this one"
+                >
+                  <Plus className="w-3 h-3 text-emerald-400" />
+                  <span>Add</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDuplicateSlide}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer"
+                  title="Duplicate this slide"
+                >
+                  <Copy className="w-3 h-3 text-cyan-400" />
+                  <span>Clone</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteSlide}
+                  disabled={carousel.slides.length <= 3}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-rose-500/20 text-[11px] font-semibold text-slate-400 hover:text-rose-300 transition-colors cursor-pointer disabled:opacity-30"
+                  title="Delete slide (minimum 3 slides)"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+
+              {/* Reorder Buttons */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleMoveSlide('left')}
+                  disabled={currentSlideIndex === 0}
+                  className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 cursor-pointer"
+                  title="Move slide earlier in deck"
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMoveSlide('right')}
+                  disabled={currentSlideIndex === carousel.slides.length - 1}
+                  className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-20 cursor-pointer"
+                  title="Move slide later in deck"
+                >
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Slide 1 Hook Variants Selector */}
+            {currentSlideIndex === 0 && carousel.hookVariants && carousel.hookVariants.length > 0 && (
+              <div className="p-2 rounded-xl bg-black/40 border border-white/10 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-1">
+                  Slide 1 Hook Variants
+                </span>
+                <div className="grid grid-cols-2 gap-1">
+                  {carousel.hookVariants.map((v, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleApplyHookVariant(v)}
+                      className="px-2 py-1 rounded-lg text-[10px] text-left bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-300 hover:text-white transition-all cursor-pointer truncate"
+                      title={v.enTitle}
+                    >
+                      <span className="font-bold text-teal-400 mr-1">[{v.tag}]</span>
+                      <span>{v.enTitle}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Direct Inline Text Editing & Expandable Advanced Customizer */}
+        <div className="lg:col-span-7 space-y-5">
+          {/* Inline Edit Card */}
+          <div className="bg-black/40 border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-white/10 text-white">
+                  Slide {currentSlideIndex + 1} · {currentSlide.type.toUpperCase()}
+                </span>
+                <span className="text-xs text-slate-400">Click any text to edit:</span>
+              </div>
+
+              {/* Advanced Customizer Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsAdvancedCustomizerOpen(!isAdvancedCustomizerOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                  isAdvancedCustomizerOpen
+                    ? 'bg-white/20 border-white/40 text-white shadow-sm'
+                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08]'
+                }`}
+                title="Toggle deep archetype controls, code diff, metrics, and diagrams"
+              >
+                <Sliders className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                <span>Advanced Customizer</span>
+                {isAdvancedCustomizerOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            </div>
+
+            {/* Direct English & Arabic Titles */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                  English Headline (Spec §8: 2–5 words ending in a period)
+                </label>
+                <input
+                  type="text"
+                  value={currentSlide.enTitle || ''}
+                  onChange={(e) => handleUpdateCurrentSlide('enTitle', e.target.value)}
+                  placeholder="Crisp architecture headline."
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl px-3 py-2 text-sm text-white font-medium focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1 text-right">
+                  العنوان باللغة العربية (Cairo Font)
+                </label>
+                <input
+                  type="text"
+                  dir="rtl"
+                  value={currentSlide.arTitle || ''}
+                  onChange={(e) => handleUpdateCurrentSlide('arTitle', e.target.value)}
+                  placeholder="عنوان تقني دقيق ومختصر."
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl px-3 py-2 text-sm text-white font-medium focus:outline-none font-cairo text-right"
+                />
+              </div>
+            </div>
+
+            {/* Direct English & Arabic Body Copy */}
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                  Technical Mechanism & Details (English)
+                </label>
+                <textarea
+                  rows={2}
+                  value={currentSlide.enBody || ''}
+                  onChange={(e) => handleUpdateCurrentSlide('enBody', e.target.value)}
+                  placeholder="1-2 sentences explaining how the mechanism works under the hood."
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl p-3 text-xs text-slate-200 focus:outline-none resize-none leading-relaxed"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-300 block mb-1 text-right">
+                  شرح الآلية الهندسية (العربية)
+                </label>
+                <textarea
+                  rows={2}
+                  dir="rtl"
+                  value={currentSlide.arBody || ''}
+                  onChange={(e) => handleUpdateCurrentSlide('arBody', e.target.value)}
+                  placeholder="شرح تقني عميق في سطرين."
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl p-3 text-xs text-slate-200 focus:outline-none resize-none leading-relaxed font-cairo text-right"
+                />
+              </div>
+            </div>
+
+            {/* Expandable Advanced Customizer Drawer */}
+            {isAdvancedCustomizerOpen && (
+              <div className="pt-3 border-t border-white/[0.08] space-y-4 animate-fade-in">
+                {/* 1. Archetype Switcher */}
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                    Slide Layout Archetype
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
+                    {ARCHETYPES.map((arch) => {
+                      const Icon = arch.icon;
+                      const isSelected = currentSlide.type === arch.id;
+                      return (
+                        <button
+                          key={arch.id}
+                          type="button"
+                          onClick={() => handleUpdateCurrentSlide('type', arch.id)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-white/20 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" style={{ color: isSelected ? theme.accent : undefined }} />
+                          <span>{arch.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Archetype Specific Deep Editors */}
+                {/* Code Diff Archetype */}
+                {currentSlide.type === 'code' && (
+                  <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Code className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Code Diff & Terminal Controls</span>
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">File Name</label>
+                        <input
+                          type="text"
+                          value={currentSlide.codeFileName || 'sys_exec.sh'}
+                          onChange={(e) => handleUpdateCurrentSlide('codeFileName', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Language</label>
+                        <input
+                          type="text"
+                          value={currentSlide.codeLanguage || 'bash'}
+                          onChange={(e) => handleUpdateCurrentSlide('codeLanguage', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 block mb-1">Code Snippet (+ / - diff)</label>
+                      <textarea
+                        rows={4}
+                        value={currentSlide.codeSnippet || ''}
+                        onChange={(e) => handleUpdateCurrentSlide('codeSnippet', e.target.value)}
+                        className="w-full bg-black/60 border border-white/10 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Metric Card Archetype */}
+                {currentSlide.type === 'metric' && (
+                  <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Gauge className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Metric Benchmark Card</span>
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Metric Value</label>
+                        <input
+                          type="text"
+                          value={currentSlide.metricValue || '0.4ms'}
+                          onChange={(e) => handleUpdateCurrentSlide('metricValue', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Label</label>
+                        <input
+                          type="text"
+                          value={currentSlide.metricLabel || 'p99 Latency'}
+                          onChange={(e) => handleUpdateCurrentSlide('metricLabel', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Delta / Diff</label>
+                        <input
+                          type="text"
+                          value={currentSlide.metricDiff || '▲ 94% faster'}
+                          onChange={(e) => handleUpdateCurrentSlide('metricDiff', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-emerald-400 font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Compare Archetype */}
+                {currentSlide.type === 'compare' && (
+                  <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Columns className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Before vs After Architecture Comparison</span>
+                    </span>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-400 block">Legacy (Left)</label>
+                        <input
+                          type="text"
+                          value={currentSlide.compareLeftTitle || 'Legacy Stack'}
+                          onChange={(e) => handleUpdateCurrentSlide('compareLeftTitle', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
+                        />
+                        <textarea
+                          rows={3}
+                          value={currentSlide.compareLeftBody || ''}
+                          onChange={(e) => handleUpdateCurrentSlide('compareLeftBody', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-400 block">Modern (Right)</label>
+                        <input
+                          type="text"
+                          value={currentSlide.compareRightTitle || 'Modern Engine'}
+                          onChange={(e) => handleUpdateCurrentSlide('compareRightTitle', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
+                        />
+                        <textarea
+                          rows={3}
+                          value={currentSlide.compareRightBody || ''}
+                          onChange={(e) => handleUpdateCurrentSlide('compareRightBody', e.target.value)}
+                          className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image & AI Diagram Studio */}
+                {currentSlide.type === 'image' && (
+                  <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Visual Diagram & AI Studio</span>
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowAiImageStudio(!showAiImageStudio)}
+                          className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-200 border border-purple-500/40 text-xs font-semibold cursor-pointer"
+                        >
+                          {showAiImageStudio ? 'Hide AI Studio' : 'AI Diagram Studio'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMediaModalTarget({
+                              field: 'imageUrl',
+                              title: 'Search Architecture Graphic',
+                              initialQuery: currentSlide.enTitle?.slice(0, 30) || '',
+                            })
+                          }
+                          className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 text-xs font-semibold cursor-pointer"
+                        >
+                          Search Web
+                        </button>
+                      </div>
+                    </div>
+
+                    {showAiImageStudio && (
+                      <SlideImageStudio
+                        slide={currentSlide}
+                        theme={theme}
+                        onApplyImage={(imageUrl, prompt, model) => {
+                          handleUpdateCurrentSlide('imageUrl', imageUrl);
+                          handleUpdateCurrentSlide('imagePrompt', prompt);
+                          handleUpdateCurrentSlide('imageModel', model);
+                          setShowAiImageStudio(false);
+                          onShowToast('Applied AI diagram to slide');
+                        }}
+                        onClose={() => setShowAiImageStudio(false)}
+                        onShowToast={onShowToast}
+                      />
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Image URL</label>
+                        <input
+                          type="text"
+                          value={currentSlide.imageUrl || ''}
+                          onChange={(e) => handleUpdateCurrentSlide('imageUrl', e.target.value)}
+                          placeholder="https://..."
+                          className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Display Fit</label>
+                        <div className="grid grid-cols-2 gap-1 bg-black/60 p-0.5 rounded-lg border border-white/10">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCurrentSlide('imageFit', 'contain')}
+                            className={`py-0.5 text-xs rounded ${currentSlide.imageFit !== 'cover' ? 'bg-white/20 text-white font-bold' : 'text-slate-400'}`}
+                          >
+                            Fit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCurrentSlide('imageFit', 'cover')}
+                            className={`py-0.5 text-xs rounded ${currentSlide.imageFit === 'cover' ? 'bg-white/20 text-white font-bold' : 'text-slate-400'}`}
+                          >
+                            Cover
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* TikTok Publishing Card (Formatted Captions & Screen Hooks) */}
+          <div className="bg-black/40 border border-white/10 rounded-2xl p-5 shadow-xl space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                TikTok Posting Copy
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyCaption}
+                className="flex items-center gap-1 text-xs text-cyan-300 hover:text-cyan-200 font-semibold cursor-pointer transition-colors"
+              >
+                {copiedType === 'caption' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedType === 'caption' ? 'Copied!' : 'Copy Caption'}</span>
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-black/60 border border-white/10 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
+              {`${carousel.caption || ''}\n\n#SoftwareArchitecture #TechTok #Programming #DevLife #SystemDesign`}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Sticky Bottom Action Bar (1-Click Delivery) */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#080d11]/90 backdrop-blur-lg border border-white/15 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3">
+        {/* Contact Sheet Modal Trigger */}
+        {onOpenContactSheet && (
+          <button
+            type="button"
+            onClick={onOpenContactSheet}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
+            title="Inspect all slides in full contact sheet"
+          >
+            <Grid className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Contact Sheet</span>
+          </button>
+        )}
+
+        {/* Plan Inspector Trigger */}
+        {onOpenPlanInspector && (
+          <button
+            type="button"
+            onClick={onOpenPlanInspector}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
+            title="View extracted technical facts & architecture plan"
+          >
+            <FileCheck2 className="w-3.5 h-3.5 text-teal-400" />
+            <span className="hidden sm:inline">Plan</span>
+          </button>
+        )}
+
+        {/* Single Slide Download */}
+        <button
+          type="button"
+          onClick={() => {
+            downloadSingleSlidePng(carousel, currentSlideIndex, `MARROK_Slide_${currentSlideIndex + 1}.jpg`, theme);
+            onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
+        >
+          <Download className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden sm:inline">Slide #{currentSlideIndex + 1} JPG</span>
+          <span className="sm:hidden">JPG</span>
+        </button>
+
+        {/* Copy Slide to Clipboard */}
+        <button
+          type="button"
+          onClick={handleCopySlide}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
+        >
+          {copiedType === 'slide' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">Copy Slide</span>
+        </button>
+
+        {/* Palette Studio */}
+        <button
+          type="button"
+          onClick={onOpenThemeCustomizer}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
+          title="Change Theme Accent"
+        >
+          <div className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: theme.accent }} />
+          <span className="hidden md:inline font-bold">{theme.name.split(' ')[0]}</span>
+        </button>
+
+        {/* Primary Export All ZIP */}
+        <button
+          type="button"
+          onClick={handleExportZip}
+          disabled={isExportingZip}
+          className="flex items-center gap-2 px-5 py-2 rounded-xl text-slate-950 font-extrabold text-xs tracking-wider transition-all shadow-lg cursor-pointer disabled:opacity-50 whitespace-nowrap bg-teal-400 hover:bg-teal-300"
+        >
+          {isExportingZip ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>{exportProgress ? `${exportProgress.current}/${exportProgress.total}...` : 'Exporting...'}</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              <span>Export All 1080×1920 (ZIP)</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Multimodal Ingestion Modal Overlay */}
+      {isIngestModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0b1016] border border-white/15 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+              <div className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white font-jakarta">
+                  Ingest Material (Screenshots, PDF/Code, URLs, Notes)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsIngestModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <MultimodalInputPanel
+              theme={theme}
+              onApplyCarousel={(newCarousel) => {
+                onUpdateCarousel(newCarousel);
+                setCurrentSlideIndex(0);
+                setIsIngestModalOpen(false);
+                onShowToast('✨ Generated carousel from ingested materials!');
+              }}
+              onClose={() => setIsIngestModalOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Media Search Modal */}
+      {mediaModalTarget && (
+        <MediaSearchModal
+          isOpen={Boolean(mediaModalTarget)}
+          theme={theme}
+          onClose={() => setMediaModalTarget(null)}
+          title={mediaModalTarget.title || 'Search Web Media'}
+          initialQuery={mediaModalTarget.initialQuery}
+          onSelectUrl={(url: string) => {
+            handleUpdateCurrentSlide('imageUrl', url);
+            setMediaModalTarget(null);
+            onShowToast('Applied web visual to slide');
+          }}
+        />
+      )}
+    </div>
+  );
+};
