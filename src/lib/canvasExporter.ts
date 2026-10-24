@@ -1,5 +1,5 @@
 import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette } from '../types';
-import { getIconDataUrl } from './icons';
+import { getIconDataUrl, getIconSvg } from './icons';
 import JSZip from 'jszip';
 
 // Helper to wrap text with max width and handle manual newlines
@@ -41,24 +41,66 @@ function wrapTextLines(
 // In-memory image cache for fast re-renders without repeated network round-trips
 const CANVAS_IMAGE_CACHE = new Map<string, HTMLImageElement>();
 
+/**
+ * Creates a guaranteed valid fallback SVG image so canvas operations never crash
+ */
+function createFallbackIcon(strokeColor: string): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
+    const fallbackSvg = getIconSvg('gitMerge', strokeColor);
+    const fallbackUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvg)}`;
+    const fb = new Image();
+    fb.onload = () => resolve(fb);
+    fb.onerror = () => resolve(fb);
+    fb.src = fallbackUrl;
+  });
+}
+
 // Helper to load an SVG, custom image icon, or web image as an HTMLImageElement
 function loadIconImage(iconName: string, strokeColor: string): Promise<HTMLImageElement> {
   const url = getIconDataUrl(iconName, strokeColor);
   if (CANVAS_IMAGE_CACHE.has(url)) {
-    return Promise.resolve(CANVAS_IMAGE_CACHE.get(url)!);
+    const cached = CANVAS_IMAGE_CACHE.get(url)!;
+    if (cached.complete && cached.naturalWidth > 0) {
+      return Promise.resolve(cached);
+    }
   }
 
   return new Promise((resolve) => {
+    let settled = false;
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for remote http(s) URLs, never for data: or blob:
+    if (!url.startsWith('data:') && !url.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    // Safety timeout: never block canvas render for more than 1000ms
+    const timer = setTimeout(async () => {
+      if (settled) return;
+      settled = true;
+      console.warn(`Timeout loading icon/image: ${iconName}, falling back to SVG`);
+      const fb = await createFallbackIcon(strokeColor);
+      CANVAS_IMAGE_CACHE.set(url, fb);
+      resolve(fb);
+    }, 1000);
+
     img.onload = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       CANVAS_IMAGE_CACHE.set(url, img);
       resolve(img);
     };
-    img.onerror = () => {
-      console.warn(`Failed to load icon/image: ${iconName}`);
-      resolve(img);
+
+    img.onerror = async () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      console.warn(`Failed to load icon/image: ${iconName}, falling back to SVG`);
+      const fb = await createFallbackIcon(strokeColor);
+      CANVAS_IMAGE_CACHE.set(url, fb);
+      resolve(fb);
     };
+
     img.src = url;
   });
 }
@@ -78,12 +120,21 @@ function loadWebImage(imageUrl: string, color?: string): Promise<HTMLImageElemen
 
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (!safeUrl.startsWith('data:') && !safeUrl.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    const timer = setTimeout(() => {
+      resolve(img);
+    }, 1500);
+
     img.onload = () => {
+      clearTimeout(timer);
       CANVAS_IMAGE_CACHE.set(safeUrl, img);
       resolve(img);
     };
     img.onerror = () => {
+      clearTimeout(timer);
       console.warn(`Failed to load web image: ${imageUrl}`);
       resolve(img);
     };
@@ -133,6 +184,27 @@ function drawRoundRect(
   ctx.restore();
 }
 
+/**
+ * Safely draws an image to canvas without throwing InvalidStateError on broken images
+ */
+function safeDrawImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  if (!img || !img.complete || img.naturalWidth === 0 || img.naturalHeight === 0 || w <= 0 || h <= 0) {
+    return;
+  }
+  try {
+    ctx.drawImage(img, x, y, w, h);
+  } catch (err) {
+    console.warn('safeDrawImage caught error:', err);
+  }
+}
+
 // Tinted image drawer helper (replaces non-transparent pixels with theme color via source-in)
 function drawTintedImage(
   ctx: CanvasRenderingContext2D,
@@ -143,8 +215,12 @@ function drawTintedImage(
   h: number,
   tintColor?: string
 ) {
-  if (!tintColor || w <= 0 || h <= 0) {
-    ctx.drawImage(img, x, y, w, h);
+  // Never attempt to draw if image is incomplete or broken (naturalWidth is 0)
+  if (!img || !img.complete || img.naturalWidth === 0 || img.naturalHeight === 0 || w <= 0 || h <= 0) {
+    return;
+  }
+  if (!tintColor) {
+    safeDrawImage(ctx, img, x, y, w, h);
     return;
   }
   try {
@@ -153,7 +229,7 @@ function drawTintedImage(
     offCanvas.height = Math.max(1, Math.round(h));
     const offCtx = offCanvas.getContext('2d');
     if (!offCtx) {
-      ctx.drawImage(img, x, y, w, h);
+      safeDrawImage(ctx, img, x, y, w, h);
       return;
     }
     offCtx.drawImage(img, 0, 0, offCanvas.width, offCanvas.height);
@@ -163,8 +239,7 @@ function drawTintedImage(
 
     ctx.drawImage(offCanvas, x, y, w, h);
   } catch (_err) {
-    // Graceful fallback to raw image
-    ctx.drawImage(img, x, y, w, h);
+    safeDrawImage(ctx, img, x, y, w, h);
   }
 }
 
@@ -304,15 +379,19 @@ export async function renderSlideToCanvas(
     const satIconSize = 68;
 
     for (let i = 0; i < satAngles.length; i++) {
-      const rad = (satAngles[i] * Math.PI) / 180;
-      const sx = cx + r * Math.cos(rad);
-      const sy = cy + r * Math.sin(rad);
+      try {
+        const rad = (satAngles[i] * Math.PI) / 180;
+        const sx = cx + r * Math.cos(rad);
+        const sy = cy + r * Math.sin(rad);
 
-      drawRoundRect(ctx, sx - satW / 2, sy - satH / 2, satW, satH, 34, theme.accent);
+        drawRoundRect(ctx, sx - satW / 2, sy - satH / 2, satW, satH, 34, theme.accent);
 
-      const sIconName = satIcons[i % satIcons.length] || 'gitMerge';
-      const sImg = await loadIconImage(sIconName, theme.iconStroke);
-      drawTintedImage(ctx, sImg, sx - satIconSize / 2, sy - satIconSize / 2, satIconSize, satIconSize, theme.iconStroke);
+        const sIconName = satIcons[i % satIcons.length] || 'gitMerge';
+        const sImg = await loadIconImage(sIconName, theme.iconStroke);
+        drawTintedImage(ctx, sImg, sx - satIconSize / 2, sy - satIconSize / 2, satIconSize, satIconSize, theme.iconStroke);
+      } catch (satErr) {
+        console.warn(`Error rendering satellite ${i}:`, satErr);
+      }
     }
 
     textZoneStartY = 1120;
@@ -583,7 +662,7 @@ export async function renderSlideToCanvas(
     // Left Header Badge
     drawRoundRect(ctx, leftX + 24, cardY + 24, cardW - 48, 52, 16, 'rgba(244,63,94,0.18)');
     const xImg = await loadIconImage('xCircle', '#F43F5E');
-    ctx.drawImage(xImg, leftX + 38, cardY + 36, 28, 28);
+    safeDrawImage(ctx, xImg, leftX + 38, cardY + 36, 28, 28);
 
     const leftTitle = slide.compareLeftTitle || 'Legacy Method';
     ctx.save();
@@ -614,7 +693,7 @@ export async function renderSlideToCanvas(
     // Right Header Badge
     drawRoundRect(ctx, rightX + 24, cardY + 24, cardW - 48, 52, 16, `${theme.accent}22`);
     const checkImg = await loadIconImage('checkCircle', theme.accent);
-    ctx.drawImage(checkImg, rightX + 38, cardY + 36, 28, 28);
+    safeDrawImage(ctx, checkImg, rightX + 38, cardY + 36, 28, 28);
 
     const rightTitle = slide.compareRightTitle || 'Modern Approach';
     ctx.save();
@@ -779,7 +858,7 @@ export async function renderSlideToCanvas(
         if (filterMode === 'invert') {
           // Invert white background diagrams into dark terminal mode
           ctx.filter = 'invert(0.92) hue-rotate(180deg) contrast(1.2) brightness(0.95)';
-          ctx.drawImage(img, dx, dy, dw, dh);
+          safeDrawImage(ctx, img, dx, dy, dw, dh);
         } else if ((filterMode === 'hud' || filterMode === 'tint') && isSvg) {
           // In HUD / Tint mode, colorize SVG logo/graphic directly with active post theme accent!
           drawTintedImage(ctx, img, dx, dy, dw, dh, theme.accent);
@@ -788,9 +867,9 @@ export async function renderSlideToCanvas(
         } else if (filterMode === 'hud') {
           // Subtle high-contrast terminal blend for raster diagrams
           ctx.filter = 'contrast(1.1) brightness(1.02)';
-          ctx.drawImage(img, dx, dy, dw, dh);
+          safeDrawImage(ctx, img, dx, dy, dw, dh);
         } else {
-          ctx.drawImage(img, dx, dy, dw, dh);
+          safeDrawImage(ctx, img, dx, dy, dw, dh);
         }
         ctx.restore();
       }
@@ -798,7 +877,7 @@ export async function renderSlideToCanvas(
       // Sleek placeholder if no image URL yet
       ctx.save();
       const pIcon = await loadIconImage('codeFile', theme.accent);
-      ctx.drawImage(pIcon, 540 - 36, cardY + 140, 72, 72);
+      safeDrawImage(ctx, pIcon, 540 - 36, cardY + 140, 72, 72);
       ctx.font = '600 24px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = theme.textMuted;
       ctx.textAlign = 'center';
