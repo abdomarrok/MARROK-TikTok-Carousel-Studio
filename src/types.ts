@@ -70,6 +70,13 @@ export interface ExtractedFact {
   type: 'number' | 'date' | 'name' | 'quote' | 'claim';
   verified: 'verified' | 'partially_verified' | 'unconfirmed';
   evidence?: string;
+  sourceUrl?: string;
+  sourceTitle?: string;
+}
+
+export interface GroundingSource {
+  title: string;
+  url: string;
 }
 
 export interface PostSourceMeta {
@@ -78,6 +85,9 @@ export interface PostSourceMeta {
   creator?: string;
   url?: string;
   published?: string;
+  groundingQueries?: string[];
+  groundingSources?: GroundingSource[];
+  isSearchGrounded?: boolean;
 }
 
 export interface CarouselData {

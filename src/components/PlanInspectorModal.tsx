@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   FileCheck2,
@@ -11,6 +11,10 @@ import {
   Calendar,
   MessageSquare,
   Sparkles,
+  Search,
+  Globe,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { CarouselData, ThemePalette } from '../types';
 
@@ -27,25 +31,27 @@ export const PlanInspectorModal: React.FC<PlanInspectorModalProps> = ({
   carousel,
   theme,
 }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!isOpen) return null;
 
   const facts = carousel.facts || [
     {
       text: `Core architectural topic: ${carousel.category}`,
-      type: 'claim',
-      verified: 'verified',
+      type: 'claim' as const,
+      verified: 'verified' as const,
       evidence: 'Direct input analysis',
     },
     {
       text: `Brand or technology origin: ${carousel.brand || 'Engineering source'}`,
-      type: 'name',
-      verified: 'verified',
+      type: 'name' as const,
+      verified: 'verified' as const,
       evidence: carousel.brandUrl || 'marrok.org',
     },
     {
       text: 'Production metrics and architectural trade-offs attributed to primary engineering report',
-      type: 'number',
-      verified: 'verified',
+      type: 'number' as const,
+      verified: 'verified' as const,
       evidence: 'Spec §5 attribution standard',
     },
   ];
@@ -65,6 +71,26 @@ export const PlanInspectorModal: React.FC<PlanInspectorModalProps> = ({
   ];
 
   const scheduleSlot = carousel.scheduleSlot || '18:00 DZ (Africa/Algiers timezone)';
+  const groundingSources = sourceMeta.groundingSources || [];
+  const groundingQueries = sourceMeta.groundingQueries || [];
+  const isGrounded = sourceMeta.isSearchGrounded ?? (groundingSources.length > 0);
+
+  const handleCopyReport = () => {
+    const report = `MARROK FACT & CITATION REPORT
+Category: ${carousel.category}
+Brand: ${carousel.brand || 'Engineering'} (${carousel.brandUrl || 'marrok.org'})
+Grounding: ${isGrounded ? 'Google Search Grounding' : 'Synthesizer Intelligence'}
+
+CLAIMS:
+${facts.map((f, i) => `${i + 1}. [${f.verified.toUpperCase()}] ${f.text}\n   Evidence: ${f.evidence || 'N/A'}${f.sourceUrl ? `\n   Source: ${f.sourceUrl}` : ''}`).join('\n\n')}
+
+SOURCES:
+${groundingSources.map((s) => `• ${s.title}: ${s.url}`).join('\n') || `• https://${carousel.brandUrl || 'marrok.org'}`}
+`;
+    navigator.clipboard.writeText(report);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
@@ -87,19 +113,35 @@ export const PlanInspectorModal: React.FC<PlanInspectorModalProps> = ({
                 >
                   {carousel.theme.toUpperCase()} THEME
                 </span>
+                {isGrounded && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    <span>Search Grounded</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400">
-                Extracted Facts (§4) · Verification & Hedging (§5) · Narrative Arc (§7) · Human Notes (§11)
+                Extracted Facts (§4) · Grounded Citations (§5) · Narrative Arc (§7) · Human Notes (§11)
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyReport}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold cursor-pointer transition-colors"
+              title="Copy claims report"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'Copied!' : 'Copy Citations'}</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
@@ -129,7 +171,55 @@ export const PlanInspectorModal: React.FC<PlanInspectorModalProps> = ({
             </div>
           </div>
 
-          {/* Section 2: Extracted Facts & Verification Status (Spec §4 & §5) */}
+          {/* Section 2: Grounding Queries & Web Sources */}
+          {groundingSources.length > 0 && (
+            <div className="space-y-2.5 p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/20">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Google Search Grounding & Authoritative Citations</span>
+                </h3>
+                <span className="text-[10px] text-cyan-400/80 font-mono">
+                  {groundingSources.length} verified web sources
+                </span>
+              </div>
+
+              {groundingQueries.length > 0 && (
+                <div className="text-[11px] text-slate-400 flex flex-wrap gap-1.5 items-center">
+                  <span className="text-slate-500 font-medium">Grounding queries:</span>
+                  {groundingQueries.map((q, idx) => (
+                    <span key={idx} className="px-2 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10px] text-slate-300">
+                      "{q}"
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {groundingSources.map((source, idx) => (
+                  <a
+                    key={idx}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2.5 rounded-lg bg-black/40 border border-white/10 hover:border-cyan-400/40 text-xs flex items-center justify-between gap-2 group transition-all"
+                  >
+                    <div className="truncate">
+                      <div className="text-slate-200 font-medium truncate group-hover:text-cyan-300 transition-colors">
+                        {source.title}
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate font-mono">
+                        {source.url.replace(/^https?:\/\//, '')}
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 shrink-0 transition-colors" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 3: Extracted Facts & Verification Status (Spec §4 & §5) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -137,7 +227,7 @@ export const PlanInspectorModal: React.FC<PlanInspectorModalProps> = ({
                 <span>Extracted & Verified Facts (Spec §4 & §5)</span>
               </h3>
               <span className="text-[11px] text-slate-400 font-mono">
-                {facts.length} facts extracted
+                {facts.length} facts verified
               </span>
             </div>
 
@@ -145,19 +235,34 @@ export const PlanInspectorModal: React.FC<PlanInspectorModalProps> = ({
               {facts.map((fact, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-xl bg-black/30 border border-white/[0.08] flex items-start justify-between gap-3 text-xs"
+                  className="p-3.5 rounded-xl bg-black/30 border border-white/[0.08] flex items-start justify-between gap-3 text-xs"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1.5 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-white/10 text-slate-300">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold uppercase bg-white/10 text-slate-300">
                         {fact.type}
                       </span>
                       <span className="text-slate-200 font-medium">{fact.text}</span>
                     </div>
+
                     {fact.evidence && (
-                      <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3 text-slate-500" />
-                        <span>Source / Evidence: {fact.evidence}</span>
+                      <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                        <span className="text-slate-500 font-semibold">Evidence:</span>
+                        <span>{fact.evidence}</span>
+                      </div>
+                    )}
+
+                    {fact.sourceUrl && (
+                      <div className="text-[11px] text-cyan-400 flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3 text-cyan-500" />
+                        <a
+                          href={fact.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline font-mono truncate max-w-md"
+                        >
+                          {fact.sourceTitle ? `${fact.sourceTitle} — ` : ''}{fact.sourceUrl}
+                        </a>
                       </div>
                     )}
                   </div>
@@ -166,7 +271,9 @@ export const PlanInspectorModal: React.FC<PlanInspectorModalProps> = ({
                     className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase shrink-0 ${
                       fact.verified === 'verified'
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : fact.verified === 'partially_verified'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                     }`}
                   >
                     {fact.verified}

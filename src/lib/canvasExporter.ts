@@ -1208,8 +1208,51 @@ export async function downloadAllSlidesZip(
     folder?.file(`slide${i + 1}.jpg`, base64, { base64: true });
   }
 
-  // Spec §18 Complete Deliverables: Caption, Pinned First Comment, Short Caption, Metadata, and README
-  folder?.file('caption.txt', carousel.caption);
+  // Spec §18 Complete Deliverables: Caption, Pinned First Comment, Short Caption, Metadata, and Claims Citations
+  // 1. Formatted Bilingual Caption
+  let fullCaptionText = carousel.caption || '';
+  if (carousel.facts && carousel.facts.length > 0 && !fullCaptionText.includes('Verified Facts:')) {
+    const factsBlock = carousel.facts
+      .map(
+        (f) =>
+          `• [${f.verified.toUpperCase()}] ${f.text}${f.sourceTitle ? ` (Ref: ${f.sourceTitle})` : ''}${f.sourceUrl ? `\n  Link: ${f.sourceUrl}` : ''}`
+      )
+      .join('\n');
+    fullCaptionText += `\n\n═════════════════════════════════════\n🔍 Verified Claims & Citations:\n${factsBlock}`;
+  }
+  folder?.file('caption.txt', fullCaptionText);
+
+  // 2. Separate dedicated claims & citations verification file
+  if (carousel.facts && carousel.facts.length > 0) {
+    const claimsReport = `MARROK VERIFIED CLAIMS & GROUNDING REPORT
+══════════════════════════════════════════════
+Topic: ${carousel.category}
+Brand/Source: ${carousel.brand || 'Engineering Source'} (${carousel.brandUrl || 'marrok.org'})
+Search Grounded: ${carousel.sourceMeta?.isSearchGrounded ? 'YES (Google Search Grounding)' : 'Synthesizer Intelligence'}
+Generated: ${new Date().toISOString()}
+
+EXTRACTED & VERIFIED CLAIMS:
+${carousel.facts
+  .map(
+    (f, idx) =>
+      `[#${idx + 1}] ${f.type.toUpperCase()} · Status: ${f.verified.toUpperCase()}
+Claim: ${f.text}
+Evidence: ${f.evidence || 'Attributed to source documentation'}
+${f.sourceTitle ? `Source: ${f.sourceTitle}` : ''}
+${f.sourceUrl ? `URL: ${f.sourceUrl}` : ''}
+`
+  )
+  .join('\n')}
+
+GROUNDING QUERIES EXECUTED:
+${(carousel.sourceMeta?.groundingQueries || []).map((q) => `• ${q}`).join('\n') || '• Direct contextual extraction'}
+
+AUTHORITATIVE SOURCES & DOCUMENTATION:
+${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.url}`).join('\n') || `• https://${carousel.brandUrl || 'marrok.org'}`}
+`;
+    folder?.file('claims_citations.txt', claimsReport);
+  }
+
   if (carousel.firstComment) {
     folder?.file('first_comment.txt', carousel.firstComment);
   }
@@ -1226,7 +1269,11 @@ export async function downloadAllSlidesZip(
     totalSlides: carousel.slides.length,
     brand: carousel.brand,
     brandUrl: carousel.brandUrl,
-    archetypes: carousel.slides.map((s, idx) => ({ slide: idx + 1, type: s.type, enTitle: s.enTitle })),
+    scheduleSlot: carousel.scheduleSlot,
+    sourceMeta: carousel.sourceMeta,
+    facts: carousel.facts || [],
+    notesForHuman: carousel.notesForHuman || [],
+    archetypes: carousel.slides.map((s, idx) => ({ slide: idx + 1, type: s.type, enTitle: s.enTitle, arTitle: s.arTitle })),
     caption: carousel.caption,
     firstComment: carousel.firstComment,
     screenHook: carousel.screenHook,
@@ -1240,14 +1287,16 @@ export async function downloadAllSlidesZip(
 =====================================
 Deck: ${carousel.category} (${carousel.slides.length} slides)
 Theme: ${carousel.theme}
+Search Grounded: ${carousel.sourceMeta?.isSearchGrounded ? 'YES (Google Search)' : 'Autonomous Synthesizer'}
 Created: ${new Date().toLocaleString()}
 
 FILES IN THIS PACKAGE:
 - slide1.jpg to slide${total}.jpg (1080x1920 9:16 high-res JPGs, Safe-Zone compliant)
-- caption.txt (Bilingual TikTok post caption with hashtags)
+- caption.txt (Bilingual TikTok post caption with hashtags and verification block)
+- claims_citations.txt (Audit log of all verified numbers, benchmarks, and source links)
 - first_comment.txt (Pinned first comment to drive engagement and save rate)
 - short_caption.txt (Clean 2-line version for TikTok quick post)
-- post_metadata.json (Machine-readable post schema)
+- post_metadata.json (Machine-readable post schema with grounding metadata)
 
 HOW TO PUBLISH TO TIKTOK:
 1. Transfer slide1.jpg through slide${total}.jpg to your phone (AirDrop, Google Drive, etc.).

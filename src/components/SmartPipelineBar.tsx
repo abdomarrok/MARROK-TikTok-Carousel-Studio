@@ -13,6 +13,7 @@ import {
   Layers,
   ShieldCheck,
   Search,
+  Globe,
 } from 'lucide-react';
 import { CarouselData, ThemePalette } from '../types';
 import { synthesizeCarousel } from '../lib/synthesizer';
@@ -151,27 +152,27 @@ export const SmartPipelineBar: React.FC<SmartPipelineBarProps> = ({
 
     setIsGenerating(true);
     setPipelineStep(1);
-    setPipelineLabel('Stage 1: Extracting Facts, Numbers & Primary Source (Spec §4)...');
+    setPipelineLabel('Stage 1: Google Search Grounding & Fact Extraction (Spec §4)...');
 
     const stepTimer1 = setTimeout(() => {
       setPipelineStep(2);
-      setPipelineLabel('Stage 2: Verifying Claims & Applying Journalistic Hedging (Spec §5)...');
-    }, 900);
+      setPipelineLabel('Stage 2: Claim Verification, Citations & Source Attribution (Spec §5)...');
+    }, 1200);
 
     const stepTimer2 = setTimeout(() => {
       setPipelineStep(3);
-      setPipelineLabel('Stage 3: Platform Risk Review (Originality & FYP Safety)...');
-    }, 1800);
+      setPipelineLabel('Stage 3: Platform Risk Review & Safe-Zone Lint (Spec §6)...');
+    }, 2400);
 
     const stepTimer3 = setTimeout(() => {
       setPipelineStep(4);
       setPipelineLabel('Stage 4: Planning 8-10 Slide Narrative Arc & Spec Theme (Spec §7)...');
-    }, 2700);
+    }, 3600);
 
     const stepTimer4 = setTimeout(() => {
       setPipelineStep(5);
       setPipelineLabel('Stage 5: Dual Copywriting, Arabic RTL Lint & Length Enforcement (Spec §8)...');
-    }, 3600);
+    }, 4800);
 
     const customKey =
       typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_key') : null;
@@ -180,7 +181,7 @@ export const SmartPipelineBar: React.FC<SmartPipelineBarProps> = ({
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 9000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -429,14 +430,24 @@ export const SmartPipelineBar: React.FC<SmartPipelineBarProps> = ({
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>TikTok FYP Safe</span>
           </span>
+
+          {currentCarousel.sourceMeta?.isSearchGrounded && (
+            <>
+              <span className="text-slate-500">·</span>
+              <span className="text-cyan-300 font-semibold text-[11px] flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/25">
+                <Globe className="w-3 h-3 text-cyan-400" />
+                <span>Search Grounded ({currentCarousel.sourceMeta.groundingSources?.length || 1} sources)</span>
+              </span>
+            </>
+          )}
         </div>
 
         <button
           onClick={onOpenPlanInspector}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-semibold cursor-pointer transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-semibold cursor-pointer transition-colors"
         >
           <Layers className="w-3 h-3 text-cyan-400" />
-          <span>Inspect Plan & Facts ({currentCarousel.facts?.length || 3})</span>
+          <span>Inspect Plan & Citations ({currentCarousel.facts?.length || 3})</span>
         </button>
       </div>
     </div>

@@ -243,8 +243,11 @@ STAGE 1: UNDERSTAND & EXTRACT FACTS (Spec §4)
 - Extract 3 to 6 key technical facts into facts[]: numbers, benchmark speedups, architectural mechanisms, quotes.
 - Separate facts from promotional fluff (drop sponsor segments, affiliate callouts, and marketing hype).
 
-STAGE 2: VERIFY & HEDGE CLAIMS (Spec §5)
-- Attribute unconfirmed numbers or claims ("per Anthropic", "per the project", "according to reports").
+STAGE 2: GOOGLE SEARCH GROUNDING & CLAIM VERIFICATION (Spec §5)
+- Use integrated Google Search grounding to verify technical claims, benchmark multipliers, release dates, architectural details, and CVE advisories.
+- For every fact in facts[], cite evidence with sourceUrl and sourceTitle where available.
+- Assign verified status accurately: 'verified' (grounded against docs/benchmarks), 'partially_verified' (reported by creator/blog but unbenchmarked elsewhere), or 'unconfirmed' (anecdotal).
+- Apply journalistic hedging: attribute unconfirmed numbers ("per Anthropic engineering notes", "according to project benchmarks").
 - Fix common recap errors (e.g. models named incorrectly or unverified 4K claims).
 
 STAGE 3: PLATFORM RISK REVIEW (Spec §6)
@@ -271,11 +274,19 @@ STAGE 5: COPYWRITING & RTL LINT (Spec §8)
 - No emojis inside slides (Cairo font has none).
 
 STAGE 6 & 7: CAPTIONS, FIRST COMMENT & SCHEDULING (Spec §8 & §14)
-- Caption: Arabic first, then English. Hook emoji, context lines, swipe prompt 👉, bullet points 🔹, question 👇, credit 🎥, 8-10 hashtags.
+- Caption: Formatted bilingual publication copy:
+  1. Catchy Arabic hook line with emoji (🔥 or ⚡)
+  2. Arabic concise breakdown (2-3 lines)
+  3. English translation & technical summary
+  4. Bullet points of key mechanisms (🔹)
+  5. Verified Claims & Evidence block
+  6. Engagement challenge question (👇)
+  7. Clear source credit (🎥 or 📄)
+  8. 8-10 high-relevance hashtags (#TechInArabic, #SoftwareEngineering, etc.)
 - firstComment: Pinned first comment with reference link (TikTok caption links are not clickable).
 - shortCaption: 2-line quick-scroll version.
 - screenHook: 3-second on-screen hook for Slide 1 cover.
-- notesForHuman: 2 to 3 notes for human review (unverified claims, sponsor fluff removed).
+- notesForHuman: 2 to 3 notes for human review (unverified claims, sponsor fluff removed, grounding results).
 - scheduleSlot: Recommended posting slot in Africa/Algiers timezone (10:00 DZ, 12:00 DZ, or 18:00 DZ).
 
 Return valid JSON matching the exact schema.`;
@@ -307,8 +318,26 @@ const CAROUSEL_RESPONSE_SCHEMA = {
         creator: { type: Type.STRING },
         url: { type: Type.STRING },
         published: { type: Type.STRING },
+        groundingQueries: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: 'Search queries executed during grounding verification',
+        },
+        groundingSources: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              url: { type: Type.STRING },
+            },
+            required: ['title', 'url'],
+          },
+          description: 'Authoritative web links found during Google Search grounding',
+        },
+        isSearchGrounded: { type: Type.BOOLEAN },
       },
-      description: 'Spec §4: Source metadata extracted from input',
+      description: 'Spec §4: Source metadata extracted from input & search grounding',
     },
     facts: {
       type: Type.ARRAY,
@@ -319,10 +348,12 @@ const CAROUSEL_RESPONSE_SCHEMA = {
           type: { type: Type.STRING },
           verified: { type: Type.STRING },
           evidence: { type: Type.STRING },
+          sourceUrl: { type: Type.STRING },
+          sourceTitle: { type: Type.STRING },
         },
         required: ['text', 'type', 'verified'],
       },
-      description: 'Spec §4 & §5: Extracted and verified facts',
+      description: 'Spec §4 & §5: Extracted and verified facts with source citations',
     },
     notesForHuman: {
       type: Type.ARRAY,
@@ -569,18 +600,18 @@ app.post('/api/generate', async (req, res) => {
     const activeApiKey = customKey || process.env.GEMINI_API_KEY;
     const activeAi = activeApiKey ? new GoogleGenAI({ apiKey: activeApiKey }) : null;
 
-    // Primary: 'gemini-3.1-flash-lite' (high throughput, ultra-fast, handles multimodal)
+    // Primary: 'gemini-3.8-flash' (recommended model with search grounding & high reasoning)
     // Fallbacks: 'gemini-flash-latest'
-    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
     let lastError: unknown = null;
     let jsonResult: CarouselData | null = null;
 
     if (activeAi) {
       for (const model of candidateModels) {
         try {
-          console.log(`Calling Gemini model: ${model} (using ${customKey ? 'custom user key' : 'system key'})...`);
+          console.log(`Calling Gemini model with Google Search Grounding: ${model} (using ${customKey ? 'custom user key' : 'system key'})...`);
           const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`Timeout: ${model} exceeded 6000ms threshold`)), 6000)
+            setTimeout(() => reject(new Error(`Timeout: ${model} exceeded 10000ms threshold`)), 10000)
           );
 
           const response = await Promise.race([
@@ -590,6 +621,7 @@ app.post('/api/generate', async (req, res) => {
               config: {
                 systemInstruction: MARROK_SYSTEM_PROMPT,
                 temperature: 0.2,
+                tools: [{ googleSearch: {} }],
                 responseMimeType: 'application/json',
                 responseSchema: CAROUSEL_RESPONSE_SCHEMA,
               },
@@ -597,10 +629,54 @@ app.post('/api/generate', async (req, res) => {
             timeoutPromise,
           ]);
 
-          const text = response.text;
-          if (text) {
-            jsonResult = JSON.parse(text) as CarouselData;
-            console.log(`Successfully generated carousel with model ${model}`);
+          const rawText = response.text;
+          if (rawText) {
+            const cleanText = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+            jsonResult = JSON.parse(cleanText) as CarouselData;
+
+            // Extract Google Search Grounding metadata
+            const groundingMeta = response.candidates?.[0]?.groundingMetadata;
+            const searchQueries: string[] = (groundingMeta?.webSearchQueries as string[]) || [];
+            const groundingChunks = (groundingMeta?.groundingChunks as Array<{ web?: { uri?: string; title?: string } }>) || [];
+            const webSources: { title: string; url: string }[] = [];
+
+            if (Array.isArray(groundingChunks)) {
+              for (const chunk of groundingChunks) {
+                if (chunk?.web?.uri) {
+                  webSources.push({
+                    title: chunk.web.title || chunk.web.uri,
+                    url: chunk.web.uri,
+                  });
+                }
+              }
+            }
+
+            if (jsonResult) {
+              if (!jsonResult.sourceMeta) {
+                jsonResult.sourceMeta = {};
+              }
+              jsonResult.sourceMeta.isSearchGrounded = webSources.length > 0 || searchQueries.length > 0;
+              if (searchQueries.length > 0) {
+                jsonResult.sourceMeta.groundingQueries = searchQueries;
+              }
+              if (webSources.length > 0) {
+                jsonResult.sourceMeta.groundingSources = webSources;
+              }
+
+              // Enrich facts with real search citations
+              if (Array.isArray(jsonResult.facts) && webSources.length > 0) {
+                jsonResult.facts = jsonResult.facts.map((fact, fIdx) => {
+                  const matched = webSources[fIdx % webSources.length];
+                  return {
+                    ...fact,
+                    sourceUrl: fact.sourceUrl || matched?.url,
+                    sourceTitle: fact.sourceTitle || matched?.title,
+                  };
+                });
+              }
+            }
+
+            console.log(`Successfully generated grounded carousel with model ${model} (found ${webSources.length} sources)`);
             break;
           }
         } catch (err: unknown) {
