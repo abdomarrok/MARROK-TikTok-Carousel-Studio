@@ -22,6 +22,8 @@ import {
   Zap,
   Check,
   Languages,
+  Columns,
+  Rows,
 } from 'lucide-react';
 import { MediaSearchModal } from './MediaSearchModal';
 import { CHAR_LIMITS, hasArabicPunctuationJump } from '../lib/qaChecks';
@@ -37,21 +39,42 @@ import {
   NarrativeRole,
 } from '../lib/smartEditor';
 
-const CharLimitBadge: React.FC<{ current: number; limit: number }> = ({ current, limit }) => {
+const CharLimitBadge: React.FC<{ current: number; limit: number; label?: string }> = ({
+  current,
+  limit,
+  label,
+}) => {
   const isOver = current > limit;
   const isClose = current > limit * 0.85;
+  const percent = Math.min(100, Math.round((current / limit) * 100));
+
   return (
-    <span
-      className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
-        isOver
-          ? 'bg-red-500/20 text-red-400 font-bold border border-red-500/30'
-          : isClose
-          ? 'bg-amber-500/20 text-amber-300 font-medium'
-          : 'bg-white/5 text-slate-400'
-      }`}
-    >
-      {current}/{limit}
-    </span>
+    <div className="flex items-center gap-1.5">
+      {label && <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">{label}</span>}
+      <div className="w-12 h-1 rounded-full bg-white/10 overflow-hidden relative hidden xs:block">
+        <div
+          className={`h-full transition-all duration-200 rounded-full ${
+            isOver
+              ? 'bg-rose-500'
+              : isClose
+              ? 'bg-amber-400'
+              : 'bg-emerald-400'
+          }`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <span
+        className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+          isOver
+            ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30 animate-pulse'
+            : isClose
+            ? 'bg-amber-500/20 text-amber-300 font-medium'
+            : 'bg-white/5 text-slate-400'
+        }`}
+      >
+        {current}/{limit}
+      </span>
+    </div>
   );
 };
 
@@ -95,6 +118,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     title?: string;
     initialQuery?: string;
   } | null>(null);
+  const [layoutMode, setLayoutMode] = useState<'side-by-side' | 'stacked'>('side-by-side');
 
   const handleFieldChange = <K extends keyof SlideData>(field: K, value: SlideData[K]) => {
     onUpdateSlide({
@@ -1036,7 +1060,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         </div>
       )}
 
-      {/* Smart Content Assistant Toolbar */}
+      {/* Smart Content Assistant Toolbar & Layout Mode Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-black/30 border border-white/[0.08]">
         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
           <Wand2 className="w-3.5 h-3.5" style={{ color: theme.accent }} />
@@ -1084,105 +1108,148 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <span>Fix Arabic Punctuation</span>
             </button>
           )}
+
+          {/* Bilingual Layout Mode Switcher (Side-by-Side Split vs Stacked) */}
+          <div className="flex items-center bg-black/50 p-0.5 rounded-lg border border-white/10 ml-1">
+            <button
+              type="button"
+              onClick={() => setLayoutMode('side-by-side')}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+                layoutMode === 'side-by-side'
+                  ? 'bg-white/20 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Side-by-side bilingual view (English and Arabic columns)"
+            >
+              <Columns className="w-3 h-3" />
+              <span className="hidden sm:inline">Split</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode('stacked')}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+                layoutMode === 'stacked'
+                  ? 'bg-white/20 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Stacked vertical view"
+            >
+              <Rows className="w-3 h-3" />
+              <span className="hidden sm:inline">Stack</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Headlines & Body Copy for non-CTA slides */}
       {slide.type !== 'cta' && (
         <div className="space-y-3">
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-[11px] font-semibold text-slate-300">
-                English Headline (2 to 6 words)
-              </label>
-              <div className="flex items-center gap-2">
+          {/* Bilingual Headlines */}
+          <div className={layoutMode === 'side-by-side' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-3'}>
+            {/* English Headline */}
+            <div className="p-3 rounded-xl bg-black/25 border border-white/[0.06] space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  <span>English Headline</span>
+                </label>
                 <CharLimitBadge
                   current={(slide.enTitle || '').length}
                   limit={slideIndex === 0 ? CHAR_LIMITS.hookTitle : CHAR_LIMITS.enTitle}
+                  label="Jakarta 800"
                 />
-                <span className="text-[10px] text-slate-500 font-mono">Jakarta · 800</span>
               </div>
+              <textarea
+                value={slide.enTitle || ''}
+                onChange={(e) => handleFieldChange('enTitle', e.target.value)}
+                rows={2}
+                className="w-full rounded-lg bg-black/50 border border-white/10 p-2 text-xs text-white focus:outline-none focus:border-white/30 resize-none font-jakarta"
+                placeholder="e.g. Why did Anthropic move beyond Git?"
+              />
             </div>
-            <textarea
-              value={slide.enTitle || ''}
-              onChange={(e) => handleFieldChange('enTitle', e.target.value)}
-              rows={2}
-              className="w-full rounded-xl bg-black/40 border border-white/10 p-2.5 text-xs text-white focus:outline-none focus:border-white/30 resize-none font-jakarta"
-              placeholder="e.g. Why did Anthropic move beyond Git?"
-            />
+
+            {/* Arabic Headline */}
+            <div className="p-3 rounded-xl bg-black/25 border border-white/[0.06] space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.accent }} />
+                  <span>العنوان بالعربية</span>
+                </label>
+                <CharLimitBadge
+                  current={(slide.arTitle || '').length}
+                  limit={CHAR_LIMITS.arTitle}
+                  label="Cairo 800"
+                />
+              </div>
+              <textarea
+                value={slide.arTitle || ''}
+                onChange={(e) => handleFieldChange('arTitle', e.target.value)}
+                dir="rtl"
+                rows={2}
+                className="w-full rounded-lg bg-black/50 border border-white/10 p-2 text-xs text-slate-100 focus:outline-none focus:border-white/30 resize-none font-cairo"
+                placeholder="e.g. السبب وراء ابتعاد Anthropic عن Git"
+              />
+              {hasArabicPunctuationJump(slide.arTitle) && (
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/25">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Punctuation Jump: ends with Latin word + dot. End with Arabic word per Spec §8.</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-[11px] font-semibold text-slate-300">
-                Arabic Headline (Idiomatic technical Arabic)
-              </label>
-              <div className="flex items-center gap-2">
-                <CharLimitBadge current={(slide.arTitle || '').length} limit={CHAR_LIMITS.arTitle} />
-                <span className="text-[10px] font-mono" style={{ color: theme.accent }}>
-                  Cairo · 800
-                </span>
+          {/* Bilingual Body Copy */}
+          <div className={layoutMode === 'side-by-side' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-3'}>
+            {/* English Body */}
+            <div className="p-3 rounded-xl bg-black/25 border border-white/[0.06] space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  <span>English Body (1-2 crisp sentences)</span>
+                </label>
+                <CharLimitBadge
+                  current={(slide.enBody || '').length}
+                  limit={CHAR_LIMITS.enBody}
+                  label="Jakarta 400"
+                />
               </div>
+              <textarea
+                value={slide.enBody || ''}
+                onChange={(e) => handleFieldChange('enBody', e.target.value)}
+                rows={3}
+                className="w-full rounded-lg bg-black/50 border border-white/10 p-2 text-xs text-slate-300 focus:outline-none focus:border-white/30 resize-y font-jakarta"
+                placeholder="e.g. Main-branch history near 100 GB, a compressed working copy over 25 GB, and about 25 million CI checkouts a day."
+              />
             </div>
-            <textarea
-              value={slide.arTitle || ''}
-              onChange={(e) => handleFieldChange('arTitle', e.target.value)}
-              dir="rtl"
-              rows={2}
-              className="w-full rounded-xl bg-black/40 border border-white/10 p-2.5 text-xs text-slate-100 focus:outline-none focus:border-white/30 resize-none font-cairo"
-              placeholder="e.g. السبب وراء ابتعاد Anthropic عن Git"
-            />
-            {hasArabicPunctuationJump(slide.arTitle) && (
-              <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/25 mt-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                <span>Punctuation Jump Warning: Arabic headline ends with Latin word + punctuation (e.g. .Git). Rephrase so it ends with an Arabic word per Spec §8.</span>
-              </div>
-            )}
-          </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-[11px] font-semibold text-slate-300">
-                English Body Copy (1 to 2 crisp sentences, 12 to 24 words)
-              </label>
-              <div className="flex items-center gap-2">
-                <CharLimitBadge current={(slide.enBody || '').length} limit={CHAR_LIMITS.enBody} />
-                <span className="text-[10px] text-slate-500 font-mono">400 Weight</span>
+            {/* Arabic Body */}
+            <div className="p-3 rounded-xl bg-black/25 border border-white/[0.06] space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  <span>الشرح بالعربية</span>
+                </label>
+                <CharLimitBadge
+                  current={(slide.arBody || '').length}
+                  limit={CHAR_LIMITS.arBody}
+                  label="Cairo 400"
+                />
               </div>
+              <textarea
+                value={slide.arBody || ''}
+                onChange={(e) => handleFieldChange('arBody', e.target.value)}
+                dir="rtl"
+                rows={3}
+                className="w-full rounded-lg bg-black/50 border border-white/10 p-2 text-xs text-slate-300 focus:outline-none focus:border-white/30 resize-y font-cairo"
+                placeholder="e.g. تاريخ الفرع الرئيسي يقارب 100 جيجابايت..."
+              />
+              {hasArabicPunctuationJump(slide.arBody) && (
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/25">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Punctuation Jump: ends with Latin word + dot. End with Arabic word per Spec §8.</span>
+                </div>
+              )}
             </div>
-            <textarea
-              value={slide.enBody || ''}
-              onChange={(e) => handleFieldChange('enBody', e.target.value)}
-              rows={3}
-              className="w-full rounded-xl bg-black/40 border border-white/10 p-2.5 text-xs text-slate-300 focus:outline-none focus:border-white/30 resize-y font-jakarta"
-              placeholder="e.g. Main-branch history near 100 GB, a compressed working copy over 25 GB, and about 25 million CI checkouts a day."
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-[11px] font-semibold text-slate-300">
-                Arabic Body Copy
-              </label>
-              <div className="flex items-center gap-2">
-                <CharLimitBadge current={(slide.arBody || '').length} limit={CHAR_LIMITS.arBody} />
-                <span className="text-[10px] text-slate-500 font-mono">Cairo · 400</span>
-              </div>
-            </div>
-            <textarea
-              value={slide.arBody || ''}
-              onChange={(e) => handleFieldChange('arBody', e.target.value)}
-              dir="rtl"
-              rows={3}
-              className="w-full rounded-xl bg-black/40 border border-white/10 p-2.5 text-xs text-slate-400 focus:outline-none focus:border-white/30 resize-y font-cairo"
-              placeholder="e.g. تاريخ الفرع الرئيسي يقارب 100 جيجابايت..."
-            />
-            {hasArabicPunctuationJump(slide.arBody) && (
-              <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/25 mt-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                <span>Punctuation Jump Warning: Arabic body ends with Latin word + punctuation. Rephrase to end with Arabic word per Spec §8.</span>
-              </div>
-            )}
           </div>
         </div>
       )}

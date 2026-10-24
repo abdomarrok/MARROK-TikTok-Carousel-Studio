@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { SlideCanvasPreview } from './components/SlideCanvasPreview';
 import { CaptionBox } from './components/CaptionBox';
@@ -17,14 +17,45 @@ import { runQAChecks, qaReportSummary, QAReport } from './lib/qaChecks';
 import { Sparkles, Upload, ShieldCheck } from 'lucide-react';
 
 export default function App() {
-  const [carousel, setCarousel] = useState<CarouselData>(PRESET_CAROUSELS.scion.data);
+  // Local Draft Persistence (Hydrate from browser localStorage if available)
+  const [carousel, setCarousel] = useState<CarouselData>(() => {
+    try {
+      const saved = localStorage.getItem('marrok_deck_draft_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.slides && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to restore draft from localStorage:', err);
+    }
+    return PRESET_CAROUSELS.scion.data;
+  });
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
   // Palette State
   const initialPaletteKey = carousel.theme || 'teal';
   const [currentPalette, setCurrentPalette] = useState<ThemePalette>(
     DEFAULT_PALETTES[initialPaletteKey] || DEFAULT_PALETTES.teal
   );
+
+  // Auto-Save Draft to LocalStorage whenever carousel changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem('marrok_deck_draft_v1', JSON.stringify(carousel));
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setLastSavedTime(timeStr);
+      } catch (err) {
+        console.warn('Failed to auto-save draft:', err);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [carousel]);
 
   // Modal / Ingestion States
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
@@ -85,8 +116,8 @@ export default function App() {
     setCarousel((prev) => ({ ...prev, caption: newCaption }));
   };
 
-  // Add new slide
-  const handleAddSlide = () => {
+  // Add new slide at specific index
+  const handleAddSlideAt = (insertIndex: number) => {
     const newSlide: SlideData = {
       type: 'row',
       icons: [{ icon: 'cpu', label: 'Feature' }],
@@ -98,12 +129,31 @@ export default function App() {
 
     setCarousel((prev) => {
       const newSlides = [...prev.slides];
-      const insertAt = Math.max(newSlides.length - 1, 1);
-      newSlides.splice(insertAt, 0, newSlide);
+      const boundedIndex = Math.max(0, Math.min(insertIndex, newSlides.length));
+      newSlides.splice(boundedIndex, 0, newSlide);
       return { ...prev, slides: newSlides };
     });
-    setCurrentSlideIndex((prev) => Math.min(prev + 1, carousel.slides.length));
-    showToast('New slide added');
+    setCurrentSlideIndex(insertIndex);
+    showToast(`Added slide at #${insertIndex + 1}`);
+  };
+
+  // Add new slide
+  const handleAddSlide = () => {
+    handleAddSlideAt(Math.max(carousel.slides.length - 1, 1));
+  };
+
+  // Reset to default draft template
+  const handleResetDraft = () => {
+    if (window.confirm('Reset carousel back to default template? Unsaved edits will be replaced.')) {
+      try {
+        localStorage.removeItem('marrok_deck_draft_v1');
+      } catch (err) {
+        // ignore
+      }
+      setCarousel(PRESET_CAROUSELS.scion.data);
+      setCurrentSlideIndex(0);
+      showToast('Reset to default Scion template');
+    }
   };
 
   // Duplicate current slide
@@ -222,6 +272,8 @@ export default function App() {
         isExporting={isExporting}
         exportProgress={exportProgress}
         lastQAReport={lastQAReport}
+        lastSavedTime={lastSavedTime}
+        onResetDraft={handleResetDraft}
       />
 
       {/* Main Studio Viewport */}
@@ -251,14 +303,15 @@ export default function App() {
 
         {/* 2-Column Studio Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: 1080x1920 Canvas Preview */}
-          <div id="preview" className="lg:col-span-5 flex flex-col items-center">
+          {/* Left Column: 1080x1920 Canvas Preview (Sticky Desktop Studio Viewport) */}
+          <div id="preview" className="lg:col-span-5 flex flex-col items-center lg:sticky lg:top-20 self-start z-10">
             <SlideCanvasPreview
               carousel={carousel}
               currentSlideIndex={currentSlideIndex}
               customPalette={currentPalette}
               onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
               onSelectHookVariant={handleSelectHookVariant}
+              onAddSlideAt={handleAddSlideAt}
               onShowToast={showToast}
             />
           </div>

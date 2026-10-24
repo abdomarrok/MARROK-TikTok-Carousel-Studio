@@ -1129,8 +1129,54 @@ export async function downloadAllSlidesZip(
     folder?.file(`slide${i + 1}.jpg`, base64, { base64: true });
   }
 
-  // Include the TikTok caption as a text file in the zip
-  folder?.file('tiktok_caption.txt', carousel.caption);
+  // Spec §18 Complete Deliverables: Caption, Pinned First Comment, Short Caption, Metadata, and README
+  folder?.file('caption.txt', carousel.caption);
+  if (carousel.firstComment) {
+    folder?.file('first_comment.txt', carousel.firstComment);
+  }
+  if (carousel.shortCaption) {
+    folder?.file('short_caption.txt', carousel.shortCaption);
+  }
+
+  // Structured Post Metadata JSON (for automation, analytics, and archiving)
+  const metadata = {
+    exportedAt: new Date().toISOString(),
+    generator: 'MARROK TikTok Carousel Studio',
+    category: carousel.category,
+    theme: carousel.theme,
+    totalSlides: carousel.slides.length,
+    brand: carousel.brand,
+    brandUrl: carousel.brandUrl,
+    archetypes: carousel.slides.map((s, idx) => ({ slide: idx + 1, type: s.type, enTitle: s.enTitle })),
+    caption: carousel.caption,
+    firstComment: carousel.firstComment,
+    screenHook: carousel.screenHook,
+    captionVariants: carousel.captionVariants || [],
+    hookVariants: carousel.hookVariants || [],
+  };
+  folder?.file('post_metadata.json', JSON.stringify(metadata, null, 2));
+
+  // Quick Creator Publishing Guide
+  const readme = `MARROK TIKTOK CAROUSEL EXPORT PACKAGE
+=====================================
+Deck: ${carousel.category} (${carousel.slides.length} slides)
+Theme: ${carousel.theme}
+Created: ${new Date().toLocaleString()}
+
+FILES IN THIS PACKAGE:
+- slide1.jpg to slide${total}.jpg (1080x1920 9:16 high-res JPGs, Safe-Zone compliant)
+- caption.txt (Bilingual TikTok post caption with hashtags)
+- first_comment.txt (Pinned first comment to drive engagement and save rate)
+- short_caption.txt (Clean 2-line version for TikTok quick post)
+- post_metadata.json (Machine-readable post schema)
+
+HOW TO PUBLISH TO TIKTOK:
+1. Transfer slide1.jpg through slide${total}.jpg to your phone (AirDrop, Google Drive, etc.).
+2. Open TikTok -> Tap '+' -> Choose 'Photos' -> Select all ${total} slides in numerical order.
+3. Copy text from 'caption.txt' and paste into TikTok's description box.
+4. Hit 'Post'. Immediately open your video comments and paste 'first_comment.txt', then pin it!
+`;
+  folder?.file('README.txt', readme);
 
   const content = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(content);

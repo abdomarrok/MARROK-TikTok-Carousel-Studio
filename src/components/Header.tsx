@@ -15,6 +15,8 @@ interface HeaderProps {
   isExporting: boolean;
   exportProgress?: { current: number; total: number } | null;
   lastQAReport?: QAReport | null;
+  lastSavedTime?: string | null;
+  onResetDraft?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -29,6 +31,8 @@ export const Header: React.FC<HeaderProps> = ({
   isExporting,
   exportProgress,
   lastQAReport,
+  lastSavedTime,
+  onResetDraft,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#080d11]/85 backdrop-blur-md px-4 sm:px-6 py-3 transition-colors">
@@ -72,6 +76,27 @@ export const Header: React.FC<HeaderProps> = ({
             <Key className="w-3.5 h-3.5 text-slate-300" />
             <span className="hidden md:inline">API</span>
           </button>
+
+          {/* Auto-Save Draft Status Pill */}
+          {lastSavedTime && (
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-full border border-white/5 bg-white/[0.03] text-slate-400"
+              title={`Auto-saved to local browser storage at ${lastSavedTime}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-mono text-[10px]">Saved</span>
+              {onResetDraft && (
+                <button
+                  type="button"
+                  onClick={onResetDraft}
+                  className="text-[10px] text-slate-500 hover:text-rose-400 ml-1 cursor-pointer transition-colors"
+                  title="Reset to default template"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons: Ingest & Export */}

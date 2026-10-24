@@ -21,41 +21,47 @@
 
 ## ⚡ Highlights & Key Capabilities
 
-### 🎨 The MARROK 7-Archetype Visual System
-Engineered specifically for developer engagement on mobile feeds:
+### 🎛️ Linear-Grade Studio UI/UX & Workflow
+Engineered for rapid, precision creation of high-performing technical carousels:
+- **TikTok In-App HUD Simulator:** 1:1 mobile feed safe-zone overlay simulator displaying TikTok's action rail (avatar, like count, comments, bookmarks, share), sound disc, caption ticker, and the critical $y=1760$ baseline boundary. Toggle on/off instantly via button or shortcut **`T`**.
+- **Sticky Dual-Column Viewport:** The 1080×1920 canvas preview stays pinned (`lg:sticky lg:top-20 self-start`) as you scroll through detailed controls, guaranteeing continuous real-time visual feedback.
+- **Bilingual Side-by-Side Editor:** One-click **Split** vs **Stack** view toggle. Edit English headlines and Arabic copy side-by-side in balanced columns.
+- **Dynamic Character Limit Progress Bars:** Color-coded micro-progress bars (emerald $\le 75\%$, amber $75\text{--}100\%$, pulsating rose $>100\%$) ensure headlines ($\le 45$ chars) and body text ($\le 110$ chars) strictly comply with Spec §8 without guesswork.
+- **Interactive Filmstrip & In-Between Inserters:** Slide thumbnails tagged with archetype badges (`HUB`, `CLI`, `VS`, `MTR`, `ROW`, `CTA`) with hover **`+`** buttons between any two slides to insert new slides anywhere in the narrative arc.
+- **Desktop Keyboard Shortcuts:** Navigate with **`←` / `→`**, jump directly to any slide with **`1`--`9`**, and toggle the TikTok overlay with **`T`**.
+- **Local Draft Persistence:** Debounced auto-save to `localStorage` with a subtle **`✓ Saved [Time]`** status pill and 1-click template reset in the header.
+
+### 🚀 1-Input Smart Pipeline Command Center (Spec §4–§8)
+Creators provide a single input (plain text summary, URL, code snippet, or screenshot). The engine executes an intelligent 6-stage autonomous workflow:
+1. **Material Ingestion:** Downsamples camera uploads, extracts core entities and technical takeaways.
+2. **Domain & Persona Detection:** Identifies the technical category (e.g. *Linux Kernel & eBPF*, *AI Agents*, *Distributed Consensus*) and assigns the optimal color theme.
+3. **Narrative Arc Planning:** Maps slides to the 8-beat viral technical arc (Hook $\to$ The Stakes $\to$ VS Split $\to$ Code Diff $\to$ Step $\to$ The Catch $\to$ SRE Rule $\to$ CTA).
+4. **Hook & Multi-Variant Generation:** Generates 3 psychological Slide 1 hook angles (Curiosity, Hard Metrics, Problem/Contrast) and bilingual caption variants.
+5. **Fact & Claim Verification:** Checks technical credibility, isolates key numbers, and links claims to verifiable source entities (inspectable via the **Plan Inspector**).
+6. **Safe Zone Canvas Rendering:** Formats slides into 1080×1920 (9:16) JPGs guaranteed to render clearly on mobile screens.
+
+### 🎨 The MARROK 8-Archetype Visual System
 1. **The Hook (`hub`):** Central pulsing hub icon connected to 6 orbiting satellites via radial vectors.
 2. **Icon Row (`row`):** 1, 2, or 3 elevated cards with micro-labels for core concepts or step sequences.
-3. **Metric Hero Card (`metric`):** Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, and delta pill.
-4. **Code / Terminal Window (`code`):** Monospace window with macOS dots, line numbers, and diff syntax (`$`, `+`, `-`, `✔`).
-5. **Comparison Split (`compare`):** Side-by-side legacy vs modern cards with problem/solution bullet points.
-6. **Image Visual Card (`image`):** Elevated technical diagram or visual asset container with `contain` or `cover` fit, caption badge, and blueprint grid.
-7. **Final CTA (`cta`):** Geometric branding emblem, domain question, CTA pill, and bilingual source attribution credit.
+3. **Step Number Counter (`number`):** Giant 220px accent numeral counter with optional micro-badge label for procedural workflows.
+4. **Metric Hero Card (`metric`):** Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, and delta pill.
+5. **Code / Terminal Window (`code`):** Monospace terminal window with macOS dots, line numbers, and diff syntax (`$`, `+`, `-`, `✔`).
+6. **Comparison Split (`compare`):** Side-by-side legacy vs modern cards with problem/solution bullet points.
+7. **Image Visual Card (`image`):** Elevated technical diagram or visual asset container with `contain` or `cover` fit, caption badge, and blueprint grid.
+8. **Final CTA (`cta`):** Geometric branding emblem, domain question, CTA pill, and bilingual source attribution credit.
 
-### 🌐 Subject-Based Internet Icons & Web Media Resolution
-- **Curated Tech Brand Resolution:** Automatically identifies mentions of 40+ top developer technologies (Redis, Docker, Kubernetes, Linux, PostgreSQL, MySQL, FastAPI, Go, Rust, AWS, Cloudflare, etc.) and pulls official vector logos from Simple Icons CDN.
-- **Interactive Web Media & Icon Picker Modal:** Search official tech brand logos, search Wikimedia Commons technical architecture diagrams, paste direct HTTPS URLs, or upload local SVGs/images.
-- **CORS-Safe Server Image Proxy (`/api/proxy-image`):** Solves HTML5 Canvas tainting, ensuring single-slide PNG downloads, ZIP exports, and direct 1-click clipboard copying work reliably.
+### 📦 Complete Deliverables ZIP Package (Spec §18)
+1-click export packages everything needed to publish to TikTok on mobile immediately:
+- `slide1.jpg` through `slide8.jpg` (1080×1920 9:16 high-res JPGs, Safe-Zone compliant)
+- `caption.txt` (Bilingual TikTok post caption with hashtags)
+- `first_comment.txt` (Pinned first comment to drive engagement, discussion points, and source links)
+- `short_caption.txt` (Clean 2-line version for TikTok quick post)
+- `post_metadata.json` (Structured JSON schema for automation, archiving, or analytics)
+- `README.txt` (Creator publishing guide with step-by-step mobile upload instructions)
 
-### 🔮 Theme Harmonization & Tinting Engine
-- **Canvas-Only Theming:** Changing themes alters only the carousel slide canvas; application chrome remains stable dark (`#080d11`).
-- **Dynamic Accent Tinting (`drawTintedImage`):** Vector logos and SVGs are dynamically recolored into the active post's neon accent (`theme.accent`) or icon stroke (`theme.iconStroke`), preventing dark or clashing icons.
-- **Blueprint Grid & Ambient Glow:** Image cards strictly inherit `theme.surface` and `theme.surfaceBorder` with subtle technical blueprint grid lines and ambient radial glow.
-- **4 Visual Tone Modes:**
-  - `Theme HUD (Auto)`: Blueprint grid + auto-colorizes SVGs and logos with active theme accent.
-  - `Invert White BG`: Inverts white background diagrams into sleek dark-mode terminal visuals.
-  - `Accent Tint`: Washes raster graphics in the active theme’s neon accent.
-  - `Original Colors`: Preserves raw unaltered colors for photos and screenshots.
-
-### 🧠 Adaptive Structure & Content Synthesis
-- **Dynamic Slide Count (5–9 Slides):** Replaced fixed 8-slide decks with intelligent density analysis—lean 5–6 slide decks for concise announcements, 8–9 slides for in-depth architecture breakdowns.
-- **Intelligent Icon Selection:** 32 domain-specific icons scored dynamically against technical topics (security, AI, databases, infrastructure, kernel, etc.).
-- **Native Bilingual Copy (English + Technical Arabic):** Bold English headlines with idiomatic technical Arabic directly underneath (`dir="rtl"` with *Cairo* typography), preserving proper nouns in Latin script (e.g. `Anthropic`, `Git`, `Docker`, `eBPF`).
-
-### 📱 Publishing & Mobile-First Zero-Lag Pipeline
-- **Canvas Downscaler:** Downsamples 15MB+ camera uploads to ~120KB before transmission, preventing mobile upload timeouts.
-- **6s Promise.race Timeout & 503 Fast-Break:** Upstream Gemini spikes instantly fall back to the built-in deterministic synthesizer.
-- **1-Click Mobile Clipboard:** Direct image copy to system clipboard for instant pasting into TikTok/Instagram.
-- **Batch ZIP Export:** High-res numbered 1080×1920 PNG files packaged via JSZip.
+### 🛡️ Pre-Publish QA Gate & Visual Contact Sheet
+- **Automated QA Linter (`src/lib/qaChecks.ts`):** Checks headline character limits, body length, placeholder tokens (`Lorem ipsum`, `00%`), and Arabic punctuation jump bugs (where an Arabic line ending with a Latin word causes punctuation to jump to the wrong side).
+- **Contact Sheet Generator:** Renders all deck slides tiled in a high-resolution master grid for instant visual inspection before posting.
 
 ---
 
