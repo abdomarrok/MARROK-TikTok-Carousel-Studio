@@ -3,7 +3,7 @@ export type ThemeMode = 'security' | 'engineering' | 'cyber' | 'violet' | 'bluep
 // Dynamic category type accepting any detected or custom domain
 export type CategoryType = string;
 
-export type SlideType = 'hub' | 'row' | 'cta';
+export type SlideType = 'hub' | 'row' | 'metric' | 'code' | 'compare' | 'image' | 'cta';
 
 export interface IconLabelPair {
   icon: string;
@@ -17,6 +17,25 @@ export interface SlideData {
   satIcons?: string[];
   // Row properties
   icons?: IconLabelPair[];
+  // Metric Card Archetype properties
+  metricValue?: string;      // e.g. "200x", "0ms", "99.9%", "45GB"
+  metricLabel?: string;      // e.g. "THROUGHPUT MULTIPLIER", "P99 LATENCY"
+  metricDiff?: string;       // e.g. "▲ 12x vs legacy baseline", "▼ 85% memory overhead"
+  metricIcon?: string;       // e.g. "zap", "gauge", "activity", "cpu"
+  // Code / Terminal Window Archetype properties
+  codeSnippet?: string;      // Multi-line code, bash, assembly or diff
+  codeLanguage?: string;     // e.g. "bash", "rust", "python", "sql", "c"
+  codeFileName?: string;     // e.g. "deploy.sh", "main.rs", "kernel.c"
+  // Compare / Side-by-Side Archetype properties
+  compareLeftTitle?: string;  // e.g. "Legacy Git"
+  compareLeftBody?: string;   // e.g. "Full history clone\nBloated .git folder\nStalls at 100GB"
+  compareRightTitle?: string; // e.g. "Scion / MARROK"
+  compareRightBody?: string;  // e.g. "Lazy checkout\nVirtual file system\nInstant CI builds"
+  // Image / Web Visual Archetype properties
+  imageUrl?: string;          // Direct URL or data URL of external tech diagram, logo, or photo
+  imageCaption?: string;      // Micro-badge label for the image
+  imageFit?: 'contain' | 'cover'; // Fit mode on canvas (defaults to contain)
+  imageFilter?: 'hud' | 'invert' | 'tint' | 'clean'; // Theme integration filter (hud = blueprint dark blend, invert = dark mode inversion, tint = accent wash, clean = original)
   // Titles & Body
   enTitle?: string;
   arTitle?: string;
@@ -46,6 +65,8 @@ export interface CaptionVariant {
 export interface CarouselData {
   theme: string;
   category: string;
+  brand?: string;    // Brand wordmark / watermark (defaults to 'MARROK' or creator handle)
+  brandUrl?: string; // Website URL or handle (defaults to 'marrok.org')
   caption: string;
   captionVariants?: CaptionVariant[];
   hookVariants?: HookVariant[];
@@ -202,13 +223,10 @@ export const DEFAULT_PALETTES: Record<string, ThemePalette> = {
   },
 };
 
+// Also map legacy aliases directly in DEFAULT_PALETTES
+DEFAULT_PALETTES['security'] = DEFAULT_PALETTES.teal;
+DEFAULT_PALETTES['engineering'] = DEFAULT_PALETTES.amber;
+
 // Backward-compatible alias for existing imports
-export const THEME_CONFIGS: Record<string, ThemePalette> = {
-  security: DEFAULT_PALETTES.teal,
-  engineering: DEFAULT_PALETTES.amber,
-  cyber: DEFAULT_PALETTES.cyber,
-  violet: DEFAULT_PALETTES.violet,
-  blueprint: DEFAULT_PALETTES.blueprint,
-  monochrome: DEFAULT_PALETTES.monochrome,
-  emerald: DEFAULT_PALETTES.emerald,
-};
+export const THEME_CONFIGS: Record<string, ThemePalette> = DEFAULT_PALETTES;
+

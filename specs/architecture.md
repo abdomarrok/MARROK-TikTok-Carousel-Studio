@@ -2,9 +2,9 @@
 
 ## 1. Executive Summary
 
-**MARROK TikTok Carousel Studio** is a specialized multimodal content generation engine that converts complex engineering materials (technical architecture screenshots, code snippets, GitHub repositories, YouTube transcripts, and engineering post-mortems) into high-impact, bilingual (English + Arabic) 1080×1920 TikTok carousels and algorithmic captions.
+**MARROK TikTok Carousel Studio** is an agentic multimodal content generation engine that converts complex engineering materials (technical architecture screenshots, code snippets, GitHub repositories, YouTube transcripts, and engineering post-mortems) into high-impact, bilingual (English + Arabic) 1080×1920 TikTok carousels and algorithmic captions.
 
-The system is engineered for zero-latency mobile workflows, high availability during upstream AI service spikes, and strict adherence to the proprietary **MARROK 5-Archetype Visual System**.
+The system is engineered for zero-latency mobile workflows, high availability during upstream AI service spikes, and strict adherence to the proprietary **MARROK 7-Archetype Visual System**.
 
 ```
                            ┌──────────────────────────────────────────┐
@@ -23,16 +23,18 @@ The system is engineered for zero-latency mobile workflows, high availability du
                                                 │
                                                 ▼
                            ┌──────────────────────────────────────────┐
-                           │         Express Node.js Proxy            │
-                           │      (server.ts / Vite Middleware)       │
+                           │         Express Node.js Gateway          │
+                           │  - POST /api/generate (Gemini / Synth)   │
+                           │  - GET  /api/proxy-image (CORS & Color)  │
+                           │  - GET  /api/search-media (Tech & Wiki)  │
                            └────────┬────────────────────────┬────────┘
                                     │                        │
                    (Cloud Path)     │                        │ (Offline/Fast-break)
                                     ▼                        ▼
     ┌────────────────────────────────────────┐   ┌────────────────────────────────┐
     │          Google GenAI Engine           │   │   MARROK Synthesizer Engine    │
-    │  - gemini-3.1-flash-lite / flash-latest│   │  - Deterministic archetype     │
-    │  - Strict 6000ms Promise.race timeout  │   │    pattern synthesis           │
+    │  - gemini-3.1-flash-lite / flash-latest│   │  - Dynamic 5–9 slide density   │
+    │  - Strict 6000ms Promise.race timeout  │   │  - Subject-aware icon curation │
     │  - 503 / UNAVAILABLE instant break     │   │  - 0ms zero-latency fallback   │
     └───────────────────┬────────────────────┘   └────────────────┬───────────────┘
                         │                                         │
@@ -42,9 +44,10 @@ The system is engineered for zero-latency mobile workflows, high availability du
                            ┌──────────────────────────────────────────┐
                            │        React 19 Interactive Studio       │
                            │  - 1080×1920 9:16 Live Canvas Renderer   │
-                           │  - 3 A/B Hook Switcher (Curiosity/Metrics│
-                           │  - 2 Caption Variants (Bulletins/Narrative│
-                           │  - Slide Archetype Visual Inspector      │
+                           │  - 7 Archetypes (Hub, Row, Metric, Code, │
+                           │    Compare, Image Visual, Final CTA)     │
+                           │  - Web Media & Brand Logo Modal Picker   │
+                           │  - Theme Harmonization & Tinting Engine  │
                            │  - One-tap Mobile Clipboard & ZIP Export │
                            └──────────────────────────────────────────┘
 ```
@@ -67,56 +70,36 @@ The system is engineered for zero-latency mobile workflows, high availability du
 - **Resilience Guardrails:**
   - **6000ms Timeout Race:** Every model call is bounded by `Promise.race`. If the upstream AI does not return within 6 seconds, the request is aborted.
   - **503 High-Demand Fast-Break:** If the upstream cluster reports `503 Service Unavailable`, `UNAVAILABLE`, or `high demand`, the server immediately stops iterating and invokes the local synthesizer.
-  - **Zero-500 Guarantee:** The endpoint `/api/generate` never returns an HTTP 500 error; it always outputs a complete, compliant 8-to-9 slide carousel with full bilingual copy.
+  - **Zero-500 Guarantee:** The endpoint `/api/generate` never returns an HTTP 500 error; it always outputs a complete, compliant 5-to-9 slide carousel with full bilingual copy.
 
-### 2.3 MARROK Synthesizer Subsystem (`src/lib/synthesizer.ts`)
+### 2.3 CORS-Safe Image Proxy & SVG Recoloring Subsystem (`/api/proxy-image`)
+- **Canvas Tainting Mitigation:** Standard browser security marks an HTML5 canvas as "tainted" if an external cross-origin image without CORS headers is drawn, which blocks `toDataURL`, `toBlob`, and clipboard copy APIs. The proxy fetches upstream media and attaches `Access-Control-Allow-Origin: *`.
+- **Dynamic SVG Theme Colorizing:** Upstream Simple Icons or CDN SVGs frequently have black paths (`#000000`). When a `color` parameter is supplied (e.g. `?color=F09A67`), the proxy dynamically modifies the root `<svg>` fill and path properties to match the active post theme's neon accent.
+
+### 2.4 Media Discovery & Search Subsystem (`/api/search-media`)
+- **Tech Brand Logos:** Instant real-time matching across 40+ curated developer technology brands (Redis, Docker, Kubernetes, Linux, PostgreSQL, MySQL, FastAPI, Go, Rust, AWS, etc.) hosted on Simple Icons CDN.
+- **Wikimedia Commons Integration:** Live query interface fetching architectural schematics, network diagrams, and hardware visuals directly into the studio.
+
+### 2.5 MARROK Synthesizer Subsystem (`src/lib/synthesizer.ts`)
 - A zero-dependency, deterministic content synthesis engine capable of generating valid MARROK carousels in under 5ms.
-- Extracts keywords, technical metrics, system components, and architectural concepts from raw input text or filenames.
-- Formulates 3 distinct hook variants (Curiosity, Hard Metrics, Problem/Shift) and 2 caption styles (Bulletins with metrics vs. Narrative breakdown) with niche hashtag clustering.
+- **Adaptive Length (5–9 Slides):** Analyzes input density to emit lean, focused decks for short announcements (5–6 slides) or deep architectural breakdowns (8–9 slides).
+- **Domain-Specific Icon Selection:** Curates from a 32-icon technical registry and tech brand CDN catalogue based on subject keywords (e.g., security exploits select `shieldAlert` and `lock`, containerization selects `docker` and `server`).
+- **Archetype Distribution:** Automatically distributes `hub`, `metric`, `code`, `compare`, `row`, and `cta` slides based on detected benchmarks, code snippets, or comparisons.
 
-### 2.4 SVG / Canvas Rendering Subsystem (`src/lib/canvasExporter.ts`)
+### 2.6 Canvas Rendering & Theme Harmonization Engine (`src/lib/canvasExporter.ts`)
 - **Aspect Ratio & Resolution:** 1080×1920 pixels (9:16 vertical video format).
 - **Safe Zones:** Adheres to TikTok interface overlays (top 180px reserved for search/sound, bottom 320px for username/description/audio, right 120px for engagement icons).
-- **Typography Engine:**
-  - English: *Plus Jakarta Sans* (Weights: 600, 700, 800) for clean engineering hierarchy.
-  - Arabic: *Cairo* (Weights: 600, 700, 800) rendered with natural RTL flow (`dir="rtl"`).
-  - Code & Metrics: *JetBrains Mono* / tabular numbers.
+- **Theme Harmonization & Tinting (`drawTintedImage`):**
+  - Uses `globalCompositeOperation = 'source-in'` on an offscreen canvas to recolor non-transparent pixels into `theme.accent` or `theme.iconStroke`.
+  - Image cards strictly inherit `theme.surface` and `theme.surfaceBorder` with technical blueprint grid lines and ambient radial glow.
+  - Supports 4 visual harmonization filters: `Theme HUD (Auto)`, `Invert White BG`, `Accent Tint`, and `Original Colors`.
 - **Export Formats:**
-  - High-res PNG rendering via off-screen HTML5 `<canvas>` with `devicePixelRatio` scaling.
-  - Batch ZIP packaging via `JSZip` containing numbered PNG slides (`slide-01-hook.png` through `slide-08-cta.png`).
-  - Native browser clipboard integration for instant pasting on mobile devices.
+  - High-res PNG rendering via off-screen HTML5 `<canvas>`.
+  - Batch ZIP packaging via `JSZip` containing numbered PNG slides.
+  - Direct 1-click clipboard copy (`navigator.clipboard.write`) for instant mobile posting.
 
 ---
 
-## 3. Core Data Contracts
-
-The application state revolves around the `CarouselData` schema:
-
-```typescript
-export interface CarouselData {
-  theme: 'engineering' | 'cybersecurity' | 'architecture';
-  category: string; // e.g., "AI + ENGINEERING", "DEVSECOPS"
-  caption: string;  // Primary bilingual caption
-  captionVariants?: {
-    style: string;  // "Executive Bulletins" | "Narrative Breakdown"
-    caption: string;
-  }[];
-  hookVariants?: {
-    tag: string;    // "Curiosity & Surprise" | "Hard Metrics" | "Problem"
-    enTitle: string;
-    arTitle: string;
-    enBody: string;
-    arBody: string;
-    centerIcon?: string;
-  }[];
-  slides: Slide[];
-}
-```
-
----
-
-## 4. Security & Environment
-
-- **API Key Isolation:** `GEMINI_API_KEY` is kept strictly server-side in `server.ts` via `process.env`. No client bundles or public APIs expose credentials.
-- **CORS Configuration:** Configured to allow cross-origin requests within AI Studio preview containers.
-- **Payload Limits:** Express JSON body parser configured with `limit: '25mb'` to accommodate compressed base64 images without HTTP 413 errors.
+## 3. Scope Isolation: Site Chrome vs. Carousel Canvas
+- **Studio Chrome:** Maintains a clean, stable dark workspace aesthetic (`#080d11`) with reduced visual noise, collapsible ingestion controls, and uncluttered toolbars.
+- **Carousel Canvas:** Exclusively reacts to the active post theme (e.g., *Solarized Amber*, *Cyber Threat Crimson*, *Electric AI Violet*, *Terminal Teal*). Theme switching transforms the slide visuals without altering the application chrome.

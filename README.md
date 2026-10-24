@@ -10,7 +10,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 <p align="center">
-  <strong>Multimodal content engine converting complex engineering breakthroughs, screenshots, code diffs, and transcripts into 1080×1920 TikTok carousels and bilingual (English + Arabic) viral captions.</strong>
+  <strong>Multimodal content engine converting complex engineering breakthroughs, screenshots, code diffs, architecture diagrams, and transcripts into 1080×1920 TikTok carousels and bilingual (English + Arabic) viral captions.</strong>
 </p>
 
 [Architecture](specs/architecture.md) • [Log Steps](specs/logsteps.md) • [Design System](specs/archetypes-and-design-system.md) • [API Specs](specs/api-and-schemas.md)
@@ -21,35 +21,41 @@
 
 ## ⚡ Highlights & Key Capabilities
 
-- **Full Custom Color Palette & Multi-Theme Suite:**
-  - 6 curated engineering presets: *Terminal Teal*, *Cyber Threat Crimson*, *Electric AI Violet*, *Enterprise Blueprint*, *Solarized Amber*, *Matrix Emerald*, *Obsidian Minimalist*.
-  - Interactive **Full Custom Color Palette Picker** giving granular hex controls for canvas background, card surfaces, borders, neon accents, alert colors, and text.
-  - Live SVG updates and full high-DPI 1080×1920 PNG/ZIP export reflection.
-- **Context-Driven Domain Extraction:**
-  - Automatically identifies domain categories (e.g. *Linux Kernel & eBPF*, *Reverse Engineering & Exploits*, *AI Models & Inference*, *Kubernetes & Cloud Security*, *Distributed Storage & Raft*) directly from input context without static restrictions.
-- **Topic Inspiration & Trending Hooks Studio:**
-  - 1-click discovery feed featuring high-CTR engineering breakthroughs.
-  - Custom keyword topic builder to create complete decks from any technology term.
-- **Custom Gemini API Key Support:**
-  - Optional user-provided API key configuration in UI with seamless fallback to built-in synthesizer.
-- **Strict 5-Archetype Visual System:** Faithfully renders MARROK layout archetypes:
-  - **Archetype 1 (Hub Slide):** Center icon surrounded by 6 orbital satellite icons for high-CTR Slide 1 hooks.
-  - **Archetype 2 (Row - 1 Icon):** Single full-width elevated row with micro-label for high-impact metric slides.
-  - **Archetype 3 (Row - 2 Icons):** Side-by-side comparison cards (e.g. *Git Bottlenecks* vs. *Scion Architecture*).
-  - **Archetype 4 (Row - 3 Icons):** 3-step toolchain or technical sequence layout.
-  - **Archetype 5 (CTA Slide):** MARROK geometric branding, domain question hook, DM call-to-action, and dual-language source attribution.
-- **Native Bilingual Layout (English + Technical Arabic):**
-  - Bold English headline on top with idiomatic technical Arabic translation immediately underneath (`dir="rtl"` with *Cairo* typography).
-  - **Latin Technical Noun Preservation:** Preserves proper nouns, frameworks, and tools in Latin script (e.g., `Anthropic`, `Git`, `Docker`, `DefectDojo`, `Python`, `Ghidra`, `eBPF`) inside Arabic sentences without phonetic distortion.
-- **Mobile-First Zero-Lag Pipeline:**
-  - **Canvas Downscaler:** Automatically compresses 15MB+ mobile camera screenshots to ~120KB before transmission, preventing LTE upload stalls.
-  - **6s Promise.race Timeout & 503 Fast-Break:** Upstream Gemini API spikes instantly route to the deterministic MARROK Synthesizer, ensuring sub-second response times.
-  - **⚡ Instant Synthesize:** One-tap offline generation that produces complete 8-slide decks in 0ms without network dependence.
-- **Publishing & Export Subsystem:**
-  - One-tap mobile clipboard copy for TikTok captions with niche hashtag clusters.
-  - 3 A/B Hook Variant testing toggles (*Curiosity & Surprise*, *Hard Metrics & Benchmark*, *The Problem / Paradigm Shift*).
-  - 2 Caption style variants (*Executive Bulletins & Metrics* vs. *Narrative Story Breakdown*).
-  - High-res 1080×1920 PNG export & batch ZIP packaging via JSZip.
+### 🎨 The MARROK 7-Archetype Visual System
+Engineered specifically for developer engagement on mobile feeds:
+1. **The Hook (`hub`):** Central pulsing hub icon connected to 6 orbiting satellites via radial vectors.
+2. **Icon Row (`row`):** 1, 2, or 3 elevated cards with micro-labels for core concepts or step sequences.
+3. **Metric Hero Card (`metric`):** Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, and delta pill.
+4. **Code / Terminal Window (`code`):** Monospace window with macOS dots, line numbers, and diff syntax (`$`, `+`, `-`, `✔`).
+5. **Comparison Split (`compare`):** Side-by-side legacy vs modern cards with problem/solution bullet points.
+6. **Image Visual Card (`image`):** Elevated technical diagram or visual asset container with `contain` or `cover` fit, caption badge, and blueprint grid.
+7. **Final CTA (`cta`):** Geometric branding emblem, domain question, CTA pill, and bilingual source attribution credit.
+
+### 🌐 Subject-Based Internet Icons & Web Media Resolution
+- **Curated Tech Brand Resolution:** Automatically identifies mentions of 40+ top developer technologies (Redis, Docker, Kubernetes, Linux, PostgreSQL, MySQL, FastAPI, Go, Rust, AWS, Cloudflare, etc.) and pulls official vector logos from Simple Icons CDN.
+- **Interactive Web Media & Icon Picker Modal:** Search official tech brand logos, search Wikimedia Commons technical architecture diagrams, paste direct HTTPS URLs, or upload local SVGs/images.
+- **CORS-Safe Server Image Proxy (`/api/proxy-image`):** Solves HTML5 Canvas tainting, ensuring single-slide PNG downloads, ZIP exports, and direct 1-click clipboard copying work reliably.
+
+### 🔮 Theme Harmonization & Tinting Engine
+- **Canvas-Only Theming:** Changing themes alters only the carousel slide canvas; application chrome remains stable dark (`#080d11`).
+- **Dynamic Accent Tinting (`drawTintedImage`):** Vector logos and SVGs are dynamically recolored into the active post's neon accent (`theme.accent`) or icon stroke (`theme.iconStroke`), preventing dark or clashing icons.
+- **Blueprint Grid & Ambient Glow:** Image cards strictly inherit `theme.surface` and `theme.surfaceBorder` with subtle technical blueprint grid lines and ambient radial glow.
+- **4 Visual Tone Modes:**
+  - `Theme HUD (Auto)`: Blueprint grid + auto-colorizes SVGs and logos with active theme accent.
+  - `Invert White BG`: Inverts white background diagrams into sleek dark-mode terminal visuals.
+  - `Accent Tint`: Washes raster graphics in the active theme’s neon accent.
+  - `Original Colors`: Preserves raw unaltered colors for photos and screenshots.
+
+### 🧠 Adaptive Structure & Content Synthesis
+- **Dynamic Slide Count (5–9 Slides):** Replaced fixed 8-slide decks with intelligent density analysis—lean 5–6 slide decks for concise announcements, 8–9 slides for in-depth architecture breakdowns.
+- **Intelligent Icon Selection:** 32 domain-specific icons scored dynamically against technical topics (security, AI, databases, infrastructure, kernel, etc.).
+- **Native Bilingual Copy (English + Technical Arabic):** Bold English headlines with idiomatic technical Arabic directly underneath (`dir="rtl"` with *Cairo* typography), preserving proper nouns in Latin script (e.g. `Anthropic`, `Git`, `Docker`, `eBPF`).
+
+### 📱 Publishing & Mobile-First Zero-Lag Pipeline
+- **Canvas Downscaler:** Downsamples 15MB+ camera uploads to ~120KB before transmission, preventing mobile upload timeouts.
+- **6s Promise.race Timeout & 503 Fast-Break:** Upstream Gemini spikes instantly fall back to the built-in deterministic synthesizer.
+- **1-Click Mobile Clipboard:** Direct image copy to system clipboard for instant pasting into TikTok/Instagram.
+- **Batch ZIP Export:** High-res numbered 1080×1920 PNG files packaged via JSZip.
 
 ---
 
@@ -60,7 +66,7 @@ For comprehensive documentation, see the [`specs/`](specs/) directory:
 - 📐 [**`specs/architecture.md`**](specs/architecture.md) — System topology, client ingestion pipeline, backend proxy, AI orchestration, and canvas rasterization.
 - 📜 [**`specs/logsteps.md`**](specs/logsteps.md) — Chronological engineering milestones, user feedback cycles, and root-cause analysis of mobile fetch latency.
 - 🎨 [**`specs/archetypes-and-design-system.md`**](specs/archetypes-and-design-system.md) — Color tokens, typography, TikTok 9:16 safe zones, and archetype ASCII schematics.
-- 🔌 [**`specs/api-and-schemas.md`**](specs/api-and-schemas.md) — REST endpoint contracts (`/api/generate`, `/api/health`), JSON schemas, and TypeScript interfaces.
+- 🔌 [**`specs/api-and-schemas.md`**](specs/api-and-schemas.md) — REST endpoint contracts (`/api/generate`, `/api/proxy-image`, `/api/search-media`), JSON schemas, and TypeScript interfaces.
 
 ---
 

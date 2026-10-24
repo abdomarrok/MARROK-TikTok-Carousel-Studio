@@ -4,15 +4,12 @@ import { SlideCanvasPreview } from './components/SlideCanvasPreview';
 import { CaptionBox } from './components/CaptionBox';
 import { SlideEditor } from './components/SlideEditor';
 import { MultimodalInputPanel } from './components/MultimodalInputPanel';
-import { BrandSpecsGuide } from './components/BrandSpecsGuide';
 import { ThemeCustomizer } from './components/ThemeCustomizer';
-import { TopicInspirationDrawer } from './components/TopicInspirationDrawer';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { CarouselData, DEFAULT_PALETTES, HookVariant, SlideData, ThemePalette } from './types';
 import { PRESET_CAROUSELS } from './lib/presets';
 import { downloadAllSlidesZip } from './lib/canvasExporter';
-import { synthesizeCarousel } from './lib/synthesizer';
-import { ArrowRight, Lightbulb, Palette } from 'lucide-react';
+import { Sparkles, Upload } from 'lucide-react';
 
 export default function App() {
   const [carousel, setCarousel] = useState<CarouselData>(PRESET_CAROUSELS.scion.data);
@@ -24,10 +21,9 @@ export default function App() {
     DEFAULT_PALETTES[initialPaletteKey] || DEFAULT_PALETTES.teal
   );
 
-  // Modal / Drawer States
+  // Modal / Ingestion States
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isThemeCustomizerOpen, setIsThemeCustomizerOpen] = useState(false);
-  const [isTopicDrawerOpen, setIsTopicDrawerOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
 
   // Export State
@@ -38,19 +34,6 @@ export default function App() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3200);
-  };
-
-  // Switch Theme Preset
-  const handleSelectTheme = (themeKey: string) => {
-    const selected = DEFAULT_PALETTES[themeKey];
-    if (selected) {
-      setCurrentPalette(selected);
-      setCarousel((prev) => ({
-        ...prev,
-        theme: selected.id,
-      }));
-      showToast(`Applied ${selected.name}`);
-    }
   };
 
   // Select or Custom Palette Update
@@ -118,7 +101,7 @@ export default function App() {
   const handleDuplicateSlide = (index: number) => {
     setCarousel((prev) => {
       const newSlides = [...prev.slides];
-      const copy = JSON.parse(JSON.stringify(newSlides[index]));
+      const copy = structuredClone(newSlides[index]);
       newSlides.splice(index + 1, 0, copy);
       return { ...prev, slides: newSlides };
     });
@@ -153,14 +136,26 @@ export default function App() {
     showToast(`Loaded "${newCarousel.category}" carousel (${newCarousel.slides.length} slides)`);
   };
 
-  // Handle Selection from Topic Inspiration Drawer
-  const handleSelectTopicFromInspiration = (topicTitle: string, rawNotes: string, category: string) => {
-    // Generate an instant synthesized carousel from this topic
-    const synthesized = synthesizeCarousel({
-      prompt: `${topicTitle}\n${rawNotes}`,
-      categoryHint: category,
+  // Move / Reorder Slide
+  const handleMoveSlide = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= carousel.slides.length) return;
+    setCarousel((prev) => {
+      const newSlides = [...prev.slides];
+      const [moved] = newSlides.splice(fromIndex, 1);
+      newSlides.splice(toIndex, 0, moved);
+      return { ...prev, slides: newSlides };
     });
-    handleApplyCarousel(synthesized);
+    setCurrentSlideIndex(toIndex);
+    showToast(`Moved Slide ${fromIndex + 1} to position ${toIndex + 1}`);
+  };
+
+  // Update Brand Wordmark and URL
+  const handleUpdateBrand = (newBrand: string, newBrandUrl?: string) => {
+    setCarousel((prev) => ({
+      ...prev,
+      brand: newBrand,
+      brandUrl: newBrandUrl !== undefined ? newBrandUrl : prev.brandUrl,
+    }));
   };
 
   // 1-Click Download All Slides as ZIP
@@ -182,18 +177,12 @@ export default function App() {
   };
 
   return (
-    <div
-      className="min-h-screen text-[#CDD5D9] flex flex-col font-jakarta selection:bg-white/20 transition-colors duration-300"
-      style={{
-        backgroundColor: currentPalette.baseBg,
-      }}
-    >
+    <div className="min-h-screen text-[#CDD5D9] flex flex-col font-jakarta selection:bg-white/20 transition-colors duration-300 bg-[#080d11]">
       {/* Top Bar Header */}
       <Header
         currentPalette={currentPalette}
-        onOpenGenerator={() => setIsGeneratorOpen(true)}
+        onOpenGenerator={() => setIsGeneratorOpen((prev) => !prev)}
         onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
-        onOpenTopicInspiration={() => setIsTopicDrawerOpen(true)}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         onExportAll={handleExportAll}
         isExporting={isExporting}
@@ -201,72 +190,51 @@ export default function App() {
       />
 
       {/* Main Studio Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-8">
-        {/* Quick Presets & Topic Idea Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400 font-medium">Quick Topics:</span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                onClick={() => handleApplyCarousel(PRESET_CAROUSELS.scion.data)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  carousel.category === 'AI + ENGINEERING' && carousel.theme === 'engineering'
-                    ? 'bg-[#37E2C0] text-[#081216] font-bold'
-                    : 'bg-white/5 hover:bg-white/10 text-slate-300'
-                }`}
-              >
-                Anthropic's Scion (9 Slides)
-              </button>
-              <button
-                onClick={() => handleApplyCarousel(PRESET_CAROUSELS.reverseEngineering.data)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  carousel.category.includes('REVERSE')
-                    ? 'bg-[#37E2C0] text-[#081216] font-bold'
-                    : 'bg-white/5 hover:bg-white/10 text-slate-300'
-                }`}
-              >
-                Reverse Engineering (8 Slides)
-              </button>
-              <button
-                onClick={() => handleApplyCarousel(PRESET_CAROUSELS.defectDojo.data)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  carousel.category.includes('DEVSECOPS')
-                    ? 'bg-[#37E2C0] text-[#081216] font-bold'
-                    : 'bg-white/5 hover:bg-white/10 text-slate-300'
-                }`}
-              >
-                DefectDojo Triage (8 Slides)
-              </button>
-            </div>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Step 1: Multimodal Ingestion Hub */}
+        {isGeneratorOpen ? (
+          <div className="w-full">
+            <MultimodalInputPanel
+              theme={currentPalette}
+              onApplyCarousel={(newCarousel) => {
+                handleApplyCarousel(newCarousel);
+                setIsGeneratorOpen(false);
+              }}
+              onClose={() => setIsGeneratorOpen(false)}
+            />
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsTopicDrawerOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 cursor-pointer bg-amber-400/10 px-3 py-1 rounded-lg border border-amber-400/20 transition-all"
-            >
-              <Lightbulb className="w-3.5 h-3.5" />
-              <span>Trending Hooks...</span>
-            </button>
-
-            <button
-              onClick={() => setIsThemeCustomizerOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-bold text-white hover:underline cursor-pointer bg-white/5 px-3 py-1 rounded-lg border border-white/10 transition-all"
-            >
-              <Palette className="w-3.5 h-3.5" style={{ color: currentPalette.accent }} />
-              <span>Colors...</span>
-            </button>
-
+        ) : (
+          <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 px-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-all">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-teal-500/15 text-teal-400">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Current Deck: {carousel.category}</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/10 text-slate-300 font-normal">
+                    {carousel.slides.length} Slides
+                  </span>
+                  {carousel.brand && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-300 font-semibold border border-teal-500/20">
+                      Brand: {carousel.brand}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Drop an architecture screenshot, paste terminal notes, or load a transcript to synthesize a new carousel.
+                </p>
+              </div>
+            </div>
             <button
               onClick={() => setIsGeneratorOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-bold hover:underline cursor-pointer ml-1"
-              style={{ color: currentPalette.accent }}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-white/10 hover:bg-white/15 border border-white/15 transition-all cursor-pointer shrink-0"
             >
-              <span>Custom Post / Screenshot</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <Upload className="w-3.5 h-3.5 text-teal-400" />
+              <span>Ingest New Material</span>
             </button>
           </div>
-        </div>
+        )}
 
         {/* 2-Column Studio Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -300,37 +268,19 @@ export default function App() {
               slideIndex={currentSlideIndex}
               totalSlides={carousel.slides.length}
               theme={currentPalette}
+              brand={carousel.brand}
+              brandUrl={carousel.brandUrl}
               onUpdateSlide={handleUpdateSlide}
               onAddSlide={handleAddSlide}
               onDuplicateSlide={handleDuplicateSlide}
               onDeleteSlide={handleDeleteSlide}
+              onMoveSlide={handleMoveSlide}
+              onUpdateBrand={handleUpdateBrand}
               onShowToast={showToast}
             />
           </div>
         </div>
-
-        {/* Brand Specs & Archetype Blueprint Guide */}
-        <BrandSpecsGuide
-          theme={currentPalette}
-          currentThemeName={currentPalette.id}
-          onSelectTheme={handleSelectTheme}
-          onOpenCustomizer={() => setIsThemeCustomizerOpen(true)}
-        />
       </main>
-
-      {/* Multimodal Generator Modal */}
-      {isGeneratorOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="max-w-2xl w-full my-8">
-            <MultimodalInputPanel
-              theme={currentPalette}
-              themeMode={currentPalette.id as any}
-              onApplyCarousel={handleApplyCarousel}
-              onClose={() => setIsGeneratorOpen(false)}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Theme Customizer & Color Palette Studio Modal */}
       <ThemeCustomizer
@@ -338,14 +288,6 @@ export default function App() {
         onSelectPalette={handleSelectPalette}
         isOpen={isThemeCustomizerOpen}
         onClose={() => setIsThemeCustomizerOpen(false)}
-        onShowToast={showToast}
-      />
-
-      {/* Topic Inspiration & Trending Hooks Drawer */}
-      <TopicInspirationDrawer
-        isOpen={isTopicDrawerOpen}
-        onClose={() => setIsTopicDrawerOpen(false)}
-        onSelectTopic={handleSelectTopicFromInspiration}
         onShowToast={showToast}
       />
 
@@ -373,21 +315,11 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-white/[0.08] py-6 px-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>MARROK · Multimodal TikTok Carousel Studio & Content Engine</div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>1080×1920 Native Canvas Engine</span>
-            <span>·</span>
-            <span>Direct Clipboard Image Copying</span>
-            <span>·</span>
-            <span>Full Custom Color Palette Picker</span>
-            <span>·</span>
-            <span>Bilingual EN + AR Typography</span>
-            <span>·</span>
-            <a href="https://marrok.org" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-white">
-              marrok.org
-            </a>
-          </div>
+        <div className="max-w-7xl mx-auto">
+          MARROK · Multimodal TikTok Carousel Studio ·{' '}
+          <a href="https://marrok.org" target="_blank" rel="noreferrer" className="text-slate-400 hover:text-white">
+            marrok.org
+          </a>
         </div>
       </footer>
     </div>

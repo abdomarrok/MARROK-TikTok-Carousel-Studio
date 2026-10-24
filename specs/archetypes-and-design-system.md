@@ -89,27 +89,34 @@ In technical Arabic writing, transliterating modern software tools phonetically 
 └───────────────────────┘  └───────────────────────┘
 ```
 
-### Archetype 1: Hub Slide (Slide 1 - The Hook)
-- **Position:** Exclusively Slide 1.
-- **Visuals:** Central pulsing icon enclosed in a neon circle, surrounded by 6 satellite icons connected via subtle orbital radial vectors.
-- **Copy:** 2–6 word high-impact headline, followed immediately by Arabic technical translation, and 1 crisp sentence explaining the hook premise.
+## 4. The MARROK Slide Archetypes System
 
-### Archetype 2: Row Slide with 1 Icon
-- **Position:** Slides 2 through 7 (Architecture & Benchmarks).
-- **Visuals:** Single full-width elevated pill/card showcasing 1 primary icon and a concise 1–3 word micro-label (e.g. `~100 GB history`, `Server-side cache`).
-- **Copy:** High-priority metric or fundamental technical concept.
+The MARROK visual system provides 7 archetypes tailored for developer engagement:
 
-### Archetype 3: Row Slide with 2 Icons
-- **Position:** Slides 2 through 7.
-- **Visuals:** Two parallel cards side-by-side, each with an icon and label. Ideal for comparisons (e.g. `Git Limits` vs. `Scion Architecture`, `Old Way` vs. `New Way`).
+1. **Hub Slide (`hub`) (Slide 1 - The Hook)**:
+   - Central pulsing hub icon connected to 6 orbiting satellites via radial vectors.
+   - Supports built-in technical icons, custom SVG uploads, or official tech brand CDN logos.
+2. **Row Cards (`row`) (1, 2, or 3 items)**:
+   - Horizontal icon cards with micro-labels for core concepts or step sequences.
+3. **Metric Hero Card (`metric`)**:
+   - Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, and delta pill.
+4. **Terminal / Code Window (`code`)**:
+   - Monospace window with macOS-style window controls, syntax highlighting, diff markings (`+`, `-`, `$`).
+5. **Comparison Split (`compare`)**:
+   - Side-by-side legacy vs modern cards with problem/solution bullet points.
+6. **Image Visual Card (`image`)**:
+   - Elevated technical diagram or visual asset container with `contain` or `cover` fit, caption badge, and subject-based web resolution.
+   - Built-in CORS image proxy (`/api/proxy-image`) ensures canvases are never tainted, enabling direct PNG/ZIP export and clipboard copying.
+7. **CTA Slide (`cta`) (The Closer)**:
+   - Geometric branding emblem, domain question, CTA pill, and bilingual source attribution credit.
 
-### Archetype 4: Row Slide with 3 Icons
-- **Position:** Slides 2 through 7.
-- **Visuals:** Three compact cards in a horizontal row. Ideal for sequences, toolchains, or 3-step technical workflows (e.g. `Capture`, `Analyze`, `Mitigate`).
-
-### Archetype 5: CTA Slide (The Closer)
-- **Position:** Final Slide (Slide 8 or 9).
-- **Visuals:** Centered MARROK geometric emblem, high-impact domain question addressing the engineering viewer, call-to-action pill button (`Send us a DM` / `تواصل معنا`), and source citation footer.
+### Internet Icons & Web Media Resolution
+- **Subject-Aware CDN Resolution**: Automatically resolves official logos for 40+ top developer technologies (Redis, Docker, Kubernetes, Rust, Go, FastAPI, PostgreSQL, AWS, Linux, etc.) via jsDelivr CDN.
+- **Interactive Web Search Modal**: slide editor includes search modal to query Simple Icons tech brands or Wikimedia Commons technical architecture diagrams, paste HTTPS URLs, or upload custom SVGs.
+- **Theme Harmonization & Tinting Engine**:
+  - Automatically tints web logos and SVGs using `globalCompositeOperation = 'source-in'` to match the active post theme accent (`theme.accent`) or icon stroke (`theme.iconStroke`), preventing dark or clashing icons.
+  - Image card containers strictly inherit the post theme's `theme.surface` and `theme.surfaceBorder` with a technical blueprint grid and ambient radial glow.
+  - Supports 4 visual harmonization modes in Slide Editor: `Theme HUD (Auto)` (blueprint grid + accent recoloring), `Invert White BG` (inverts harsh white diagrams into dark mode), `Accent Tint` (color wash), and `Original Colors`.
 
 ---
 

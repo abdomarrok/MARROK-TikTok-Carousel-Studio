@@ -17,10 +17,11 @@ Checks server readiness and verifies that the `GEMINI_API_KEY` environment secre
 ---
 
 ### 1.2 `POST /api/generate`
-Generates a complete 8-to-9 slide MARROK carousel, 3 hook variants, and 2 caption styles from raw multimodal input.
+Generates a complete 5-to-9 slide MARROK carousel, 3 hook variants, and 2 caption styles from raw multimodal input. Automatically adapts slide count and archetypes to match the depth and density of the subject.
 
 **Request Headers:**
 - `Content-Type: application/json`
+- `x-gemini-key`: *(Optional)* Custom Gemini API key override
 
 **Request Body Parameters:**
 | Field | Type | Required | Description |
@@ -38,80 +39,53 @@ Generates a complete 8-to-9 slide MARROK carousel, 3 hook variants, and 2 captio
 - `Content-Type: application/json`
 - `X-Marrok-Engine`: `'gemini-3.1-flash-lite'` \| `'gemini-flash-latest'` \| `'intelligent-synthesizer'`
 
-**Response Body (HTTP 200):**
+**Response Body (HTTP 200):** Matches `CarouselData` schema.
+
+---
+
+### 1.3 `GET /api/proxy-image`
+CORS-safe server-side image proxy that fetches external web images, architecture diagrams, and tech brand SVGs with caching and optional SVG theme recoloring. Prevents HTML5 Canvas tainting, ensuring single-slide PNG downloads, ZIP archives, and direct 1-click clipboard copying succeed without security exceptions.
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `url` | `string` | Yes | Valid HTTP/HTTPS image URL (e.g., Simple Icons CDN, Wikimedia Commons) |
+| `color` | `string` | Optional | Hex color code to dynamically tint SVG paths (e.g. `37E2C0`, `#F09A67`, `#A855F7`) |
+
+**Features:**
+- Strict URL validation & 8-second fetch timeout.
+- Injects `Access-Control-Allow-Origin: *` and `Cache-Control: public, max-age=86400`.
+- Automatic SVG recoloring: replaces root fill, style colors, and path attributes to harmonize with the active theme accent.
+
+---
+
+### 1.4 `GET /api/search-media`
+Subject-based media discovery querying curated tech brand logos and Wikimedia Commons technical architecture diagrams.
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `q` | `string` | Optional | Search query (e.g., `"kubernetes"`, `"redis"`, `"distributed systems"`, `"kernel"`) |
+
+**Response (HTTP 200):**
 ```json
 {
-  "theme": "engineering",
-  "category": "AI + ENGINEERING",
-  "caption": "Is Git finally hitting its limits? Anthropic's new Scion system...",
-  "slides": [
+  "query": "kubernetes",
+  "icons": [
     {
-      "type": "hub",
-      "centerIcon": "gitMerge",
-      "satIcons": ["cpu", "database", "server", "terminal", "brain", "changesets"],
-      "enTitle": "Beyond Git:\nAnthropic Scion",
-      "arTitle": "ما بعد Git: نظام Scion من Anthropic",
-      "enBody": "Why Anthropic engineered a custom VCS for massive AI monorepos.",
-      "arBody": "لماذا طوّرت Anthropic نظام تحكم في الإصدارات مخصص لمستودعات الذكاء الاصطناعي.",
-      "url": "marrok.org"
-    },
-    {
-      "type": "row",
-      "icons": [
-        { "icon": "server", "label": "Massive Monorepos" }
-      ],
-      "enTitle": "100 GB History Bottlenecks.",
-      "arTitle": "عقبة التاريخ البرمجي بحجم 100 غيغابايت.",
-      "enBody": "Standard Git clones choke on AI-generated training checkpoints and monorepo scale.",
-      "arBody": "عمليات استنساخ Git التقليدية تنهار أمام حجم نقاط فحص التدريب ومستودعات الذكاء الاصطناعي.",
-      "url": "marrok.org"
-    },
-    {
-      "type": "cta",
-      "enTitle": "Building for AI\nat scale?",
-      "arTitle": "تبني أنظمة للذكاء الاصطناعي؟",
-      "enBody": "Let's connect and engineer the future.",
-      "arBody": "تواصل معنا لمناقشة هندسة البنية التحتية.",
-      "ctaText": "Send us a DM",
-      "url": "marrok.org",
-      "enCredit": "marrok.org · Anthropic Engineering Post",
-      "arCredit": "marrok.org · مدونة Anthropic الهندسية"
+      "name": "kubernetes",
+      "title": "Kubernetes",
+      "url": "https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg",
+      "category": "Cloud & K8s",
+      "source": "Simple Icons CDN"
     }
   ],
-  "captionVariants": [
+  "images": [
     {
-      "style": "Executive Bulletins & Hard Metrics",
-      "caption": "Anthropic's Scion vs. Git: The shift to massive monorepos.\n\n• Problem: Git struggles with massive AI-scale codebases.\n• Solution: Scion, a custom distributed version control system.\n• Impact: Optimized performance for high-frequency AI development.\n\n#DevOps #SoftwareEngineering #Anthropic #Scion #هندسة_البرمجيات"
-    },
-    {
-      "style": "Narrative Breakdown & Story",
-      "caption": "As AI agents generate more code than ever, traditional tools are breaking..."
-    }
-  ],
-  "hookVariants": [
-    {
-      "tag": "Curiosity & Surprise",
-      "enTitle": "Why did Anthropic abandon Git?",
-      "arTitle": "لماذا تخلت Anthropic عن Git؟",
-      "enBody": "The scale of AI development broke traditional version control.",
-      "arBody": "حجم تطوير الذكاء الاصطناعي تجاوز قدرات أنظمة التحكم في الإصدار التقليدية.",
-      "centerIcon": "shieldAlert"
-    },
-    {
-      "tag": "Hard Metrics & Benchmark",
-      "enTitle": "Scion: The new Git killer?",
-      "arTitle": "Scion: هل هو بديل Git القادم؟",
-      "enBody": "Anthropic's custom system handles monorepos that Git simply cannot.",
-      "arBody": "نظام Anthropic المخصص يتعامل مع مستودعات برمجية لا يستطيع Git إدارتها.",
-      "centerIcon": "gauge"
-    },
-    {
-      "tag": "The Problem / Paradigm Shift",
-      "enTitle": "Git broke under AI pressure.",
-      "arTitle": "Git انهار تحت ضغط الذكاء الاصطناعي.",
-      "enBody": "Massive monorepos require a new distributed architecture.",
-      "arBody": "المستودعات البرمجية الضخمة تتطلب بنية تحتية موزعة جديدة تماماً.",
-      "centerIcon": "cpu"
+      "title": "Kubernetes Architecture Diagram",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/...",
+      "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/...",
+      "source": "Wikimedia Commons"
     }
   ]
 }
@@ -119,26 +93,57 @@ Generates a complete 8-to-9 slide MARROK carousel, 3 hook variants, and 2 captio
 
 ---
 
-## 2. TypeScript Interfaces (`src/types.ts`)
+## 2. Core TypeScript Interfaces (`src/types.ts`)
 
 ```typescript
-export type SlideType = 'hub' | 'row' | 'cta';
+export type SlideType = 'hub' | 'row' | 'metric' | 'code' | 'compare' | 'image' | 'cta';
 
 export interface RowIconItem {
   icon: string;
   label: string;
 }
 
-export interface Slide {
+export interface SlideData {
   id?: string;
   type: SlideType;
+  
+  // Hub Archetype properties (Slide 1 Hook)
   centerIcon?: string;
   satIcons?: string[];
+  
+  // Row Archetype properties (Slides 2-7)
   icons?: RowIconItem[];
+  
+  // Metric Hero Card Archetype properties
+  metricValue?: string;      // e.g. "200x", "0ms", "99.9%", "45GB"
+  metricLabel?: string;      // e.g. "THROUGHPUT MULTIPLIER", "P99 LATENCY"
+  metricDiff?: string;       // e.g. "▲ 12x vs legacy baseline"
+  metricIcon?: string;       // e.g. "zap", "gauge", "activity", "cpu"
+  
+  // Code / Terminal Window Archetype properties
+  codeSnippet?: string;      // Multi-line code, bash, assembly or diff ($ for commands, + for adds)
+  codeLanguage?: string;     // e.g. "bash", "rust", "python", "sql", "c"
+  codeFileName?: string;     // e.g. "bench_run.sh", "main.rs"
+  
+  // Compare / Side-by-Side Archetype properties
+  compareLeftTitle?: string;  // e.g. "Legacy Git"
+  compareLeftBody?: string;   // e.g. "Full history clone\nBloated .git folder\nStalls at 100GB"
+  compareRightTitle?: string; // e.g. "Scion / MARROK"
+  compareRightBody?: string;  // e.g. "Lazy checkout\nVirtual file system\nInstant CI builds"
+  
+  // Image / Web Visual Archetype properties
+  imageUrl?: string;          // Direct URL or data URL of external tech diagram, logo, or photo
+  imageCaption?: string;      // Micro-badge label for the image
+  imageFit?: 'contain' | 'cover'; // Fit mode on canvas (defaults to contain)
+  imageFilter?: 'hud' | 'invert' | 'tint' | 'clean'; // Theme integration filter (hud = blueprint dark blend, invert = dark mode inversion, tint = accent wash, clean = original)
+  
+  // Bilingual Titles & Body Copy
   enTitle?: string;
   arTitle?: string;
   enBody?: string;
   arBody?: string;
+  
+  // CTA Archetype properties (Final Slide)
   ctaText?: string;
   url?: string;
   enCredit?: string;
@@ -146,7 +151,7 @@ export interface Slide {
 }
 
 export interface HookVariant {
-  tag: string;
+  tag: string; // e.g., "Curiosity & Surprise", "Hard Metrics & Benchmark", "The Problem / Shift"
   enTitle: string;
   arTitle: string;
   enBody: string;
@@ -155,16 +160,37 @@ export interface HookVariant {
 }
 
 export interface CaptionVariant {
-  style: string;
+  style: string; // "Executive Bulletins & Hard Metrics" | "Narrative Breakdown & Story"
   caption: string;
 }
 
 export interface CarouselData {
-  theme: 'engineering' | 'cybersecurity' | 'architecture';
+  theme: string;
   category: string;
   caption: string;
   captionVariants?: CaptionVariant[];
   hookVariants?: HookVariant[];
-  slides: Slide[];
+  brand?: string;
+  brandUrl?: string;
+  slides: SlideData[];
+}
+
+export interface ThemePalette {
+  id: string;
+  name: string;
+  baseBg: string;         // Primary 1080x1920 canvas background
+  radialGlow: string;     // Ambient radial glow behind card
+  gridLine: string;       // Subtle background grid line
+  surface: string;        // Elevated card surface hex
+  surfaceBorder: string;  // Card boundary stroke hex
+  accent: string;         // Primary neon accent hex
+  alert: string;          // Secondary alert color
+  iconStroke: string;     // Stroke for icons inside colored badges
+  textWhite: string;      // English display headline hex
+  textEnBody: string;     // English body text hex
+  textArBody: string;     // Arabic body text hex
+  microLabel: string;     // Micro card labels
+  categoryTag: string;    // Category pill color
+  textMuted: string;      // Metadata and footer text
 }
 ```

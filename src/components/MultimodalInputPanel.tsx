@@ -11,18 +11,24 @@ import {
   Compass,
   RotateCw,
 } from 'lucide-react';
-import { CarouselData, ThemeConfig, ThemeMode } from '../types';
+import { CarouselData, ThemePalette } from '../types';
 import { PRESET_CAROUSELS } from '../lib/presets';
 import { synthesizeCarousel } from '../lib/synthesizer';
 
 interface MultimodalInputPanelProps {
-  theme: ThemeConfig;
-  themeMode: ThemeMode;
+  theme: ThemePalette;
   onApplyCarousel: (carousel: CarouselData) => void;
   onClose?: () => void;
 }
 
 type InputTab = 'upload' | 'text' | 'youtube' | 'presets';
+
+const INPUT_TABS: { id: InputTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'upload', label: 'Screenshot / Image', icon: Upload },
+  { id: 'text', label: 'Blog / GitHub / Notes', icon: FileText },
+  { id: 'youtube', label: 'YouTube Summary', icon: Youtube },
+  { id: 'presets', label: 'Built-In Presets', icon: Compass },
+];
 
 /**
  * Client-side image compressor:
@@ -77,7 +83,6 @@ function compressImageClientSide(file: File): Promise<{ base64: string; mimeType
 
 export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
   theme,
-  themeMode,
   onApplyCarousel,
   onClose,
 }) => {
@@ -166,17 +171,7 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
     setIsLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
-    setPipelinePhase('Uploading & extracting OCR metrics...');
-
-    const pTimer1 = setTimeout(() => {
-      setPipelinePhase('Analyzing technical mechanisms & benchmarks...');
-    }, 1800);
-    const pTimer2 = setTimeout(() => {
-      setPipelinePhase('Synthesizing MARROK layout archetypes & RTL Arabic copy...');
-    }, 4500);
-    const pTimer3 = setTimeout(() => {
-      setPipelinePhase('Finalizing 1080×1920 canvas deliverable...');
-    }, 7500);
+    setPipelinePhase(uploadedImageBase64 ? 'Processing image & synthesizing carousel...' : 'Synthesizing carousel & bilingual copy...');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second mobile safeguard timeout
@@ -203,9 +198,6 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
       });
 
       clearTimeout(timeoutId);
-      clearTimeout(pTimer1);
-      clearTimeout(pTimer2);
-      clearTimeout(pTimer3);
 
       if (!response.ok) {
         let errMessage = 'Failed to generate carousel';
@@ -224,11 +216,9 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
       if (onClose) {
         setTimeout(() => onClose(), 1200);
       }
-    } catch (err: any) {
-      clearTimeout(pTimer1);
-      clearTimeout(pTimer2);
-      clearTimeout(pTimer3);
-      console.warn('Cloud generation failed or timed out, executing resilient local synthesis:', err);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.warn('Cloud generation failed or timed out, executing resilient local synthesis:', errMsg);
 
       // Resilient fallback: Never leave user stuck on mobile "Failed to fetch"!
       try {
@@ -243,8 +233,9 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
         if (onClose) {
           setTimeout(() => onClose(), 1400);
         }
-      } catch (fallbackErr: any) {
-        setErrorMsg(err.message || 'Generation failed. Tap Instant Synthesize to generate immediately.');
+      } catch (fallbackErr: unknown) {
+        const fbMessage = fallbackErr instanceof Error ? fallbackErr.message : errMsg;
+        setErrorMsg(fbMessage || 'Generation failed. Tap Instant Synthesize to generate immediately.');
       }
     } finally {
       clearTimeout(timeoutId);
@@ -286,65 +277,27 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
 
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3 text-xs overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('upload')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'upload'
-              ? 'bg-white/10 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-          }`}
-          style={{
-            color: activeTab === 'upload' ? theme.accent : undefined,
-          }}
-        >
-          <Upload className="w-3.5 h-3.5" />
-          <span>Screenshot / Image</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('text')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'text'
-              ? 'bg-white/10 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-          }`}
-          style={{
-            color: activeTab === 'text' ? theme.accent : undefined,
-          }}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Blog / GitHub / Notes</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('youtube')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'youtube'
-              ? 'bg-white/10 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-          }`}
-          style={{
-            color: activeTab === 'youtube' ? theme.accent : undefined,
-          }}
-        >
-          <Youtube className="w-3.5 h-3.5" />
-          <span>YouTube Summary</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('presets')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'presets'
-              ? 'bg-white/10 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-          }`}
-          style={{
-            color: activeTab === 'presets' ? theme.accent : undefined,
-          }}
-        >
-          <Compass className="w-3.5 h-3.5" />
-          <span>Built-In Presets</span>
-        </button>
+        {INPUT_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+              }`}
+              style={{
+                color: isActive ? theme.accent : undefined,
+              }}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab 1: Image Upload */}

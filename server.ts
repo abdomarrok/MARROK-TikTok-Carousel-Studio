@@ -45,6 +45,184 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Curated Tech Brand Icons from Simple Icons CDN
+const TECH_ICONS_LIST = [
+  { name: 'docker', title: 'Docker', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/docker.svg', category: 'DevOps & Containers' },
+  { name: 'kubernetes', title: 'Kubernetes', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg', category: 'DevOps & Containers' },
+  { name: 'redis', title: 'Redis', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/redis.svg', category: 'Databases & Caching' },
+  { name: 'postgresql', title: 'PostgreSQL', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/postgresql.svg', category: 'Databases & Caching' },
+  { name: 'mysql', title: 'MySQL', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/mysql.svg', category: 'Databases & Caching' },
+  { name: 'mongodb', title: 'MongoDB', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/mongodb.svg', category: 'Databases & Caching' },
+  { name: 'clickhouse', title: 'ClickHouse', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/clickhouse.svg', category: 'Databases & Analytics' },
+  { name: 'apachekafka', title: 'Apache Kafka', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/apachekafka.svg', category: 'Distributed Systems' },
+  { name: 'fastapi', title: 'FastAPI', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/fastapi.svg', category: 'Backend & APIs' },
+  { name: 'python', title: 'Python', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/python.svg', category: 'Languages' },
+  { name: 'go', title: 'Go (Golang)', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/go.svg', category: 'Languages' },
+  { name: 'rust', title: 'Rust', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/rust.svg', category: 'Languages' },
+  { name: 'typescript', title: 'TypeScript', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/typescript.svg', category: 'Languages' },
+  { name: 'javascript', title: 'JavaScript', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/javascript.svg', category: 'Languages' },
+  { name: 'linux', title: 'Linux', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/linux.svg', category: 'Operating Systems' },
+  { name: 'ubuntu', title: 'Ubuntu', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/ubuntu.svg', category: 'Operating Systems' },
+  { name: 'git', title: 'Git', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/git.svg', category: 'VCS & Tooling' },
+  { name: 'github', title: 'GitHub', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/github.svg', category: 'VCS & Tooling' },
+  { name: 'gitlab', title: 'GitLab', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/gitlab.svg', category: 'VCS & Tooling' },
+  { name: 'amazonwebservices', title: 'AWS', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/amazonwebservices.svg', category: 'Cloud Infrastructure' },
+  { name: 'googlecloud', title: 'Google Cloud', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/googlecloud.svg', category: 'Cloud Infrastructure' },
+  { name: 'microsoftazure', title: 'Microsoft Azure', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/microsoftazure.svg', category: 'Cloud Infrastructure' },
+  { name: 'cloudflare', title: 'Cloudflare', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/cloudflare.svg', category: 'Cloud & Networking' },
+  { name: 'nginx', title: 'Nginx', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/nginx.svg', category: 'Networking' },
+  { name: 'graphql', title: 'GraphQL', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/graphql.svg', category: 'Backend & APIs' },
+  { name: 'terraform', title: 'Terraform', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/terraform.svg', category: 'DevOps & IaC' },
+  { name: 'ansible', title: 'Ansible', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/ansible.svg', category: 'DevOps & IaC' },
+  { name: 'prometheus', title: 'Prometheus', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/prometheus.svg', category: 'Observability' },
+  { name: 'grafana', title: 'Grafana', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/grafana.svg', category: 'Observability' },
+  { name: 'anthropic', title: 'Anthropic', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/anthropic.svg', category: 'AI Research' },
+  { name: 'openai', title: 'OpenAI', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/openai.svg', category: 'AI Research' },
+  { name: 'react', title: 'React', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/react.svg', category: 'Frontend' },
+  { name: 'nodejs', title: 'Node.js', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/nodedotjs.svg', category: 'Backend' },
+  { name: 'cplusplus', title: 'C++', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/cplusplus.svg', category: 'Languages' },
+  { name: 'sqlite', title: 'SQLite', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/sqlite.svg', category: 'Databases' },
+  { name: 'supabase', title: 'Supabase', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/supabase.svg', category: 'Backend & DB' },
+];
+
+// CORS-safe image proxy to prevent canvas tainting on export, with SVG dynamic theme recoloring
+app.get('/api/proxy-image', async (req, res) => {
+  const targetUrl = req.query.url as string;
+  const requestedColor = (req.query.color as string) || '';
+  if (!targetUrl || typeof targetUrl !== 'string') {
+    return res.status(400).json({ error: 'url query parameter is required' });
+  }
+
+  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+    return res.status(400).json({ error: 'Only http and https protocols are allowed' });
+  }
+
+  try {
+    const upstreamRes = await fetch(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MARROK-TikTok-Studio/2.0',
+        Accept: 'image/*,image/svg+xml,*/*',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!upstreamRes.ok) {
+      return res.status(upstreamRes.status).json({ error: `Upstream error: ${upstreamRes.statusText}` });
+    }
+
+    let contentType = upstreamRes.headers.get('content-type') || 'image/png';
+    const rawBuffer = Buffer.from(await upstreamRes.arrayBuffer());
+
+    const isSvg =
+      contentType.includes('svg') ||
+      targetUrl.toLowerCase().endsWith('.svg') ||
+      rawBuffer.toString('utf-8', 0, 100).includes('<svg');
+
+    if (isSvg) {
+      let svgText = rawBuffer.toString('utf-8');
+      contentType = 'image/svg+xml;charset=utf-8';
+
+      // Normalize color (e.g. '13131E' -> '#13131E', '37E2C0' -> '#37E2C0')
+      let hexColor = requestedColor.trim();
+      if (hexColor && !hexColor.startsWith('#') && !hexColor.startsWith('rgb')) {
+        hexColor = `#${hexColor}`;
+      }
+
+      // If a color is specified, inject/replace colors to harmonize with theme
+      if (hexColor) {
+        // Ensure root <svg> has fill and style color
+        svgText = svgText.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
+          const cleanAttrs = attrs.replace(/\bfill="[^"]*"/gi, '');
+          return `<svg ${cleanAttrs} fill="${hexColor}" style="color: ${hexColor}; fill: ${hexColor};">`;
+        });
+
+        // Replace any path fills that might be hardcoded to black or currentColor
+        svgText = svgText.replace(/\bfill="(?:currentColor|#000|#000000|black)"/gi, `fill="${hexColor}"`);
+        // For paths with no fill attribute, Simple Icons defaults to black: inject fill
+        svgText = svgText.replace(/<path\b((?![^>]*\bfill=)[^>]*)>/gi, `<path fill="${hexColor}" $1>`);
+      } else {
+        // If no color was passed, ensure SVGs aren't default black on dark canvases (make default white/visible)
+        svgText = svgText.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
+          if (!attrs.includes('fill=')) {
+            return `<svg ${attrs} fill="#FFFFFF" style="color: #FFFFFF; fill: #FFFFFF;">`;
+          }
+          return `<svg ${attrs}>`;
+        });
+        svgText = svgText.replace(/<path\b((?![^>]*\bfill=)[^>]*)>/gi, `<path fill="#FFFFFF" $1>`);
+      }
+
+      const modifiedBuffer = Buffer.from(svgText, 'utf-8');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Content-Type', contentType);
+      return res.send(modifiedBuffer);
+    }
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Type', contentType);
+    return res.send(rawBuffer);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`Failed to proxy image ${targetUrl}:`, msg);
+    return res.status(500).json({ error: 'Failed to fetch external image', details: msg });
+  }
+});
+
+// Subject-based media search: official tech icons + Wikimedia technical diagrams
+app.get('/api/search-media', async (req, res) => {
+  const query = ((req.query.q as string) || '').trim().toLowerCase();
+
+  // 1. Filter curated tech brand icons
+  const matchedIcons = TECH_ICONS_LIST.filter(
+    (item) =>
+      !query ||
+      item.name.includes(query) ||
+      item.title.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query)
+  );
+
+  // 2. Fetch subject-based diagrams / illustrations from Wikimedia Commons API
+  const matchedImages: { title: string; url: string; thumbUrl: string; source: string }[] = [];
+
+  if (query && query.length >= 2) {
+    try {
+      const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(
+        `${query} diagram OR architecture OR logo`
+      )}&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|thumburl&iiurlwidth=400&format=json`;
+
+      const wikiRes = await fetch(wikiUrl, {
+        headers: { 'User-Agent': 'MARROK-TikTok-Studio/2.0 (marrok.org; technical carousel generator)' },
+        signal: AbortSignal.timeout(4000),
+      });
+
+      if (wikiRes.ok) {
+        const data = await wikiRes.json();
+        const pages = data.query?.pages || {};
+        for (const pageId of Object.keys(pages)) {
+          const info = pages[pageId]?.imageinfo?.[0];
+          if (info?.thumburl || info?.url) {
+            matchedImages.push({
+              title: pages[pageId].title?.replace(/^File:/, '') || query,
+              url: info.url,
+              thumbUrl: info.thumburl || info.url,
+              source: 'Wikimedia Commons',
+            });
+          }
+        }
+      }
+    } catch (wikiErr) {
+      console.warn('Wikimedia media search fallback error:', wikiErr);
+    }
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.json({
+    icons: matchedIcons.slice(0, 24),
+    images: matchedImages.slice(0, 16),
+  });
+});
+
 const MARROK_SYSTEM_PROMPT = `You are MARROK TikTok Carousel Studio & Multimodal Content Engine.
 Your purpose is to accept raw user input (screenshots of social media posts/code, YouTube summaries/transcripts, engineering blog posts, GitHub repos, or rough notes) and generate production-ready deliverables:
 
@@ -62,33 +240,43 @@ Your purpose is to accept raw user input (screenshots of social media posts/code
   3. "The Problem / Paradigm Shift": Leading with what broke (e.g., "Git broke when agents took over.")
 - Each hook variant has: tag, enTitle (2-6 words), arTitle, enBody (1 crisp sentence), arBody, and recommended centerIcon.
 
-3. 8 to 9 Slide Carousel Structure matching the exact MARROK layout archetypes:
-- Archetype 1: "hub" (Used EXCLUSIVELY for Slide 1 - The Hook).
-  - centerIcon: one of [shieldAlert, binary, codeFile, search, database, server, gitMerge, funnel, alerts, lifecycle, eyeRisk, gauge, lightbulb, cpu, clock, scales, robot, calculator, gradCap, brain, changesets, terminal, lock]
-  - satIcons: array of 6 distinct icon names from the library
-  - enTitle: 2 to 6 punchy words, bold headline (use \\n for two lines if needed)
-  - arTitle: Natural, idiomatic technical Arabic translation directly underneath
-  - enBody: Subtitle or hook summary (1 crisp sentence)
-  - arBody: Modern technical Arabic translation matching English structure
-- Archetype 2: "row" with 1 icon:
-  - icons: [{ icon: "...", label: "1-3 word English label" }] (e.g. "~100 GB history", "Server-side", "Changesets", "Merge first", "The demo", "Not a Git killer")
-  - enTitle: 2-6 words punchy title ending with period or question mark
-  - arTitle: Arabic translation
-  - enBody: 1-2 crisp sentences (12-24 words total) with zero fluff, pulling hard numbers and technical mechanisms
+3. 5 to 9 Slide Carousel Structure matching dynamic MARROK visual archetypes:
+- Decide the number of slides dynamically (5 to 9) based on content density:
+  - 5 slides for quick tips or single-point takeaways.
+  - 6 to 7 slides for standard technical case studies.
+  - 8 to 9 slides for comprehensive whitepapers or architectural post-mortems.
+- Slide 1 is ALWAYS Archetype: "hub" (The Hook):
+  - centerIcon: one of the 32 tech icons in the library
+  - satIcons: array of 6 distinct icon names relevant to the specific topic
+  - enTitle: 2 to 6 punchy words, bold headline
+  - arTitle: Natural, idiomatic technical Arabic translation
+  - enBody: Subtitle or hook summary
   - arBody: Modern technical Arabic translation
-- Archetype 3: "row" with 2 icons:
-  - icons: [{ icon: "...", label: "Label 1" }, { icon: "...", label: "Label 2" }]
-  - Used for contrasts, transformations, or two-part workflows (e.g. "Binary" & "Source code", "Expert skill" & "Ghidra / IDA", "AI loop" & "Ask, answer, ask")
-- Archetype 4: "row" with 3 icons:
-  - icons: [{ icon: "...", label: "200x smaller" }, { icon: "...", label: "Seconds" }, { icon: "...", label: "25% freed" }]
-  - Used for metrics, benchmarks, or 3-part capabilities
-- Archetype 5: "cta" (Used EXCLUSIVELY for the final slide - Slide 8 or 9):
-  - enTitle: Domain question hook tailored to the topic (e.g. "Building with AI agents\\nat scale?" or "Building secure\\nsoftware?")
-  - arTitle: Arabic translation (e.g. "تبني بوكلاء الذكاء\\nالاصطناعي على نطاق واسع؟" or "تبني برمجيات\\nآمنة؟")
+- Archetype: "metric" (Hero Stat Card):
+  - For throughput wins, latency drops, speedup multipliers, or false positive reduction.
+  - metricValue: e.g. "200x", "0ms", "99.9%", "45GB"
+  - metricLabel: e.g. "THROUGHPUT MULTIPLIER", "P99 LATENCY BENCHMARK"
+  - metricDiff: e.g. "▲ 12x vs legacy baseline" or "▼ 95% false alarms filtered"
+  - metricIcon: e.g. "zap", "gauge", "activity", "cpu", "shieldAlert"
+- Archetype: "code" (Terminal / Code Diff Window):
+  - For CLI commands, configurations, exploit POCs, or patch proofs.
+  - codeFileName: e.g. "bench_run.sh", "kernel_trace.c", "exploit.py"
+  - codeLanguage: "bash", "rust", "python", "sql", "c"
+  - codeSnippet: Multi-line code ($ for commands, + for additions, - for removals, ✔ for success)
+- Archetype: "compare" (Side-by-Side Comparison / Versus):
+  - For Old Way vs Modern Stack, Legacy Monolith vs Decoupled Engine, etc.
+  - compareLeftTitle: e.g. "Legacy Monolith"
+  - compareLeftBody: 3 bullet points describing legacy constraints
+  - compareRightTitle: e.g. "Modern Decoupled Engine"
+  - compareRightBody: 3 bullet points describing the modern breakthrough
+- Archetype: "row" (1 to 3 icons with micro-labels for workflow mechanisms)
+- Archetype: "cta" (Used EXCLUSIVELY for the final slide):
+  - enTitle: Domain question hook tailored to the topic
+  - arTitle: Arabic translation
   - ctaText: "DM us  •  رسالة خاصة"
-  - url: "marrok.org"
-  - enCredit: Attribution string (e.g. "Based on Anthropic's engineering post. The numbers are Anthropic's own." or "Based on a video by Low Level. Full credit to its creator.")
-  - arCredit: Arabic attribution string (e.g. "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها." or "مبني على فيديو من قناة Low Level، والفضل لصاحبها.")
+  - url: dynamic brandUrl (e.g. "anthropic.com", "marrok.org")
+  - enCredit: Attribution string
+  - arCredit: Arabic attribution string
 
 Category & Theme Classification:
 - Dynamically extract the specific domain category and badges from the input context (e.g. 'REVERSE ENGINEERING', 'LINUX KERNEL & EBPF', 'KUBERNETES & CLOUD SEC', 'AI AGENTS & COMPILERS', 'DISTRIBUTED SYSTEMS', 'DEVSECOPS & APPOPS'). Never default to a generic label if the input provides technical specifics.
@@ -115,6 +303,14 @@ const CAROUSEL_RESPONSE_SCHEMA = {
     category: {
       type: Type.STRING,
       description: 'Specific technical domain category extracted directly from input context (e.g. REVERSE ENGINEERING, LINUX KERNEL, KUBERNETES SEC, AI AGENTS, DISTRIBUTED SYSTEMS)',
+    },
+    brand: {
+      type: Type.STRING,
+      description: 'Brand or creator wordmark for slide watermark and CTA (e.g. ANTHROPIC, MARROK)',
+    },
+    brandUrl: {
+      type: Type.STRING,
+      description: 'Website URL or social handle (e.g. anthropic.com, marrok.org)',
     },
     caption: {
       type: Type.STRING,
@@ -155,7 +351,7 @@ const CAROUSEL_RESPONSE_SCHEMA = {
         properties: {
           type: {
             type: Type.STRING,
-            description: 'hub, row, or cta',
+            description: 'hub, row, metric, code, compare, or cta',
           },
           centerIcon: {
             type: Type.STRING,
@@ -177,6 +373,50 @@ const CAROUSEL_RESPONSE_SCHEMA = {
               required: ['icon', 'label'],
             },
             description: 'Array of 1 to 3 icons with micro-labels for row slides',
+          },
+          metricValue: {
+            type: Type.STRING,
+            description: 'Hero metric number for metric slide (e.g. 200x, 0ms, 99.9%)',
+          },
+          metricLabel: {
+            type: Type.STRING,
+            description: 'Micro-label for metric slide (e.g. THROUGHPUT MULTIPLIER)',
+          },
+          metricDiff: {
+            type: Type.STRING,
+            description: 'Improvement delta for metric slide (e.g. ▲ 12x vs baseline)',
+          },
+          metricIcon: {
+            type: Type.STRING,
+            description: 'Icon for metric slide badge',
+          },
+          codeSnippet: {
+            type: Type.STRING,
+            description: 'Multi-line code snippet for code slide',
+          },
+          codeFileName: {
+            type: Type.STRING,
+            description: 'File or tab name for code window (e.g. bench_run.sh)',
+          },
+          codeLanguage: {
+            type: Type.STRING,
+            description: 'Language for code slide (e.g. bash, rust, python, sql)',
+          },
+          compareLeftTitle: {
+            type: Type.STRING,
+            description: 'Left card title for compare slide (e.g. Legacy Monolith)',
+          },
+          compareLeftBody: {
+            type: Type.STRING,
+            description: 'Left card bullet points for compare slide',
+          },
+          compareRightTitle: {
+            type: Type.STRING,
+            description: 'Right card title for compare slide (e.g. Modern Engine)',
+          },
+          compareRightBody: {
+            type: Type.STRING,
+            description: 'Right card bullet points for compare slide',
           },
           enTitle: {
             type: Type.STRING,
@@ -218,6 +458,16 @@ const CAROUSEL_RESPONSE_SCHEMA = {
   required: ['theme', 'category', 'caption', 'slides'],
 };
 
+import { CarouselData } from './src/types.ts';
+
+type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
+
+// Allowed input modes
+const ALLOWED_INPUT_MODES = new Set(['upload', 'text', 'youtube', 'presets']);
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
 // API endpoint for generating carousel and TikTok caption
 app.post('/api/generate', async (req, res) => {
   const { prompt, inputMode, imageBase64, imageMimeType, categoryHint, imageName } = req.body;
@@ -226,37 +476,49 @@ app.post('/api/generate', async (req, res) => {
     return res.status(400).json({ error: 'Prompt or image is required' });
   }
 
+  // Validate and sanitize parameters
+  const safeInputMode = typeof inputMode === 'string' && ALLOWED_INPUT_MODES.has(inputMode) ? inputMode : 'text';
+  const safeCategoryHint = typeof categoryHint === 'string' ? categoryHint.slice(0, 100).replace(/[<>{}]/g, '') : 'auto';
+  const safeMimeType = typeof imageMimeType === 'string' && ALLOWED_IMAGE_MIMES.has(imageMimeType) ? imageMimeType : 'image/jpeg';
+  const safePrompt = typeof prompt === 'string' ? prompt.slice(0, 50000) : '';
+  const safeImageName = typeof imageName === 'string' ? imageName.slice(0, 200) : '';
+
   try {
-    const parts: any[] = [];
+    const parts: GeminiPart[] = [];
 
     // If an image was uploaded, attach it as inlineData
-    if (imageBase64) {
+    if (typeof imageBase64 === 'string' && imageBase64.length > 0) {
       const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
       parts.push({
         inlineData: {
-          mimeType: imageMimeType || 'image/jpeg',
+          mimeType: safeMimeType,
           data: cleanBase64,
         },
       });
     }
 
     // Build user text prompt
-    let userPromptText = `Generate a complete MARROK 8-to-9 slide TikTok carousel, 3 Hook Variants for Slide 1, and 2 Caption Variants from this input.\n`;
-    if (categoryHint && categoryHint !== 'auto') {
-      userPromptText += `Preferred Domain Category: ${categoryHint}\n`;
+    let userPromptText = `Generate a dynamic MARROK 5-to-9 slide TikTok carousel, 3 Hook Variants for Slide 1, and 2 Caption Variants from this input.\n`;
+    if (safeCategoryHint && safeCategoryHint !== 'auto') {
+      userPromptText += `Preferred Domain Category: ${safeCategoryHint}\n`;
     }
-    if (inputMode) {
-      userPromptText += `Input Mode: ${inputMode}\n`;
+    if (safeInputMode) {
+      userPromptText += `Input Mode: ${safeInputMode}\n`;
     }
-    if (prompt) {
-      userPromptText += `Raw Content / Topic / Transcript:\n"""\n${prompt}\n"""\n`;
+    if (safePrompt) {
+      userPromptText += `Raw Content / Topic / Transcript:\n"""\n${safePrompt}\n"""\n`;
     }
 
     userPromptText += `\nFollow the MARROK copywriting formula strictly:
-- Slide 1 must be Archetype 1 (hub) with centerIcon + 6 satIcons.
+- Dynamically determine slide count (5 to 9 slides): 5 slides for quick tips or single takeaways, 6-7 for technical case studies, 8-9 for deep whitepapers.
+- Slide 1 must be Archetype "hub" with centerIcon + 6 topic-specific satIcons.
 - Provide hookVariants with 3 alternatives for Slide 1 (Curiosity, Hard Metrics, Problem/Contrast).
-- Slide 2 to Slide 7 or 8 should use Archetype 2, 3, or 4 ("row" with 1, 2, or 3 icons) presenting the technical mechanism, benchmarks, and lessons learned.
-- Final Slide (8 or 9) must be Archetype 5 (cta) with MARROK branding, domain question hook, DM us CTA, and bilingual attribution.
+- Mid-deck slides must blend varied visual archetypes:
+  - "metric" (Stat Hero Card with huge metricValue, metricLabel, metricDiff, and metricIcon) for benchmarks/throughput wins.
+  - "code" (Terminal Window with codeFileName, codeLanguage, and syntax codeSnippet) for CLI commands, configs, or exploit proofs.
+  - "compare" (Side-by-side comparison with compareLeftTitle, compareLeftBody, compareRightTitle, compareRightBody) for Old Way vs Modern Stack.
+  - "row" (1 to 3 icons with micro-labels) for technical mechanisms.
+- Final Slide must be Archetype "cta" with creator/brand watermark, domain question hook, DM us CTA, and bilingual attribution.
 - Return valid JSON matching the exact schema.`;
 
     parts.push({ text: userPromptText });
@@ -269,8 +531,8 @@ app.post('/api/generate', async (req, res) => {
     // Primary: 'gemini-3.1-flash-lite' (high throughput, ultra-fast, handles multimodal)
     // Fallbacks: 'gemini-flash-latest'
     const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest'];
-    let lastError: any = null;
-    let jsonResult: any = null;
+    let lastError: unknown = null;
+    let jsonResult: CarouselData | null = null;
 
     if (activeAi) {
       for (const model of candidateModels) {
@@ -280,7 +542,7 @@ app.post('/api/generate', async (req, res) => {
             setTimeout(() => reject(new Error(`Timeout: ${model} exceeded 6000ms threshold`)), 6000)
           );
 
-          const response: any = await Promise.race([
+          const response = await Promise.race([
             activeAi.models.generateContent({
               model,
               contents: { parts },
@@ -296,12 +558,12 @@ app.post('/api/generate', async (req, res) => {
 
           const text = response.text;
           if (text) {
-            jsonResult = JSON.parse(text);
+            jsonResult = JSON.parse(text) as CarouselData;
             console.log(`Successfully generated carousel with model ${model}`);
             break;
           }
-        } catch (err: any) {
-          const errMsg = err?.message || String(err);
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.warn(`Model ${model} failed:`, errMsg);
           lastError = err;
           // If the model is experiencing 503 high demand, UNAVAILABLE, or timeout,
@@ -325,24 +587,24 @@ app.post('/api/generate', async (req, res) => {
 
     // Upstream AI API is experiencing high demand (503) or rate limits.
     // Gracefully activate MARROK intelligent content synthesizer:
-    console.log('Activating MARROK resilient content synthesizer for input:', prompt || imageName);
+    console.log('Activating MARROK resilient content synthesizer for input:', safePrompt || safeImageName);
     const synthesizedData = synthesizeCarousel({
-      prompt,
-      categoryHint,
-      inputMode,
-      imageFileName: imageName,
+      prompt: safePrompt,
+      categoryHint: safeCategoryHint,
+      inputMode: safeInputMode,
+      imageFileName: safeImageName,
     });
 
     res.setHeader('X-Marrok-Engine', 'intelligent-synthesizer');
     return res.json(synthesizedData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating carousel, using fallback:', error);
     // Never fail with 500: synthesize archetype-compliant output
     const fallbackData = synthesizeCarousel({
-      prompt,
-      categoryHint,
-      inputMode,
-      imageFileName: imageName,
+      prompt: safePrompt,
+      categoryHint: safeCategoryHint,
+      inputMode: safeInputMode,
+      imageFileName: safeImageName,
     });
     return res.json(fallbackData);
   }

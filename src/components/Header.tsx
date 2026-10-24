@@ -1,12 +1,12 @@
 import React from 'react';
-import { Download, Sparkles, RefreshCw, Palette, Lightbulb, Key } from 'lucide-react';
+import { Download, Sparkles, RefreshCw, Palette, Key } from 'lucide-react';
 import { ThemePalette } from '../types';
 
 interface HeaderProps {
   currentPalette: ThemePalette;
   onOpenGenerator: () => void;
   onOpenThemeCustomizer: () => void;
-  onOpenTopicInspiration: () => void;
+
   onOpenApiKeyModal: () => void;
   onExportAll: () => void;
   isExporting: boolean;
@@ -17,7 +17,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentPalette,
   onOpenGenerator,
   onOpenThemeCustomizer,
-  onOpenTopicInspiration,
   onOpenApiKeyModal,
   onExportAll,
   isExporting,
@@ -32,41 +31,28 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-xl font-extrabold tracking-tight text-white font-jakarta">
               MARROK
             </span>
-            <span
-              className="w-2.5 h-2.5 rounded-full inline-block transition-transform duration-200 group-hover:scale-125"
-              style={{ backgroundColor: currentPalette.accent }}
-            />
+            <span className="w-2.5 h-2.5 rounded-full inline-block transition-transform duration-200 group-hover:scale-125 bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
           </a>
           <span className="text-xs uppercase tracking-wider text-slate-400 font-medium pl-2 border-l border-white/10 hidden md:inline">
             TikTok Studio & Synthesizer
           </span>
         </div>
 
-        {/* Central Controls: Themes, Ideas, API */}
+        {/* Central Controls: Post Theme & API Key */}
         <div className="flex items-center gap-2">
-          {/* Theme & Palette Studio */}
+          {/* Post Theme & Palette Studio */}
           <button
             onClick={onOpenThemeCustomizer}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all cursor-pointer"
-            title="Open Theme & Full Color Palette Picker"
+            title="Configure Theme & Colors for this Post"
           >
             <div
-              className="w-3 h-3 rounded-full border border-white/30"
+              className="w-3 h-3 rounded-full border border-white/30 shrink-0"
               style={{ backgroundColor: currentPalette.accent }}
             />
-            <span className="hidden sm:inline">Theme:</span>
+            <span className="hidden sm:inline text-slate-400">Post Theme:</span>
             <span className="font-bold text-white max-w-[100px] truncate">{currentPalette.name.split(' ')[0]}</span>
             <Palette className="w-3 h-3 text-slate-400 ml-0.5" />
-          </button>
-
-          {/* Trending Topics / Ideas */}
-          <button
-            onClick={onOpenTopicInspiration}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-white/20 transition-all cursor-pointer"
-            title="Browse Trending Engineering Topics"
-          >
-            <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Topic Ideas</span>
           </button>
 
           {/* Gemini API Key */}
@@ -80,24 +66,21 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons: Generate & Export */}
+        {/* Action Buttons: Ingest & Export */}
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={onOpenGenerator}
             className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] transition-all cursor-pointer whitespace-nowrap"
+            title="Ingest screenshot, notes, code, or video transcript"
           >
-            <Sparkles className="w-3.5 h-3.5" style={{ color: currentPalette.accent }} />
-            <span>New Post</span>
+            <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+            <span>Ingest Material</span>
           </button>
 
           <button
             onClick={onExportAll}
             disabled={isExporting}
-            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-lg transition-all shadow-sm cursor-pointer disabled:opacity-50 whitespace-nowrap"
-            style={{
-              backgroundColor: currentPalette.accent,
-              color: '#080d11',
-            }}
+            className="flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-lg transition-all shadow-sm cursor-pointer disabled:opacity-50 whitespace-nowrap bg-teal-400 hover:bg-teal-300 text-slate-950"
           >
             {isExporting ? (
               <>

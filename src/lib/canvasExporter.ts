@@ -38,17 +38,56 @@ function wrapTextLines(
   return lines;
 }
 
-// Helper to load an SVG or custom image icon as an HTMLImageElement
+// In-memory image cache for fast re-renders without repeated network round-trips
+const CANVAS_IMAGE_CACHE = new Map<string, HTMLImageElement>();
+
+// Helper to load an SVG, custom image icon, or web image as an HTMLImageElement
 function loadIconImage(iconName: string, strokeColor: string): Promise<HTMLImageElement> {
+  const url = getIconDataUrl(iconName, strokeColor);
+  if (CANVAS_IMAGE_CACHE.has(url)) {
+    return Promise.resolve(CANVAS_IMAGE_CACHE.get(url)!);
+  }
+
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => {
-      console.warn(`Failed to load icon ${iconName}`);
+    img.onload = () => {
+      CANVAS_IMAGE_CACHE.set(url, img);
       resolve(img);
     };
-    img.src = getIconDataUrl(iconName, strokeColor);
+    img.onerror = () => {
+      console.warn(`Failed to load icon/image: ${iconName}`);
+      resolve(img);
+    };
+    img.src = url;
+  });
+}
+
+// Helper to load full web images / diagrams via CORS proxy with theme recoloring
+function loadWebImage(imageUrl: string, color?: string): Promise<HTMLImageElement> {
+  const isSvg = imageUrl.toLowerCase().includes('.svg') || imageUrl.includes('simple-icons');
+  let safeUrl = imageUrl;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    const colorParam = isSvg && color ? `&color=${encodeURIComponent(color)}` : '';
+    safeUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}${colorParam}`;
+  }
+
+  if (CANVAS_IMAGE_CACHE.has(safeUrl)) {
+    return Promise.resolve(CANVAS_IMAGE_CACHE.get(safeUrl)!);
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      CANVAS_IMAGE_CACHE.set(safeUrl, img);
+      resolve(img);
+    };
+    img.onerror = () => {
+      console.warn(`Failed to load web image: ${imageUrl}`);
+      resolve(img);
+    };
+    img.src = safeUrl;
   });
 }
 
@@ -92,6 +131,41 @@ function drawRoundRect(
     ctx.stroke();
   }
   ctx.restore();
+}
+
+// Tinted image drawer helper (replaces non-transparent pixels with theme color via source-in)
+function drawTintedImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  tintColor?: string
+) {
+  if (!tintColor || w <= 0 || h <= 0) {
+    ctx.drawImage(img, x, y, w, h);
+    return;
+  }
+  try {
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = Math.max(1, Math.round(w));
+    offCanvas.height = Math.max(1, Math.round(h));
+    const offCtx = offCanvas.getContext('2d');
+    if (!offCtx) {
+      ctx.drawImage(img, x, y, w, h);
+      return;
+    }
+    offCtx.drawImage(img, 0, 0, offCanvas.width, offCanvas.height);
+    offCtx.globalCompositeOperation = 'source-in';
+    offCtx.fillStyle = tintColor;
+    offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+    ctx.drawImage(offCanvas, x, y, w, h);
+  } catch (_err) {
+    // Graceful fallback to raw image
+    ctx.drawImage(img, x, y, w, h);
+  }
 }
 
 /**
@@ -153,16 +227,17 @@ export async function renderSlideToCanvas(
   }
   ctx.restore();
 
-  // 4. Header: Top-Left Logo + Accent Dot
+  // 4. Header: Top-Left Brand Logo + Accent Dot
   ctx.save();
   ctx.font = '800 40px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('MARROK', 82, 142);
+  const brandName = carousel.brand || 'MARROK';
+  ctx.fillText(brandName, 82, 142);
 
-  // Accent Dot next to MARROK wordmark
-  const logoWidth = ctx.measureText('MARROK').width;
+  // Accent Dot next to Brand wordmark
+  const logoWidth = ctx.measureText(brandName).width;
   ctx.beginPath();
   ctx.arc(82 + logoWidth + 14, 128, 8.5, 0, Math.PI * 2);
   ctx.fillStyle = theme.accent;
@@ -219,7 +294,7 @@ export async function renderSlideToCanvas(
     const centerIconName = slide.centerIcon || 'gitMerge';
     const centerImg = await loadIconImage(centerIconName, theme.iconStroke);
     const iconSize = 140;
-    ctx.drawImage(centerImg, cx - iconSize / 2, cy - iconSize / 2, iconSize, iconSize);
+    drawTintedImage(ctx, centerImg, cx - iconSize / 2, cy - iconSize / 2, iconSize, iconSize, theme.iconStroke);
 
     // 6 Satellite Boxes: 132x132 rounded rect (radius 34) at angles [-90°, -30°, 30°, 90°, 150°, 210°]
     const satAngles = [-90, -30, 30, 90, 150, 210];
@@ -237,7 +312,7 @@ export async function renderSlideToCanvas(
 
       const sIconName = satIcons[i % satIcons.length] || 'gitMerge';
       const sImg = await loadIconImage(sIconName, theme.iconStroke);
-      ctx.drawImage(sImg, sx - satIconSize / 2, sy - satIconSize / 2, satIconSize, satIconSize);
+      drawTintedImage(ctx, sImg, sx - satIconSize / 2, sy - satIconSize / 2, satIconSize, satIconSize, theme.iconStroke);
     }
 
     textZoneStartY = 1120;
@@ -254,7 +329,7 @@ export async function renderSlideToCanvas(
       drawRoundRect(ctx, boxX, boxY, boxW, boxH, 72, theme.accent);
 
       const iconImg = await loadIconImage(icons[0].icon, theme.iconStroke);
-      ctx.drawImage(iconImg, 540 - 71, 290 + 150 - 71, 142, 142);
+      drawTintedImage(ctx, iconImg, 540 - 71, 290 + 150 - 71, 142, 142, theme.iconStroke);
 
       if (icons[0].label) {
         ctx.save();
@@ -281,7 +356,7 @@ export async function renderSlideToCanvas(
         drawRoundRect(ctx, curX, topY, boxW, boxH, 64, theme.accent);
 
         const iconImg = await loadIconImage(icons[i].icon, theme.iconStroke);
-        ctx.drawImage(iconImg, curX + boxW / 2 - iconSize / 2, topY + boxH / 2 - iconSize / 2, iconSize, iconSize);
+        drawTintedImage(ctx, iconImg, curX + boxW / 2 - iconSize / 2, topY + boxH / 2 - iconSize / 2, iconSize, iconSize, theme.iconStroke);
 
         if (icons[i].label) {
           ctx.save();
@@ -309,7 +384,7 @@ export async function renderSlideToCanvas(
         drawRoundRect(ctx, curX, topY, boxW, boxH, 54, theme.accent);
 
         const iconImg = await loadIconImage(icons[i].icon, theme.iconStroke);
-        ctx.drawImage(iconImg, curX + boxW / 2 - iconSize / 2, topY + boxH / 2 - iconSize / 2, iconSize, iconSize);
+        drawTintedImage(ctx, iconImg, curX + boxW / 2 - iconSize / 2, topY + boxH / 2 - iconSize / 2, iconSize, iconSize, theme.iconStroke);
 
         if (icons[i].label) {
           ctx.save();
@@ -324,14 +399,444 @@ export async function renderSlideToCanvas(
 
       textZoneStartY = 679;
     }
+  } else if (slide.type === 'metric') {
+    // Archetype: Metric Card (Benchmark, Speedup, Resource ROI)
+    const cardX = 110;
+    const cardY = 240;
+    const cardW = 860;
+    const cardH = 390;
+    const radius = 44;
+
+    // Card background & subtle border
+    drawRoundRect(ctx, cardX, cardY, cardW, cardH, radius, theme.surface, theme.surfaceBorder, 2.5);
+
+    // Accent line at top inside border
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 3;
+    ctx.arc(cardX + radius, cardY + radius, radius, Math.PI, 1.5 * Math.PI);
+    ctx.lineTo(cardX + cardW - radius, cardY);
+    ctx.arc(cardX + cardW - radius, cardY + radius, radius, 1.5 * Math.PI, 2 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
+
+    // Top Row: Icon badge + Metric Label
+    const iconBadgeSize = 64;
+    const iconBadgeX = cardX + 44;
+    const iconBadgeY = cardY + 36;
+    drawRoundRect(ctx, iconBadgeX, iconBadgeY, iconBadgeSize, iconBadgeSize, 18, theme.accent);
+
+    const mIcon = slide.metricIcon || 'zap';
+    const iconImg = await loadIconImage(mIcon, theme.iconStroke);
+    drawTintedImage(ctx, iconImg, iconBadgeX + 14, iconBadgeY + 14, 36, 36, theme.iconStroke);
+
+    const metricLabel = (slide.metricLabel || 'KEY PERFORMANCE METRIC').toUpperCase();
+    ctx.save();
+    ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = theme.microLabel;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(metricLabel, iconBadgeX + iconBadgeSize + 20, iconBadgeY + iconBadgeSize / 2);
+    ctx.restore();
+
+    // Giant Hero Metric Value (center of card)
+    const metricVal = slide.metricValue || '10x';
+    ctx.save();
+    const valFontSize = metricVal.length > 8 ? 96 : metricVal.length > 5 ? 116 : 138;
+    ctx.font = `900 ${valFontSize}px "Plus Jakarta Sans", sans-serif`;
+    ctx.fillStyle = theme.textWhite;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(metricVal, 540, cardY + 230);
+    ctx.restore();
+
+    // Metric Improvement / Delta Pill
+    const diffText = slide.metricDiff || '▲ Measurable architectural speedup';
+    ctx.save();
+    ctx.font = '600 26px "Plus Jakarta Sans", monospace';
+    const diffMetrics = ctx.measureText(diffText);
+    const pillW = Math.min(diffMetrics.width + 56, 760);
+    const pillH = 50;
+    const pillX = 540 - pillW / 2;
+    const pillY = cardY + cardH - 80;
+    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 25, `${theme.accent}20`, `${theme.accent}60`, 2);
+
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(diffText, 540, pillY + pillH / 2);
+    ctx.restore();
+
+    textZoneStartY = 715;
+  } else if (slide.type === 'code') {
+    // Archetype: Terminal / Code Window
+    const winX = 100;
+    const winY = 230;
+    const winW = 880;
+    const winH = 430;
+    const winRadius = 32;
+
+    // Window container
+    drawRoundRect(ctx, winX, winY, winW, winH, winRadius, '#080d11', theme.surfaceBorder, 2.5);
+
+    // Header bar background
+    drawRoundRect(ctx, winX, winY, winW, 60, winRadius, '#0f181e');
+    // Square off the bottom of the header bar
+    ctx.fillStyle = '#0f181e';
+    ctx.fillRect(winX, winY + 30, winW, 30);
+    // Header divider line
+    ctx.strokeStyle = theme.surfaceBorder;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(winX, winY + 60);
+    ctx.lineTo(winX + winW, winY + 60);
+    ctx.stroke();
+
+    // macOS window dots
+    const dotY = winY + 30;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(winX + 36, dotY, 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#FF5F56'; // Red
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(winX + 60, dotY, 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFBD2E'; // Yellow
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(winX + 84, dotY, 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#27C93F'; // Green
+    ctx.fill();
+    ctx.restore();
+
+    // Tab / Filename
+    const fileName = slide.codeFileName || (slide.codeLanguage ? `source.${slide.codeLanguage}` : 'terminal.sh');
+    ctx.save();
+    ctx.font = '500 22px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.textMuted;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fileName, 540, dotY);
+    ctx.restore();
+
+    // Code lines
+    const snippet = slide.codeSnippet || '$ git fetch --depth=1\n> Initializing lazy checkout...\n+ Fetched 100GB repository in 1.2s\n✔ Zero local disk stalls';
+    const lines = snippet.split('\n').slice(0, 7);
+    let lineY = winY + 105;
+    const lineSpacing = 44;
+
+    ctx.save();
+    ctx.font = '500 27px "JetBrains Mono", monospace';
+    ctx.textBaseline = 'alphabetic';
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // Line number
+      ctx.fillStyle = theme.textMuted + '80';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(i + 1), winX + 54, lineY);
+
+      // Syntax styling
+      ctx.textAlign = 'left';
+      if (line.startsWith('$') || line.startsWith('>')) {
+        ctx.fillStyle = theme.accent;
+      } else if (line.startsWith('+') || line.startsWith('✔')) {
+        ctx.fillStyle = '#34D399'; // Emerald
+      } else if (line.startsWith('-') || line.startsWith('✖')) {
+        ctx.fillStyle = '#F87171'; // Red
+      } else if (line.startsWith('#') || line.startsWith('//')) {
+        ctx.fillStyle = theme.textMuted;
+      } else {
+        ctx.fillStyle = '#E2E8EC';
+      }
+      ctx.fillText(line, winX + 76, lineY);
+      lineY += lineSpacing;
+    }
+    ctx.restore();
+
+    textZoneStartY = 745;
+  } else if (slide.type === 'compare') {
+    // Archetype: Side-by-Side Comparison (Legacy vs Modern)
+    const cardY = 240;
+    const cardH = 410;
+    const cardW = 420;
+    const leftX = 100;
+    const rightX = 560;
+    const radius = 32;
+
+    // Left Card: Legacy / Problem
+    drawRoundRect(ctx, leftX, cardY, cardW, cardH, radius, theme.surface, 'rgba(244,63,94,0.35)', 2.5);
+
+    // Left Header Badge
+    drawRoundRect(ctx, leftX + 24, cardY + 24, cardW - 48, 52, 16, 'rgba(244,63,94,0.18)');
+    const xImg = await loadIconImage('xCircle', '#F43F5E');
+    ctx.drawImage(xImg, leftX + 38, cardY + 36, 28, 28);
+
+    const leftTitle = slide.compareLeftTitle || 'Legacy Method';
+    ctx.save();
+    ctx.font = '800 25px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#FDA4AF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(leftTitle, leftX + 78, cardY + 50);
+    ctx.restore();
+
+    // Left Body Lines
+    const leftText = slide.compareLeftBody || '• Full repository clone\n• High disk footprint\n• Stalls CI pipelines';
+    const leftLines = leftText.split('\n').slice(0, 5);
+    ctx.save();
+    ctx.font = '400 25px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = theme.textEnBody;
+    ctx.textAlign = 'left';
+    let lY = cardY + 125;
+    for (const l of leftLines) {
+      ctx.fillText(l, leftX + 32, lY);
+      lY += 46;
+    }
+    ctx.restore();
+
+    // Right Card: Modern / Solution
+    drawRoundRect(ctx, rightX, cardY, cardW, cardH, radius, theme.surface, `${theme.accent}60`, 2.5);
+
+    // Right Header Badge
+    drawRoundRect(ctx, rightX + 24, cardY + 24, cardW - 48, 52, 16, `${theme.accent}22`);
+    const checkImg = await loadIconImage('checkCircle', theme.accent);
+    ctx.drawImage(checkImg, rightX + 38, cardY + 36, 28, 28);
+
+    const rightTitle = slide.compareRightTitle || 'Modern Approach';
+    ctx.save();
+    ctx.font = '800 25px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(rightTitle, rightX + 78, cardY + 50);
+    ctx.restore();
+
+    // Right Body Lines
+    const rightText = slide.compareRightBody || '• Virtualized file system\n• Instant sparse checkout\n• Zero local developer wait';
+    const rightLines = rightText.split('\n').slice(0, 5);
+    ctx.save();
+    ctx.font = '400 25px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = theme.textEnBody;
+    ctx.textAlign = 'left';
+    let rY = cardY + 125;
+    for (const r of rightLines) {
+      ctx.fillText(r, rightX + 32, rY);
+      rY += 46;
+    }
+    ctx.restore();
+
+    // Center VS Badge
+    const vsX = 540;
+    const vsY = cardY + cardH / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(vsX, vsY, 30, 0, Math.PI * 2);
+    ctx.fillStyle = '#081216';
+    ctx.fill();
+    ctx.strokeStyle = theme.surfaceBorder;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.font = '800 21px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.microLabel;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VS', vsX, vsY);
+    ctx.restore();
+
+    textZoneStartY = 745;
+  } else if (slide.type === 'image') {
+    // Archetype: Image / Web Visual Card (Architecture Diagram, Hero Illustration, or Web Photo)
+    const cardX = 100;
+    const cardY = 240;
+    const cardW = 880;
+    const cardH = 430;
+    const radius = 32;
+
+    // 1. Soft ambient theme glow behind the card matching active post theme
+    ctx.save();
+    const glowGrad = ctx.createRadialGradient(
+      cardX + cardW / 2,
+      cardY + cardH / 2,
+      40,
+      cardX + cardW / 2,
+      cardY + cardH / 2,
+      cardW / 1.5
+    );
+    glowGrad.addColorStop(0, `${theme.accent}20`);
+    glowGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = glowGrad;
+    ctx.fillRect(cardX - 40, cardY - 40, cardW + 80, cardH + 80);
+    ctx.restore();
+
+    // 2. Card surface strictly inherits active post theme surface & border
+    drawRoundRect(ctx, cardX, cardY, cardW, cardH, radius, theme.surface, theme.surfaceBorder, 2.5);
+
+    // 3. Clip inside card for blueprint grid and visual rendering
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(cardX, cardY, cardW, cardH, radius);
+    } else {
+      ctx.rect(cardX, cardY, cardW, cardH);
+    }
+    ctx.clip();
+
+    // Technical blueprint grid aligned with post theme
+    ctx.strokeStyle = `${theme.accent}0A`;
+    ctx.lineWidth = 1;
+    const gridStep = 32;
+    for (let gx = cardX; gx <= cardX + cardW; gx += gridStep) {
+      ctx.beginPath();
+      ctx.moveTo(gx, cardY);
+      ctx.lineTo(gx, cardY + cardH);
+      ctx.stroke();
+    }
+    for (let gy = cardY; gy <= cardY + cardH; gy += gridStep) {
+      ctx.beginPath();
+      ctx.moveTo(cardX, gy);
+      ctx.lineTo(cardX + cardW, gy);
+      ctx.stroke();
+    }
+
+    // Technical corner HUD brackets in theme accent
+    const brk = 18;
+    ctx.strokeStyle = `${theme.accent}45`;
+    ctx.lineWidth = 2;
+    // Top-Left
+    ctx.beginPath();
+    ctx.moveTo(cardX + 22, cardY + 22 + brk);
+    ctx.lineTo(cardX + 22, cardY + 22);
+    ctx.lineTo(cardX + 22 + brk, cardY + 22);
+    ctx.stroke();
+    // Top-Right
+    ctx.beginPath();
+    ctx.moveTo(cardX + cardW - 22 - brk, cardY + 22);
+    ctx.lineTo(cardX + cardW - 22, cardY + 22);
+    ctx.lineTo(cardX + cardW - 22, cardY + 22 + brk);
+    ctx.stroke();
+
+    if (slide.imageUrl) {
+      const filterMode = slide.imageFilter || 'hud';
+      // If SVG or logo, colorize with theme.accent in hud/tint mode
+      const isSvg = slide.imageUrl.toLowerCase().includes('.svg') || slide.imageUrl.includes('simple-icons');
+      const svgColor = filterMode === 'clean' ? undefined : theme.accent;
+      const img = await loadWebImage(slide.imageUrl, svgColor);
+
+      if (img.width > 0 && img.height > 0) {
+        // Calculate aspect fit inside card
+        const imgAspect = img.width / img.height;
+        const cardAspect = cardW / cardH;
+        let dw = cardW;
+        let dh = cardH;
+        let dx = cardX;
+        let dy = cardY;
+
+        if (slide.imageFit === 'cover') {
+          if (imgAspect > cardAspect) {
+            dh = cardH;
+            dw = cardH * imgAspect;
+            dx = cardX + (cardW - dw) / 2;
+          } else {
+            dw = cardW;
+            dh = cardW / imgAspect;
+            dy = cardY + (cardH - dh) / 2;
+          }
+        } else {
+          // Contain with 24px padding
+          const pad = 24;
+          const availW = cardW - pad * 2;
+          const availH = cardH - pad * 2;
+          const availAspect = availW / availH;
+
+          if (imgAspect > availAspect) {
+            dw = availW;
+            dh = availW / imgAspect;
+          } else {
+            dh = availH;
+            dw = availH * imgAspect;
+          }
+          dx = cardX + (cardW - dw) / 2;
+          dy = cardY + (cardH - dh) / 2;
+        }
+
+        // Apply theme harmonization filter to image
+        ctx.save();
+        if (filterMode === 'invert') {
+          // Invert white background diagrams into dark terminal mode
+          ctx.filter = 'invert(0.92) hue-rotate(180deg) contrast(1.2) brightness(0.95)';
+          ctx.drawImage(img, dx, dy, dw, dh);
+        } else if ((filterMode === 'hud' || filterMode === 'tint') && isSvg) {
+          // In HUD / Tint mode, colorize SVG logo/graphic directly with active post theme accent!
+          drawTintedImage(ctx, img, dx, dy, dw, dh, theme.accent);
+        } else if (filterMode === 'tint') {
+          drawTintedImage(ctx, img, dx, dy, dw, dh, theme.accent);
+        } else if (filterMode === 'hud') {
+          // Subtle high-contrast terminal blend for raster diagrams
+          ctx.filter = 'contrast(1.1) brightness(1.02)';
+          ctx.drawImage(img, dx, dy, dw, dh);
+        } else {
+          ctx.drawImage(img, dx, dy, dw, dh);
+        }
+        ctx.restore();
+      }
+    } else {
+      // Sleek placeholder if no image URL yet
+      ctx.save();
+      const pIcon = await loadIconImage('codeFile', theme.accent);
+      ctx.drawImage(pIcon, 540 - 36, cardY + 140, 72, 72);
+      ctx.font = '600 24px "Plus Jakarta Sans", sans-serif';
+      ctx.fillStyle = theme.textMuted;
+      ctx.textAlign = 'center';
+      ctx.fillText('Select or search an image from the web in the Slide Editor', 540, cardY + 260);
+      ctx.restore();
+    }
+    ctx.restore(); // End clipping
+
+    // 4. Top border neon accent line (indicates active theme)
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 3;
+    ctx.moveTo(cardX + 60, cardY);
+    ctx.lineTo(cardX + cardW - 60, cardY);
+    ctx.stroke();
+    ctx.restore();
+
+    // 5. Optional Image Caption / Micro-badge matching theme
+    if (slide.imageCaption) {
+      ctx.save();
+      const badgeText = slide.imageCaption.toUpperCase();
+      ctx.font = '700 20px "Plus Jakarta Sans", monospace';
+      const bMetrics = ctx.measureText(badgeText);
+      const bW = Math.min(bMetrics.width + 36, 760);
+      const bH = 40;
+      const bX = cardX + 24;
+      const bY = cardY + cardH - 54;
+      drawRoundRect(ctx, bX, bY, bW, bH, 12, theme.baseBg, theme.surfaceBorder, 1.5);
+
+      ctx.fillStyle = theme.accent;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, bX + 18, bY + bH / 2);
+      ctx.restore();
+    }
+
+    textZoneStartY = 745;
   } else if (slide.type === 'cta') {
     // Archetype 5: CTA (Slide 8 or 9)
     ctx.save();
-    ctx.font = '800 146px "Plus Jakarta Sans", sans-serif';
+    const ctaBrand = carousel.brand || 'MARROK';
+    const brandFontSize = ctaBrand.length > 12 ? 92 : ctaBrand.length > 7 ? 116 : 146;
+    ctx.font = `800 ${brandFontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('MARROK', 540, 610);
+    ctx.fillText(ctaBrand, 540, 610);
 
     // Accent Divider Line: 120x10 pill at (480, 655)
     drawRoundRect(ctx, 480, 655, 120, 10, 5, theme.accent);
@@ -375,13 +880,14 @@ export async function renderSlideToCanvas(
     ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 540, pillY + pillH / 2);
     ctx.restore();
 
-    // Website URL: marrok.org in 42px regular #E2E8EC
+    // Website URL: dynamic brandUrl or slide url or marrok.org
+    const displayUrl = carousel.brandUrl || slide.url || 'marrok.org';
     ctx.save();
     ctx.font = '400 42px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#E2E8EC';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(slide.url || 'marrok.org', 540, pillY + pillH + 112);
+    ctx.fillText(displayUrl, 540, pillY + pillH + 112);
     ctx.restore();
 
     // Bilingual Source Attribution Footer
@@ -406,8 +912,8 @@ export async function renderSlideToCanvas(
     }
   }
 
-  // 6. Text Zone Rendering (for hub and row slides)
-  if (slide.type === 'hub' || slide.type === 'row') {
+  // 6. Text Zone Rendering (for hub, row, metric, code, and compare slides)
+  if (slide.type !== 'cta') {
     let currentY = textZoneStartY;
 
     // English Headline: 74px, line-height 86px, 800 weight, #FFFFFF

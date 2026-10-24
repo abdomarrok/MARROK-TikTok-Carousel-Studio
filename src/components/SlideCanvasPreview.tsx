@@ -132,7 +132,11 @@ export const SlideCanvasPreview: React.FC<SlideCanvasPreviewProps> = ({
   const getArchetypeLabel = () => {
     if (!currentSlide) return '';
     if (currentSlide.type === 'hub') return 'The Hook (hub)';
-    if (currentSlide.type === 'cta') return 'Final CTA (cta)';
+    if (currentSlide.type === 'metric') return 'Metric Card (stat hero)';
+    if (currentSlide.type === 'code') return 'Code / Terminal (window)';
+    if (currentSlide.type === 'compare') return 'Comparison (split vs)';
+    if (currentSlide.type === 'image') return 'Image Card (web visual)';
+    if (currentSlide.type === 'cta') return 'Final CTA (brand)';
     const iconCount = currentSlide.icons?.length || 1;
     return `${iconCount}-Icon Layout (row)`;
   };
@@ -358,10 +362,22 @@ export const SlideCanvasPreview: React.FC<SlideCanvasPreviewProps> = ({
 
                   <div className="flex items-center justify-center my-auto">
                     <span
-                      className="w-3.5 h-3.5 rounded-sm flex items-center justify-center text-[7px] font-bold"
+                      className="w-5 h-3.5 rounded-sm flex items-center justify-center text-[7px] font-bold"
                       style={{ backgroundColor: theme.accent, color: theme.iconStroke }}
                     >
-                      {slide.type === 'hub' ? 'H' : slide.type === 'cta' ? 'C' : 'R'}
+                      {slide.type === 'hub'
+                        ? 'HUB'
+                        : slide.type === 'metric'
+                        ? 'MTR'
+                        : slide.type === 'code'
+                        ? 'CLI'
+                        : slide.type === 'compare'
+                        ? 'VS'
+                        : slide.type === 'image'
+                        ? 'IMG'
+                        : slide.type === 'cta'
+                        ? 'CTA'
+                        : 'ROW'}
                     </span>
                   </div>
 

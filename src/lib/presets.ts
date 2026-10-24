@@ -6,7 +6,7 @@ export const PRESET_CAROUSELS: Record<string, { name: string; category: string; 
     category: 'AI + ENGINEERING',
     description: 'Anthropic built Scion to handle 25M CI checkouts/day and 100GB repos.',
     data: {
-      theme: 'engineering',
+      theme: 'amber',
       category: 'AI + ENGINEERING',
       caption: `Why did Anthropic move beyond Git? A deeper look at Scion 🚀
 لماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي
@@ -87,51 +87,50 @@ Learn more: marrok.org
         {
           type: 'hub',
           centerIcon: 'gitMerge',
-          satIcons: ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'],
+          satIcons: ['server', 'database', 'gauge', 'cpu', 'box', 'activity'],
           enTitle: 'Why did Anthropic\nmove beyond Git?',
           arTitle: 'السبب وراء ابتعاد\nGit عن Anthropic',
           enBody: 'A deeper look at Scion.',
           arBody: 'نظرة أعمق على Scion.',
         },
         {
-          type: 'row',
-          icons: [{ icon: 'database', label: '~100 GB history' }],
+          type: 'metric',
+          metricValue: '100 GB',
+          metricLabel: 'MONOREPO SCALE',
+          metricDiff: '▲ 25M CI checkouts every day',
+          metricIcon: 'database',
           enTitle: 'The repo outgrew Git.',
           arTitle: 'المستودع تجاوز قدرة Git.',
           enBody: 'Main-branch history near 100 GB, a compressed working copy over 25 GB, and about 25 million CI checkouts a day.',
           arBody: 'تاريخ الفرع الرئيسي يقارب 100 جيجابايت، ونسخة العمل المضغوطة تتجاوز 25 جيجابايت، ونحو 25 مليون عملية سحب يومياً في التكامل المستمر.',
         },
         {
-          type: 'row',
-          icons: [{ icon: 'server', label: 'Server-side' }],
+          type: 'compare',
+          compareLeftTitle: 'Legacy Git Stack',
+          compareLeftBody: '• Full repo history clones\n• Bloats developer SSDs (25GB+)\n• CI contention with AI agents',
+          compareRightTitle: 'Anthropic Scion',
+          compareRightBody: '• Virtual file system\n• Sparse lazy checkout on demand\n• 100% server-authoritative API',
           enTitle: "Scion's big idea.",
           arTitle: 'فكرة Scion الأساسية.',
           enBody: 'Commits, merges and history queries run on the server. Clients fetch only the files they need, through an API.',
           arBody: 'الإيداع والدمج واستعلامات التاريخ تعمل على الخادم، والعميل يسحب الملفات التي يحتاجها فقط عبر واجهة برمجية.',
         },
         {
-          type: 'row',
-          icons: [{ icon: 'changesets', label: 'Changesets' }],
-          enTitle: 'Small changesets.',
-          arTitle: 'تغييرات صغيرة.',
+          type: 'code',
+          codeFileName: 'scion_workflow.sh',
+          codeLanguage: 'bash',
+          codeSnippet: `$ scion init --mount=/workspace\n> Mounting virtual repo worktree (lazy fetch)...\n+ 100GB repository mounted in 1.4s\n✔ Test-after-merge pipeline active for 1,000 agents`,
+          enTitle: 'Small changesets, fast merges.',
+          arTitle: 'تغييرات صغيرة ومحددة.',
           enBody: 'Each change lists only the files it modified, so creating one costs resources in proportion to the change, not the whole repo.',
           arBody: 'كل تغيير يسجّل الملفات التي عدّلها فقط، فتكلفة إنشائه تتناسب مع حجم التغيير لا مع حجم المستودع كله.',
         },
         {
-          type: 'row',
-          icons: [{ icon: 'gitMerge', label: 'Merge first' }],
-          enTitle: 'Merge, then test.',
-          arTitle: 'ادمج ثم اختبر.',
-          enBody: 'With so many merges, Anthropic leans more on automated testing after merging and before deploying.',
-          arBody: 'مع كثرة عمليات الدمج، تعتمد Anthropic أكثر على الاختبار الآلي بعد الدمج وقبل النشر.',
-        },
-        {
-          type: 'row',
-          icons: [
-            { icon: 'cpu', label: '200x smaller' },
-            { icon: 'clock', label: 'Seconds' },
-            { icon: 'gauge', label: '25% freed' },
-          ],
+          type: 'metric',
+          metricValue: '200x',
+          metricLabel: 'RESOURCE REDUCTION',
+          metricDiff: '▼ 25% of CI CPU capacity freed',
+          metricIcon: 'cpu',
           enTitle: 'The results, per Anthropic.',
           arTitle: 'النتائج حسب Anthropic.',
           enBody: 'CPU and memory about 200x smaller than the old Git mirrors, CI checkouts in seconds instead of minutes, and 25% of CI CPU freed.',
@@ -171,7 +170,7 @@ Learn more: marrok.org
     category: 'AI + SECURITY',
     description: 'Recreating compiled software in under 30 minutes with AI and Ghidra.',
     data: {
-      theme: 'security',
+      theme: 'cyber',
       category: 'AI + SECURITY',
       caption: `Can AI reverse engineer software? A breakthrough demo recreated a desktop calculator in 30 minutes! 🔍⚡
 هل يستطيع الذكاء الاصطناعي تفكيك البرمجيات وإعادة بنائها؟ تجربة حديثة حوّلت ملفاً تنفيذياً إلى شيفرة مصدرية في 30 دقيقة.
@@ -301,7 +300,7 @@ Explore security workflows at marrok.org
     category: 'AI + SECURITY',
     description: 'Why finding 1,000 vulnerabilities is useless if you only fix 10.',
     data: {
-      theme: 'security',
+      theme: 'teal',
       category: 'AI + SECURITY',
       caption: `Finding 1,000 security vulnerabilities vs. fixing 10: The DevSecOps paradox 🛡️
 إيجاد 1,000 ثغرة أمنية مقابل إصلاح 10 فقط: فخ فرق التطوير والأمن
@@ -399,3 +398,6 @@ Learn more at marrok.org
     },
   },
 };
+
+// Key alias to avoid runtime mismatch if referred to as reverseEngineering
+PRESET_CAROUSELS.reverseEngineering = PRESET_CAROUSELS.reverseEng;

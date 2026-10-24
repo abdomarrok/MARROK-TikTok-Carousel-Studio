@@ -93,3 +93,44 @@ This document records the chronological development history, engineering decisio
   4. **Custom Gemini API Key Support (`src/components/ApiKeyModal.tsx`):**
      - Added UI setting to input personal API key passed via `x-gemini-key` header with transparent server fallback.
 
+---
+
+## Step 8: UI Noise Elimination & Smart Dynamic Structure System
+- **User Feedback Addressed:** "there is alot of noise in the ui", theme changes should only affect the post not the entire site, slide count shouldn't be fixed to 8, icons shouldn't repeat statically, and structures shouldn't be identical every time.
+- **Engineering Solutions Implemented:**
+  1. **UI Noise Audit & Streamlining:**
+     - Collapsed redundant banner drawers into a clean, unified top action bar with modal dialogs (`Ingest Material`, `Download All (ZIP)`, `API Key`, `Theme Picker`).
+     - Kept application site chrome stable dark (`#080d11`) while confining color theme changes strictly to the carousel canvas (`1080×1920`).
+  2. **Smart Dynamic Slide Count (5 to 9 Slides):**
+     - Replaced rigid 8-slide structure with adaptive length based on content density (lean 5–6 slide decks for concise announcements, 8–9 slides for complex architecture breakdowns).
+  3. **7-Archetype Visual System:**
+     - Expanded from 3 archetypes to 7 specialized technical layouts:
+       - `hub`: Central pulsing icon + 6 orbiting satellites (The Hook).
+       - `row`: 1, 2, or 3 cards with micro-labels.
+       - `metric`: Giant high-contrast metric value (e.g. `200x`, `0ms`) with label and delta pill.
+       - `code`: Monospace terminal window with macOS dots, line numbers, and diff syntax.
+       - `compare`: Side-by-side legacy vs modern cards with problem/solution bullet points.
+       - `image`: Elevated technical diagram and web visual container.
+       - `cta`: Brand geometric emblem, domain question, CTA pill, and bilingual source attribution.
+  4. **Subject-Aware Icon Selection:**
+     - Expanded icon registry to 32 domain-specific icons with intelligent scoring (e.g. security topics favor `shieldAlert` and `lock`, AI topics favor `brain` and `sparkles`).
+
+---
+
+## Step 9: Subject-Aware Internet Icons & Theme Harmonization Engine
+- **User Feedback Addressed:** "we should also be able to use icons and images from the internet based on the subject" and "yes but that image isnt consistent with out post theme and background".
+- **Engineering Solutions Implemented:**
+  1. **Curated Tech Brand Resolution (`src/lib/icons.ts`):**
+     - Integrated Simple Icons CDN catalogue recognizing 40+ top developer brands (Docker, Kubernetes, Redis, PostgreSQL, MySQL, FastAPI, Go, Rust, Linux, AWS, Cloudflare, etc.).
+  2. **CORS-Safe Server Image Proxy (`server.ts` - `/api/proxy-image`):**
+     - Built image proxy attaching `Access-Control-Allow-Origin: *` to prevent HTML5 Canvas tainting, ensuring single-slide PNG downloads, ZIP exports, and direct 1-click clipboard copying succeed without security exceptions.
+  3. **Real-Time Media Search API (`server.ts` - `/api/search-media`):**
+     - Added endpoint querying curated tech brand SVGs and Wikimedia Commons technical architecture diagrams.
+  4. **Interactive Web Media & Icon Picker Modal (`src/components/MediaSearchModal.tsx`):**
+     - 4-tab picker: Tech Brand Logos, Web Diagrams, Direct URL input with preview, and local file upload.
+     - Wired into all icon selectors (Hub, Rows, Metric) and Image archetype.
+  5. **Theme Harmonization & Tinting Engine (`src/lib/canvasExporter.ts`):**
+     - Implemented `drawTintedImage()` using `globalCompositeOperation = 'source-in'` on an offscreen canvas to dynamically recolor web logos and SVGs with `theme.accent` or `theme.iconStroke`.
+     - Image card container strictly inherits `theme.surface` and `theme.surfaceBorder` from the active post theme, with technical blueprint grid lines and ambient glow.
+     - Added 4 visual tone modes in Slide Editor: `Theme HUD (Auto)` (blueprint grid + accent recoloring), `Invert White BG` (inverts white diagrams into dark mode), `Accent Tint` (color wash), and `Original Colors`.
+

@@ -224,6 +224,149 @@ export const ICONS_REGISTRY: Record<string, { label: string; svgInner: string }>
       <circle cx="32" cy="40" r="3" fill="currentColor" />
     `,
   },
+  zap: {
+    label: 'Speed / Latency / Zap',
+    svgInner: `
+      <polygon points="36 6 16 36 32 36 28 58 48 28 32 28 36 6" />
+    `,
+  },
+  layers: {
+    label: 'Architecture Layers',
+    svgInner: `
+      <polygon points="32 10 54 22 32 34 10 22 32 10" />
+      <polyline points="10 32 32 44 54 32" />
+      <polyline points="10 42 32 54 54 42" />
+    `,
+  },
+  cloud: {
+    label: 'Cloud Native / AWS',
+    svgInner: `
+      <path d="M46 44a12 12 0 0 0 2-23.8 18 18 0 0 0-34.8 4.6A10 10 0 0 0 16 44h30z" />
+    `,
+  },
+  box: {
+    label: 'Docker / Container / Pod',
+    svgInner: `
+      <path d="M52 20L32 9 12 20v24l20 11 20-11V20z" />
+      <line x1="32" y1="9" x2="32" y2="55" />
+      <polyline points="12 20 32 31 52 20" />
+    `,
+  },
+  bug: {
+    label: 'Bug / Vulnerability / Defect',
+    svgInner: `
+      <rect x="22" y="22" width="20" height="24" rx="10" />
+      <path d="M26 14l-4-6" /><path d="M38 14l4-6" />
+      <path d="M14 26l8 4" /><path d="M50 26l-8 4" />
+      <path d="M12 36h10" /><path d="M42 36h10" />
+      <path d="M14 46l8-4" /><path d="M50 46l-8-4" />
+    `,
+  },
+  gitBranch: {
+    label: 'Git Branch / Workflow',
+    svgInner: `
+      <line x1="18" y1="12" x2="18" y2="52" />
+      <circle cx="18" cy="18" r="6" /><circle cx="18" cy="46" r="6" /><circle cx="46" cy="18" r="6" />
+      <path d="M46 24c0 12-28 10-28 22" />
+    `,
+  },
+  network: {
+    label: 'Network / Mesh / Traffic',
+    svgInner: `
+      <circle cx="32" cy="14" r="6" /><circle cx="14" cy="48" r="6" /><circle cx="50" cy="48" r="6" />
+      <line x1="32" y1="20" x2="14" y2="42" /><line x1="32" y1="20" x2="50" y2="42" /><line x1="20" y1="48" x2="44" y2="48" />
+    `,
+  },
+  key: {
+    label: 'API Key / Secret / Auth',
+    svgInner: `
+      <circle cx="24" cy="32" r="12" /><line x1="36" y1="32" x2="52" y2="32" />
+      <line x1="44" y1="32" x2="44" y2="40" /><line x1="50" y1="32" x2="50" y2="38" />
+    `,
+  },
+  activity: {
+    label: 'Activity / Pulse / Health',
+    svgInner: `
+      <polyline points="10 34 22 34 28 14 36 50 42 34 54 34" />
+    `,
+  },
+  hardDrive: {
+    label: 'Hard Drive / Storage / SSD',
+    svgInner: `
+      <rect x="12" y="16" width="40" height="32" rx="6" />
+      <line x1="12" y1="36" x2="52" y2="36" />
+      <circle cx="42" cy="42" r="2.5" fill="currentColor" />
+      <circle cx="34" cy="42" r="2.5" fill="currentColor" />
+    `,
+  },
+  arrowRightLeft: {
+    label: 'Compare / Migration / Exchange',
+    svgInner: `
+      <polyline points="44 14 52 22 44 30" /><line x1="12" y1="22" x2="52" y2="22" />
+      <polyline points="20 34 12 42 20 50" /><line x1="52" y1="42" x2="12" y2="42" />
+    `,
+  },
+  checkCircle: {
+    label: 'Success / Validated',
+    svgInner: `
+      <circle cx="32" cy="32" r="22" />
+      <polyline points="22 32 29 39 42 24" />
+    `,
+  },
+  xCircle: {
+    label: 'Failure / Legacy / Flaw',
+    svgInner: `
+      <circle cx="32" cy="32" r="22" />
+      <line x1="23" y1="23" x2="41" y2="41" />
+      <line x1="41" y1="23" x2="23" y2="41" />
+    `,
+  },
+};
+
+// Curated map of top tech brand logos hosted on Simple Icons CDN
+export const KNOWN_TECH_LOGOS: Record<string, string> = {
+  docker: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/docker.svg',
+  kubernetes: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg',
+  k8s: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg',
+  redis: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/redis.svg',
+  postgresql: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/postgresql.svg',
+  postgres: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/postgresql.svg',
+  mysql: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/mysql.svg',
+  mongodb: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/mongodb.svg',
+  clickhouse: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/clickhouse.svg',
+  apachekafka: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/apachekafka.svg',
+  kafka: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/apachekafka.svg',
+  fastapi: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/fastapi.svg',
+  python: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/python.svg',
+  go: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/go.svg',
+  golang: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/go.svg',
+  rust: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/rust.svg',
+  typescript: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/typescript.svg',
+  javascript: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/javascript.svg',
+  linux: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/linux.svg',
+  ubuntu: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/ubuntu.svg',
+  git: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/git.svg',
+  github: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/github.svg',
+  gitlab: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/gitlab.svg',
+  aws: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/amazonwebservices.svg',
+  amazonwebservices: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/amazonwebservices.svg',
+  googlecloud: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/googlecloud.svg',
+  microsoftazure: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/microsoftazure.svg',
+  azure: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/microsoftazure.svg',
+  cloudflare: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/cloudflare.svg',
+  nginx: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/nginx.svg',
+  graphql: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/graphql.svg',
+  terraform: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/terraform.svg',
+  ansible: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/ansible.svg',
+  prometheus: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/prometheus.svg',
+  grafana: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/grafana.svg',
+  anthropic: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/anthropic.svg',
+  openai: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/openai.svg',
+  react: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/react.svg',
+  nodejs: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/nodedotjs.svg',
+  cplusplus: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/cplusplus.svg',
+  sqlite: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/sqlite.svg',
+  supabase: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/supabase.svg',
 };
 
 // Global in-memory custom icon storage for user uploads
@@ -254,6 +397,17 @@ export function getIconDataUrl(iconName: string, strokeColor = '#13131E', stroke
   // Check if iconName is already a data URL or blob URL
   if (iconName.startsWith('data:') || iconName.startsWith('blob:')) {
     return iconName;
+  }
+  // Check if iconName is a direct web URL
+  if (iconName.startsWith('http://') || iconName.startsWith('https://')) {
+    const colorParam = strokeColor ? `&color=${encodeURIComponent(strokeColor)}` : '';
+    return `/api/proxy-image?url=${encodeURIComponent(iconName)}${colorParam}`;
+  }
+  // Check if iconName is a known tech logo
+  const lower = iconName.toLowerCase().trim();
+  if (KNOWN_TECH_LOGOS[lower]) {
+    const colorParam = strokeColor ? `&color=${encodeURIComponent(strokeColor)}` : '';
+    return `/api/proxy-image?url=${encodeURIComponent(KNOWN_TECH_LOGOS[lower])}${colorParam}`;
   }
   const svg = getIconSvg(iconName, strokeColor, strokeWidth);
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
