@@ -318,87 +318,97 @@ export async function renderSlideToCanvas(
     textZoneStartY = 1120;
   } else if (slide.type === 'row') {
     const icons = slide.icons || [{ icon: 'database', label: '' }];
-    const count = Math.min(Math.max(icons.length, 1), 3);
+    const count = Math.min(Math.max(icons.length, 1), 5);
+
+    // Spec §9.4: 1=300, 2=260, 3=220, 4=190, 5=156. Gap 36 (26 for five). Row at y=290.
+    let boxW = 220;
+    let boxH = 220;
+    let gap = 36;
+    let radius = 54;
+    let iconSize = 106;
+    let labelFontSize = 28;
 
     if (count === 1) {
-      // Archetype 2: 1 Icon (300x300, radius 72)
-      const boxW = 300;
-      const boxH = 300;
-      const boxX = 390;
-      const boxY = 290;
-      drawRoundRect(ctx, boxX, boxY, boxW, boxH, 72, theme.accent);
+      boxW = 300; boxH = 300; gap = 0; radius = 72; iconSize = 142; labelFontSize = 28;
+    } else if (count === 2) {
+      boxW = 260; boxH = 260; gap = 36; radius = 64; iconSize = 126; labelFontSize = 28;
+    } else if (count === 3) {
+      boxW = 220; boxH = 220; gap = 36; radius = 54; iconSize = 106; labelFontSize = 28;
+    } else if (count === 4) {
+      boxW = 190; boxH = 190; gap = 36; radius = 46; iconSize = 92; labelFontSize = 26;
+    } else if (count === 5) {
+      boxW = 156; boxH = 156; gap = 26; radius = 38; iconSize = 76; labelFontSize = 24;
+    }
 
-      const iconImg = await loadIconImage(icons[0].icon, theme.iconStroke);
-      drawTintedImage(ctx, iconImg, 540 - 71, 290 + 150 - 71, 142, 142, theme.iconStroke);
+    const totalRowWidth = count * boxW + (count - 1) * gap;
+    const startX = 540 - totalRowWidth / 2;
+    const topY = 290;
 
-      if (icons[0].label) {
+    for (let i = 0; i < count; i++) {
+      const curX = startX + i * (boxW + gap);
+      drawRoundRect(ctx, curX, topY, boxW, boxH, radius, theme.accent);
+
+      const iconName = icons[i]?.icon || 'database';
+      const iconImg = await loadIconImage(iconName, theme.iconStroke);
+      drawTintedImage(
+        ctx,
+        iconImg,
+        curX + boxW / 2 - iconSize / 2,
+        topY + boxH / 2 - iconSize / 2,
+        iconSize,
+        iconSize,
+        theme.iconStroke
+      );
+
+      if (icons[i]?.label) {
         ctx.save();
-        ctx.font = '400 28px "Plus Jakarta Sans", sans-serif';
+        ctx.font = `500 ${labelFontSize}px "Cairo", "Plus Jakarta Sans", sans-serif`;
         ctx.fillStyle = theme.microLabel;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillText(icons[0].label, 540, 290 + 300 + 52);
+        ctx.fillText(icons[i].label, curX + boxW / 2, topY + boxH + 42);
         ctx.restore();
       }
-
-      textZoneStartY = 755;
-    } else if (count === 2) {
-      // Archetype 3: 2 Icons (266x266, radius 64, gap 36)
-      const boxW = 266;
-      const boxH = 266;
-      const gap = 36;
-      const startX = 256;
-      const topY = 290;
-      const iconSize = 126;
-
-      for (let i = 0; i < 2; i++) {
-        const curX = startX + i * (boxW + gap);
-        drawRoundRect(ctx, curX, topY, boxW, boxH, 64, theme.accent);
-
-        const iconImg = await loadIconImage(icons[i].icon, theme.iconStroke);
-        drawTintedImage(ctx, iconImg, curX + boxW / 2 - iconSize / 2, topY + boxH / 2 - iconSize / 2, iconSize, iconSize, theme.iconStroke);
-
-        if (icons[i].label) {
-          ctx.save();
-          ctx.font = '400 28px "Plus Jakarta Sans", sans-serif';
-          ctx.fillStyle = theme.microLabel;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'alphabetic';
-          ctx.fillText(icons[i].label, curX + boxW / 2, topY + boxH + 52);
-          ctx.restore();
-        }
-      }
-
-      textZoneStartY = 721;
-    } else {
-      // Archetype 4: 3 Icons (224x224, radius 54, gap 36)
-      const boxW = 224;
-      const boxH = 224;
-      const gap = 36;
-      const startX = 168;
-      const topY = 290;
-      const iconSize = 106;
-
-      for (let i = 0; i < 3; i++) {
-        const curX = startX + i * (boxW + gap);
-        drawRoundRect(ctx, curX, topY, boxW, boxH, 54, theme.accent);
-
-        const iconImg = await loadIconImage(icons[i].icon, theme.iconStroke);
-        drawTintedImage(ctx, iconImg, curX + boxW / 2 - iconSize / 2, topY + boxH / 2 - iconSize / 2, iconSize, iconSize, theme.iconStroke);
-
-        if (icons[i].label) {
-          ctx.save();
-          ctx.font = '400 28px "Plus Jakarta Sans", sans-serif';
-          ctx.fillStyle = theme.microLabel;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'alphabetic';
-          ctx.fillText(icons[i].label, curX + boxW / 2, topY + boxH + 52);
-          ctx.restore();
-        }
-      }
-
-      textZoneStartY = 679;
     }
+
+    textZoneStartY = topY + boxH + 110;
+  } else if (slide.type === 'number') {
+    // Spec §9.4 Number Archetype: Big accent numeral (e.g. "01", "02") at y=330, text block at y=700
+    const stepStr = slide.stepNumber || String(slideIndex + 1).padStart(2, '0');
+    const labelStr = slide.stepLabel || `STEP ${stepStr}`;
+
+    // Micro step badge above big number
+    ctx.save();
+    ctx.font = '700 24px "Plus Jakarta Sans", monospace';
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.letterSpacing = '2px';
+    ctx.fillText(labelStr.toUpperCase(), 540, 240);
+    ctx.restore();
+
+    // Giant accent numeral centered at y = 470 (baseline)
+    ctx.save();
+    ctx.font = '800 220px "Plus Jakarta Sans", "Cairo", sans-serif';
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = `${theme.accent}40`;
+    ctx.shadowBlur = 28;
+    ctx.fillText(stepStr, 540, 470);
+    ctx.restore();
+
+    // Subtle horizontal divider under number
+    ctx.save();
+    ctx.strokeStyle = `${theme.accent}33`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(420, 520);
+    ctx.lineTo(660, 520);
+    ctx.stroke();
+    ctx.restore();
+
+    textZoneStartY = 660;
   } else if (slide.type === 'metric') {
     // Archetype: Metric Card (Benchmark, Speedup, Resource ROI)
     const cardX = 110;
@@ -1060,7 +1070,7 @@ export async function shareSlide(
         return;
       }
       try {
-        const file = new File([blob], `MARROK_Slide_${slideIndex + 1}.png`, { type: 'image/png' });
+        const file = new File([blob], `MARROK_Slide_${slideIndex + 1}.jpg`, { type: 'image/jpeg' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
@@ -1075,12 +1085,12 @@ export async function shareSlide(
         console.warn('Web Share failed:', err);
         resolve(false);
       }
-    }, 'image/png');
+    }, 'image/jpeg', 0.95);
   });
 }
 
 /**
- * Trigger immediate download of single slide as PNG
+ * Trigger immediate download of single slide as JPG (TikTok requires JPG, not PNG)
  */
 export async function downloadSingleSlidePng(
   carousel: CarouselData,
@@ -1089,17 +1099,18 @@ export async function downloadSingleSlidePng(
   customPalette?: ThemePalette
 ): Promise<void> {
   const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette);
-  const dataUrl = canvas.toDataURL('image/png');
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
   const a = document.createElement('a');
   a.href = dataUrl;
-  a.download = filename || `MARROK_Slide_${slideIndex + 1}_${carousel.theme}.png`;
+  a.download = filename || `MARROK_Slide_${slideIndex + 1}_${carousel.theme}.jpg`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
 
 /**
- * 1-click Download All Slides as ZIP containing high-resolution 1080x1920 PNGs
+ * 1-click Download All Slides as ZIP containing high-resolution 1080x1920 JPGs
+ * Spec §9.8: JPG only, quality 95, ~250-300 KB per slide. TikTok rejects PNG.
  */
 export async function downloadAllSlidesZip(
   carousel: CarouselData,
@@ -1113,9 +1124,9 @@ export async function downloadAllSlidesZip(
   for (let i = 0; i < total; i++) {
     if (onProgress) onProgress(i + 1, total);
     const canvas = await renderSlideToCanvas(carousel, i, undefined, customPalette);
-    const dataUrl = canvas.toDataURL('image/png');
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
     const base64 = dataUrl.split(',')[1];
-    folder?.file(`Slide_${String(i + 1).padStart(2, '0')}.png`, base64, { base64: true });
+    folder?.file(`slide${i + 1}.jpg`, base64, { base64: true });
   }
 
   // Include the TikTok caption as a text file in the zip
@@ -1131,3 +1142,82 @@ export async function downloadAllSlidesZip(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Spec §10: Contact Sheet Generator for Visual QA
+ * Renders all slides tiled in a grid onto a single high-resolution master JPG canvas.
+ */
+export async function downloadContactSheetJpg(
+  carousel: CarouselData,
+  customPalette?: ThemePalette,
+  onProgress?: (current: number, total: number) => void
+): Promise<void> {
+  const total = carousel.slides.length;
+  const cols = total <= 4 ? total : total <= 8 ? 4 : 5;
+  const rows = Math.ceil(total / cols);
+
+  // Scaled dimensions per slide on contact sheet
+  const sW = 360;
+  const sH = 640;
+  const gap = 32;
+  const headerH = 120;
+  const pad = 40;
+
+  const masterW = pad * 2 + cols * sW + (cols - 1) * gap;
+  const masterH = headerH + pad * 2 + rows * sH + (rows - 1) * gap;
+
+  const master = document.createElement('canvas');
+  master.width = masterW;
+  master.height = masterH;
+  const mctx = master.getContext('2d');
+  if (!mctx) return;
+
+  // Background
+  mctx.fillStyle = '#080d11';
+  mctx.fillRect(0, 0, masterW, masterH);
+
+  // Header banner
+  mctx.fillStyle = '#ffffff';
+  mctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
+  mctx.fillText('MARROK STUDIO · VISUAL QA CONTACT SHEET', pad, pad + 38);
+
+  mctx.fillStyle = '#9BA5AB';
+  mctx.font = '500 20px "Plus Jakarta Sans", monospace';
+  mctx.fillText(
+    `Deck: ${carousel.category}   •   Theme: ${carousel.theme}   •   ${total} Slides (1080×1920 9:16)   •   Format: JPG Q95`,
+    pad,
+    pad + 74
+  );
+
+  // Render each slide
+  for (let i = 0; i < total; i++) {
+    if (onProgress) onProgress(i + 1, total);
+    const c = i % cols;
+    const r = Math.floor(i / cols);
+    const x = pad + c * (sW + gap);
+    const y = pad + headerH + r * (sH + gap);
+
+    const slideCanvas = await renderSlideToCanvas(carousel, i, undefined, customPalette);
+    mctx.drawImage(slideCanvas, 0, 0, 1080, 1920, x, y, sW, sH);
+
+    // Slide border & index tag
+    mctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    mctx.lineWidth = 2;
+    mctx.strokeRect(x, y, sW, sH);
+
+    mctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    mctx.fillRect(x + 12, y + 12, 80, 28);
+    mctx.fillStyle = '#ffffff';
+    mctx.font = '700 14px "Plus Jakarta Sans", monospace';
+    mctx.fillText(`SLIDE ${String(i + 1).padStart(2, '0')}`, x + 20, y + 31);
+  }
+
+  const dataUrl = master.toDataURL('image/jpeg', 0.95);
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `MARROK_ContactSheet_${carousel.category.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+

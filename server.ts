@@ -316,6 +316,18 @@ const CAROUSEL_RESPONSE_SCHEMA = {
       type: Type.STRING,
       description: 'Primary bilingual English + Arabic TikTok description',
     },
+    firstComment: {
+      type: Type.STRING,
+      description: 'Pinned first comment with reference link per Spec §8 & §14',
+    },
+    shortCaption: {
+      type: Type.STRING,
+      description: '2-line short caption variant for quick scroll per Spec §8',
+    },
+    screenHook: {
+      type: Type.STRING,
+      description: '3-second on-screen hook text for Slide 1 per Spec §8',
+    },
     captionVariants: {
       type: Type.ARRAY,
       items: {
@@ -351,7 +363,15 @@ const CAROUSEL_RESPONSE_SCHEMA = {
         properties: {
           type: {
             type: Type.STRING,
-            description: 'hub, row, metric, code, compare, or cta',
+            description: 'hub, row, number, metric, code, compare, or cta',
+          },
+          stepNumber: {
+            type: Type.STRING,
+            description: 'Step numeral e.g. 01, 02, 03 for number archetype slides',
+          },
+          stepLabel: {
+            type: Type.STRING,
+            description: 'Step badge label e.g. STEP 01 for number archetype slides',
           },
           centerIcon: {
             type: Type.STRING,
@@ -372,7 +392,7 @@ const CAROUSEL_RESPONSE_SCHEMA = {
               },
               required: ['icon', 'label'],
             },
-            description: 'Array of 1 to 3 icons with micro-labels for row slides',
+            description: 'Array of 1 to 5 icons with micro-labels for row slides',
           },
           metricValue: {
             type: Type.STRING,

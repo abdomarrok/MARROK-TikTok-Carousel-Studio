@@ -714,12 +714,19 @@ ${hashtags}`,
     },
   ];
 
+  const firstComment = `🔗 Primary source documentation & reference post: https://${brandUrl}\n\nWhat are your thoughts on this architecture? Share your take below 👇`;
+  const shortCaption = `${slides[0]?.arTitle || 'تحليل معماري دقيق'} ⚡\n${slides[0]?.enTitle || 'Technical teardown'} — Swipe through the breakdown 👉`;
+  const screenHook = slides[0]?.enTitle ? `${slides[0].enTitle.replace(/[.?!]$/, '')} in 60s` : 'Why this changes everything';
+
   return {
     theme: recommendedTheme,
     category: domainCategory,
     brand,
     brandUrl,
     caption: captionVariants[0].caption,
+    firstComment,
+    shortCaption,
+    screenHook,
     captionVariants,
     hookVariants,
     slides,

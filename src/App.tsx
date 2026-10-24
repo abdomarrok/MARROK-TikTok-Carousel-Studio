@@ -6,10 +6,13 @@ import { SlideEditor } from './components/SlideEditor';
 import { MultimodalInputPanel } from './components/MultimodalInputPanel';
 import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { ApiKeyModal } from './components/ApiKeyModal';
+import { QAModal } from './components/QAModal';
+import { ContactSheetModal } from './components/ContactSheetModal';
 import { CarouselData, DEFAULT_PALETTES, HookVariant, SlideData, ThemePalette } from './types';
 import { PRESET_CAROUSELS } from './lib/presets';
 import { downloadAllSlidesZip } from './lib/canvasExporter';
-import { Sparkles, Upload } from 'lucide-react';
+import { runQAChecks, qaReportSummary, QAReport } from './lib/qaChecks';
+import { Sparkles, Upload, ShieldCheck } from 'lucide-react';
 
 export default function App() {
   const [carousel, setCarousel] = useState<CarouselData>(PRESET_CAROUSELS.scion.data);
@@ -25,11 +28,14 @@ export default function App() {
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isThemeCustomizerOpen, setIsThemeCustomizerOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isQAModalOpen, setIsQAModalOpen] = useState(false);
+  const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
 
   // Export State
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [lastQAReport, setLastQAReport] = useState<QAReport | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -158,15 +164,37 @@ export default function App() {
     }));
   };
 
-  // 1-Click Download All Slides as ZIP
+  // Run QA checks and open the QA / Checklist modal
+  const handleRunQA = (): QAReport => {
+    const report = runQAChecks(carousel);
+    setLastQAReport(report);
+    setIsQAModalOpen(true);
+    return report;
+  };
+
+  // 1-Click Download All Slides as ZIP (with QA gate)
   const handleExportAll = async () => {
+    // Run QA checks first
+    const report = runQAChecks(carousel);
+    setLastQAReport(report);
+
+    if (!report.canExport) {
+      setIsQAModalOpen(true);
+      showToast(`Export blocked: ${report.failCount} critical issue(s) must be fixed.`);
+      return;
+    }
+
+    if (report.warnCount > 0) {
+      showToast(`${report.warnCount} warning(s) found — exporting anyway.`);
+    }
+
     setIsExporting(true);
     setExportProgress({ current: 0, total: carousel.slides.length });
     try {
       await downloadAllSlidesZip(carousel, currentPalette, (current, total) => {
         setExportProgress({ current, total });
       });
-      showToast('All 1080x1920 slides exported into ZIP successfully!');
+      showToast('All 1080×1920 JPG slides exported into ZIP successfully!');
     } catch (err) {
       console.error('Export failed:', err);
       showToast('Failed to export slides.');
@@ -185,8 +213,11 @@ export default function App() {
         onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         onExportAll={handleExportAll}
+        onRunQA={handleRunQA}
+        onOpenContactSheet={() => setIsContactSheetOpen(true)}
         isExporting={isExporting}
         exportProgress={exportProgress}
+        lastQAReport={lastQAReport}
       />
 
       {/* Main Studio Viewport */}
@@ -258,7 +289,15 @@ export default function App() {
               captionVariants={carousel.captionVariants}
               theme={currentPalette}
               category={carousel.category}
+              firstComment={carousel.firstComment}
+              shortCaption={carousel.shortCaption}
+              screenHook={carousel.screenHook}
+              brandUrl={carousel.brandUrl}
+              slide1={carousel.slides[0]}
               onUpdateCaption={handleUpdateCaption}
+              onUpdateFirstComment={(c) => setCarousel((prev) => ({ ...prev, firstComment: c }))}
+              onUpdateShortCaption={(c) => setCarousel((prev) => ({ ...prev, shortCaption: c }))}
+              onUpdateScreenHook={(h) => setCarousel((prev) => ({ ...prev, screenHook: h }))}
               onShowToast={showToast}
             />
 
@@ -303,6 +342,28 @@ export default function App() {
           }
         }}
         onShowToast={showToast}
+      />
+
+      {/* Spec §10 Visual QA Contact Sheet Modal */}
+      <ContactSheetModal
+        isOpen={isContactSheetOpen}
+        onClose={() => setIsContactSheetOpen(false)}
+        carousel={carousel}
+        theme={currentPalette}
+        onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
+        onShowToast={showToast}
+      />
+
+      {/* Spec §6, §10, §18 QA & Pre-Publish Gate Modal */}
+      <QAModal
+        isOpen={isQAModalOpen}
+        onClose={() => setIsQAModalOpen(false)}
+        carousel={carousel}
+        theme={currentPalette}
+        report={lastQAReport || runQAChecks(carousel)}
+        onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
+        onExport={handleExportAll}
+        isExporting={isExporting}
       />
 
       {/* Floating Toast Notification */}

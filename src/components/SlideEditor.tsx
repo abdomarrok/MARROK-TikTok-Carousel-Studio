@@ -5,8 +5,39 @@ import {
   SlideType,
 } from '../types';
 import { ICONS_REGISTRY, registerCustomIcon } from '../lib/icons';
-import { Plus, Trash2, Copy, Layout, Upload, Image as ImageIcon, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Copy,
+  Layout,
+  Upload,
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight,
+  Globe,
+  AlertTriangle,
+  Hash,
+} from 'lucide-react';
 import { MediaSearchModal } from './MediaSearchModal';
+import { CHAR_LIMITS, hasArabicPunctuationJump } from '../lib/qaChecks';
+
+const CharLimitBadge: React.FC<{ current: number; limit: number }> = ({ current, limit }) => {
+  const isOver = current > limit;
+  const isClose = current > limit * 0.85;
+  return (
+    <span
+      className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+        isOver
+          ? 'bg-red-500/20 text-red-400 font-bold border border-red-500/30'
+          : isClose
+          ? 'bg-amber-500/20 text-amber-300 font-medium'
+          : 'bg-white/5 text-slate-400'
+      }`}
+    >
+      {current}/{limit}
+    </span>
+  );
+};
 
 interface SlideEditorProps {
   slide: SlideData;
@@ -72,7 +103,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   };
 
-  const handleSetIconCount = (count: 1 | 2 | 3) => {
+  const handleSetIconCount = (count: 1 | 2 | 3 | 4 | 5) => {
     const current = slide.icons || [];
     const newIcons = [];
     for (let i = 0; i < count; i++) {
@@ -207,12 +238,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       </div>
 
       {/* Archetype Selector */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
-        {(['hub', 'row', 'metric', 'code', 'compare', 'image', 'cta'] as SlideType[]).map((type) => {
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5">
+        {(['hub', 'row', 'number', 'metric', 'code', 'compare', 'image', 'cta'] as SlideType[]).map((type) => {
           const isSelected = slide.type === type;
           const labels: Record<SlideType, string> = {
             hub: 'Hub (Hook)',
             row: 'Row (Icons)',
+            number: 'Number (Step)',
             metric: 'Metric (Stat)',
             code: 'Code (Diff)',
             compare: 'VS (Split)',
@@ -238,6 +270,54 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           );
         })}
       </div>
+
+      {/* Archetype: Number (Step Counter - Spec §7 & §9.4) */}
+      {slide.type === 'number' && (
+        <div className="p-3.5 rounded-xl bg-black/30 border border-white/[0.06] space-y-3">
+          <div className="text-xs font-bold text-slate-300 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Hash className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+              <span>Step Number Archetype (Spec §7 & §9.4)</span>
+            </span>
+            <span className="text-[10px] font-mono text-slate-400">Centered 220px Accent Numeral</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-semibold text-slate-400 block mb-1">
+                Step Numeral (e.g. 01, 02, 03)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={slide.stepNumber || String(slideIndex + 1).padStart(2, '0')}
+                  onChange={(e) => handleFieldChange('stepNumber', e.target.value)}
+                  className="w-24 rounded-lg bg-black/60 border border-white/10 px-3 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-white/30"
+                  placeholder="01"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange('stepNumber', String(slideIndex + 1).padStart(2, '0'))}
+                  className="px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] text-slate-300 cursor-pointer"
+                >
+                  Auto ({String(slideIndex + 1).padStart(2, '0')})
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-slate-400 block mb-1">
+                Step Badge Label (Optional Micro-Header)
+              </label>
+              <input
+                type="text"
+                value={slide.stepLabel !== undefined ? slide.stepLabel : `STEP ${slide.stepNumber || String(slideIndex + 1).padStart(2, '0')}`}
+                onChange={(e) => handleFieldChange('stepLabel', e.target.value)}
+                placeholder="e.g. STEP 01 or PHASE 02"
+                className="w-full rounded-lg bg-black/60 border border-white/10 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Archetype 1: Hub Controls */}
       {slide.type === 'hub' && (
@@ -305,35 +385,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             <span className="text-xs font-bold text-slate-300">
               Icons & Micro-Labels
             </span>
-            <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10 text-xs">
-              <button
-                onClick={() => handleSetIconCount(1)}
-                className={`px-2 py-0.5 rounded ${
-                  (slide.icons?.length || 1) === 1 ? 'bg-white/20 text-white font-bold' : 'text-slate-400'
-                }`}
-              >
-                1 Icon
-              </button>
-              <button
-                onClick={() => handleSetIconCount(2)}
-                className={`px-2 py-0.5 rounded ${
-                  (slide.icons?.length || 1) === 2 ? 'bg-white/20 text-white font-bold' : 'text-slate-400'
-                }`}
-              >
-                2 Icons
-              </button>
-              <button
-                onClick={() => handleSetIconCount(3)}
-                className={`px-2 py-0.5 rounded ${
-                  (slide.icons?.length || 1) === 3 ? 'bg-white/20 text-white font-bold' : 'text-slate-400'
-                }`}
-              >
-                3 Icons
-              </button>
+            <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10 text-xs flex-wrap">
+              {[1, 2, 3, 4, 5].map((cnt) => (
+                <button
+                  key={cnt}
+                  onClick={() => handleSetIconCount(cnt as 1 | 2 | 3 | 4 | 5)}
+                  className={`px-2 py-0.5 rounded cursor-pointer ${
+                    (slide.icons?.length || 1) === cnt ? 'bg-white/20 text-white font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {cnt} {cnt === 1 ? 'Icon' : 'Icons'}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${Math.min(slide.icons?.length || 1, 5)} gap-2.5`}>
             {(slide.icons || [{ icon: 'database', label: '' }]).map((item, idx) => (
               <div key={idx} className="p-2.5 rounded-lg bg-black/40 border border-white/10 space-y-2">
                 <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
@@ -383,13 +450,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     </option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  value={item.label || ''}
-                  onChange={(e) => handleRowLabelChange(idx, e.target.value)}
-                  placeholder="Micro-label (e.g. ~100 GB)"
-                  className="w-full rounded bg-black/60 border border-white/10 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-white/30"
-                />
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] text-slate-400">Micro-label</span>
+                    <CharLimitBadge current={(item.label || '').length} limit={CHAR_LIMITS.iconLabel} />
+                  </div>
+                  <input
+                    type="text"
+                    value={item.label || ''}
+                    onChange={(e) => handleRowLabelChange(idx, e.target.value)}
+                    placeholder="Micro-label (e.g. ~100 GB)"
+                    className="w-full rounded bg-black/60 border border-white/10 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-white/30"
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -723,7 +796,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <label className="text-[11px] font-semibold text-slate-300">
                 English Headline (2 to 6 words)
               </label>
-              <span className="text-[10px] text-slate-500 font-mono">Plus Jakarta Sans · 800</span>
+              <div className="flex items-center gap-2">
+                <CharLimitBadge
+                  current={(slide.enTitle || '').length}
+                  limit={slideIndex === 0 ? CHAR_LIMITS.hookTitle : CHAR_LIMITS.enTitle}
+                />
+                <span className="text-[10px] text-slate-500 font-mono">Jakarta · 800</span>
+              </div>
             </div>
             <textarea
               value={slide.enTitle || ''}
@@ -739,9 +818,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <label className="text-[11px] font-semibold text-slate-300">
                 Arabic Headline (Idiomatic technical Arabic)
               </label>
-              <span className="text-[10px] font-mono" style={{ color: theme.accent }}>
-                Cairo · 800
-              </span>
+              <div className="flex items-center gap-2">
+                <CharLimitBadge current={(slide.arTitle || '').length} limit={CHAR_LIMITS.arTitle} />
+                <span className="text-[10px] font-mono" style={{ color: theme.accent }}>
+                  Cairo · 800
+                </span>
+              </div>
             </div>
             <textarea
               value={slide.arTitle || ''}
@@ -751,6 +833,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               className="w-full rounded-xl bg-black/40 border border-white/10 p-2.5 text-xs text-slate-100 focus:outline-none focus:border-white/30 resize-none font-cairo"
               placeholder="e.g. السبب وراء ابتعاد Anthropic عن Git"
             />
+            {hasArabicPunctuationJump(slide.arTitle) && (
+              <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/25 mt-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>Punctuation Jump Warning: Arabic headline ends with Latin word + punctuation (e.g. .Git). Rephrase so it ends with an Arabic word per Spec §8.</span>
+              </div>
+            )}
           </div>
 
           <div>
@@ -758,7 +846,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <label className="text-[11px] font-semibold text-slate-300">
                 English Body Copy (1 to 2 crisp sentences, 12 to 24 words)
               </label>
-              <span className="text-[10px] text-slate-500 font-mono">400 Weight</span>
+              <div className="flex items-center gap-2">
+                <CharLimitBadge current={(slide.enBody || '').length} limit={CHAR_LIMITS.enBody} />
+                <span className="text-[10px] text-slate-500 font-mono">400 Weight</span>
+              </div>
             </div>
             <textarea
               value={slide.enBody || ''}
@@ -774,7 +865,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <label className="text-[11px] font-semibold text-slate-300">
                 Arabic Body Copy
               </label>
-              <span className="text-[10px] text-slate-500 font-mono">Cairo · 400</span>
+              <div className="flex items-center gap-2">
+                <CharLimitBadge current={(slide.arBody || '').length} limit={CHAR_LIMITS.arBody} />
+                <span className="text-[10px] text-slate-500 font-mono">Cairo · 400</span>
+              </div>
             </div>
             <textarea
               value={slide.arBody || ''}
@@ -784,6 +878,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               className="w-full rounded-xl bg-black/40 border border-white/10 p-2.5 text-xs text-slate-400 focus:outline-none focus:border-white/30 resize-y font-cairo"
               placeholder="e.g. تاريخ الفرع الرئيسي يقارب 100 جيجابايت..."
             />
+            {hasArabicPunctuationJump(slide.arBody) && (
+              <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/25 mt-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>Punctuation Jump Warning: Arabic body ends with Latin word + punctuation. Rephrase to end with Arabic word per Spec §8.</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -793,9 +893,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                Domain Question (English)
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[11px] font-semibold text-slate-300">
+                  Domain Question (English)
+                </label>
+                <CharLimitBadge current={(slide.enTitle || '').length} limit={CHAR_LIMITS.enTitle} />
+              </div>
               <textarea
                 value={slide.enTitle || ''}
                 onChange={(e) => handleFieldChange('enTitle', e.target.value)}
@@ -805,9 +908,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                Domain Question (Arabic)
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[11px] font-semibold text-slate-300">
+                  Domain Question (Arabic)
+                </label>
+                <CharLimitBadge current={(slide.arTitle || '').length} limit={CHAR_LIMITS.arTitle} />
+              </div>
               <textarea
                 value={slide.arTitle || ''}
                 onChange={(e) => handleFieldChange('arTitle', e.target.value)}
@@ -816,6 +922,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 className="w-full rounded-xl bg-black/40 border border-white/10 p-2.5 text-xs text-slate-100 focus:outline-none focus:border-white/30 resize-none font-cairo"
                 placeholder="تبني بوكلاء الذكاء الاصطناعي على نطاق واسع؟"
               />
+              {hasArabicPunctuationJump(slide.arTitle) && (
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/25 mt-1">
+                  <AlertTriangle className="w-3 h-3 shrink-0" />
+                  <span>Punctuation jump detected</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -845,9 +957,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-              English Source Attribution Credit
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-[11px] font-semibold text-slate-300">
+                English Source Attribution Credit
+              </label>
+              <CharLimitBadge current={(slide.enCredit || '').length} limit={CHAR_LIMITS.enBody} />
+            </div>
             <input
               type="text"
               value={slide.enCredit || ''}
@@ -858,9 +973,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-              Arabic Source Attribution Credit
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-[11px] font-semibold text-slate-300">
+                Arabic Source Attribution Credit
+              </label>
+              <CharLimitBadge current={(slide.arCredit || '').length} limit={CHAR_LIMITS.arBody} />
+            </div>
             <input
               type="text"
               dir="rtl"
@@ -869,6 +987,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               className="w-full rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-white/30 font-cairo"
               placeholder="مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
             />
+            {hasArabicPunctuationJump(slide.arCredit) && (
+              <div className="flex items-center gap-1.5 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/25 mt-1">
+                <AlertTriangle className="w-3 h-3 shrink-0" />
+                <span>Punctuation jump detected</span>
+              </div>
+            )}
           </div>
         </div>
       )}

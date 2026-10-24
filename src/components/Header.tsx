@@ -1,16 +1,19 @@
 import React from 'react';
-import { Download, Sparkles, RefreshCw, Palette, Key } from 'lucide-react';
+import { Download, Sparkles, RefreshCw, Palette, Key, ShieldCheck, Grid } from 'lucide-react';
 import { ThemePalette } from '../types';
+import type { QAReport } from '../lib/qaChecks';
 
 interface HeaderProps {
   currentPalette: ThemePalette;
   onOpenGenerator: () => void;
   onOpenThemeCustomizer: () => void;
-
   onOpenApiKeyModal: () => void;
   onExportAll: () => void;
+  onRunQA?: () => void;
+  onOpenContactSheet?: () => void;
   isExporting: boolean;
   exportProgress?: { current: number; total: number } | null;
+  lastQAReport?: QAReport | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,8 +22,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenThemeCustomizer,
   onOpenApiKeyModal,
   onExportAll,
+  onRunQA,
+  onOpenContactSheet,
   isExporting,
   exportProgress,
+  lastQAReport,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#080d11]/85 backdrop-blur-md px-4 sm:px-6 py-3 transition-colors">
@@ -77,6 +83,52 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Ingest Material</span>
           </button>
 
+          {/* QA Check Button */}
+          {onRunQA && (
+            <button
+              onClick={onRunQA}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-white/15 bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer whitespace-nowrap"
+              title="Run pre-export QA checks (char limits, Arabic lint, placeholders)"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" style={{
+                color: lastQAReport
+                  ? lastQAReport.failCount > 0 ? '#F43F5E'
+                    : lastQAReport.warnCount > 0 ? '#FBBF24'
+                    : '#34D399'
+                  : '#94A3B8'
+              }} />
+              <span className="hidden md:inline">QA</span>
+              {lastQAReport && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md ml-0.5" style={{
+                  backgroundColor: lastQAReport.failCount > 0 ? 'rgba(244,63,94,0.15)'
+                    : lastQAReport.warnCount > 0 ? 'rgba(251,191,36,0.15)'
+                    : 'rgba(52,211,153,0.15)',
+                  color: lastQAReport.failCount > 0 ? '#FDA4AF'
+                    : lastQAReport.warnCount > 0 ? '#FDE68A'
+                    : '#A7F3D0',
+                }}>
+                  {lastQAReport.failCount > 0
+                    ? `${lastQAReport.failCount}F`
+                    : lastQAReport.warnCount > 0
+                    ? `${lastQAReport.warnCount}W`
+                    : '✓'}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Contact Sheet Visual QA Button */}
+          {onOpenContactSheet && (
+            <button
+              onClick={onOpenContactSheet}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-white/15 bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer whitespace-nowrap"
+              title="Open full-deck Contact Sheet for Visual QA (Spec §10)"
+            >
+              <Grid className="w-3.5 h-3.5 text-slate-300" />
+              <span className="hidden lg:inline">Contact Sheet</span>
+            </button>
+          )}
+
           <button
             onClick={onExportAll}
             disabled={isExporting}
@@ -94,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <>
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Download All (ZIP)</span>
+                <span className="hidden sm:inline">Export JPG (ZIP)</span>
                 <span className="sm:hidden">ZIP</span>
               </>
             )}
