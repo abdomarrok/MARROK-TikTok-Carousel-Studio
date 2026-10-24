@@ -1,5 +1,5 @@
-import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette } from '../types';
-import { getIconDataUrl, getIconSvg } from './icons';
+import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette } from '../types.ts';
+import { getIconDataUrl, getIconSvg } from './icons.ts';
 import JSZip from 'jszip';
 
 // Helper to wrap text with max width and handle manual newlines

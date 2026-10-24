@@ -1,4 +1,5 @@
-import { CarouselData, SlideData, HookVariant, CaptionVariant, ExtractedFact, PostSourceMeta } from '../types';
+import { CarouselData, SlideData, HookVariant, CaptionVariant, ExtractedFact, PostSourceMeta } from '../types.ts';
+import { KNOWN_TECH_LOGOS } from './icons.ts';
 
 interface SynthesisInput {
   prompt?: string;
@@ -114,8 +115,6 @@ const ICON_AFFINITY: Record<string, string[]> = {
   checkCircle: ['validated', 'success', 'compliant', 'passed'],
   xCircle: ['flaw', 'bottleneck', 'failed', 'outdated'],
 };
-
-import { KNOWN_TECH_LOGOS } from './icons';
 
 /**
  * Dynamically extract relevant icons based on user input keywords and theme context.
