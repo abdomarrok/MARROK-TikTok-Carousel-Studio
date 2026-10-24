@@ -1,0 +1,7 @@
+.git
+.env*
+!.env.example
+specs/
+specs/**
+*.log
+.DS_Store
