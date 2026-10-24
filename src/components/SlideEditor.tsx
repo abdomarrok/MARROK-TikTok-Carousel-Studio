@@ -17,9 +17,25 @@ import {
   Globe,
   AlertTriangle,
   Hash,
+  Sparkles,
+  Wand2,
+  Zap,
+  Check,
+  Languages,
 } from 'lucide-react';
 import { MediaSearchModal } from './MediaSearchModal';
 import { CHAR_LIMITS, hasArabicPunctuationJump } from '../lib/qaChecks';
+import {
+  detectBestArchetype,
+  detectRelevantIcons,
+  smartPopulateArchetype,
+  autoPolishHeadline,
+  autoFitTextToLimits,
+  fixArabicPunctuation,
+  suggestArabicTranslation,
+  applyNarrativePreset,
+  NarrativeRole,
+} from '../lib/smartEditor';
 
 const CharLimitBadge: React.FC<{ current: number; limit: number }> = ({ current, limit }) => {
   const isOver = current > limit;
@@ -114,6 +130,115 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       }
     }
     handleFieldChange('icons', newIcons);
+  };
+
+  // Real-time archetype recommendation & semantic detection
+  const recommendation = detectBestArchetype(slide, slideIndex, totalSlides);
+  const detectedIcons = detectRelevantIcons(`${slide.enTitle || ''} ${slide.enBody || ''}`, 5);
+  const hasArabicJump = hasArabicPunctuationJump(slide.arTitle) || hasArabicPunctuationJump(slide.arBody);
+
+  const labels: Record<SlideType, string> = {
+    hub: 'Hub (Hook)',
+    row: 'Row (Icons)',
+    number: 'Number (Step)',
+    metric: 'Metric (Stat)',
+    code: 'Code (Diff)',
+    compare: 'VS (Split)',
+    image: 'Image (Visual)',
+    cta: 'CTA (Brand)',
+  };
+
+  const NARRATIVE_ROLES: { id: NarrativeRole; name: string; emoji: string; desc: string }[] = [
+    { id: 'hook', name: 'Hook (Hub)', emoji: '🎯', desc: 'Slide 1: High-contrast cover with 6 satellites' },
+    { id: 'stakes', name: 'The Stakes', emoji: '💥', desc: 'Slide 2: Production metric or problem bottleneck' },
+    { id: 'compare', name: 'VS Split', emoji: '⚖️', desc: 'Side-by-side legacy vs modern comparison' },
+    { id: 'code', name: 'Code Diff', emoji: '💻', desc: 'Terminal bash/diff execution snippet' },
+    { id: 'step', name: 'Step', emoji: '🪜', desc: 'Step counter with 220px accent numeral' },
+    { id: 'catch', name: 'The Catch', emoji: '⚠️', desc: 'Slide 6: Honest trade-offs and limits' },
+    { id: 'rule', name: 'SRE Rule', emoji: '💡', desc: 'Core engineering principle takeaway' },
+    { id: 'cta', name: 'Closing CTA', emoji: '🚀', desc: 'Final slide: Creator watermark and discussion' },
+  ];
+
+  const handleSelectArchetype = (type: SlideType) => {
+    const updated = smartPopulateArchetype(slide, type, slideIndex);
+    onUpdateSlide(updated);
+    if (onShowToast) onShowToast(`Switched archetype to ${labels[type]}`);
+  };
+
+  const handleApplyRecommendation = () => {
+    const updated = smartPopulateArchetype(slide, recommendation.recommendedType, slideIndex);
+    const merged = { ...updated, ...recommendation.autoData };
+    onUpdateSlide(merged);
+    if (onShowToast) onShowToast(`Auto-Applied ${labels[recommendation.recommendedType]} (${recommendation.badge})`);
+  };
+
+  const handleApplyRolePreset = (role: NarrativeRole) => {
+    const presetData = applyNarrativePreset(role, slideIndex);
+    const updated: SlideData = {
+      ...slide,
+      ...presetData,
+      type: presetData.type || slide.type,
+    };
+    onUpdateSlide(updated);
+    if (onShowToast) onShowToast(`Applied ${role.toUpperCase()} Narrative Template`);
+  };
+
+  const handleAutoApplyAllIcons = () => {
+    if (detectedIcons.length === 0) return;
+    const count = slide.icons?.length || 2;
+    const newIcons = [];
+    for (let i = 0; i < count; i++) {
+      const detected = detectedIcons[i % detectedIcons.length];
+      newIcons.push({
+        icon: detected.icon,
+        label: detected.label,
+      });
+    }
+    handleFieldChange('icons', newIcons);
+    if (onShowToast) onShowToast(`Auto-selected ${count} topic-relevant icons!`);
+  };
+
+  const handleAutoPolishHeadline = () => {
+    if (!slide.enTitle) return;
+    const polished = autoPolishHeadline(slide.enTitle);
+    handleFieldChange('enTitle', polished);
+    if (onShowToast) onShowToast('Polished headline thought (Spec §8)');
+  };
+
+  const handleAutoFitLimits = () => {
+    const enTitle = autoFitTextToLimits(slide.enTitle || '', slideIndex === 0 ? CHAR_LIMITS.hookTitle : CHAR_LIMITS.enTitle);
+    const enBody = autoFitTextToLimits(slide.enBody || '', CHAR_LIMITS.enBody);
+    const arTitle = autoFitTextToLimits(slide.arTitle || '', CHAR_LIMITS.arTitle);
+    const arBody = autoFitTextToLimits(slide.arBody || '', CHAR_LIMITS.arBody);
+    onUpdateSlide({
+      ...slide,
+      enTitle,
+      enBody,
+      arTitle,
+      arBody,
+    });
+    if (onShowToast) onShowToast('Auto-trimmed text to satisfy Spec §8 character limits');
+  };
+
+  const handleBilingualTranslate = () => {
+    const { arTitle, arBody } = suggestArabicTranslation(slide.enTitle || '', slide.enBody || '');
+    onUpdateSlide({
+      ...slide,
+      arTitle: slide.arTitle ? slide.arTitle : arTitle,
+      arBody: arBody,
+    });
+    if (onShowToast) onShowToast('Suggested high-credibility technical Arabic copy');
+  };
+
+  const handleFixArabicPunctuation = () => {
+    const arTitle = fixArabicPunctuation(slide.arTitle || '');
+    const arBody = fixArabicPunctuation(slide.arBody || '');
+    onUpdateSlide({
+      ...slide,
+      arTitle,
+      arBody,
+    });
+    if (onShowToast) onShowToast('Fixed Arabic punctuation jump bug');
   };
 
   // Custom Icon File Upload Handler
@@ -237,38 +362,104 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         </div>
       </div>
 
-      {/* Archetype Selector */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5">
-        {(['hub', 'row', 'number', 'metric', 'code', 'compare', 'image', 'cta'] as SlideType[]).map((type) => {
-          const isSelected = slide.type === type;
-          const labels: Record<SlideType, string> = {
-            hub: 'Hub (Hook)',
-            row: 'Row (Icons)',
-            number: 'Number (Step)',
-            metric: 'Metric (Stat)',
-            code: 'Code (Diff)',
-            compare: 'VS (Split)',
-            image: 'Image (Visual)',
-            cta: 'CTA (Brand)',
-          };
-          return (
-            <button
-              key={type}
-              onClick={() => handleFieldChange('type', type)}
-              className={`flex items-center justify-center gap-1.5 p-2 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer ${
-                isSelected
-                  ? 'border-white/30 bg-white/[0.08] text-white'
-                  : 'border-white/5 bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.05]'
-              }`}
-              style={{
-                borderColor: isSelected ? theme.accent : undefined,
-              }}
+      {/* Smart Archetype Auto-Selection Recommendation Banner */}
+      {recommendation && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2.5 px-3.5 rounded-xl border border-white/10 bg-gradient-to-r from-white/[0.04] to-black/30">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${theme.accent}25`, color: theme.accent }}
             >
-              <Layout className="w-3 h-3" style={{ color: isSelected ? theme.accent : undefined }} />
-              <span className="truncate">{labels[type]}</span>
-            </button>
-          );
-        })}
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                  <span>Smart Recommendation:</span>
+                  <span
+                    className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
+                    style={{ backgroundColor: `${theme.accent}20`, color: theme.accent }}
+                  >
+                    {recommendation.badge} ({labels[recommendation.recommendedType]})
+                  </span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono hidden md:inline">
+                  {recommendation.confidence}% match
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 truncate">
+                {recommendation.reason}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {slide.type !== recommendation.recommendedType ? (
+              <button
+                type="button"
+                onClick={handleApplyRecommendation}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold text-black transition-all cursor-pointer shadow-sm hover:opacity-90"
+                style={{ backgroundColor: theme.accent }}
+              >
+                <Wand2 className="w-3 h-3" />
+                <span>Auto-Apply ({labels[recommendation.recommendedType]})</span>
+              </button>
+            ) : (
+              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                <Check className="w-3 h-3" />
+                <span>Optimal Archetype Active</span>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Archetype Selector */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5">
+          {(['hub', 'row', 'number', 'metric', 'code', 'compare', 'image', 'cta'] as SlideType[]).map((type) => {
+            const isSelected = slide.type === type;
+            return (
+              <button
+                key={type}
+                onClick={() => handleSelectArchetype(type)}
+                className={`flex items-center justify-center gap-1.5 p-2 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-white/30 bg-white/[0.08] text-white'
+                    : 'border-white/5 bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                }`}
+                style={{
+                  borderColor: isSelected ? theme.accent : undefined,
+                }}
+              >
+                <Layout className="w-3 h-3" style={{ color: isSelected ? theme.accent : undefined }} />
+                <span className="truncate">{labels[type]}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Spec §7 Narrative Role Quick Presets */}
+        <div className="p-2 px-3 rounded-xl bg-black/25 border border-white/[0.06] space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+            <span>Spec §7 Narrative Arc Roles (Auto-Configure)</span>
+            <span className="font-mono text-slate-500">Slide {slideIndex + 1} of {totalSlides}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1">
+            {NARRATIVE_ROLES.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => handleApplyRolePreset(r.id)}
+                className="flex items-center justify-center gap-1 px-2 py-1 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.08] hover:border-white/15 text-[10px] text-slate-300 hover:text-white transition-all cursor-pointer truncate"
+                title={r.desc}
+              >
+                <span>{r.emoji}</span>
+                <span className="truncate">{r.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Archetype: Number (Step Counter - Spec §7 & §9.4) */}
@@ -375,6 +566,31 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <span>6 satellites placed at 60° increments</span>
             </div>
           </div>
+
+          {/* Contextual Auto-Detected Icons for Hub Center */}
+          {detectedIcons.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1 text-xs">
+              <span className="text-[10px] text-slate-400 shrink-0 flex items-center gap-1 font-semibold">
+                <Sparkles className="w-3 h-3 text-amber-400" />
+                <span>Auto-Suggested Center:</span>
+              </span>
+              {detectedIcons.map((di) => (
+                <button
+                  key={di.icon}
+                  type="button"
+                  onClick={() => handleFieldChange('centerIcon', di.icon)}
+                  className={`px-2 py-0.5 rounded text-[10px] border transition-colors cursor-pointer shrink-0 ${
+                    slide.centerIcon === di.icon
+                      ? 'bg-teal-500/20 text-teal-300 border-teal-500/40 font-bold'
+                      : 'bg-white/5 text-slate-300 hover:text-white border-white/10'
+                  }`}
+                  title={`Set ${di.label} as Center Icon`}
+                >
+                  {di.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -399,6 +615,38 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Contextual Auto-Detected Icons Strip */}
+          {detectedIcons.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 px-3 rounded-lg bg-black/40 border border-white/10 text-xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+                <span className="text-[10px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>Auto-Detected:</span>
+                </span>
+                {detectedIcons.map((di) => (
+                  <button
+                    key={di.icon}
+                    type="button"
+                    onClick={() => handleRowIconChange(0, di.icon)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[10px] text-slate-200 hover:text-white transition-colors cursor-pointer shrink-0"
+                    title={`Apply ${di.label} to Box 1`}
+                  >
+                    <span>{di.label}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoApplyAllIcons}
+                className="text-[10px] font-bold px-2 py-1 rounded bg-teal-500/15 text-teal-300 hover:bg-teal-500/25 border border-teal-500/30 shrink-0 cursor-pointer flex items-center gap-1"
+                title="Auto-fill all icon boxes with highest ranking detected icons"
+              >
+                <Zap className="w-2.5 h-2.5" />
+                <span>Auto-Fill All Boxes</span>
+              </button>
+            </div>
+          )}
 
           <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${Math.min(slide.icons?.length || 1, 5)} gap-2.5`}>
             {(slide.icons || [{ icon: 'database', label: '' }]).map((item, idx) => (
@@ -787,6 +1035,57 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           )}
         </div>
       )}
+
+      {/* Smart Content Assistant Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-black/30 border border-white/[0.08]">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <Wand2 className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+          <span>Smart Text Assistant</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleAutoPolishHeadline}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 hover:text-white transition-colors cursor-pointer"
+            title="Format headline into 2-5 crisp words ending in a period per Spec §8"
+          >
+            <Sparkles className="w-3 h-3 text-amber-400" />
+            <span>Polish Headline</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleAutoFitLimits}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 hover:text-white transition-colors cursor-pointer"
+            title="Trim copy to satisfy Spec §8 character limits (Title ≤ 45, Body ≤ 110)"
+          >
+            <Zap className="w-3 h-3 text-cyan-400" />
+            <span>Fit Spec Limits</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleBilingualTranslate}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 hover:text-white transition-colors cursor-pointer"
+            title="Suggest high-credibility technical Arabic copy"
+          >
+            <Languages className="w-3 h-3 text-purple-400" />
+            <span>Suggest Arabic</span>
+          </button>
+
+          {hasArabicJump && (
+            <button
+              type="button"
+              onClick={handleFixArabicPunctuation}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 text-[11px] font-bold transition-colors cursor-pointer animate-pulse"
+              title="Fix punctuation jump bug at end of Arabic line"
+            >
+              <Check className="w-3 h-3" />
+              <span>Fix Arabic Punctuation</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Headlines & Body Copy for non-CTA slides */}
       {slide.type !== 'cta' && (
