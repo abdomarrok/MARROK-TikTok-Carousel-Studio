@@ -309,6 +309,11 @@ function drawTintedImage(
  * Replaces static icon boxes with a 3-node connected protocol handshake sequence
  * (e.g. Client Node -> mTLS Envoy Proxy -> Isolated Workload Pod).
  */
+/**
+ * Visual Variant 1: Multi-Node Architecture Topology Flow
+ * Replaces static icon boxes with a 3-node connected protocol dataflow sequence
+ * 100% topic-driven by slide.diagramNodes, slide.diagramEdges, and slide.diagramFooter.
+ */
 async function drawMultiNodeTopologyFlow(
   ctx: CanvasRenderingContext2D,
   slide: SlideData,
@@ -349,7 +354,7 @@ async function drawMultiNodeTopologyFlow(
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('TOPOLOGY // PROTOCOL HANDSHAKE', cardX + 32 + 155, topY + 40);
+  ctx.fillText('TOPOLOGY // PROTOCOL DATAFLOW', cardX + 32 + 155, topY + 40);
   ctx.restore();
 
   // 2. 3 Connected Component Node Cards
@@ -361,19 +366,34 @@ async function drawMultiNodeTopologyFlow(
   const nx2 = nx1 + nodeW + gap;
   const nx3 = nx2 + nodeW + gap;
 
-  // Extract labels and icons from slide
+  // Extract dynamic topic-driven nodes from slide
+  const dNodes = slide.diagramNodes || [];
   const icons = slide.icons || [];
-  const n1IconName = icons[0]?.icon || 'server';
-  const n1Label = icons[0]?.label || 'Client Node';
-  const n2IconName = icons[1]?.icon || 'shieldAlert';
-  const n2Label = icons[1]?.label || 'Envoy Proxy';
-  const n3IconName = icons[2]?.icon || 'lock';
-  const n3Label = icons[2]?.label || 'Target Workload';
+  const titleWords = (slide.enTitle || '').replace(/[.?!]$/, '').split(/\s+/).filter((w) => w.length > 2);
+
+  const raw1 = dNodes[0];
+  const raw2 = dNodes[1];
+  const raw3 = dNodes[2];
+
+  const n1IconName = raw1?.icon || icons[0]?.icon || 'server';
+  const n1Label = raw1?.label || icons[0]?.label || 'Client Ingress';
+  const n1Sub = raw1?.sublabel || 'Port 443 / Ingress';
+  const n1Status = raw1?.status || 'CLIENT';
+
+  const n2IconName = raw2?.icon || icons[1]?.icon || 'cpu';
+  const n2Label = raw2?.label || icons[1]?.label || (titleWords[0] ? `${titleWords[0]} Engine` : 'Processing Core');
+  const n2Sub = raw2?.sublabel || 'Active Execution';
+  const n2Status = raw2?.status || 'ROUTED';
+
+  const n3IconName = raw3?.icon || icons[2]?.icon || 'database';
+  const n3Label = raw3?.label || icons[2]?.label || 'Storage / Output';
+  const n3Sub = raw3?.sublabel || 'State Verified';
+  const n3Status = raw3?.status || 'COMMITTED';
 
   const nodes = [
-    { x: nx1, icon: n1IconName, title: n1Label, role: 'CLIENT NODE', sub: '10.0.1.4:8443', status: 'INITIATOR', statusColor: theme.accent },
-    { x: nx2, icon: n2IconName, title: n2Label, role: 'mTLS PROXY', sub: 'SPIFFE ID Valid', status: 'VERIFIED', statusColor: '#10B981' },
-    { x: nx3, icon: n3IconName, title: n3Label, role: 'SECURE POD', sub: 'Zero-Trust Policy', status: 'ISOLATED', statusColor: theme.accent },
+    { x: nx1, icon: n1IconName, title: n1Label, role: 'INGRESS', sub: n1Sub, status: n1Status, statusColor: theme.accent },
+    { x: nx2, icon: n2IconName, title: n2Label, role: 'PROCESSING', sub: n2Sub, status: n2Status, statusColor: '#10B981' },
+    { x: nx3, icon: n3IconName, title: n3Label, role: 'TARGET', sub: n3Sub, status: n3Status, statusColor: theme.accent },
   ];
 
   for (const n of nodes) {
@@ -395,7 +415,8 @@ async function drawMultiNodeTopologyFlow(
     // Sub-title
     ctx.font = '500 12px "JetBrains Mono", monospace';
     ctx.fillStyle = theme.textMuted;
-    ctx.fillText(n.sub, n.x + 68, nodeY + 52);
+    const cleanSub = n.sub.length > 18 ? `${n.sub.slice(0, 17)}…` : n.sub;
+    ctx.fillText(cleanSub, n.x + 68, nodeY + 52);
 
     // Primary Title
     ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
@@ -405,8 +426,8 @@ async function drawMultiNodeTopologyFlow(
     // Detail spec lines
     ctx.font = '500 13px "JetBrains Mono", monospace';
     ctx.fillStyle = '#94A3B8';
-    ctx.fillText('• Cryptographic Auth', n.x + 18, nodeY + 145);
-    ctx.fillText('• Strict Port 8443', n.x + 18, nodeY + 168);
+    ctx.fillText(`• ${cleanSub}`, n.x + 18, nodeY + 145);
+    ctx.fillText(`• ${n.role} Active`, n.x + 18, nodeY + 168);
 
     // Bottom Status Pill
     const pillW = 100;
@@ -423,6 +444,7 @@ async function drawMultiNodeTopologyFlow(
   // 3. Inter-Node Protocol Flow Arrows & Protocol Badges
   // Arrow 1: Node 1 -> Node 2
   const midY = nodeY + 110;
+  const edge1 = slide.diagramEdges?.[0] || 'FLOW';
   ctx.save();
   ctx.strokeStyle = `${theme.accent}80`;
   ctx.lineWidth = 2;
@@ -432,12 +454,12 @@ async function drawMultiNodeTopologyFlow(
   ctx.stroke();
 
   // Protocol pill 1
-  drawRoundRect(ctx, nx1 + nodeW + 6, midY - 14, 42, 28, 6, '#060a0d', `${theme.accent}80`, 1);
+  drawRoundRect(ctx, nx1 + nodeW + 4, midY - 14, 46, 28, 6, '#060a0d', `${theme.accent}80`, 1);
   ctx.font = '700 10px "JetBrains Mono", monospace';
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('mTLS', nx1 + nodeW + 27, midY);
+  ctx.fillText(edge1.length > 8 ? `${edge1.slice(0, 7)}…` : edge1, nx1 + nodeW + 27, midY);
 
   // Arrow 1 Tip
   ctx.fillStyle = theme.accent;
@@ -449,14 +471,15 @@ async function drawMultiNodeTopologyFlow(
   ctx.fill();
 
   // Arrow 2: Node 2 -> Node 3
+  const edge2 = slide.diagramEdges?.[1] || 'EXEC';
   ctx.beginPath();
   ctx.moveTo(nx2 + nodeW, midY);
   ctx.lineTo(nx3, midY);
   ctx.stroke();
 
   // Protocol pill 2
-  drawRoundRect(ctx, nx2 + nodeW + 6, midY - 14, 42, 28, 6, '#060a0d', `${theme.accent}80`, 1);
-  ctx.fillText('ALLOW', nx2 + nodeW + 27, midY);
+  drawRoundRect(ctx, nx2 + nodeW + 4, midY - 14, 46, 28, 6, '#060a0d', `${theme.accent}80`, 1);
+  ctx.fillText(edge2.length > 8 ? `${edge2.slice(0, 7)}…` : edge2, nx2 + nodeW + 27, midY);
 
   // Arrow 2 Tip
   ctx.beginPath();
@@ -475,19 +498,21 @@ async function drawMultiNodeTopologyFlow(
   ctx.fillStyle = theme.textMuted;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('HANDSHAKE: 0.4ms P99  •  CIPHER: TLS_AES_256_GCM_SHA384  •  EGRESS: ENFORCED', cardX + cardW / 2, barY + 23);
+  const footerText = slide.diagramFooter || 'LATENCY: P99 < 1.0ms  •  PROTOCOL: ACTIVE  •  PIPELINE: DETERMINISTIC';
+  ctx.fillText(footerText, cardX + cardW / 2, barY + 23);
   ctx.restore();
 
   return 745;
 }
 
 /**
- * Visual Variant 2: Blast Radius & Network Isolation Grid
- * Replaces static icon boxes with a multi-cell segmented firewall boundary
+ * Visual Variant 2: Fault Boundary & Isolation Grid
+ * Replaces static icon boxes with a 3-cell segmented boundary
+ * 100% topic-driven by slide.diagramNodes, slide.diagramEdges, and slide.diagramFooter.
  */
 async function drawBlastRadiusIsolationGrid(
   ctx: CanvasRenderingContext2D,
-  _slide: SlideData,
+  slide: SlideData,
   theme: ThemePalette,
   _options: VisualSystemOptions,
   topY: number = 240
@@ -514,10 +539,10 @@ async function drawBlastRadiusIsolationGrid(
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('MICROSEGMENTATION // BLAST RADIUS CONFINED', cardX + 32 + 190, topY + 40);
+  ctx.fillText('FAULT ISOLATION // COMPONENT BOUNDARY', cardX + 32 + 190, topY + 40);
   ctx.restore();
 
-  // 3 Workload Cells: Breached Pod (Left) || Divider || Protected Mesh (Mid) || DB Vault (Right)
+  // 3 Workload Cells
   const cellW = 236;
   const cellH = 220;
   const cellY = topY + 74;
@@ -526,35 +551,61 @@ async function drawBlastRadiusIsolationGrid(
   const cx2 = cx1 + cellW + gap;
   const cx3 = cx2 + cellW + gap;
 
-  // Cell 1: Breached Workload (Crimson)
+  const dNodes = slide.diagramNodes || [];
+  const raw1 = dNodes[0];
+  const raw2 = dNodes[1];
+  const raw3 = dNodes[2];
+
+  const c1Icon = raw1?.icon || 'shieldAlert';
+  const c1Title = raw1?.label || 'Boundary Limit';
+  const c1Role = 'RESTRICTED';
+  const c1Sub = raw1?.sublabel || 'Contained Path';
+  const c1Status = raw1?.status || 'DENIED';
+
+  const c2Icon = raw2?.icon || 'lock';
+  const c2Title = raw2?.label || 'Isolated Boundary';
+  const c2Role = 'BOUNDARY MESH';
+  const c2Sub = raw2?.sublabel || 'Zero Implicit Access';
+  const c2Status = raw2?.status || 'ISOLATED';
+
+  const c3Icon = raw3?.icon || 'database';
+  const c3Title = raw3?.label || 'Core Storage';
+  const c3Role = 'PERSISTENT CORE';
+  const c3Sub = raw3?.sublabel || 'Hardened State';
+  const c3Status = raw3?.status || 'SECURED';
+
+  const barrierTag = slide.diagramEdges?.[0] || 'ISOLATE';
+  const footerText = slide.diagramFooter || '✔ FAULT DOMAIN ISOLATED: ZERO ESCAPE TO ADJACENT RUNTIMES';
+
+  // Cell 1: Restricted Workload (Crimson)
   drawRoundRect(ctx, cx1, cellY, cellW, cellH, 18, 'rgba(244, 63, 94, 0.08)', 'rgba(244, 63, 94, 0.65)', 2);
   drawRoundRect(ctx, cx1 + 18, cellY + 18, 42, 42, 12, 'rgba(244, 63, 94, 0.20)', 'rgba(244, 63, 94, 0.70)', 1.2);
-  const alertImg = await loadIconImage('shieldAlert', '#F43F5E');
+  const alertImg = await loadIconImage(c1Icon, '#F43F5E');
   safeDrawImage(ctx, alertImg, cx1 + 27, cellY + 27, 24, 24);
 
   ctx.save();
   ctx.font = '700 12px "JetBrains Mono", monospace';
   ctx.fillStyle = '#FDA4AF';
   ctx.textAlign = 'left';
-  ctx.fillText('ATTACK SURFACE', cx1 + 68, cellY + 36);
+  ctx.fillText(c1Role, cx1 + 68, cellY + 36);
   ctx.fillStyle = '#F87171';
-  ctx.fillText('Exploit Active', cx1 + 68, cellY + 52);
+  ctx.fillText(c1Sub.length > 16 ? `${c1Sub.slice(0, 15)}…` : c1Sub, cx1 + 68, cellY + 52);
 
   ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('Compromised Pod', cx1 + 18, cellY + 115);
+  ctx.fillText(c1Title.length > 14 ? `${c1Title.slice(0, 13)}…` : c1Title, cx1 + 18, cellY + 115);
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#CBD5E1';
-  ctx.fillText('• Egress: BLOCKED', cx1 + 18, cellY + 145);
-  ctx.fillText('• Spiffe: REVOKED', cx1 + 18, cellY + 168);
+  ctx.fillText(`• ${c1Sub.length > 18 ? c1Sub.slice(0, 17) + '…' : c1Sub}`, cx1 + 18, cellY + 145);
+  ctx.fillText('• Boundary Enforced', cx1 + 18, cellY + 168);
 
   drawRoundRect(ctx, cx1 + 18, cellY + cellH - 34, 110, 24, 8, 'rgba(244, 63, 94, 0.25)', 'rgba(244, 63, 94, 0.75)', 1);
   ctx.font = '700 11px "JetBrains Mono", monospace';
   ctx.fillStyle = '#FDA4AF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('[ QUARANTINED ]', cx1 + 18 + 55, cellY + cellH - 22);
+  ctx.fillText(`[ ${c1Status} ]`, cx1 + 18 + 55, cellY + cellH - 22);
   ctx.restore();
 
   // Vertical Air-Gap Firewall Barrier between Cell 1 and Cell 2
@@ -568,77 +619,77 @@ async function drawBlastRadiusIsolationGrid(
   ctx.stroke();
   ctx.setLineDash([]);
 
-  drawRoundRect(ctx, cx1 + cellW + gap / 2 - 24, cellY + cellH / 2 - 14, 48, 28, 6, '#060a0d', 'rgba(244, 63, 94, 0.70)', 1);
+  drawRoundRect(ctx, cx1 + cellW + gap / 2 - 28, cellY + cellH / 2 - 14, 56, 28, 6, '#060a0d', 'rgba(244, 63, 94, 0.70)', 1);
   ctx.font = '700 10px "JetBrains Mono", monospace';
   ctx.fillStyle = '#F43F5E';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('DENY', cx1 + cellW + gap / 2, cellY + cellH / 2);
+  ctx.fillText(barrierTag.length > 7 ? `${barrierTag.slice(0, 6)}…` : barrierTag, cx1 + cellW + gap / 2, cellY + cellH / 2);
   ctx.restore();
 
   // Cell 2: Isolated Service Pod (Accent)
   drawRoundRect(ctx, cx2, cellY, cellW, cellH, 18, '#0b1319', `${theme.accent}65`, 1.8);
   drawRoundRect(ctx, cx2 + 18, cellY + 18, 42, 42, 12, `${theme.accent}20`, `${theme.accent}70`, 1.2);
-  const lockImg = await loadIconImage('lock', theme.accent);
+  const lockImg = await loadIconImage(c2Icon, theme.accent);
   safeDrawImage(ctx, lockImg, cx2 + 27, cellY + 27, 24, 24);
 
   ctx.save();
   ctx.font = '700 12px "JetBrains Mono", monospace';
   ctx.fillStyle = theme.microLabel;
   ctx.textAlign = 'left';
-  ctx.fillText('PROTECTED MESH', cx2 + 68, cellY + 36);
+  ctx.fillText(c2Role, cx2 + 68, cellY + 36);
   ctx.fillStyle = theme.textMuted;
-  ctx.fillText('Zero Implicit Trust', cx2 + 68, cellY + 52);
+  ctx.fillText(c2Sub.length > 16 ? `${c2Sub.slice(0, 15)}…` : c2Sub, cx2 + 68, cellY + 52);
 
   ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('Internal Service', cx2 + 18, cellY + 115);
+  ctx.fillText(c2Title.length > 14 ? `${c2Title.slice(0, 13)}…` : c2Title, cx2 + 18, cellY + 115);
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#94A3B8';
-  ctx.fillText('• Strict Ingress Only', cx2 + 18, cellY + 145);
-  ctx.fillText('• 0 Lateral Ingress', cx2 + 18, cellY + 168);
+  ctx.fillText(`• ${c2Sub.length > 18 ? c2Sub.slice(0, 17) + '…' : c2Sub}`, cx2 + 18, cellY + 145);
+  ctx.fillText('• 0 Implicit Drift', cx2 + 18, cellY + 168);
 
   drawRoundRect(ctx, cx2 + 18, cellY + cellH - 34, 100, 24, 8, `${theme.accent}20`, `${theme.accent}60`, 1);
   ctx.font = '700 11px "JetBrains Mono", monospace';
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('[ ISOLATED ]', cx2 + 18 + 50, cellY + cellH - 22);
+  ctx.fillText(`[ ${c2Status} ]`, cx2 + 18 + 50, cellY + cellH - 22);
   ctx.restore();
 
-  // Cell 3: Database Vault (Emerald)
+  // Cell 3: Production Vault / Storage (Emerald)
   drawRoundRect(ctx, cx3, cellY, cellW, cellH, 18, '#0b1319', 'rgba(16, 185, 129, 0.65)', 1.8);
   drawRoundRect(ctx, cx3 + 18, cellY + 18, 42, 42, 12, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.70)', 1.2);
-  const dbImg = await loadIconImage('database', '#10B981');
+  const dbImg = await loadIconImage(c3Icon, '#10B981');
   safeDrawImage(ctx, dbImg, cx3 + 27, cellY + 27, 24, 24);
 
   ctx.save();
   ctx.font = '700 12px "JetBrains Mono", monospace';
   ctx.fillStyle = '#6EE7B7';
   ctx.textAlign = 'left';
-  ctx.fillText('AIR-GAPPED DB', cx3 + 68, cellY + 36);
+  ctx.fillText(c3Role, cx3 + 68, cellY + 36);
   ctx.fillStyle = '#10B981';
-  ctx.fillText('Mutual Auth Only', cx3 + 68, cellY + 52);
+  ctx.fillText(c3Sub.length > 16 ? `${c3Sub.slice(0, 15)}…` : c3Sub, cx3 + 68, cellY + 52);
 
   ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('Production Vault', cx3 + 18, cellY + 115);
+  ctx.fillText(c3Title.length > 14 ? `${c3Title.slice(0, 13)}…` : c3Title, cx3 + 18, cellY + 115);
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#94A3B8';
-  ctx.fillText('• Encrypted at Rest', cx3 + 18, cellY + 145);
-  ctx.fillText('• Audit Logged', cx3 + 18, cellY + 168);
+  ctx.fillText(`• ${c3Sub.length > 18 ? c3Sub.slice(0, 17) + '…' : c3Sub}`, cx3 + 18, cellY + 145);
+  ctx.fillText('• State Verified', cx3 + 18, cellY + 168);
 
   drawRoundRect(ctx, cx3 + 18, cellY + cellH - 34, 100, 24, 8, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.60)', 1);
   ctx.font = '700 11px "JetBrains Mono", monospace';
   ctx.fillStyle = '#10B981';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('[ AIR-GAPPED ]', cx3 + 18 + 50, cellY + cellH - 22);
+  ctx.fillText(`[ ${c3Status} ]`, cx3 + 18 + 50, cellY + cellH - 22);
   ctx.restore();
 
-  // Bottom Security Benchmark Banner
+  // Bottom Benchmark Banner
   const barY = cellY + cellH + 20;
   drawRoundRect(ctx, cx1, barY, cardW - 64, 46, 12, 'rgba(16, 185, 129, 0.12)', 'rgba(16, 185, 129, 0.45)', 1.2);
   ctx.save();
@@ -646,19 +697,20 @@ async function drawBlastRadiusIsolationGrid(
   ctx.fillStyle = '#34D399';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('✔ BLAST RADIUS CONFINED: 0 LATERAL ACCESS TO ADJACENT PODS OR STORAGE', cardX + cardW / 2, barY + 23);
+  ctx.fillText(footerText, cardX + cardW / 2, barY + 23);
   ctx.restore();
 
   return 745;
 }
 
 /**
- * Visual Variant 3: Layered Architecture Stack & Request Pipeline
+ * Visual Variant 3: Layered Architecture Stack & Pipeline
  * Replaces static icon boxes with a 3-tier horizontal architecture stack
+ * 100% topic-driven by slide.diagramNodes and slide.diagramFooter.
  */
 async function drawLayeredArchitectureStack(
   ctx: CanvasRenderingContext2D,
-  _slide: SlideData,
+  slide: SlideData,
   theme: ThemePalette,
   _options: VisualSystemOptions,
   topY: number = 240
@@ -695,30 +747,35 @@ async function drawLayeredArchitectureStack(
   const gap = 16;
   const startTierY = topY + 74;
 
+  const dNodes = slide.diagramNodes || [];
+  const raw1 = dNodes[0];
+  const raw2 = dNodes[1];
+  const raw3 = dNodes[2];
+
   const tiers = [
     {
       y: startTierY,
       layer: 'LAYER 01',
-      title: 'EDGE INGRESS & AUTHENTICATION TIER',
-      sub: 'TLS 1.3 Termination • Token Validation • Rate Limiting',
-      pill: '10K REQ/S',
-      icon: 'network',
+      title: (raw1?.label || 'INGRESS & CLIENT CONNECTION TIER').toUpperCase(),
+      sub: raw1?.sublabel || 'Protocol Ingress • Traffic Routing • Client Session Pool',
+      pill: raw1?.status || 'INGRESS',
+      icon: raw1?.icon || 'network',
     },
     {
       y: startTierY + tierH + gap,
       layer: 'LAYER 02',
-      title: 'SERVICE MESH & ROUTING CONTROL PLANE',
-      sub: 'Envoy Sidecars • Dynamic Routing • Cryptographic Identity',
-      pill: 'LEAST PRIVILEGE',
-      icon: 'gitMerge',
+      title: (raw2?.label || 'CORE LOGIC & EXECUTION PIPELINE').toUpperCase(),
+      sub: raw2?.sublabel || 'Processing Engine • High-Throughput Execution • Internal State',
+      pill: raw2?.status || 'CORE ENGINE',
+      icon: raw2?.icon || 'cpu',
     },
     {
       y: startTierY + (tierH + gap) * 2,
       layer: 'LAYER 03',
-      title: 'HARDENED WORKLOADS & SECURE STORAGE',
-      sub: 'Encrypted at Rest • Mutual Authentication • Audit Trail',
-      pill: 'SECURED',
-      icon: 'database',
+      title: (raw3?.label || 'PERSISTENCE ENGINE & STORAGE LAYER').toUpperCase(),
+      sub: raw3?.sublabel || 'Durable Write Ahead Log • State Storage • Audit Verification',
+      pill: raw3?.status || 'PERSISTENCE',
+      icon: raw3?.icon || 'database',
     },
   ];
 
@@ -767,7 +824,8 @@ async function drawLayeredArchitectureStack(
   ctx.fillStyle = theme.textMuted;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('END-TO-END CRYPTOGRAPHIC TRACEABILITY ACROSS ALL TIERS', cardX + cardW / 2, footY);
+  const footerText = slide.diagramFooter || 'END-TO-END PIPELINE TRACEABILITY ACROSS ALL TIERS';
+  ctx.fillText(footerText, cardX + cardW / 2, footY);
   ctx.restore();
 
   return 745;
@@ -776,6 +834,7 @@ async function drawLayeredArchitectureStack(
 /**
  * Visual Variant 4: Key Architectural Takeaway Card
  * Replaces lonely single-icon boxes with a high-impact architectural principle card
+ * 100% topic-driven by slide.diagramNodes, slide.enTitle, slide.enBody, and slide.diagramFooter.
  */
 async function drawKeyTakeawayCard(
   ctx: CanvasRenderingContext2D,
@@ -818,7 +877,7 @@ async function drawKeyTakeawayCard(
   drawRoundRect(ctx, blockX, blockY, blockW, blockH, 16, '#0b1319', `${theme.accent}65`, 1.5);
   drawRoundRect(ctx, blockX, blockY, 6, blockH, 3, theme.accent);
 
-  const iconName = slide.icons?.[0]?.icon || 'shieldAlert';
+  const iconName = slide.diagramNodes?.[0]?.icon || slide.icons?.[0]?.icon || 'shieldAlert';
   const iconImg = await loadIconImage(iconName, theme.accent);
   drawRoundRect(ctx, blockX + 22, blockY + 22, 54, 54, 14, `${theme.accent}20`, `${theme.accent}70`, 1.2);
   safeDrawImage(ctx, iconImg, blockX + 34, blockY + 34, 30, 30);
@@ -828,16 +887,20 @@ async function drawKeyTakeawayCard(
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const cleanTitle = (slide.enTitle || 'Never trust, always verify.').replace(/[.?!]$/, '');
+  const cleanTitle = (slide.enTitle || 'Core Architectural Principle.').replace(/[.?!]$/, '');
   ctx.fillText(cleanTitle, blockX + 96, blockY + 56);
 
   ctx.font = '500 18px "JetBrains Mono", monospace';
   ctx.fillStyle = theme.accent;
-  ctx.fillText('Zero Implicit Trust • Continuous Cryptographic Identity', blockX + 96, blockY + 92);
+  const subHeadline =
+    slide.diagramFooter ||
+    (slide.diagramNodes?.[0] ? `${slide.diagramNodes[0].label} • Production Architecture` : 'Core Architectural Principle • High Reliability');
+  ctx.fillText(subHeadline.length > 55 ? `${subHeadline.slice(0, 54)}…` : subHeadline, blockX + 96, blockY + 92);
 
   ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#94A3B8';
-  ctx.fillText('Treat every internal packet as untrusted public network traffic.', blockX + 96, blockY + 124);
+  const cleanBody = (slide.enBody || 'Decoupled architectural components eliminate system bottlenecks and lock-in.').slice(0, 80);
+  ctx.fillText(cleanBody, blockX + 96, blockY + 124);
   ctx.restore();
 
   // 2 Comparative Proof Sub-Cards at bottom
@@ -854,8 +917,10 @@ async function drawKeyTakeawayCard(
   ctx.fillText('⚠️ CRITICAL CONSTRAINT', blockX + 18, subY + 32);
   ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#E2E8F0';
-  ctx.fillText('Short-lived certificates require automated', blockX + 18, subY + 65);
-  ctx.fillText('control planes to prevent service outages.', blockX + 18, subY + 92);
+  const c1Text1 = slide.diagramNodes?.[1]?.label ? `Avoid unmonitored ${slide.diagramNodes[1].label.toLowerCase()}` : 'Profile production load and avoid premature';
+  const c1Text2 = slide.diagramNodes?.[1]?.sublabel || 'abstractions that bloat system memory.';
+  ctx.fillText(c1Text1.length > 40 ? `${c1Text1.slice(0, 39)}…` : c1Text1, blockX + 18, subY + 65);
+  ctx.fillText(c1Text2.length > 42 ? `${c1Text2.slice(0, 41)}…` : c1Text2, blockX + 18, subY + 92);
   ctx.restore();
 
   // Sub-card 2: Production Best Practice
@@ -864,11 +929,13 @@ async function drawKeyTakeawayCard(
   ctx.font = '700 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#34D399';
   ctx.textAlign = 'left';
-  ctx.fillText('✔ PRODUCTION DEFENSE', blockX + subW + 38, subY + 32);
+  ctx.fillText('✔ PRODUCTION STANDARD', blockX + subW + 38, subY + 32);
   ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#E2E8F0';
-  ctx.fillText('Fix reachable attack paths first to eliminate', blockX + subW + 38, subY + 65);
-  ctx.fillText('95% of real-world exploitation risks.', blockX + subW + 38, subY + 92);
+  const c2Text1 = slide.diagramNodes?.[2]?.label ? `Enforce strict ${slide.diagramNodes[2].label.toLowerCase()}` : 'Decouple core processing from storage';
+  const c2Text2 = slide.diagramNodes?.[2]?.sublabel || 'to maintain predictable sub-second p99.';
+  ctx.fillText(c2Text1.length > 40 ? `${c2Text1.slice(0, 39)}…` : c2Text1, blockX + subW + 38, subY + 65);
+  ctx.fillText(c2Text2.length > 42 ? `${c2Text2.slice(0, 41)}…` : c2Text2, blockX + subW + 38, subY + 92);
   ctx.restore();
 
   return 745;
@@ -1177,20 +1244,21 @@ export async function renderSlideToCanvas(
       server: 'SERVICE POD',
       database: 'STORAGE',
       gauge: 'TELEMETRY',
-      users: 'IAM IDENTITY',
+      users: 'IDENTITY',
       robot: 'AI AGENT',
       gitMerge: 'VCS ENGINE',
       cpu: 'EXEC ENGINE',
       box: 'CONTAINER',
       activity: 'HEALTH P99',
       shieldAlert: 'POLICY GATE',
-      lock: 'CRYPTO MESH',
-      network: 'mTLS PROXY',
-      key: 'x509 CERTS',
+      lock: 'CRYPTO CORE',
+      network: 'NETWORK',
+      key: 'AUTH / KEY',
       code: 'VIRTUAL FS',
       terminal: 'CLI GATEWAY',
-      cloud: 'K8s CLUSTER',
+      cloud: 'CLOUD HOST',
       zap: 'LOW LATENCY',
+      hardDrive: 'DISK / WAL',
     };
 
     for (let i = 0; i < satAngles.length; i++) {

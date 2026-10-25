@@ -10,12 +10,26 @@ export interface IconLabelPair {
   label: string;
 }
 
+export interface DiagramNode {
+  label: string;
+  sublabel?: string;
+  status?: string;
+  icon?: string;
+}
+
+export type DiagramVariant = 'topology' | 'stack' | 'isolation' | 'takeaway';
+
 export interface SlideData {
   type: SlideType;
   // Hub properties
   centerIcon?: string;
   satIcons?: string[];
   satLabels?: string[]; // Technical labels for the 6 satellite nodes around the hub
+  // Dynamic Labeled Technical Diagram properties (replaces static icon boxes)
+  diagramVariant?: DiagramVariant;
+  diagramNodes?: DiagramNode[]; // The 3 nodes, layers, or cells illustrating this specific slide
+  diagramEdges?: string[];     // Protocol/action/dataflow labels on the connectors between nodes
+  diagramFooter?: string;      // Bottom telemetry or summary spec line inside the diagram
   // Row properties
   icons?: IconLabelPair[];
   // Number Archetype properties (Spec §7 & §9.4: Big accent number step counter e.g. "01", "02")

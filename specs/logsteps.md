@@ -492,3 +492,41 @@ This document records the chronological development history, engineering decisio
   - `npm run build` (`vite build`): Production bundle compiled in 516ms.
   - Subagent visual inspection of Contact Sheet (`contact_sheet_8_slides_1792932004426.png`) verified all 8 slides render bespoke technical schematics with zero static flat boxes and zero mid-deck CTA duplications.
 
+---
+
+### Step 23: 100% Topic-Driven Slide Graphics & Dynamic Diagram Data Pipeline
+- **Context & Core Problem:**
+  - Graphics on slides in `canvasExporter.ts` previously had hardcoded fallbacks to Zero-Trust / Envoy Proxy / mTLS / SPIFFE / AES-256-GCM. When users generated carousels on non-security topics (such as PostgreSQL, Docker, Proxmox, Next.js, or AI Agents), rendering mTLS/Envoy diagrams was contextually incorrect.
+- **Engineering Solutions Implemented:**
+  1. **Dynamic Diagram Data in `SlideData` (`src/types.ts`):**
+     - Added `satLabels?: string[]` (for Slide 1 Hub orbital satellite badges).
+     - Added `diagramVariant?: 'topology' | 'stack' | 'isolation' | 'takeaway'`.
+     - Added `diagramNodes?: Array<{ label: string; sublabel?: string; status?: string; icon?: string }>`.
+     - Added `diagramEdges?: string[]` (for inter-node flow badges).
+     - Added `diagramFooter?: string` (for bottom telemetry bar).
+  2. **Upstream Gemini Prompt & Response Schema (`api/index.ts`):**
+     - Updated `CAROUSEL_RESPONSE_SCHEMA` to validate `satLabels`, `diagramVariant`, `diagramNodes`, `diagramEdges`, and `diagramFooter`.
+     - Updated `MARROK_SYSTEM_PROMPT` and `userPromptText` with strict rules requiring topic-specific diagrams and forbidding generic networking terms.
+     - Enriched API returns with `enrichCarouselDiagrams` to ensure complete diagram coverage.
+  3. **Universal Synthesizer Diagram Pipeline (`src/lib/synthesizer.ts` & `autonomousPipeline.ts`):**
+     - Implemented `enrichCarouselDiagrams()` providing domain-specific diagram packs:
+       - **PostgreSQL / SQL / Databases:** satLabels (`PgBouncer Pool`, `Shared Buffers`, `WAL Engine`, `B-Tree Index`, `Query Planner`, `Vacuum Worker`); Stack nodes (`PgBouncer Pool`, `B-Tree Index Scan`, `Shared Buffers Storage`); Telemetry (`ZERO UNINDEXED TABLE SCANS • EXPLAIN ANALYZE < 1.0ms`).
+       - **Docker / Proxmox / Virtualization:** satLabels (`OCI Container`, `OverlayFS`, `cgroups v2`, `Bridge Net`, `Host Kernel`, `ZFS Storage`); Stack nodes (`CONTAINER WORKLOAD & SHIM`, `KERNEL VIRTUALIZATION ENGINE`, `HARDWARE HOST & HYPERVISOR`); Telemetry (`ZERO EMULATION PENALTY • HARDWARE-ASSISTED VIRTUALIZATION`).
+       - **Next.js / Web / Edge:** satLabels (`Edge CDN`, `RSC Engine`, `SSR Worker`, `Static ISR`, `API Route`, `Client DOM`); Stack nodes (`GLOBAL EDGE & ROUTING`, `REACT SERVER COMPONENTS`, `DATA FETCH & BACKEND`); Telemetry (`CORE WEB VITALS: 100/100 • INSTANT CLIENT INTERACTIVITY`).
+       - **AI Models & Agents:** satLabels (`Prompt Core`, `Context Window`, `Vector Store`, `Tool Calling`, `Inference Run`, `Token Stream`); Topology nodes (`Agent Planner`, `Vector Store`, `Inference Engine`); Telemetry (`TTFT: 110ms • TOKENS/SEC: 85`).
+       - **Dynamic Keyword Extractor Fallback:** Extracts clean tokens from slide title/body for any unseen tech domain.
+  4. **100% Data-Driven Canvas Drawing Engine (`src/lib/canvasExporter.ts`):**
+     - Refactored `drawMultiNodeTopologyFlow`: Renders `slide.diagramNodes`, `slide.diagramEdges`, `slide.diagramFooter` with dynamic title-keyword fallbacks.
+     - Refactored `drawBlastRadiusIsolationGrid`: Renders 3 cells dynamically from `slide.diagramNodes`, barrier tag from `slide.diagramEdges[0]`, and bottom banner from `slide.diagramFooter`.
+     - Refactored `drawLayeredArchitectureStack`: Renders 3 tiers from `slide.diagramNodes` and traceability line from `slide.diagramFooter`.
+     - Refactored `drawKeyTakeawayCard`: Dynamically pulls principle, constraints, and production standards from `slide.enTitle`, `slide.enBody`, and `slide.diagramNodes`.
+     - Refactored `drawHub`: Neutralized `DEFAULT_ICON_LABELS` and prioritizes `slide.satLabels`.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 errors.
+  - `npm run build` (`vite build`): Passed with 0 errors.
+  - Visual QA in Contact Sheet verified with 2 distinct non-security topics:
+    - **PostgreSQL Indexing & Query Optimization:** Contact sheet screenshot (`contact_sheet_postgres_1792935738273.png`) shows PostgreSQL elephant SVG, amber palette, PgBouncer / Buffer Cache / B-Tree satellites, and database connection pool stack.
+    - **Docker & Proxmox Virtualization Architecture:** Contact sheet screenshot (`contact_sheet_docker_proxmox_1792935833157.png`) shows Docker whale SVG, blueprint palette, OCI / OverlayFS / cgroups satellites, and container shim / kernel virtualization stack.
+  - Verified 0 occurrences of hardcoded mTLS/Envoy on non-security decks.
+
+

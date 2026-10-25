@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
-import { synthesizeCarousel } from '../src/lib/synthesizer.ts';
+import { synthesizeCarousel, enrichCarouselDiagrams } from '../src/lib/synthesizer.ts';
 import { sanitizeFullCarousel } from '../src/lib/textSanitizer.ts';
 
 dotenv.config();
@@ -398,11 +398,15 @@ STAGE 3: PLATFORM RISK REVIEW (Spec §6)
 
 STAGE 4: SMART CAROUSEL PLANNER (Spec §7 & §12.1)
 - Produce a tight 8 to 10 slide narrative arc:
-  * Slide 1: "hub" (The Hook) — central brand/tech icon + 6 orbital satellite icons. High curiosity or metric promise.
+  * Slide 1: "hub" (The Hook) — central brand/tech icon + 6 orbital satellite icons, plus 6 topic-specific satLabels.
   * Slide 2: The Stakes / Reason to Swipe — why this architecture broke the old way or matters now.
-  * Slides 3–5: The Mechanics / Implementation — step-by-step points using "number" (01, 02), "code" (terminal window), "metric" (benchmark card), or "row" (1 to 5 icons).
+  * Slides 3–5: The Mechanics / Implementation — step-by-step points using "number" (01, 02), "code" (terminal window), "metric" (benchmark card), or "row" (labeled architecture diagram).
   * Slide 6 or 7: "The Catch / Before You Switch" or "The Debate" — crucial honest analysis (beta status, memory overhead, lock-in, tradeoffs). This builds massive credibility and comment engagement.
   * Final Slide: "cta" — viewer domain challenge question, DM us prompt, and clear source credit.
+- DYNAMIC TOPIC-DRIVEN TECHNICAL DIAGRAMS:
+  * For Slide 1 (hub): MUST provide 6 crisp, short satLabels directly relevant to the topic (e.g. for Postgres: ["Replica DB", "Connection Pool", "WAL Logs", "Buffer Cache", "Vacuum Worker", "Query Planner"]; for Docker: ["Container Engine", "OverlayFS", "cgroups", "Bridge Net", "Image Registry", "Volume Storage"]).
+  * For mechanism/architecture slides: MUST provide diagramVariant ('topology' | 'stack' | 'isolation' | 'takeaway'), diagramNodes (3 topic-specific component nodes with label, sublabel, status, icon), diagramEdges (2 connector labels e.g. ["10k Conns", "64 Pooled"]), and diagramFooter (telemetry line e.g. "POOL MODE: TRANSACTION • LATENCY: 0.8ms").
+  * NEVER output hardcoded or unrelated terms (e.g. never output "mTLS" or "Envoy" on a database or Docker slide).
 - Select the optimal theme from the 11 spec themes:
   scion (AI + engineering), backend (infrastructure), pqc (cryptography), security_spec (defense/CVEs), node (Node/JS), ajax (AI news), concat (video/graphics), estonia (education/policy), artcraft (design tools), arch (architecture), zerobreach (digital security).
 
@@ -591,6 +595,38 @@ const CAROUSEL_RESPONSE_SCHEMA = {
             items: { type: Type.STRING },
             description: 'Array of 6 icon names for hub satellites',
           },
+          satLabels: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Array of 6 short technical component names for Slide 1 orbital satellites, directly relevant to the topic (e.g. for Postgres: ["Replica DB", "Connection Pool", "WAL Logs", "Buffer Cache", "Vacuum Worker", "Query Planner"])',
+          },
+          diagramVariant: {
+            type: Type.STRING,
+            description: 'Diagram layout style for technical mechanisms: "topology" (3-node protocol flow), "stack" (3-layer architecture pipeline), "isolation" (segmented boundary/quarantine grid), or "takeaway" (principle card)',
+          },
+          diagramNodes: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                label: { type: Type.STRING, description: 'Component name e.g. "PgBouncer", "Primary DB", "Docker Daemon"' },
+                sublabel: { type: Type.STRING, description: 'Protocol, port, or spec e.g. "Port 5432", "Tx Mode"' },
+                status: { type: Type.STRING, description: 'Status pill text e.g. "POOLED", "ACTIVE", "ISOLATED"' },
+                icon: { type: Type.STRING, description: 'Lucide icon name e.g. database, server, cpu, lock' },
+              },
+              required: ['label'],
+            },
+            description: 'The 3 component cards, layers, or cells illustrating this specific slide concept. MUST be 100% relevant to the slide topic.',
+          },
+          diagramEdges: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Labels on the arrows/connectors between nodes (e.g. ["10k Conns", "64 Pooled"] or ["GET /api", "JSON Response"])',
+          },
+          diagramFooter: {
+            type: Type.STRING,
+            description: 'Bottom telemetry/summary spec bar line (e.g. "POOL MODE: TRANSACTION • LATENCY: 0.8ms P99 • MAX CLIENTS: 10,000")',
+          },
           icons: {
             type: Type.ARRAY,
             items: {
@@ -742,13 +778,18 @@ app.post('/api/generate', async (req, res) => {
 
     userPromptText += `\nFollow the MARROK copywriting formula strictly:
 - Dynamically determine slide count (5 to 9 slides): 5 slides for quick tips or single takeaways, 6-7 for technical case studies, 8-9 for deep whitepapers.
-- Slide 1 must be Archetype "hub" with centerIcon + 6 topic-specific satIcons.
+- Slide 1 must be Archetype "hub" with centerIcon, 6 topic-specific satIcons, AND satLabels (6 short technical component names directly from this topic).
 - Provide hookVariants with 3 alternatives for Slide 1 (Curiosity, Hard Metrics, Problem/Contrast).
 - Mid-deck slides must blend varied visual archetypes:
   - "metric" (Stat Hero Card with huge metricValue, metricLabel, metricDiff, and metricIcon) for benchmarks/throughput wins.
   - "code" (Terminal Window with codeFileName, codeLanguage, and syntax codeSnippet) for CLI commands, configs, or exploit proofs.
   - "compare" (Side-by-side comparison with compareLeftTitle, compareLeftBody, compareRightTitle, compareRightBody) for Old Way vs Modern Stack.
   - "row" (1 to 3 icons with micro-labels) for technical mechanisms.
+- CRITICAL GRAPHIC REQUIREMENT: Every mechanism slide ("row", etc.) MUST include:
+  * diagramVariant: 'topology' | 'stack' | 'isolation' | 'takeaway'
+  * diagramNodes: exactly 3 components specific to THIS slide and topic (label, sublabel, status, icon). E.g. for Postgres: ["Client App", "PgBouncer", "Primary DB"]; for Docker: ["Docker Client", "containerd", "Host Kernel"]. NEVER output mTLS or Envoy unless topic is explicitly Zero-Trust security!
+  * diagramEdges: 2 connector flow labels e.g. ["10k Conns", "64 Pooled"] or ["REST API", "OCI Shim"].
+  * diagramFooter: bottom telemetry line e.g. "POOL MODE: TRANSACTION • P99: 0.8ms" or "CGROUPS V2 • OVERHEAD: < 1.2%".
 - Final Slide must be Archetype "cta" with creator/brand watermark, domain question hook, DM us CTA, and bilingual attribution.
 - Return valid JSON matching the exact schema.`;
 
@@ -900,6 +941,14 @@ app.post('/api/generate', async (req, res) => {
       jsonResult.sourceMeta.isFallback = false;
       jsonResult.sourceMeta.status = 'verified_live';
       jsonResult.sourceMeta.userReviewed = true;
+      if (Array.isArray(jsonResult.slides)) {
+        jsonResult.slides = enrichCarouselDiagrams(
+          jsonResult.slides,
+          safePrompt || safeImageName,
+          jsonResult.category || '',
+          jsonResult.brand || 'MARROK'
+        );
+      }
       res.setHeader('X-Marrok-Engine', 'gemini-ai');
       return res.json(jsonResult);
     }
