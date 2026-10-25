@@ -1,4 +1,4 @@
-import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette } from '../types.ts';
+import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette, VisualSystemOptions } from '../types.ts';
 import { getIconDataUrl, getIconSvg } from './icons.ts';
 import { sanitizeArabicSlideText, sanitizeEnglishSlideText } from './textSanitizer.ts';
 import JSZip from 'jszip';
@@ -305,7 +305,8 @@ export async function renderSlideToCanvas(
   carousel: CarouselData,
   slideIndex: number,
   targetCanvas?: HTMLCanvasElement,
-  customPalette?: ThemePalette
+  customPalette?: ThemePalette,
+  visualOptions?: VisualSystemOptions
 ): Promise<HTMLCanvasElement> {
   // Ensure custom webfonts are loaded
   if (typeof document !== 'undefined' && document.fonts) {
@@ -327,6 +328,13 @@ export async function renderSlideToCanvas(
     DEFAULT_PALETTES.teal;
   const categoryTag = carousel.category || (themeMode === 'security' ? 'AI + SECURITY' : 'AI + ENGINEERING');
   const totalSlides = carousel.slides.length;
+
+  // Resolve visual system toggles (defaulting to subtle true)
+  const options: VisualSystemOptions = {
+    showCadReticles: visualOptions?.showCadReticles ?? carousel.visualOptions?.showCadReticles ?? customPalette?.showCadReticles ?? true,
+    showSparklines: visualOptions?.showSparklines ?? carousel.visualOptions?.showSparklines ?? customPalette?.showSparklines ?? true,
+    terminalScanlines: visualOptions?.terminalScanlines ?? carousel.visualOptions?.terminalScanlines ?? customPalette?.terminalScanlines ?? true,
+  };
 
   // 1. Solid Base Background
   ctx.fillStyle = theme.baseBg;
@@ -358,55 +366,57 @@ export async function renderSlideToCanvas(
   ctx.restore();
 
   // 3b. Canvas Background CAD Reticles & Safe-Zone Tick Marks ("Precision Silicon & Terminal Brutalism")
-  ctx.save();
-  ctx.strokeStyle = `${theme.accent}4D`;
-  ctx.lineWidth = 1.5;
+  if (options.showCadReticles) {
+    ctx.save();
+    ctx.strokeStyle = `${theme.accent}4D`;
+    ctx.lineWidth = 1.5;
 
-  // CAD Crosshairs (+) at key structural intersections:
-  // Top safe corners (90, 200), (945, 200)
-  // Mid-tier transitions (90, 930), (945, 930)
-  // Bottom safe boundary (90, 1720), (945, 1720)
-  const cadCrosshairPoints = [
-    { x: 90, y: 200 },
-    { x: 945, y: 200 },
-    { x: 90, y: 930 },
-    { x: 945, y: 930 },
-    { x: 90, y: 1720 },
-    { x: 945, y: 1720 },
-  ];
-  const arm = 10;
-  for (const pt of cadCrosshairPoints) {
-    ctx.beginPath();
-    ctx.moveTo(pt.x - arm, pt.y);
-    ctx.lineTo(pt.x + arm, pt.y);
-    ctx.moveTo(pt.x, pt.y - arm);
-    ctx.lineTo(pt.x, pt.y + arm);
-    ctx.stroke();
+    // CAD Crosshairs (+) at key structural intersections:
+    // Top safe corners (90, 200), (945, 200)
+    // Mid-tier transitions (90, 930), (945, 930)
+    // Bottom safe boundary (90, 1720), (945, 1720)
+    const cadCrosshairPoints = [
+      { x: 90, y: 200 },
+      { x: 945, y: 200 },
+      { x: 90, y: 930 },
+      { x: 945, y: 930 },
+      { x: 90, y: 1720 },
+      { x: 945, y: 1720 },
+    ];
+    const arm = 10;
+    for (const pt of cadCrosshairPoints) {
+      ctx.beginPath();
+      ctx.moveTo(pt.x - arm, pt.y);
+      ctx.lineTo(pt.x + arm, pt.y);
+      ctx.moveTo(pt.x, pt.y - arm);
+      ctx.lineTo(pt.x, pt.y + arm);
+      ctx.stroke();
+    }
+
+    // Safe-zone vertical coordinate tick marks (6px notch inwards along boundaries)
+    const vTickYs = [360, 520, 680, 840, 1080, 1260, 1440, 1620];
+    for (const ty of vTickYs) {
+      // Left boundary (x = 90) ticks rightward
+      ctx.beginPath();
+      ctx.moveTo(90, ty);
+      ctx.lineTo(96, ty);
+      ctx.stroke();
+
+      // Right safe boundary (x = 945) ticks leftward
+      ctx.beginPath();
+      ctx.moveTo(945, ty);
+      ctx.lineTo(939, ty);
+      ctx.stroke();
+    }
+
+    // Technical coordinate reference stamp (JetBrains Mono)
+    ctx.font = '500 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = `${theme.accent}66`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('SYS_REF // 1080x1920.CAD_SAFE', 106, 196);
+    ctx.restore();
   }
-
-  // Safe-zone vertical coordinate tick marks (6px notch inwards along boundaries)
-  const vTickYs = [360, 520, 680, 840, 1080, 1260, 1440, 1620];
-  for (const ty of vTickYs) {
-    // Left boundary (x = 90) ticks rightward
-    ctx.beginPath();
-    ctx.moveTo(90, ty);
-    ctx.lineTo(96, ty);
-    ctx.stroke();
-
-    // Right safe boundary (x = 945) ticks leftward
-    ctx.beginPath();
-    ctx.moveTo(945, ty);
-    ctx.lineTo(939, ty);
-    ctx.stroke();
-  }
-
-  // Technical coordinate reference stamp (JetBrains Mono)
-  ctx.font = '500 12px "JetBrains Mono", monospace';
-  ctx.fillStyle = `${theme.accent}66`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText('SYS_REF // 1080x1920.CAD_SAFE', 106, 196);
-  ctx.restore();
 
   // 4. Header: Top-Left Brand Logo + Accent Dot
   ctx.save();
@@ -440,7 +450,7 @@ export async function renderSlideToCanvas(
     const cy = 600;
     const r = 325;
 
-    // Outer circle
+    // 1. Outer orbital circle
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -462,14 +472,79 @@ export async function renderSlideToCanvas(
       ctx.lineWidth = 2.5;
       ctx.stroke();
     }
+
+    // Coordinate crosshairs (+) at the orbital ring tangents
+    const tangentCoords = [
+      { x: cx + r, y: cy },
+      { x: cx - r, y: cy },
+      { x: cx, y: cy + r },
+      { x: cx, y: cy - r },
+    ];
+    ctx.strokeStyle = `${theme.accent}80`;
+    ctx.lineWidth = 1.5;
+    const tArm = 8;
+    for (const tc of tangentCoords) {
+      ctx.beginPath();
+      ctx.moveTo(tc.x - tArm, tc.y);
+      ctx.lineTo(tc.x + tArm, tc.y);
+      ctx.moveTo(tc.x, tc.y - tArm);
+      ctx.lineTo(tc.x, tc.y + tArm);
+      ctx.stroke();
+    }
     ctx.restore();
 
-    // Center Hub Box: 280x280 rounded rect (radius 64) filled with accent
+    // 2. Clean concentric calibration ring around the 280x280 Center Hero Badge
+    ctx.save();
+    const calR = 192;
+    // Ambient pulse glow behind center hub
+    const centerGlow = ctx.createRadialGradient(cx, cy, 60, cx, cy, 230);
+    centerGlow.addColorStop(0, `${theme.accent}2E`);
+    centerGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = centerGlow;
+    ctx.fillRect(cx - 230, cy - 230, 460, 460);
+
+    // Inner calibration circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, calR, 0, Math.PI * 2);
+    ctx.strokeStyle = `${theme.accent}3D`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Outer segmented dashed ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, calR + 10, 0, Math.PI * 2);
+    ctx.strokeStyle = `${theme.accent}26`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 10]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 12 calibration tick marks at 30° intervals
+    ctx.strokeStyle = `${theme.accent}70`;
+    ctx.lineWidth = 1.5;
+    for (let deg = 0; deg < 360; deg += 30) {
+      const rad = (deg * Math.PI) / 180;
+      const x1 = cx + (calR - 5) * Math.cos(rad);
+      const y1 = cy + (calR - 5) * Math.sin(rad);
+      const x2 = cx + (calR + 5) * Math.cos(rad);
+      const y2 = cy + (calR + 5) * Math.sin(rad);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Center Hub Box: 280x280 rounded rect (radius 64) with restrained glow
     const centerBoxW = 280;
     const centerBoxH = 280;
     const centerBoxX = cx - centerBoxW / 2;
     const centerBoxY = cy - centerBoxH / 2;
+    ctx.save();
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 14;
     drawRoundRect(ctx, centerBoxX, centerBoxY, centerBoxW, centerBoxH, 64, theme.accent);
+    ctx.restore();
 
     // Center Hub Icon: 140x140 in icon-stroke
     const centerIconName = slide.centerIcon || 'gitMerge';
@@ -477,7 +552,7 @@ export async function renderSlideToCanvas(
     const iconSize = 140;
     drawTintedImage(ctx, centerImg, cx - iconSize / 2, cy - iconSize / 2, iconSize, iconSize, theme.iconStroke);
 
-    // 6 Satellite Boxes: 132x132 rounded rect (radius 34) at angles [-90°, -30°, 30°, 90°, 150°, 210°]
+    // 6 Satellite Badges with subtle glowing connection nodes where radial axes intersect
     const satAngles = [-90, -30, 30, 90, 150, 210];
     const satIcons = slide.satIcons || ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
     const satW = 132;
@@ -490,6 +565,29 @@ export async function renderSlideToCanvas(
         const sx = cx + r * Math.cos(rad);
         const sy = cy + r * Math.sin(rad);
 
+        // Glowing connection node at intersection
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(sx, sy, 76, 0, Math.PI * 2);
+        ctx.strokeStyle = `${theme.accent}30`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+        ctx.fillStyle = theme.accent;
+        ctx.shadowColor = theme.accent;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#081216';
+        ctx.fill();
+        ctx.restore();
+
+        // Satellite Box
         drawRoundRect(ctx, sx - satW / 2, sy - satH / 2, satW, satH, 34, theme.accent);
 
         const sIconName = satIcons[i % satIcons.length] || 'gitMerge';
@@ -669,94 +767,96 @@ export async function renderSlideToCanvas(
     ctx.restore();
 
     // 6. SVG/Canvas Acceleration Sparkline Curve & Gauge Meter directly below hero stat
-    const meterStartX = cardX + 50;
-    const meterEndX = cardX + cardW - 50;
-    const meterW = meterEndX - meterStartX;
-    const baseY = cardY + 305;
-    const peakY = cardY + 230;
+    if (options.showSparklines) {
+      const meterStartX = cardX + 50;
+      const meterEndX = cardX + cardW - 50;
+      const meterW = meterEndX - meterStartX;
+      const baseY = cardY + 305;
+      const peakY = cardY + 230;
 
-    ctx.save();
-    // Subtle gradient fill under sparkline curve
-    const curveGrad = ctx.createLinearGradient(0, peakY, 0, baseY);
-    curveGrad.addColorStop(0, `${theme.accent}26`);
-    curveGrad.addColorStop(1, `${theme.accent}00`);
+      ctx.save();
+      // Subtle gradient fill under sparkline curve
+      const curveGrad = ctx.createLinearGradient(0, peakY, 0, baseY);
+      curveGrad.addColorStop(0, `${theme.accent}26`);
+      curveGrad.addColorStop(1, `${theme.accent}00`);
 
-    ctx.beginPath();
-    ctx.moveTo(meterStartX, baseY);
-    ctx.bezierCurveTo(
-      meterStartX + meterW * 0.45,
-      baseY - 4,
-      meterStartX + meterW * 0.7,
-      peakY + 18,
-      meterEndX,
-      peakY
-    );
-    ctx.lineTo(meterEndX, baseY);
-    ctx.closePath();
-    ctx.fillStyle = curveGrad;
-    ctx.fill();
-
-    // Sparkline Stroke with restrained glow
-    ctx.beginPath();
-    ctx.moveTo(meterStartX, baseY);
-    ctx.bezierCurveTo(
-      meterStartX + meterW * 0.45,
-      baseY - 4,
-      meterStartX + meterW * 0.7,
-      peakY + 18,
-      meterEndX,
-      peakY
-    );
-    ctx.strokeStyle = theme.accent;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = theme.accent;
-    ctx.shadowBlur = 10;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.shadowColor = 'transparent';
-
-    // Focal peak node circle
-    ctx.beginPath();
-    ctx.arc(meterEndX, peakY, 6.5, 0, Math.PI * 2);
-    ctx.fillStyle = theme.accent;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(meterEndX, peakY, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#081216';
-    ctx.fill();
-
-    // Gauge Baseline Axis
-    ctx.beginPath();
-    ctx.strokeStyle = `${theme.accent}40`;
-    ctx.lineWidth = 1.5;
-    ctx.moveTo(meterStartX, baseY);
-    ctx.lineTo(meterEndX, baseY);
-    ctx.stroke();
-
-    // 11 Gauge Tick Marks (0% to 100% in 10% steps)
-    const tickCount = 11;
-    ctx.strokeStyle = `${theme.accent}55`;
-    ctx.lineWidth = 1.5;
-    for (let t = 0; t < tickCount; t++) {
-      const tx = meterStartX + (meterW / (tickCount - 1)) * t;
-      const isMajor = t === 0 || t === 5 || t === 10;
-      const tLen = isMajor ? 8 : 4;
       ctx.beginPath();
-      ctx.moveTo(tx, baseY);
-      ctx.lineTo(tx, baseY + tLen);
-      ctx.stroke();
-    }
+      ctx.moveTo(meterStartX, baseY);
+      ctx.bezierCurveTo(
+        meterStartX + meterW * 0.45,
+        baseY - 4,
+        meterStartX + meterW * 0.7,
+        peakY + 18,
+        meterEndX,
+        peakY
+      );
+      ctx.lineTo(meterEndX, baseY);
+      ctx.closePath();
+      ctx.fillStyle = curveGrad;
+      ctx.fill();
 
-    // Gauge Micro Labels
-    ctx.font = '600 12px "JetBrains Mono", monospace';
-    ctx.fillStyle = theme.textMuted;
-    ctx.textAlign = 'left';
-    ctx.fillText('BASELINE', meterStartX, baseY + 20);
-    ctx.textAlign = 'center';
-    ctx.fillText('50%', meterStartX + meterW * 0.5, baseY + 20);
-    ctx.textAlign = 'right';
-    ctx.fillText('PEAK // P99', meterEndX, baseY + 20);
-    ctx.restore();
+      // Sparkline Stroke with restrained glow
+      ctx.beginPath();
+      ctx.moveTo(meterStartX, baseY);
+      ctx.bezierCurveTo(
+        meterStartX + meterW * 0.45,
+        baseY - 4,
+        meterStartX + meterW * 0.7,
+        peakY + 18,
+        meterEndX,
+        peakY
+      );
+      ctx.strokeStyle = theme.accent;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = theme.accent;
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+
+      // Focal peak node circle
+      ctx.beginPath();
+      ctx.arc(meterEndX, peakY, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = theme.accent;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(meterEndX, peakY, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#081216';
+      ctx.fill();
+
+      // Gauge Baseline Axis
+      ctx.beginPath();
+      ctx.strokeStyle = `${theme.accent}40`;
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(meterStartX, baseY);
+      ctx.lineTo(meterEndX, baseY);
+      ctx.stroke();
+
+      // 11 Gauge Tick Marks (0% to 100% in 10% steps)
+      const tickCount = 11;
+      ctx.strokeStyle = `${theme.accent}55`;
+      ctx.lineWidth = 1.5;
+      for (let t = 0; t < tickCount; t++) {
+        const tx = meterStartX + (meterW / (tickCount - 1)) * t;
+        const isMajor = t === 0 || t === 5 || t === 10;
+        const tLen = isMajor ? 8 : 4;
+        ctx.beginPath();
+        ctx.moveTo(tx, baseY);
+        ctx.lineTo(tx, baseY + tLen);
+        ctx.stroke();
+      }
+
+      // Gauge Micro Labels
+      ctx.font = '600 12px "JetBrains Mono", monospace';
+      ctx.fillStyle = theme.textMuted;
+      ctx.textAlign = 'left';
+      ctx.fillText('BASELINE', meterStartX, baseY + 20);
+      ctx.textAlign = 'center';
+      ctx.fillText('50%', meterStartX + meterW * 0.5, baseY + 20);
+      ctx.textAlign = 'right';
+      ctx.fillText('PEAK // P99', meterEndX, baseY + 20);
+      ctx.restore();
+    }
 
     // 7. Paired Delta Pill (▲ Emerald / ▼ Crimson / Accent)
     const diffText = slide.metricDiff || '▲ Measurable architectural speedup';
@@ -821,9 +921,11 @@ export async function renderSlideToCanvas(
     ctx.clip();
 
     // Subtle CRT scanline texture (strictly 3%-5% opacity max for razor-sharp code)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
-    for (let sy = winY; sy <= winY + winH; sy += 4) {
-      ctx.fillRect(winX, sy, winW, 1.5);
+    if (options.terminalScanlines) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
+      for (let sy = winY; sy <= winY + winH; sy += 4) {
+        ctx.fillRect(winX, sy, winW, 1.5);
+      }
     }
 
     // Title Bar
@@ -1308,89 +1410,262 @@ export async function renderSlideToCanvas(
 
     textZoneStartY = 745;
   } else if (slide.type === 'cta') {
-    // Archetype 5: CTA (Slide 8 or 9)
+    // Archetype 8: Standardized Marrok Closer (Isometric Core, Domain Hook, Bilingual CTA Pill, Verified Card)
+    const emblemX = 518;
+    const emblemY = 440;
+    const calRadius = 145;
+
+    // 1. Outer 45° Calibration Ring & Cardinal CAD Reticles
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(emblemX, emblemY, calRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = `${theme.accent}35`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Outer segmented dashed ring
+    ctx.beginPath();
+    ctx.arc(emblemX, emblemY, calRadius + 10, 0, Math.PI * 2);
+    ctx.strokeStyle = `${theme.accent}22`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 8 Calibration Tick Marks at 45° intervals
+    ctx.strokeStyle = `${theme.accent}80`;
+    ctx.lineWidth = 2;
+    for (let a = 0; a < 360; a += 45) {
+      const rad = (a * Math.PI) / 180;
+      const x1 = emblemX + (calRadius - 6) * Math.cos(rad);
+      const y1 = emblemY + (calRadius - 6) * Math.sin(rad);
+      const x2 = emblemX + (calRadius + 6) * Math.cos(rad);
+      const y2 = emblemY + (calRadius + 6) * Math.sin(rad);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Outer cardinal CAD reticles (+) at 0°, 90°, 180°, 270°
+    const reticleOffset = calRadius + 18;
+    const cardAngles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+    for (const ang of cardAngles) {
+      const rx = emblemX + reticleOffset * Math.cos(ang);
+      const ry = emblemY + reticleOffset * Math.sin(ang);
+      ctx.beginPath();
+      ctx.moveTo(rx - 5, ry);
+      ctx.lineTo(rx + 5, ry);
+      ctx.moveTo(rx, ry - 5);
+      ctx.lineTo(rx, ry + 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 2. Layered Isometric Cube / Diamond Geometry
+    const cubeR = 82; // radius of isometric hexagon vertices
+    const vAngles = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, (5 * Math.PI) / 6, (-5 * Math.PI) / 6];
+    const pts = vAngles.map(ang => ({
+      x: emblemX + cubeR * Math.cos(ang),
+      y: emblemY + cubeR * Math.sin(ang),
+    }));
+
+    // Ambient glow behind cube
+    ctx.save();
+    const cubeGlow = ctx.createRadialGradient(emblemX, emblemY, 10, emblemX, emblemY, 130);
+    cubeGlow.addColorStop(0, `${theme.accent}26`);
+    cubeGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = cubeGlow;
+    ctx.fillRect(emblemX - 130, emblemY - 130, 260, 260);
+
+    // Facet 1: Top Diamond (Center -> pts[5] -> pts[0] -> pts[1] -> Center)
+    ctx.beginPath();
+    ctx.moveTo(emblemX, emblemY);
+    ctx.lineTo(pts[5].x, pts[5].y);
+    ctx.lineTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.closePath();
+    ctx.fillStyle = `${theme.accent}26`;
+    ctx.fill();
+    ctx.strokeStyle = `${theme.accent}66`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Facet 2: Left Diamond (Center -> pts[5] -> pts[4] -> pts[3] -> Center)
+    ctx.beginPath();
+    ctx.moveTo(emblemX, emblemY);
+    ctx.lineTo(pts[5].x, pts[5].y);
+    ctx.lineTo(pts[4].x, pts[4].y);
+    ctx.lineTo(pts[3].x, pts[3].y);
+    ctx.closePath();
+    ctx.fillStyle = '#0c151c';
+    ctx.fill();
+    ctx.strokeStyle = `${theme.accent}55`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Facet 3: Right Diamond (Center -> pts[1] -> pts[2] -> pts[3] -> Center)
+    ctx.beginPath();
+    ctx.moveTo(emblemX, emblemY);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.lineTo(pts[2].x, pts[2].y);
+    ctx.lineTo(pts[3].x, pts[3].y);
+    ctx.closePath();
+    ctx.fillStyle = `${theme.accent}14`;
+    ctx.fill();
+    ctx.strokeStyle = `${theme.accent}55`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Outer Hexagon Perimeter with restrained glow
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 12; // Restrained glow rule
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+
+    // 3. Central Monogram Core Badge
+    const coreR = 25;
+    ctx.beginPath();
+    ctx.arc(emblemX, emblemY, coreR, 0, Math.PI * 2);
+    ctx.fillStyle = theme.accent;
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+
+    ctx.font = '900 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#081216';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('M', emblemX, emblemY + 1);
+    ctx.restore();
+
+    // 4. Brand Wordmark & Domain Hook Badge directly below emblem
     ctx.save();
     const ctaBrand = carousel.brand || 'MARROK';
-    const brandFontSize = ctaBrand.length > 12 ? 92 : ctaBrand.length > 7 ? 116 : 146;
-    ctx.font = `800 ${brandFontSize}px "Plus Jakarta Sans", sans-serif`;
+    ctx.font = '800 56px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(ctaBrand, 518, 610);
+    ctx.fillText(ctaBrand, 518, 625);
 
-    // Accent Divider Line: 120x10 pill at (458, 655) centered at 518
-    drawRoundRect(ctx, 458, 655, 120, 10, 5, theme.accent);
+    // Accent Divider Line: 100x6 pill
+    drawRoundRect(ctx, 518 - 50, 646, 100, 6, 3, theme.accent);
 
-    // Domain Question Hook
-    ctx.font = '800 74px "Plus Jakarta Sans", sans-serif';
+    // Micro Domain Category Badge
+    const ctaCategory = (carousel.category || 'AI + SOFTWARE ARCHITECTURE').toUpperCase();
+    ctx.font = '700 16px "Plus Jakarta Sans", monospace';
+    const catMetrics = ctx.measureText(ctaCategory);
+    const catBadgeW = Math.min(catMetrics.width + 32, 600);
+    const catBadgeH = 32;
+    drawRoundRect(ctx, 518 - catBadgeW / 2, 672, catBadgeW, catBadgeH, 8, `${theme.accent}14`, `${theme.accent}45`, 1);
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ctaCategory, 518, 672 + catBadgeH / 2);
+    ctx.restore();
+
+    // 5. Domain Question Hook (starts at curY = 750)
+    ctx.save();
+    ctx.font = '800 64px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
-    const rawCtaEnTitle = slide.enTitle || (themeMode === 'security' ? 'Building secure\nsoftware?' : 'Building with AI agents\nat scale?');
+    const rawCtaEnTitle = slide.enTitle || (themeMode === 'security' ? 'Building secure software?' : 'Building with AI agents at scale?');
     const ctaEnTitle = sanitizeEnglishSlideText(rawCtaEnTitle, { isTitle: true });
     const enCtaLines = wrapTextLines(ctx, ctaEnTitle, 850);
-    let curY = 795;
+    let curY = 755;
     for (const line of enCtaLines) {
       ctx.fillText(line, 518, curY);
-      curY += 86;
+      curY += 76;
     }
 
-    curY += 12;
-    ctx.font = '800 70px "Cairo", sans-serif';
+    curY += 8;
+    ctx.font = '800 60px "Cairo", sans-serif';
     ctx.fillStyle = theme.accent;
     ctx.direction = 'rtl';
-    const rawCtaArTitle = slide.arTitle || (themeMode === 'security' ? 'تبني برمجيات\nآمنة؟' : 'تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟');
+    const rawCtaArTitle = slide.arTitle || (themeMode === 'security' ? 'تبني برمجيات آمنة؟' : 'تبني بوكلاء الذكاء الاصطناعي؟');
     const ctaArTitle = sanitizeArabicSlideText(rawCtaArTitle, { isTitle: true });
     const arCtaLines = wrapTextLines(ctx, ctaArTitle, 850);
     for (const line of arCtaLines) {
       ctx.fillText(line, 518, curY);
-      curY += 88;
+      curY += 78;
     }
     ctx.restore();
 
-    // CTA Pill Button: 656x118, radius 59 centered at 518
+    // 6. High-Contrast Bilingual CTA Pill Button (at y = 1380)
     const pillW = 656;
-    const pillH = 118;
+    const pillH = 110;
     const pillX = 518 - pillW / 2;
-    const pillY = 1390;
-    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 59, theme.accent);
+    const pillY = 1380;
+    ctx.save();
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 14;
+    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 55, theme.accent);
+    ctx.restore();
 
     ctx.save();
-    ctx.font = '800 42px "Cairo", "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#11131A';
+    ctx.font = '800 40px "Cairo", "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#081216';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 518, pillY + pillH / 2);
     ctx.restore();
 
-    // Website URL: dynamic brandUrl or slide url or marrok.org centered at 518
+    // 7. Verified marrok.org Attribution Card (Safe from bottom y <= 1840)
     const displayUrl = carousel.brandUrl || slide.url || 'marrok.org';
     ctx.save();
-    ctx.font = '400 42px "Plus Jakarta Sans", sans-serif';
+    ctx.font = '600 36px "JetBrains Mono", monospace';
     ctx.fillStyle = '#E2E8EC';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(displayUrl, 518, pillY + pillH + 112);
+    ctx.fillText(displayUrl, 518, pillY + pillH + 75);
     ctx.restore();
 
-    // Bilingual Source Attribution Footer (centered at 518 within safe bounds)
-    if (slide.enCredit) {
-      ctx.save();
-      ctx.font = '400 25px "Plus Jakarta Sans", sans-serif';
-      ctx.fillStyle = theme.textMuted;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(slide.enCredit, 518, 1715);
-      ctx.restore();
-    }
-    if (slide.arCredit) {
-      ctx.save();
-      ctx.font = '400 25px "Cairo", sans-serif';
-      ctx.fillStyle = theme.textMuted;
-      ctx.textAlign = 'center';
-      ctx.direction = 'rtl';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(slide.arCredit, 518, 1755);
-      ctx.restore();
+    // Bilingual Source Attribution Card container (y = 1595 to 1705)
+    if (slide.enCredit || slide.arCredit) {
+      const cardW = 780;
+      const cardH = 96;
+      const cardX = 518 - cardW / 2;
+      const cardY = 1595;
+      drawRoundRect(ctx, cardX, cardY, cardW, cardH, 20, `${theme.surface}99`, theme.surfaceBorder, 1.5);
+
+      // Verified shield icon badge
+      const sBadgeSize = 44;
+      const sBadgeX = cardX + 24;
+      const sBadgeY = cardY + (cardH - sBadgeSize) / 2;
+      drawRoundRect(ctx, sBadgeX, sBadgeY, sBadgeSize, sBadgeSize, 12, `${theme.accent}20`, `${theme.accent}55`, 1);
+      const shieldImg = await loadIconImage('shieldAlert', theme.accent);
+      safeDrawImage(ctx, shieldImg, sBadgeX + 10, sBadgeY + 10, 24, 24);
+
+      if (slide.enCredit) {
+        ctx.save();
+        ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = theme.textMuted;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(slide.enCredit, sBadgeX + sBadgeSize + 18, cardY + 42);
+        ctx.restore();
+      }
+      if (slide.arCredit) {
+        ctx.save();
+        ctx.font = '500 22px "Cairo", sans-serif';
+        ctx.fillStyle = theme.textMuted;
+        ctx.textAlign = 'left';
+        ctx.direction = 'rtl';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(slide.arCredit, sBadgeX + sBadgeSize + 18, cardY + 76);
+        ctx.restore();
+      }
     }
   }
 
@@ -1502,9 +1777,10 @@ export async function renderSlideToCanvas(
 export async function copySlideToClipboard(
   carousel: CarouselData,
   slideIndex: number,
-  customPalette?: ThemePalette
+  customPalette?: ThemePalette,
+  visualOptions?: VisualSystemOptions
 ): Promise<void> {
-  const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette);
+  const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette, visualOptions);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(async (blob) => {
@@ -1519,12 +1795,12 @@ export async function copySlideToClipboard(
           resolve();
         } else {
           // Fallback: download if clipboard API image/png not permitted
-          downloadSingleSlidePng(carousel, slideIndex, undefined, customPalette);
+          downloadSingleSlidePng(carousel, slideIndex, undefined, customPalette, visualOptions);
           resolve();
         }
       } catch (err) {
         console.warn('Clipboard write failed, triggering single download fallback:', err);
-        downloadSingleSlidePng(carousel, slideIndex, undefined, customPalette);
+        downloadSingleSlidePng(carousel, slideIndex, undefined, customPalette, visualOptions);
         resolve();
       }
     }, 'image/png');
@@ -1537,9 +1813,10 @@ export async function copySlideToClipboard(
 export async function shareSlide(
   carousel: CarouselData,
   slideIndex: number,
-  customPalette?: ThemePalette
+  customPalette?: ThemePalette,
+  visualOptions?: VisualSystemOptions
 ): Promise<boolean> {
-  const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette);
+  const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette, visualOptions);
 
   return new Promise((resolve) => {
     canvas.toBlob(async (blob) => {
@@ -1574,9 +1851,10 @@ export async function downloadSingleSlidePng(
   carousel: CarouselData,
   slideIndex: number,
   filename?: string,
-  customPalette?: ThemePalette
+  customPalette?: ThemePalette,
+  visualOptions?: VisualSystemOptions
 ): Promise<void> {
-  const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette);
+  const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette, visualOptions);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
   const a = document.createElement('a');
   a.href = dataUrl;
@@ -1593,7 +1871,8 @@ export async function downloadSingleSlidePng(
 export async function downloadAllSlidesZip(
   carousel: CarouselData,
   customPalette?: ThemePalette,
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
+  visualOptions?: VisualSystemOptions
 ): Promise<void> {
   const zip = new JSZip();
   const folder = zip.folder(`MARROK_Carousel_${carousel.theme}`);
@@ -1601,7 +1880,7 @@ export async function downloadAllSlidesZip(
 
   for (let i = 0; i < total; i++) {
     if (onProgress) onProgress(i + 1, total);
-    const canvas = await renderSlideToCanvas(carousel, i, undefined, customPalette);
+    const canvas = await renderSlideToCanvas(carousel, i, undefined, customPalette, visualOptions);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
     const base64 = dataUrl.split(',')[1];
     folder?.file(`slide${i + 1}.jpg`, base64, { base64: true });
@@ -1723,7 +2002,8 @@ HOW TO PUBLISH TO TIKTOK:
 export async function downloadContactSheetJpg(
   carousel: CarouselData,
   customPalette?: ThemePalette,
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
+  visualOptions?: VisualSystemOptions
 ): Promise<void> {
   const total = carousel.slides.length;
   const cols = total <= 4 ? total : total <= 8 ? 4 : 5;
@@ -1770,7 +2050,7 @@ export async function downloadContactSheetJpg(
     const x = pad + c * (sW + gap);
     const y = pad + headerH + r * (sH + gap);
 
-    const slideCanvas = await renderSlideToCanvas(carousel, i, undefined, customPalette);
+    const slideCanvas = await renderSlideToCanvas(carousel, i, undefined, customPalette, visualOptions);
     mctx.drawImage(slideCanvas, 0, 0, 1080, 1920, x, y, sW, sH);
 
     // Slide border & index tag

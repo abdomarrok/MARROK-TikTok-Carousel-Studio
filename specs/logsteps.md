@@ -347,3 +347,33 @@ This document records the chronological development history, engineering decisio
   - Verified QA check pipeline with zero failures (`runQAChecks`).
   - Visually inspected in browser subagent across hub, metric, code, and compare slides.
 
+
+## Step 18: Phase 3 Geometric Refinements (Hub & CTA) and Visual Customizer Toggles
+- **Context & Design Philosophy:**
+  - Completed Phase 3 of the visual graphics system: Archetype 1 (`hub`) calibration geometry, Archetype 8 (`cta`) standardized Marrok closer, and user-facing toggles in `ThemeCustomizer.tsx`.
+  - Followed strict engineering constraints:
+    1. Precision Silicon & Terminal Brutalism: OLED surfaces, crisp 1px–2px borders, restrained glow (8px–16px max on active badges/nodes; strictly 0px on text and code).
+    2. Safe-zone compliance: Enforced right margin clearance $\ge 135\text{px}$ ($x \le 945$) and bottom TikTok overlay limit ($y \le 1840$).
+    3. Coaxial symmetry: Aligned all CTA components (isometric diamond, brand wordmark, domain category pill, bilingual question hook, CTA button, and verified attribution card) at $x = 518$.
+- **Engineering Solutions Implemented:**
+  1. **Archetype 1 (`hub` — Slide 1 Hook):**
+     - Tangent Coordinate Crosshairs (`+`): Added 4 tangent coordinate reticles at the orbital ring perimeter $(cx \pm r, cy)$ and $(cx, cy \pm r)$ with 8px arm lengths in `${theme.accent}80`.
+     - Concentric Calibration Ring: Added inner solid calibration circle ($r = 192$, lineWidth 1.5), outer segmented dashed ring ($r = 202$, dash pattern `[4, 10]`), ambient pulse glow, and 12 radial ticks at $30^\circ$ increments around the 280×280 Center Hero Badge.
+     - Glowing Connection Nodes: Added 76px perimeter connection rings and 10px glowing neon accent nodes (with 10px blur and dark core) where the radial axes intersect the 6 satellite badges.
+  2. **Archetype 8 (`cta` — Standardized Marrok Closer):**
+     - Outer $45^\circ$ Calibration Ring & CAD Reticles: 145px radius ring with dashed outer track, 8 tick marks at $45^\circ$ increments, and 4 cardinal CAD crosshairs (`+`) at $0^\circ, 90^\circ, 180^\circ, 270^\circ$.
+     - Layered Isometric Cube / Diamond Geometry: 3-facet shaded isometric cube at $(518, 440)$ with top diamond (`${theme.accent}26` fill), left diamond (#0c151c dark fill), right diamond (`${theme.accent}14` fill), glowing outer hexagonal perimeter (12px blur), and central neon core badge with bold `M` monogram.
+     - Standardized Closer Architecture:
+       - Bold `MARROK` brand wordmark (56px) and 100×6 accent divider pill.
+       - Domain Category Tag (`[ AI + SOFTWARE ARCHITECTURE ]` or custom category) in JetBrains Mono.
+       - Domain Question Hook with safe line wrapping centered at $x = 518$.
+       - High-Contrast Bilingual CTA Pill: 656×110 pill button at $y = 1380$ with 14px restrained glow (`[ DM us  •  رسالة خاصة ]`).
+       - Verified Attribution Card: $780 \times 96$ card at $y = 1595 \to 1691$ with verified shield icon, brand URL (`marrok.org`), and bilingual credits. All elements strictly clear of bottom ($y \le 1840$) and right ($x \le 945$).
+  3. **Theme & Visual Graphics Studio Toggles (`ThemeCustomizer.tsx` + `types.ts` + `canvasExporter.ts`):**
+     - Defined `VisualSystemOptions` in `src/types.ts` (`showCadReticles`, `showSparklines`, `terminalScanlines`).
+     - Added dedicated 3rd tab `Visual Graphics Toggles` in `ThemeCustomizer.tsx` with interactive iOS-style toggle switches, safe-zone tags, and instant reactive toasts.
+     - Wired toggles through `renderSlideToCanvas` in `canvasExporter.ts` with graceful fallback to `carousel.visualOptions`, `customPalette`, and defaulting to `true`.
+- **Verification:**
+  - Type-checked cleanly with zero errors (`npm run lint`).
+  - Production build compiled successfully (`npm run build`).
+  - Interactive browser testing executed via `browser_subagent`: verified Hub calibration geometry, CTA isometric emblem, and customizer toggle reactivity with saved visual artifacts.

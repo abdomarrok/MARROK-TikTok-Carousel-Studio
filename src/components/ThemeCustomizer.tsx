@@ -17,7 +17,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
   onClose,
   onShowToast,
 }) => {
-  const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
+  const [activeTab, setActiveTab] = useState<'presets' | 'custom' | 'visual'>('presets');
   const [customColors, setCustomColors] = useState<ThemePalette>(currentPalette);
 
   if (!isOpen) return null;
@@ -25,8 +25,15 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
   const handlePresetSelect = (presetKey: string) => {
     const selected = DEFAULT_PALETTES[presetKey];
     if (selected) {
-      setCustomColors(selected);
-      onSelectPalette(selected);
+      // Preserve visual toggle settings when switching presets
+      const withToggles: ThemePalette = {
+        ...selected,
+        showCadReticles: customColors.showCadReticles ?? true,
+        showSparklines: customColors.showSparklines ?? true,
+        terminalScanlines: customColors.terminalScanlines ?? true,
+      };
+      setCustomColors(withToggles);
+      onSelectPalette(withToggles);
       onShowToast(`Applied ${selected.name}`);
     }
   };
@@ -58,6 +65,24 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
     onSelectPalette(updated);
   };
 
+  const handleToggleVisual = (key: 'showCadReticles' | 'showSparklines' | 'terminalScanlines') => {
+    const currentVal = customColors[key] ?? true;
+    const updatedVal = !currentVal;
+    const updated: ThemePalette = {
+      ...customColors,
+      [key]: updatedVal,
+    };
+    setCustomColors(updated);
+    onSelectPalette(updated);
+    const label =
+      key === 'showCadReticles'
+        ? 'CAD Reticles'
+        : key === 'showSparklines'
+        ? 'Sparklines & Gauge Meter'
+        : 'Terminal Scanlines';
+    onShowToast(`${label} ${updatedVal ? 'enabled' : 'hidden'}`);
+  };
+
   const handleReset = () => {
     const defaultTeal = DEFAULT_PALETTES.teal;
     setCustomColors(defaultTeal);
@@ -83,10 +108,10 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                Theme & Color Palette Studio
+                Theme & Visual Graphics Studio
               </h2>
               <p className="text-xs text-[#8E989E]">
-                Customize canvas background, card surfaces, neon accents, and text colors
+                Customize palettes, OLED surfaces, CAD reticles, sparklines, and terminal textures
               </p>
             </div>
           </div>
@@ -99,10 +124,10 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-[#1E2833] bg-[#0c1318] px-6 pt-3">
+        <div className="flex border-b border-[#1E2833] bg-[#0c1318] px-6 pt-3 overflow-x-auto">
           <button
             onClick={() => setActiveTab('presets')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 -mb-[2px] ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 -mb-[2px] whitespace-nowrap ${
               activeTab === 'presets'
                 ? 'text-[#37E2C0] border-[#37E2C0] bg-[#121c22]'
                 : 'text-[#8E989E] border-transparent hover:text-white'
@@ -113,20 +138,121 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('custom')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 -mb-[2px] ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 -mb-[2px] whitespace-nowrap ${
               activeTab === 'custom'
                 ? 'text-[#37E2C0] border-[#37E2C0] bg-[#121c22]'
                 : 'text-[#8E989E] border-transparent hover:text-white'
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
-            Full Custom Palette Picker
+            Full Custom Palette
+          </button>
+          <button
+            onClick={() => setActiveTab('visual')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 -mb-[2px] whitespace-nowrap ${
+              activeTab === 'visual'
+                ? 'text-[#37E2C0] border-[#37E2C0] bg-[#121c22]'
+                : 'text-[#8E989E] border-transparent hover:text-white'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Visual Graphics Toggles
           </button>
         </div>
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === 'presets' ? (
+          {activeTab === 'visual' ? (
+            <div className="space-y-4">
+              <div className="p-3 bg-[#121c22] border border-[#1e2d36] rounded-xl flex items-center justify-between text-xs text-[#8E989E]">
+                <span>Toggle architectural visual layers on the 1080×1920 canvas. Defaults to subtle precision brutalism.</span>
+              </div>
+
+              {/* 1. CAD Reticles Toggle */}
+              <div className="p-4 bg-[#0e161c] border border-[#1E2833] rounded-xl flex items-center justify-between">
+                <div className="pr-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-white">CAD Corner Reticles & Coordinate Ticks</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#37E2C0]/15 text-[#37E2C0] font-semibold">
+                      SAFE ZONE
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8E989E]">
+                    Displays subtle corner crosshairs (+) and safe boundary tick marks along 1080×1920 viewport edges.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleVisual('showCadReticles')}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 flex-shrink-0 ${
+                    (customColors.showCadReticles ?? true) ? 'bg-[#37E2C0]' : 'bg-[#1E2833]'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-[#081216] transition-transform ${
+                      (customColors.showCadReticles ?? true) ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* 2. Sparklines & Gauge Toggle */}
+              <div className="p-4 bg-[#0e161c] border border-[#1E2833] rounded-xl flex items-center justify-between">
+                <div className="pr-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-white">Acceleration Sparkline & Gauge Meter</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#37E2C0]/15 text-[#37E2C0] font-semibold">
+                      ARCHETYPE 3
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8E989E]">
+                    Renders the acceleration bezier curve and 11-point tick meter directly below the hero stat on Metric slides.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleVisual('showSparklines')}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 flex-shrink-0 ${
+                    (customColors.showSparklines ?? true) ? 'bg-[#37E2C0]' : 'bg-[#1E2833]'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-[#081216] transition-transform ${
+                      (customColors.showSparklines ?? true) ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* 3. Terminal CRT Scanlines Toggle */}
+              <div className="p-4 bg-[#0e161c] border border-[#1E2833] rounded-xl flex items-center justify-between">
+                <div className="pr-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-white">Terminal CRT Scanline Texture</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#37E2C0]/15 text-[#37E2C0] font-semibold">
+                      ARCHETYPE 4
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#8E989E]">
+                    Applies subtle 3.5% scanline CRT texture inside the code terminal window while preserving razor-sharp typography.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleVisual('terminalScanlines')}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 flex-shrink-0 ${
+                    (customColors.terminalScanlines ?? true) ? 'bg-[#37E2C0]' : 'bg-[#1E2833]'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-[#081216] transition-transform ${
+                      (customColors.terminalScanlines ?? true) ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          ) : activeTab === 'presets' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {Object.entries(DEFAULT_PALETTES).map(([key, pal]) => {
                 const isSelected = currentPalette.id === pal.id;

@@ -67,6 +67,11 @@ export default function App() {
     setCarousel((prev) => ({
       ...prev,
       theme: palette.id,
+      visualOptions: {
+        showCadReticles: palette.showCadReticles ?? prev.visualOptions?.showCadReticles ?? true,
+        showSparklines: palette.showSparklines ?? prev.visualOptions?.showSparklines ?? true,
+        terminalScanlines: palette.terminalScanlines ?? prev.visualOptions?.terminalScanlines ?? true,
+      },
     }));
   };
 

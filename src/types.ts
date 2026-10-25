@@ -113,6 +113,13 @@ export interface CarouselData {
   captionVariants?: CaptionVariant[];
   hookVariants?: HookVariant[];
   slides: SlideData[];
+  visualOptions?: VisualSystemOptions; // Phase 1-3 visual graphics system toggles
+}
+
+export interface VisualSystemOptions {
+  showCadReticles?: boolean;   // Corner CAD crosshairs (+) and boundary ticks (default true)
+  showSparklines?: boolean;    // Acceleration sparkline curve & gauge meter on metric slides (default true)
+  terminalScanlines?: boolean; // Subtle 3.5% CRT scanline grid on code terminal slides (default true)
 }
 
 export interface ThemePalette {
@@ -132,6 +139,10 @@ export interface ThemePalette {
   microLabel: string;     // Micro card labels
   categoryTag: string;    // Category badge color
   textMuted: string;      // Footer and secondary metadata
+  // Visual graphics system toggles
+  showCadReticles?: boolean;
+  showSparklines?: boolean;
+  terminalScanlines?: boolean;
 }
 
 export type ThemeConfig = ThemePalette;
