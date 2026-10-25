@@ -305,3 +305,45 @@ This document records the chronological development history, engineering decisio
      - In `wrapTextLines()`, bound chunks with `\u00A0` that exceed `maxWidth` are unbound back to spaces so they wrap naturally. Single oversized tokens are chunked to guarantee zero canvas line overflow.
      - Stripped `\u00A0` from `caption.txt`, `claims_citations.txt`, `first_comment.txt`, `short_caption.txt`, and clipboard copies.
 
+---
+
+## Step 17: Implementation of Phase 1 & Phase 2 Graphics Visual System & Arabic RTL Safe Zone
+- **Context & Design Philosophy:**
+  - Implemented the "Precision Silicon & Terminal Brutalism" visual system outlined in `graphics_visual_system_plan.md`.
+  - Followed strict engineering rules:
+    1. Sleek, sharp, minimal dark aesthetic using OLED palettes (`teal`, `cyber`, `violet`, `blueprint`, `monochrome`, etc.), crisp 1px–2px borders, and CAD reticles.
+    2. Restrained Glow Rule: Tight `shadowBlur` (8px–16px max on active nodes, badges, and borders; strictly 0px blur on text and code) to prevent mobile compression blur.
+    3. Terminal Crispness: Subtle 3.5% opacity CRT scanline texture in the code archetype so monospace text remains razor-sharp.
+    4. Strict Safe-Zone Rule for Arabic RTL & Typography ($y: 960 \to 1650$): Enforced a right safe margin of at least 135px ($x \le 945$) to guarantee Arabic RTL subtitles, body copy, and punctuation never collide with TikTok's native sidebar action buttons (Like, Comment, Bookmark).
+- **Engineering Solutions Implemented in `src/lib/canvasExporter.ts`:**
+  1. **Canvas Background CAD Reticles & Tick Marks:**
+     - Corner CAD crosshairs (`+`) rendered at structural safe boundaries: $(90, 200)$, $(945, 200)$, $(90, 930)$, $(945, 930)$, $(90, 1720)$, $(945, 1720)$.
+     - Vertical tick marks (6px notch inwards) at key vertical intervals along $x = 90$ and $x = 945$.
+     - Added `SYS_REF // 1080x1920.CAD_SAFE` coordinate reference stamp in JetBrains Mono.
+     - Top-right Category Tag aligned with the right safe CAD boundary at $x = 945$.
+  2. **Archetype 3 (`metric`) — Acceleration Sparkline & Gauge Meter:**
+     - Giant hero stat rendered with restrained 12px blur, with zero blur on surrounding typography.
+     - Exponential bezier sparkline curve with gradient area fill under the curve, accent stroke, and focal peak node.
+     - Gauge baseline axis line with 11 tick marks (0% to 100%) and `BASELINE`, `50%`, `PEAK // P99` micro-labels.
+     - Paired delta pill dynamically styled in Matrix emerald (`#10B981`) for speedups/latency drops, Threat crimson (`#F43F5E`) for bottlenecks/exploit regressions, or theme accent.
+  3. **Archetype 4 (`code`) — Precision Terminal Window & Diff Highlights:**
+     - macOS window title bar with traffic dots, centered file name, and top-right syntax language badge (`BASH`, `RUST`, `TS`, `SQL`, `YAML`).
+     - Clipped interior with subtle 3.5% opacity CRT scanline texture (`rgba(255, 255, 255, 0.035)`).
+     - Muted left-gutter line numbers ($w = 64\text{px}$) with gutter divider line.
+     - Line-level diff highlights: `rgba(16, 185, 129, 0.12)` for `+`/`✔` additions, `rgba(244, 63, 94, 0.12)` for `-`/`✖` deletions, and `${theme.accent}0A` for `$` commands.
+  4. **Archetype 5 (`compare`) — Dual Split Contrast Tinting & 48px `VS` Badge:**
+     - Left Card (`BEFORE · LEGACY`): Elevated dark surface with 10% crimson contrast tint (`rgba(244, 63, 94, 0.08)` fill, `rgba(244, 63, 94, 0.40)` border, 2.5px top crimson line), header badge with red `xCircle`, and red `✖` bullets.
+     - Right Card (`AFTER · OPTIMIZED`): Elevated dark surface with theme accent contrast tint (`${theme.accent}12` fill, `${theme.accent}65` border, 2.5px top neon line), header badge with neon `checkCircle`, and emerald `✔` bullets.
+     - Midpoint ($x = 540$) centered 48px circular `VS` badge with horizontal bridge line, dark OLED fill, outer glowing ring (12px blur), and crisp monospace `VS` lettering (0px text blur).
+  5. **Arabic RTL & Typography Safe-Zone Enforcement ($x \le 945$):**
+     - Typography Tier centered at $x = 518$ (midpoint of $x = 90$ and $x = 945$).
+     - Title max wrap width set to $850\text{px}$ (bounds: $x = 93 \to 943\text{px}$).
+     - Body copy max wrap width set to $820\text{px}$ (bounds: $x = 108 \to 928\text{px}$).
+     - CTA buttons, divider lines, and attribution footers centered at $x = 518$.
+     - Guarantees complete clearance from TikTok native right-side action icons ($x = 940 \to 1080$ for $y \ge 900$).
+- **Verification:**
+  - Type-checked with zero errors (`npm run lint`).
+  - Production build compiled successfully (`npm run build`).
+  - Verified QA check pipeline with zero failures (`runQAChecks`).
+  - Visually inspected in browser subagent across hub, metric, code, and compare slides.
+

@@ -357,6 +357,57 @@ export async function renderSlideToCanvas(
   }
   ctx.restore();
 
+  // 3b. Canvas Background CAD Reticles & Safe-Zone Tick Marks ("Precision Silicon & Terminal Brutalism")
+  ctx.save();
+  ctx.strokeStyle = `${theme.accent}4D`;
+  ctx.lineWidth = 1.5;
+
+  // CAD Crosshairs (+) at key structural intersections:
+  // Top safe corners (90, 200), (945, 200)
+  // Mid-tier transitions (90, 930), (945, 930)
+  // Bottom safe boundary (90, 1720), (945, 1720)
+  const cadCrosshairPoints = [
+    { x: 90, y: 200 },
+    { x: 945, y: 200 },
+    { x: 90, y: 930 },
+    { x: 945, y: 930 },
+    { x: 90, y: 1720 },
+    { x: 945, y: 1720 },
+  ];
+  const arm = 10;
+  for (const pt of cadCrosshairPoints) {
+    ctx.beginPath();
+    ctx.moveTo(pt.x - arm, pt.y);
+    ctx.lineTo(pt.x + arm, pt.y);
+    ctx.moveTo(pt.x, pt.y - arm);
+    ctx.lineTo(pt.x, pt.y + arm);
+    ctx.stroke();
+  }
+
+  // Safe-zone vertical coordinate tick marks (6px notch inwards along boundaries)
+  const vTickYs = [360, 520, 680, 840, 1080, 1260, 1440, 1620];
+  for (const ty of vTickYs) {
+    // Left boundary (x = 90) ticks rightward
+    ctx.beginPath();
+    ctx.moveTo(90, ty);
+    ctx.lineTo(96, ty);
+    ctx.stroke();
+
+    // Right safe boundary (x = 945) ticks leftward
+    ctx.beginPath();
+    ctx.moveTo(945, ty);
+    ctx.lineTo(939, ty);
+    ctx.stroke();
+  }
+
+  // Technical coordinate reference stamp (JetBrains Mono)
+  ctx.font = '500 12px "JetBrains Mono", monospace';
+  ctx.fillStyle = `${theme.accent}66`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('SYS_REF // 1080x1920.CAD_SAFE', 106, 196);
+  ctx.restore();
+
   // 4. Header: Top-Left Brand Logo + Accent Dot
   ctx.save();
   ctx.font = '800 40px "Plus Jakarta Sans", sans-serif';
@@ -373,11 +424,11 @@ export async function renderSlideToCanvas(
   ctx.fillStyle = theme.accent;
   ctx.fill();
 
-  // Top-Right Category Tag
-  ctx.font = '400 31px "Plus Jakarta Sans", sans-serif';
+  // Top-Right Category Tag (aligned to right safe CAD boundary x = 945)
+  ctx.font = '400 30px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = theme.categoryTag;
   ctx.textAlign = 'right';
-  ctx.fillText(categoryTag, 998, 140);
+  ctx.fillText(categoryTag, 945, 140);
   ctx.restore();
 
   // 5. Render Archetype Specific Graphics & Layouts
@@ -544,147 +595,357 @@ export async function renderSlideToCanvas(
 
     textZoneStartY = 660;
   } else if (slide.type === 'metric') {
-    // Archetype: Metric Card (Benchmark, Speedup, Resource ROI)
-    const cardX = 110;
+    // Archetype 3: Metric Card (Benchmark, Speedup, Resource ROI)
+    const cardX = 100;
     const cardY = 240;
-    const cardW = 860;
-    const cardH = 390;
-    const radius = 44;
+    const cardW = 880;
+    const cardH = 430;
+    const radius = 32;
 
-    // Card background & subtle border
-    drawRoundRect(ctx, cardX, cardY, cardW, cardH, radius, theme.surface, theme.surfaceBorder, 2.5);
+    // 1. Soft ambient glow behind metric card (restrained: 12px blur max)
+    ctx.save();
+    const metricGlow = ctx.createRadialGradient(
+      cardX + cardW / 2,
+      cardY + cardH / 2,
+      30,
+      cardX + cardW / 2,
+      cardY + cardH / 2,
+      cardW / 1.8
+    );
+    metricGlow.addColorStop(0, `${theme.accent}1A`);
+    metricGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = metricGlow;
+    ctx.fillRect(cardX - 30, cardY - 30, cardW + 60, cardH + 60);
+    ctx.restore();
 
-    // Accent line at top inside border
+    // 2. Card background & crisp 2px border
+    drawRoundRect(ctx, cardX, cardY, cardW, cardH, radius, theme.surface, theme.surfaceBorder, 2);
+
+    // 3. Top accent neon line along upper card border
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = theme.accent;
-    ctx.lineWidth = 3;
-    ctx.arc(cardX + radius, cardY + radius, radius, Math.PI, 1.5 * Math.PI);
-    ctx.lineTo(cardX + cardW - radius, cardY);
-    ctx.arc(cardX + cardW - radius, cardY + radius, radius, 1.5 * Math.PI, 2 * Math.PI);
+    ctx.lineWidth = 2.5;
+    ctx.moveTo(cardX + radius + 10, cardY);
+    ctx.lineTo(cardX + cardW - radius - 10, cardY);
     ctx.stroke();
     ctx.restore();
 
-    // Top Row: Icon badge + Metric Label
-    const iconBadgeSize = 64;
-    const iconBadgeX = cardX + 44;
-    const iconBadgeY = cardY + 36;
-    drawRoundRect(ctx, iconBadgeX, iconBadgeY, iconBadgeSize, iconBadgeSize, 18, theme.accent);
+    // 4. Header Row: Metric Icon Badge + Category Label
+    const iconBadgeSize = 48;
+    const iconBadgeX = cardX + 36;
+    const iconBadgeY = cardY + 28;
+    drawRoundRect(ctx, iconBadgeX, iconBadgeY, iconBadgeSize, iconBadgeSize, 14, `${theme.accent}22`, `${theme.accent}55`, 1.5);
 
     const mIcon = slide.metricIcon || 'zap';
-    const iconImg = await loadIconImage(mIcon, theme.iconStroke);
-    drawTintedImage(ctx, iconImg, iconBadgeX + 14, iconBadgeY + 14, 36, 36, theme.iconStroke);
+    const iconImg = await loadIconImage(mIcon, theme.accent);
+    drawTintedImage(ctx, iconImg, iconBadgeX + 10, iconBadgeY + 10, 28, 28, theme.accent);
 
     const metricLabel = (slide.metricLabel || 'KEY PERFORMANCE METRIC').toUpperCase();
     ctx.save();
-    ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
+    ctx.font = '700 20px "Plus Jakarta Sans", monospace';
     ctx.fillStyle = theme.microLabel;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(metricLabel, iconBadgeX + iconBadgeSize + 20, iconBadgeY + iconBadgeSize / 2);
+    ctx.letterSpacing = '1px';
+    ctx.fillText(metricLabel, iconBadgeX + iconBadgeSize + 16, iconBadgeY + iconBadgeSize / 2);
     ctx.restore();
 
-    // Giant Hero Metric Value (center of card)
+    // 5. Giant Hero Metric Value with restrained glow (0px text blur rule)
     const metricVal = slide.metricValue || '10x';
     ctx.save();
-    const valFontSize = metricVal.length > 8 ? 96 : metricVal.length > 5 ? 116 : 138;
+    const valFontSize = metricVal.length > 8 ? 86 : metricVal.length > 5 ? 104 : 124;
     ctx.font = `900 ${valFontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = theme.textWhite;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(metricVal, 540, cardY + 230);
+    ctx.shadowColor = `${theme.accent}50`;
+    ctx.shadowBlur = 12; // Restrained glow: 8-16px max
+    const heroY = cardY + 175;
+    ctx.fillText(metricVal, 540, heroY);
+    // Explicitly reset shadowBlur to 0
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
     ctx.restore();
 
-    // Metric Improvement / Delta Pill
-    const diffText = slide.metricDiff || '▲ Measurable architectural speedup';
-    ctx.save();
-    ctx.font = '600 26px "Plus Jakarta Sans", monospace';
-    const diffMetrics = ctx.measureText(diffText);
-    const pillW = Math.min(diffMetrics.width + 56, 760);
-    const pillH = 50;
-    const pillX = 540 - pillW / 2;
-    const pillY = cardY + cardH - 80;
-    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 25, `${theme.accent}20`, `${theme.accent}60`, 2);
+    // 6. SVG/Canvas Acceleration Sparkline Curve & Gauge Meter directly below hero stat
+    const meterStartX = cardX + 50;
+    const meterEndX = cardX + cardW - 50;
+    const meterW = meterEndX - meterStartX;
+    const baseY = cardY + 305;
+    const peakY = cardY + 230;
 
+    ctx.save();
+    // Subtle gradient fill under sparkline curve
+    const curveGrad = ctx.createLinearGradient(0, peakY, 0, baseY);
+    curveGrad.addColorStop(0, `${theme.accent}26`);
+    curveGrad.addColorStop(1, `${theme.accent}00`);
+
+    ctx.beginPath();
+    ctx.moveTo(meterStartX, baseY);
+    ctx.bezierCurveTo(
+      meterStartX + meterW * 0.45,
+      baseY - 4,
+      meterStartX + meterW * 0.7,
+      peakY + 18,
+      meterEndX,
+      peakY
+    );
+    ctx.lineTo(meterEndX, baseY);
+    ctx.closePath();
+    ctx.fillStyle = curveGrad;
+    ctx.fill();
+
+    // Sparkline Stroke with restrained glow
+    ctx.beginPath();
+    ctx.moveTo(meterStartX, baseY);
+    ctx.bezierCurveTo(
+      meterStartX + meterW * 0.45,
+      baseY - 4,
+      meterStartX + meterW * 0.7,
+      peakY + 18,
+      meterEndX,
+      peakY
+    );
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+
+    // Focal peak node circle
+    ctx.beginPath();
+    ctx.arc(meterEndX, peakY, 6.5, 0, Math.PI * 2);
     ctx.fillStyle = theme.accent;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(meterEndX, peakY, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#081216';
+    ctx.fill();
+
+    // Gauge Baseline Axis
+    ctx.beginPath();
+    ctx.strokeStyle = `${theme.accent}40`;
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(meterStartX, baseY);
+    ctx.lineTo(meterEndX, baseY);
+    ctx.stroke();
+
+    // 11 Gauge Tick Marks (0% to 100% in 10% steps)
+    const tickCount = 11;
+    ctx.strokeStyle = `${theme.accent}55`;
+    ctx.lineWidth = 1.5;
+    for (let t = 0; t < tickCount; t++) {
+      const tx = meterStartX + (meterW / (tickCount - 1)) * t;
+      const isMajor = t === 0 || t === 5 || t === 10;
+      const tLen = isMajor ? 8 : 4;
+      ctx.beginPath();
+      ctx.moveTo(tx, baseY);
+      ctx.lineTo(tx, baseY + tLen);
+      ctx.stroke();
+    }
+
+    // Gauge Micro Labels
+    ctx.font = '600 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.textMuted;
+    ctx.textAlign = 'left';
+    ctx.fillText('BASELINE', meterStartX, baseY + 20);
+    ctx.textAlign = 'center';
+    ctx.fillText('50%', meterStartX + meterW * 0.5, baseY + 20);
+    ctx.textAlign = 'right';
+    ctx.fillText('PEAK // P99', meterEndX, baseY + 20);
+    ctx.restore();
+
+    // 7. Paired Delta Pill (▲ Emerald / ▼ Crimson / Accent)
+    const diffText = slide.metricDiff || '▲ Measurable architectural speedup';
+    const isPositive = /[▲+]|faster|speedup|drop|gain|reduction|boost/i.test(diffText);
+    const isNegative = /[▼-]|latency spike|bottleneck|regression|exploit/i.test(diffText) && !isPositive;
+
+    const deltaAccent = isPositive ? '#10B981' : isNegative ? '#F43F5E' : theme.accent;
+    const deltaBg = isPositive ? 'rgba(16, 185, 129, 0.14)' : isNegative ? 'rgba(244, 63, 94, 0.14)' : `${theme.accent}20`;
+    const deltaBorder = isPositive ? 'rgba(16, 185, 129, 0.50)' : isNegative ? 'rgba(244, 63, 94, 0.50)' : `${theme.accent}60`;
+
+    ctx.save();
+    ctx.font = '700 23px "Plus Jakarta Sans", monospace';
+    const diffMetrics = ctx.measureText(diffText);
+    const pillW = Math.min(diffMetrics.width + 48, 760);
+    const pillH = 46;
+    const pillX = 540 - pillW / 2;
+    const pillY = cardY + cardH - 62;
+    drawRoundRect(ctx, pillX, pillY, pillW, pillH, 23, deltaBg, deltaBorder, 1.5);
+
+    ctx.fillStyle = deltaAccent;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(diffText, 540, pillY + pillH / 2);
     ctx.restore();
 
-    textZoneStartY = 715;
+    textZoneStartY = 745;
   } else if (slide.type === 'code') {
-    // Archetype: Terminal / Code Window
+    // Archetype 4: Precision Silicon & Terminal Window
     const winX = 100;
-    const winY = 230;
+    const winY = 240;
     const winW = 880;
     const winH = 430;
-    const winRadius = 32;
+    const winRadius = 28;
 
-    // Window container
-    drawRoundRect(ctx, winX, winY, winW, winH, winRadius, '#080d11', theme.surfaceBorder, 2.5);
+    // 1. Ambient glow behind terminal window (restrained)
+    ctx.save();
+    const termGlow = ctx.createRadialGradient(
+      winX + winW / 2,
+      winY + winH / 2,
+      40,
+      winX + winW / 2,
+      winY + winH / 2,
+      winW / 1.8
+    );
+    termGlow.addColorStop(0, `${theme.accent}14`);
+    termGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = termGlow;
+    ctx.fillRect(winX - 30, winY - 30, winW + 60, winH + 60);
+    ctx.restore();
 
-    // Header bar background
-    drawRoundRect(ctx, winX, winY, winW, 60, winRadius, '#0f181e');
-    // Square off the bottom of the header bar
-    ctx.fillStyle = '#0f181e';
-    ctx.fillRect(winX, winY + 30, winW, 30);
-    // Header divider line
+    // 2. Window container: deep OLED background
+    drawRoundRect(ctx, winX, winY, winW, winH, winRadius, '#060a0d', theme.surfaceBorder, 2);
+
+    // 3. Clip interior for header, CRT scanlines, and code gutter
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(winX, winY, winW, winH, winRadius);
+    } else {
+      ctx.rect(winX, winY, winW, winH);
+    }
+    ctx.clip();
+
+    // Subtle CRT scanline texture (strictly 3%-5% opacity max for razor-sharp code)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
+    for (let sy = winY; sy <= winY + winH; sy += 4) {
+      ctx.fillRect(winX, sy, winW, 1.5);
+    }
+
+    // Title Bar
+    const titleBarH = 56;
+    ctx.fillStyle = '#0d151c';
+    ctx.fillRect(winX, winY, winW, titleBarH);
+    // Title bar bottom divider
     ctx.strokeStyle = theme.surfaceBorder;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(winX, winY + 60);
-    ctx.lineTo(winX + winW, winY + 60);
+    ctx.moveTo(winX, winY + titleBarH);
+    ctx.lineTo(winX + winW, winY + titleBarH);
     ctx.stroke();
 
-    // macOS window dots
-    const dotY = winY + 30;
-    ctx.save();
+    // macOS window traffic dots
+    const dotY = winY + titleBarH / 2;
     ctx.beginPath();
-    ctx.arc(winX + 36, dotY, 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#FF5F56'; // Red
+    ctx.arc(winX + 32, dotY, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#FF5F56';
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(winX + 60, dotY, 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#FFBD2E'; // Yellow
+    ctx.arc(winX + 54, dotY, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFBD2E';
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(winX + 84, dotY, 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#27C93F'; // Green
+    ctx.arc(winX + 76, dotY, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#27C93F';
     ctx.fill();
-    ctx.restore();
 
-    // Tab / Filename
+    // Breadcrumb / File Name
     const fileName = slide.codeFileName || (slide.codeLanguage ? `source.${slide.codeLanguage}` : 'terminal.sh');
-    ctx.save();
-    ctx.font = '500 22px "JetBrains Mono", monospace';
-    ctx.fillStyle = theme.textMuted;
+    ctx.font = '500 20px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#8B9DA8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(fileName, 540, dotY);
-    ctx.restore();
+    ctx.fillText(fileName, winX + winW / 2, dotY);
 
-    // Code lines
+    // Top-Right Syntax Language Badge (BASH, RUST, TS, SQL, YAML)
+    let lang = (slide.codeLanguage || '').toUpperCase();
+    if (!lang) {
+      if (fileName.endsWith('.sh') || fileName.includes('terminal')) lang = 'BASH';
+      else if (fileName.endsWith('.rs')) lang = 'RUST';
+      else if (fileName.endsWith('.ts') || fileName.endsWith('.tsx')) lang = 'TS';
+      else if (fileName.endsWith('.sql')) lang = 'SQL';
+      else if (fileName.endsWith('.yaml') || fileName.endsWith('.yml')) lang = 'YAML';
+      else if (fileName.endsWith('.py')) lang = 'PYTHON';
+      else if (fileName.endsWith('.go')) lang = 'GO';
+      else lang = 'BASH';
+    }
+    const badgePad = 12;
+    ctx.font = '700 13px "JetBrains Mono", monospace';
+    const langMetrics = ctx.measureText(lang);
+    const badgeW = langMetrics.width + badgePad * 2;
+    const badgeH = 26;
+    const badgeX = winX + winW - badgeW - 20;
+    const badgeY = dotY - badgeH / 2;
+    drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 6, `${theme.accent}1C`, `${theme.accent}55`, 1);
+
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lang, badgeX + badgeW / 2, dotY);
+
+    // Left Gutter for line numbers
+    const gutterW = 64;
+    ctx.fillStyle = '#080f14';
+    ctx.fillRect(winX, winY + titleBarH, gutterW, winH - titleBarH);
+    // Gutter divider line
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(winX + gutterW, winY + titleBarH);
+    ctx.lineTo(winX + gutterW, winY + winH);
+    ctx.stroke();
+
+    // Code lines rendering with line-level diff highlights
     const snippet = slide.codeSnippet || '$ git fetch --depth=1\n> Initializing lazy checkout...\n+ Fetched 100GB repository in 1.2s\n✔ Zero local disk stalls';
     const lines = snippet.split('\n').slice(0, 7);
-    let lineY = winY + 105;
-    const lineSpacing = 44;
-
-    ctx.save();
-    ctx.font = '500 27px "JetBrains Mono", monospace';
-    ctx.textBaseline = 'alphabetic';
+    const lineSpacing = 48;
+    let lineBaselineY = winY + titleBarH + 38;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // Line number
-      ctx.fillStyle = theme.textMuted + '80';
-      ctx.textAlign = 'right';
-      ctx.fillText(String(i + 1), winX + 54, lineY);
+      const lineTop = lineBaselineY - 30;
+      const lineH = 42;
 
-      // Syntax styling
+      // Subtle line-level background diff highlights
+      if (line.startsWith('+') || line.startsWith('✔')) {
+        // Emerald addition highlight
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+        ctx.fillRect(winX + gutterW + 1, lineTop, winW - gutterW - 1, lineH);
+        // Left accent bar
+        ctx.fillStyle = '#10B981';
+        ctx.fillRect(winX + gutterW + 1, lineTop, 3, lineH);
+      } else if (line.startsWith('-') || line.startsWith('✖')) {
+        // Crimson deletion highlight
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.12)';
+        ctx.fillRect(winX + gutterW + 1, lineTop, winW - gutterW - 1, lineH);
+        // Left accent bar
+        ctx.fillStyle = '#F43F5E';
+        ctx.fillRect(winX + gutterW + 1, lineTop, 3, lineH);
+      } else if (line.startsWith('$') || line.startsWith('>')) {
+        // Subtle command prompt tint
+        ctx.fillStyle = `${theme.accent}0A`;
+        ctx.fillRect(winX + gutterW + 1, lineTop, winW - gutterW - 1, lineH);
+      }
+
+      // Line number in gutter (muted, right-aligned)
+      ctx.font = '500 19px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#455964';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(String(i + 1), winX + gutterW - 16, lineBaselineY);
+
+      // Monospace code line (strictly 0px blur)
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+      ctx.font = '500 24px "JetBrains Mono", monospace';
       ctx.textAlign = 'left';
+
       if (line.startsWith('$') || line.startsWith('>')) {
         ctx.fillStyle = theme.accent;
       } else if (line.startsWith('+') || line.startsWith('✔')) {
@@ -692,103 +953,178 @@ export async function renderSlideToCanvas(
       } else if (line.startsWith('-') || line.startsWith('✖')) {
         ctx.fillStyle = '#F87171'; // Red
       } else if (line.startsWith('#') || line.startsWith('//')) {
-        ctx.fillStyle = theme.textMuted;
+        ctx.fillStyle = '#677E8C'; // Comment muted
       } else {
-        ctx.fillStyle = '#E2E8EC';
+        ctx.fillStyle = '#E2E8EC'; // Default code
       }
-      ctx.fillText(line, winX + 76, lineY);
-      lineY += lineSpacing;
+
+      ctx.fillText(line, winX + gutterW + 20, lineBaselineY);
+      lineBaselineY += lineSpacing;
     }
-    ctx.restore();
+
+    ctx.restore(); // End clipping
 
     textZoneStartY = 745;
   } else if (slide.type === 'compare') {
-    // Archetype: Side-by-Side Comparison (Legacy vs Modern)
+    // Archetype 5: Side-by-Side Comparison (Legacy vs Modern)
     const cardY = 240;
-    const cardH = 410;
+    const cardH = 430;
     const cardW = 420;
     const leftX = 100;
     const rightX = 560;
-    const radius = 32;
+    const radius = 28;
 
-    // Left Card: Legacy / Problem
-    drawRoundRect(ctx, leftX, cardY, cardW, cardH, radius, theme.surface, 'rgba(244,63,94,0.35)', 2.5);
+    // 1. Left Card: The Legacy / Bottleneck (Crimson 10% contrast tint)
+    drawRoundRect(ctx, leftX, cardY, cardW, cardH, radius, '#11171d', 'rgba(244, 63, 94, 0.40)', 2);
+    // Subtle internal crimson wash
+    ctx.save();
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.08)';
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(leftX, cardY, cardW, cardH, radius);
+    } else {
+      ctx.rect(leftX, cardY, cardW, cardH);
+    }
+    ctx.fill();
 
-    // Left Header Badge
-    drawRoundRect(ctx, leftX + 24, cardY + 24, cardW - 48, 52, 16, 'rgba(244,63,94,0.18)');
+    // Top Crimson Accent line
+    ctx.beginPath();
+    ctx.strokeStyle = '#F43F5E';
+    ctx.lineWidth = 2.5;
+    ctx.moveTo(leftX + radius, cardY);
+    ctx.lineTo(leftX + cardW - radius, cardY);
+    ctx.stroke();
+    ctx.restore();
+
+    // Left Header Badge (BEFORE · LEGACY)
+    drawRoundRect(ctx, leftX + 20, cardY + 22, cardW - 40, 50, 14, 'rgba(244, 63, 94, 0.16)', 'rgba(244, 63, 94, 0.35)', 1);
     const xImg = await loadIconImage('xCircle', '#F43F5E');
-    safeDrawImage(ctx, xImg, leftX + 38, cardY + 36, 28, 28);
+    safeDrawImage(ctx, xImg, leftX + 34, cardY + 33, 26, 26);
 
     const leftTitle = slide.compareLeftTitle || 'Legacy Method';
     ctx.save();
-    ctx.font = '800 25px "Plus Jakarta Sans", sans-serif';
+    ctx.font = '800 23px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#FDA4AF';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(leftTitle, leftX + 78, cardY + 50);
+    ctx.fillText(`BEFORE · ${leftTitle}`.toUpperCase(), leftX + 72, cardY + 47);
     ctx.restore();
 
-    // Left Body Lines
+    // Left Body Lines with crisp red ✖ bullets
     const leftText = slide.compareLeftBody || '• Full repository clone\n• High disk footprint\n• Stalls CI pipelines';
     const leftLines = leftText.split('\n').slice(0, 5);
     ctx.save();
-    ctx.font = '400 25px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = theme.textEnBody;
-    ctx.textAlign = 'left';
-    let lY = cardY + 125;
-    for (const l of leftLines) {
-      ctx.fillText(l, leftX + 32, lY);
-      lY += 46;
+    ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    let lY = cardY + 120;
+    for (const rawLine of leftLines) {
+      const cleanLine = rawLine.replace(/^[•\-\*✖\s]+/, '').trim();
+      // Draw red cross bullet
+      ctx.fillStyle = '#F87171';
+      ctx.font = '700 22px "JetBrains Mono", monospace';
+      ctx.fillText('✖', leftX + 28, lY);
+
+      // Line text
+      ctx.fillStyle = '#CDD5D9';
+      ctx.font = '400 23px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(cleanLine, leftX + 58, lY);
+      lY += 48;
     }
     ctx.restore();
 
-    // Right Card: Modern / Solution
-    drawRoundRect(ctx, rightX, cardY, cardW, cardH, radius, theme.surface, `${theme.accent}60`, 2.5);
+    // 2. Right Card: The Modern Approach (Theme Accent contrast tint)
+    drawRoundRect(ctx, rightX, cardY, cardW, cardH, radius, '#11171d', `${theme.accent}65`, 2);
+    // Subtle internal theme accent wash
+    ctx.save();
+    ctx.fillStyle = `${theme.accent}12`;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(rightX, cardY, cardW, cardH, radius);
+    } else {
+      ctx.rect(rightX, cardY, cardW, cardH);
+    }
+    ctx.fill();
 
-    // Right Header Badge
-    drawRoundRect(ctx, rightX + 24, cardY + 24, cardW - 48, 52, 16, `${theme.accent}22`);
+    // Top Neon Accent line
+    ctx.beginPath();
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 2.5;
+    ctx.moveTo(rightX + radius, cardY);
+    ctx.lineTo(rightX + cardW - radius, cardY);
+    ctx.stroke();
+    ctx.restore();
+
+    // Right Header Badge (AFTER · OPTIMIZED)
+    drawRoundRect(ctx, rightX + 20, cardY + 22, cardW - 40, 50, 14, `${theme.accent}20`, `${theme.accent}45`, 1);
     const checkImg = await loadIconImage('checkCircle', theme.accent);
-    safeDrawImage(ctx, checkImg, rightX + 38, cardY + 36, 28, 28);
+    safeDrawImage(ctx, checkImg, rightX + 34, cardY + 33, 26, 26);
 
     const rightTitle = slide.compareRightTitle || 'Modern Approach';
     ctx.save();
-    ctx.font = '800 25px "Plus Jakarta Sans", sans-serif';
+    ctx.font = '800 23px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = theme.accent;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(rightTitle, rightX + 78, cardY + 50);
+    ctx.fillText(`AFTER · ${rightTitle}`.toUpperCase(), rightX + 72, cardY + 47);
     ctx.restore();
 
-    // Right Body Lines
+    // Right Body Lines with crisp green ✔ bullets
     const rightText = slide.compareRightBody || '• Virtualized file system\n• Instant sparse checkout\n• Zero local developer wait';
     const rightLines = rightText.split('\n').slice(0, 5);
     ctx.save();
-    ctx.font = '400 25px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = theme.textEnBody;
-    ctx.textAlign = 'left';
-    let rY = cardY + 125;
-    for (const r of rightLines) {
-      ctx.fillText(r, rightX + 32, rY);
-      rY += 46;
+    ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    let rY = cardY + 120;
+    for (const rawLine of rightLines) {
+      const cleanLine = rawLine.replace(/^[•\-\*✔\s]+/, '').trim();
+      // Draw emerald check bullet
+      ctx.fillStyle = '#34D399';
+      ctx.font = '700 22px "JetBrains Mono", monospace';
+      ctx.fillText('✔', rightX + 28, rY);
+
+      // Line text
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '400 23px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(cleanLine, rightX + 58, rY);
+      rY += 48;
     }
     ctx.restore();
 
-    // Center VS Badge
+    // 3. Centered 48px Circular "VS" Badge at x = 540
     const vsX = 540;
     const vsY = cardY + cardH / 2;
+    const vsRadius = 24; // 48px diameter
+
+    // Horizontal bridge line connecting left and right cards behind the badge
     ctx.save();
     ctx.beginPath();
-    ctx.arc(vsX, vsY, 30, 0, Math.PI * 2);
-    ctx.fillStyle = '#081216';
-    ctx.fill();
-    ctx.strokeStyle = theme.surfaceBorder;
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = `${theme.accent}40`;
+    ctx.lineWidth = 2;
+    ctx.moveTo(leftX + cardW, vsY);
+    ctx.lineTo(rightX, vsY);
     ctx.stroke();
 
-    ctx.font = '800 21px "JetBrains Mono", monospace';
-    ctx.fillStyle = theme.microLabel;
+    // VS Circle badge background with restrained glow
+    ctx.beginPath();
+    ctx.arc(vsX, vsY, vsRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#081216';
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 12; // Restrained glow: 8-16px max
+    ctx.fill();
+
+    // Outer border ring
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Inner typography: strictly 0px blur
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.font = '900 18px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.accent;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.letterSpacing = '1px';
     ctx.fillText('VS', vsX, vsY);
     ctx.restore();
 
@@ -980,10 +1316,10 @@ export async function renderSlideToCanvas(
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(ctaBrand, 540, 610);
+    ctx.fillText(ctaBrand, 518, 610);
 
-    // Accent Divider Line: 120x10 pill at (480, 655)
-    drawRoundRect(ctx, 480, 655, 120, 10, 5, theme.accent);
+    // Accent Divider Line: 120x10 pill at (458, 655) centered at 518
+    drawRoundRect(ctx, 458, 655, 120, 10, 5, theme.accent);
 
     // Domain Question Hook
     ctx.font = '800 74px "Plus Jakarta Sans", sans-serif';
@@ -991,10 +1327,10 @@ export async function renderSlideToCanvas(
     ctx.textAlign = 'center';
     const rawCtaEnTitle = slide.enTitle || (themeMode === 'security' ? 'Building secure\nsoftware?' : 'Building with AI agents\nat scale?');
     const ctaEnTitle = sanitizeEnglishSlideText(rawCtaEnTitle, { isTitle: true });
-    const enCtaLines = wrapTextLines(ctx, ctaEnTitle, 900);
+    const enCtaLines = wrapTextLines(ctx, ctaEnTitle, 850);
     let curY = 795;
     for (const line of enCtaLines) {
-      ctx.fillText(line, 540, curY);
+      ctx.fillText(line, 518, curY);
       curY += 86;
     }
 
@@ -1004,17 +1340,17 @@ export async function renderSlideToCanvas(
     ctx.direction = 'rtl';
     const rawCtaArTitle = slide.arTitle || (themeMode === 'security' ? 'تبني برمجيات\nآمنة؟' : 'تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟');
     const ctaArTitle = sanitizeArabicSlideText(rawCtaArTitle, { isTitle: true });
-    const arCtaLines = wrapTextLines(ctx, ctaArTitle, 900);
+    const arCtaLines = wrapTextLines(ctx, ctaArTitle, 850);
     for (const line of arCtaLines) {
-      ctx.fillText(line, 540, curY);
+      ctx.fillText(line, 518, curY);
       curY += 88;
     }
     ctx.restore();
 
-    // CTA Pill Button: 656x118, radius 59
+    // CTA Pill Button: 656x118, radius 59 centered at 518
     const pillW = 656;
     const pillH = 118;
-    const pillX = (1080 - pillW) / 2;
+    const pillX = 518 - pillW / 2;
     const pillY = 1390;
     drawRoundRect(ctx, pillX, pillY, pillW, pillH, 59, theme.accent);
 
@@ -1023,27 +1359,27 @@ export async function renderSlideToCanvas(
     ctx.fillStyle = '#11131A';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 540, pillY + pillH / 2);
+    ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 518, pillY + pillH / 2);
     ctx.restore();
 
-    // Website URL: dynamic brandUrl or slide url or marrok.org
+    // Website URL: dynamic brandUrl or slide url or marrok.org centered at 518
     const displayUrl = carousel.brandUrl || slide.url || 'marrok.org';
     ctx.save();
     ctx.font = '400 42px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#E2E8EC';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(displayUrl, 540, pillY + pillH + 112);
+    ctx.fillText(displayUrl, 518, pillY + pillH + 112);
     ctx.restore();
 
-    // Bilingual Source Attribution Footer
+    // Bilingual Source Attribution Footer (centered at 518 within safe bounds)
     if (slide.enCredit) {
       ctx.save();
       ctx.font = '400 25px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = theme.textMuted;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(slide.enCredit, 540, 1715);
+      ctx.fillText(slide.enCredit, 518, 1715);
       ctx.restore();
     }
     if (slide.arCredit) {
@@ -1053,12 +1389,14 @@ export async function renderSlideToCanvas(
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(slide.arCredit, 540, 1755);
+      ctx.fillText(slide.arCredit, 518, 1755);
       ctx.restore();
     }
   }
 
   // 6. Text Zone Rendering (for hub, row, metric, code, and compare slides)
+  // Strict Safe-Zone Rule: Center at x = 518 with maxWidth 850 (titles) and 820 (body)
+  // to enforce right safe margin >= 135px (x <= 945) clearing TikTok native right-side action buttons
   if (slide.type !== 'cta') {
     let currentY = textZoneStartY;
 
@@ -1070,9 +1408,9 @@ export async function renderSlideToCanvas(
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       const cleanEnTitle = sanitizeEnglishSlideText(slide.enTitle, { isTitle: true });
-      const enLines = wrapTextLines(ctx, cleanEnTitle, 900);
+      const enLines = wrapTextLines(ctx, cleanEnTitle, 850);
       for (const line of enLines) {
-        ctx.fillText(line, 540, currentY);
+        ctx.fillText(line, 518, currentY);
         currentY += 86;
       }
       ctx.restore();
@@ -1088,9 +1426,9 @@ export async function renderSlideToCanvas(
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       const cleanArTitle = sanitizeArabicSlideText(slide.arTitle, { isTitle: true });
-      const arLines = wrapTextLines(ctx, cleanArTitle, 900);
+      const arLines = wrapTextLines(ctx, cleanArTitle, 850);
       for (const line of arLines) {
-        ctx.fillText(line, 540, currentY);
+        ctx.fillText(line, 518, currentY);
         currentY += 88;
       }
       ctx.restore();
@@ -1105,9 +1443,9 @@ export async function renderSlideToCanvas(
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       const cleanEnBody = sanitizeEnglishSlideText(slide.enBody, { isTitle: false });
-      const enBodyLines = wrapTextLines(ctx, cleanEnBody, 860);
+      const enBodyLines = wrapTextLines(ctx, cleanEnBody, 820);
       for (const line of enBodyLines) {
-        ctx.fillText(line, 540, currentY);
+        ctx.fillText(line, 518, currentY);
         currentY += 54;
       }
       ctx.restore();
@@ -1123,22 +1461,22 @@ export async function renderSlideToCanvas(
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       const cleanArBody = sanitizeArabicSlideText(slide.arBody, { isTitle: false });
-      const arBodyLines = wrapTextLines(ctx, cleanArBody, 860);
+      const arBodyLines = wrapTextLines(ctx, cleanArBody, 820);
       for (const line of arBodyLines) {
-        ctx.fillText(line, 540, currentY);
+        ctx.fillText(line, 518, currentY);
         currentY += 56;
       }
       ctx.restore();
     }
   }
 
-  // 7. Pagination Footer (Present on EVERY slide at y = 1826)
+  // 7. Pagination Footer (Present on EVERY slide at y = 1826, centered at x = 518)
   const dotRadius = 8;
   const dotDiameter = 16;
   const dotGap = 16;
   const step = dotDiameter + dotGap;
   const totalDotsWidth = totalSlides * dotDiameter + (totalSlides - 1) * dotGap;
-  const startDotX = 540 - totalDotsWidth / 2 + dotRadius;
+  const startDotX = 518 - totalDotsWidth / 2 + dotRadius;
   const dotY = 1826;
 
   ctx.save();
