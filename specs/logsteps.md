@@ -425,3 +425,32 @@ This document records the chronological development history, engineering decisio
   - Production build compiled cleanly in 245ms (`npm run build`).
   - Browser inspection confirmed dead-center alignment on Slide 1 header and Slide 8 CTA core and attribution card.
 
+---
+
+## Step 21: Upstream AI Synthesizer Routing + Metricool Publishing Bundle
+- **Context & Design Decisions:**
+  - Standardized the header brand presentation to avoid dropping the 'M' character when paired with the authentic square badge, rendering `[Badge] MARROK •` with a crisp 12px gap across both the web studio navbar and exported slide canvas headers.
+  - Implemented domain-aware visual theme selection to automatically route input topics to the optimal OLED palette (`teal` for SRE/DevTools/Backend, `cyber` for Security/Post-Quantum/Zero-Trust, `violet` for AI/LLMs, `blueprint` for Cloud/K8s/System Architecture, `amber` for Databases/SQL/Caching, and `emerald` for Linux Kernel/eBPF).
+  - Enhanced archetype synthesis with strict typing and formatting: uppercase `codeLanguage` badges (`BASH`, `TS`, `RUST`, `JAVA`, `SQL`, `YAML`) with terminal diff prefixes (`$`, `+`, `-`, `✔`), metric delta pills with explicit polarity indicators (`▲`/`▼`), and standardized Slide 8 CTA hooks.
+  - Built the Metricool Publishing Bundle inside `downloadAllSlidesZip` to package ready-to-schedule captions and portable carousel manifests alongside high-res slides.
+- **Engineering Solutions Implemented:**
+  1. **Header Wordmark Refinement (`canvasExporter.ts` & `Header.tsx`):**
+     - Retained the $32 \times 32\text{px}$ `drawMarrokVectorBadge()` icon and rendered the full brand wordmark `MARROK` at $x = 126$ with a clean 12px gap.
+     - Updated web studio navbar brand link in `Header.tsx` to match.
+  2. **Domain-Aware Theme Routing & Archetype Fields (`synthesizer.ts`, `autonomousPipeline.ts`, `AutonomousStudio.tsx`):**
+     - Implemented and exported `resolveDomainTheme()` in `src/lib/synthesizer.ts` with comprehensive regex heuristics covering cyber threat crimson, electric AI violet, matrix emerald, solarized amber, enterprise blueprint, and terminal teal.
+     - Wired auto-theme routing through `runAutonomousPipeline()` and reactive studio theme switching in `AutonomousStudio.tsx` (`onSelectTheme(DEFAULT_PALETTES[generated.theme])`).
+     - Standardized `code` slides with uppercase `codeLanguage` badges and terminal syntax highlighting prefixes (`$`, `>`, `-`, `+`, `✔`).
+     - Enforced `▲` and `▼` polarity indicators across all benchmark and telemetry metric slides.
+     - Locked in recognizable domain question hooks and bilingual CTA format (`[ DM us  •  رسالة خاصة ]`) across Slide 8 candidate arcs.
+  3. **Metricool Publishing Bundle (`canvasExporter.ts`):**
+     - Added `caption-bilingual.txt` to the export ZIP archive containing formatted English + Arabic copy, hook, reference link, CTA action, and hashtags formatted for Metricool scheduling.
+     - Added `carousel-manifest.json` containing the serialized `CarouselData`, active theme palette, visual options, and export timestamp for auditing and re-importing.
+  4. **Pre-Publish QA Suite Enhancement (`qaChecks.ts`):**
+     - Implemented `checkArchetypeFields()` to validate code snippet presence, language badge specification, diff syntax prefixes, metric value/diff existence, delta polarity symbols, and compare column headers.
+     - Implemented `checkArabicSafeZone()` to verify that Arabic body line counts (max 4 lines) and token lengths stay strictly within safe-zone thresholds ($x \le 945$, $y \le 1760$).
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 errors.
+  - `npm run build` (`vite build`): Production bundle compiled in 255ms.
+  - Verified in browser with `browser_subagent`: confirmed `[Badge] MARROK •` header formatting, auto-theme routing on topic generation, syntax diff code highlighting, metric polarity pills, and QA checks contact sheet.
+

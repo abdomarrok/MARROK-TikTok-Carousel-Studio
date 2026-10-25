@@ -427,13 +427,11 @@ export async function renderSlideToCanvas(
     ctx.restore();
   }
 
-  // 4. Header: Top-Left Authentic MARROK Vector Mark (as "M") + "ARROK" + Pulsing Accent Dot
+  // 4. Header: Top-Left Authentic MARROK Vector Badge + Full Wordmark "MARROK" + Pulsing Accent Dot
   ctx.save();
-  const rawBrand = carousel.brand || 'MARROK';
-  const isMarrokBrand = rawBrand.toUpperCase().trim() === 'MARROK';
-  const displayBrandText = isMarrokBrand ? 'ARROK' : rawBrand;
+  const displayBrandText = (carousel.brand || 'MARROK').trim();
 
-  // Crisp compact authentic MARROK vector logo badge (32x32px) functioning as initial "M"
+  // Crisp compact authentic MARROK vector logo badge (32x32px)
   const logoBadgeSize = 32;
   const logoBadgeX = 82;
   const logoBadgeY = 112;
@@ -448,8 +446,8 @@ export async function renderSlideToCanvas(
   // Render authentic SVG vector mark inside badge using Path2D
   drawMarrokVectorBadge(ctx, logoBadgeX + logoBadgeSize / 2, logoBadgeY + logoBadgeSize / 2, logoBadgeSize - 4, theme.accent, 'transparent');
 
-  // Brand Wordmark: tight kerning gap (9px when ARROK) so [Logo M] + "ARROK" forms "MARROK"
-  const brandTextX = logoBadgeX + logoBadgeSize + (isMarrokBrand ? 9 : 14);
+  // Brand Wordmark: clean 12px gap between the badge and full MARROK wordmark
+  const brandTextX = logoBadgeX + logoBadgeSize + 12;
   ctx.font = '800 38px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
@@ -1938,6 +1936,39 @@ export async function downloadAllSlidesZip(
     fullCaptionText += `\n\n═════════════════════════════════════\n🔍 Verified Claims & Citations:\n${factsBlock}`;
   }
   folder?.file('caption.txt', fullCaptionText.replace(/\u00A0/g, ' '));
+
+  // ── Metricool Publishing Bundle ──
+  // 1. Ready-to-paste bilingual TikTok caption, hook, standardized Marrok closing line/CTA, and hashtags
+  const mainCaption = carousel.captionVariants?.[0]?.caption || carousel.caption || '';
+  const ctaLine = carousel.slides[carousel.slides.length - 1]?.ctaText || 'DM us  •  رسالة خاصة';
+  const metricoolCaption = `${mainCaption}
+
+═════════════════════════════════════
+🔗 Reference & Documentation: https://${carousel.brandUrl || 'marrok.org'}
+💬 Action: [ ${ctaLine} ]
+`.trim();
+
+  const cleanBilingualCaption = metricoolCaption.replace(/\u00A0/g, ' ');
+  folder?.file('caption-bilingual.txt', cleanBilingualCaption);
+  zip.file('caption-bilingual.txt', cleanBilingualCaption);
+
+  // 2. Serialized CarouselData + active theme and visualOptions for reloading and auditing
+  const carouselManifest = {
+    ...carousel,
+    activePalette: customPalette || DEFAULT_PALETTES[carousel.theme] || null,
+    visualOptions: visualOptions || carousel.visualOptions || {
+      showCadReticles: true,
+      showSparklines: true,
+      terminalScanlines: true,
+    },
+    exportedAt: new Date().toISOString(),
+    generator: 'MARROK TikTok Carousel Studio',
+    targetPlatform: 'Metricool / TikTok 9:16',
+    format: '1080x1920',
+  };
+  const manifestJson = JSON.stringify(carouselManifest, null, 2);
+  folder?.file('carousel-manifest.json', manifestJson);
+  zip.file('carousel-manifest.json', manifestJson);
 
   // 2. Separate dedicated claims & citations verification file
   if (carousel.facts && carousel.facts.length > 0) {

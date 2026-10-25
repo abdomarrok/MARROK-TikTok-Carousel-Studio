@@ -34,7 +34,7 @@ import {
   X,
   CheckCircle,
 } from 'lucide-react';
-import { CarouselData, SlideData, SlideType, ThemePalette, HookVariant } from '../types';
+import { CarouselData, SlideData, SlideType, ThemePalette, HookVariant, DEFAULT_PALETTES } from '../types';
 import { DEFAULT_STARTER_DECK, PRESET_CAROUSELS } from '../lib/presets';
 import { renderSlideToCanvas, downloadAllSlidesZip, downloadSingleSlidePng, copySlideToClipboard } from '../lib/canvasExporter';
 import { runAutonomousPipeline } from '../lib/autonomousPipeline';
@@ -171,6 +171,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         generateDiagram: true,
         onProgress: (status) => setPipelineStatus(status),
       });
+
+      // Auto-Theme Routing: immediately switch active studio theme if palette matches domain
+      if (generated.theme && DEFAULT_PALETTES[generated.theme]) {
+        onSelectTheme(DEFAULT_PALETTES[generated.theme]);
+      }
 
       onUpdateCarousel(generated);
       setCurrentSlideIndex(0);

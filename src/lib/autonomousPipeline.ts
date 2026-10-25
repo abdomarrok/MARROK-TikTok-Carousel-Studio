@@ -2,7 +2,7 @@ import { CarouselData, SlideData, ThemePalette } from '../types';
 import { sanitizeFullCarousel } from './textSanitizer';
 import { autoFitTextToLimits, autoPolishHeadline, fixArabicPunctuation } from './smartEditor';
 import { runQAChecks, CHAR_LIMITS } from './qaChecks';
-import { synthesizeCarousel } from './synthesizer';
+import { synthesizeCarousel, resolveDomainTheme } from './synthesizer';
 
 export interface AutonomousPipelineOptions {
   onProgress?: (status: string) => void;
@@ -48,6 +48,12 @@ export async function runAutonomousPipeline(
   // Fallback to local synthesizer if API fails or returns invalid structure
   if (!rawCarousel) {
     rawCarousel = synthesizeCarousel({ prompt: rawInput });
+  }
+
+  // Domain-Aware Theme Routing: match input topic to best visual theme
+  const domainTheme = resolveDomainTheme(rawInput);
+  if (!rawCarousel.theme || rawCarousel.theme === 'default') {
+    rawCarousel.theme = domainTheme;
   }
 
   // Step 2: Auto-Sanitize Markdown, Hashes, Orphan Dots & BiDi order

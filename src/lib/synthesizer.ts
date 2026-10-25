@@ -24,6 +24,57 @@ interface DomainRule {
   metricFallback: string;
 }
 
+/**
+ * Automatically maps input technical topic or prompt to the best MARROK ThemePalette:
+ * - 'teal': SRE / DevTools / Backend / Monorepos / CI/CD
+ * - 'cyber': Security / Post-Quantum / Zero-Trust / Exploits / CVEs
+ * - 'violet': AI / LLMs / Neural Models / Inference / Transformers
+ * - 'blueprint': Cloud / K8s / System Architecture / Infrastructure
+ * - 'amber': Databases / SQL / Caching / In-Memory / Distributed Storage
+ * - 'emerald': Linux Kernel / eBPF / Low-Level Systems / C++
+ */
+export function resolveDomainTheme(topicOrText: string): 'teal' | 'cyber' | 'violet' | 'blueprint' | 'amber' | 'emerald' {
+  const lower = (topicOrText || '').toLowerCase();
+
+  // 1. Cyber Threat Crimson: Security, Zero-Trust, Post-Quantum, Exploits, CVEs
+  if (
+    /\b(security|zero[- ]?trust|zerotrust|mtls|post[- ]?quantum|quantum|cve|exploit|malware|reverse|ghidra|ida|disassembl|vulnerab|defectdojo|sast|dast|trivy|semgrep|attack|hacker|firewall|cryptograph|least[- ]?privilege|perimeter|blast radius)\b/i.test(lower)
+  ) {
+    return 'cyber';
+  }
+
+  // 2. Electric AI Violet: AI, LLMs, Neural Models, Inference, Tokens
+  if (
+    /\b(ai|llm|llms|gpt|gpt-4|claude|gemini|transformer|deep learning|neural|weights|inference|tokens?|embedding|embeddings|rag|agentic|copilot|fine-tuning)\b/i.test(lower)
+  ) {
+    return 'violet';
+  }
+
+  // 3. Matrix Emerald: Linux Kernel, eBPF, Low-Level, Syscalls, Firmware
+  if (
+    /\b(kernel|ebpf|xdp|bpf|linux|syscall|syscalls|assembly|asm|low[- ]?level|firmware|memory safety|c\+\+|driver)\b/i.test(lower)
+  ) {
+    return 'emerald';
+  }
+
+  // 4. Solarized Amber: Databases, SQL, Caching, Redis, In-Memory, Storage
+  if (
+    /\b(redis|valkey|memcached|cache|caching|in[- ]?memory|database|sql|nosql|postgres|postgresql|mysql|sqlite|clickhouse|kafka|distributed systems?|storage|replication|raft|paxos|rocksdb|lsm|key[- ]?value)\b/i.test(lower)
+  ) {
+    return 'amber';
+  }
+
+  // 5. Enterprise Blueprint: Cloud, Kubernetes, K8s, Docker, Cloud-Native, System Architecture
+  if (
+    /\b(kubernetes|k8s|cloud|docker|container|containers|helm|ingress|aws|gcp|azure|serverless|microservices?|service[- ]?mesh|envoy|istio|architecture|system architecture|cluster|infrastructure|terraform)\b/i.test(lower)
+  ) {
+    return 'blueprint';
+  }
+
+  // 6. Terminal Teal (Default MARROK SRE & DevTools): SRE, VCS, Git, CI/CD, Monorepo, DevTools, Performance
+  return 'teal';
+}
+
 const DOMAIN_RULES: DomainRule[] = [
   {
     category: 'CYBERSECURITY & ZERO-TRUST MESH',
@@ -262,9 +313,10 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     };
   }
 
+  const autoTheme = resolveDomainTheme(rawText);
   const activeRule = (bestScore > 0 && matchedRule) ? matchedRule : (matchedRule || DEFAULT_RULE);
   const domainCategory = activeRule.category;
-  const recommendedTheme = activeRule.theme;
+  const recommendedTheme = (bestScore > 0 && matchedRule) ? activeRule.theme : autoTheme;
 
   // Extract smart subject-aware dynamic icons (never static/repeated)
   const { centerIcon, satIcons } = extractDynamicIcons(lowerText, activeRule.satIcons);
@@ -413,8 +465,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'code',
         codeFileName: 'envoy-mtls.yaml',
-        codeLanguage: 'yaml',
-        codeSnippet: `tls_context:\n  common_tls_context:\n    validation_context:\n      trusted_ca: { filename: "/etc/certs/ca.pem" }\n    require_client_certificate: true\n+ enforce_peer_spiffe_id: true\n✔ Handshake: STRICT_MTLS`,
+        codeLanguage: 'YAML',
+        codeSnippet: `# Envoy Strict TLS Handshake Enforcement\n$ envoy -c /etc/envoy.yaml --validate\n- tls_mode: PERMISSIVE (unencrypted fallback)\n+ tls_mode: STRICT_MUTUAL (require x509 cert)\n✔ Handshake: STRICT_MTLS [SPIFFE ID VERIFIED]`,
         enTitle: 'Strict client certificate proof.',
         arTitle: 'إثبات الهوية بالشهادات الرقمية',
         enBody: 'Traffic between services fails closed without a valid mutual cryptographic handshake.',
@@ -500,8 +552,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'code',
         codeFileName: 'redis_bench.sh',
-        codeLanguage: 'bash',
-        codeSnippet: `$ redis-benchmark -q -n 1000000 -c 50 -P 16\n> Pipelining active across 4 IO threads...\n+ P99 latency: 0.18ms\n✔ Throughput: 1,240,000 requests per second`,
+        codeLanguage: 'BASH',
+        codeSnippet: `$ redis-benchmark -q -n 1000000 -c 50 -P 16\n> Pipelining active across 4 IO threads...\n- Legacy single-thread queue: 180,000 ops/s\n+ Multi-thread I/O multiplexer: 1,240,000 ops/s\n✔ Microsecond p99 latency: 0.18ms`,
         enTitle: 'Microsecond p99 benchmark proof.',
         arTitle: 'إثبات السرعة تحت الضغط',
         enBody: 'Pipelined requests execute in lock-free shared buffers without thread contention.',
@@ -587,8 +639,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'code',
         codeFileName: 'scion-mount.sh',
-        codeLanguage: 'bash',
-        codeSnippet: `$ scion checkout --virtual --sparse=agent-workspace\n> Mounting virtual repo tree at /work...\n+ 120GB repository linked in 420ms\n✔ Atomic changeset verified by server`,
+        codeLanguage: 'BASH',
+        codeSnippet: `$ scion checkout --virtual --sparse=agent-workspace\n> Mounting virtual repository tree at /work...\n- Local Git clone disk bloat: 120GB\n+ Scion virtual sparse pointer: 420ms\n✔ Atomic changeset verified by server`,
         enTitle: 'Virtual filesystem lazy checkout.',
         arTitle: 'تحميل فوري عبر النظام الافتراضي',
         enBody: 'Local working copies become lightweight pointers to authoritative server storage.',
@@ -675,8 +727,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'code',
         codeFileName: 'bench_run.sh',
-        codeLanguage: 'bash',
-        codeSnippet: `$ ./benchmark --workload=high-concurrency\n> Warming up virtual worktree...\n+ Latency dropped from 240ms -> 12ms\n✔ Target throughput: ${metric1} [PASSED]`,
+        codeLanguage: 'BASH',
+        codeSnippet: `$ ./benchmark --workload=high-concurrency\n> Warming up virtual worktree...\n- Legacy tail latency: 240ms\n+ Optimized runtime latency: 12ms\n✔ Target throughput: ${metric1} [PASSED]`,
         enTitle: 'The core optimization in action.',
         arTitle: 'آلية التحسين أثناء التنفيذ',
         enBody: userPoint2,
@@ -752,8 +804,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'code',
         codeFileName: 'exploit_poc.py',
-        codeLanguage: 'python',
-        codeSnippet: `# CVE Validation & Patch Proof\n$ python3 exploit_poc.py --target=staging\n- Payload triggered: unauthenticated memory read\n+ Applied patch: boundary validation active\n✔ Reachability: MITIGATED`,
+        codeLanguage: 'PYTHON',
+        codeSnippet: `# CVE Validation & Defensive Proof\n$ python3 exploit_poc.py --target=staging\n- Payload triggered: unauthenticated memory read\n+ Applied patch: boundary validation active\n✔ Reachability: MITIGATED`,
         enTitle: 'Exploit mechanism and patch proof.',
         arTitle: 'آلية الاستغلال وإثبات الترقيع',
         enBody: userPoint1,
@@ -851,8 +903,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'code',
         codeFileName: 'sys_exec.sh',
-        codeLanguage: 'bash',
-        codeSnippet: `$ ./system-engine --mode=distributed\n> Initializing decentralized nodes...\n+ State synchronized across 3 zones\n✔ 0 context switches detected`,
+        codeLanguage: 'BASH',
+        codeSnippet: `$ ./system-engine --mode=distributed\n> Initializing decentralized nodes...\n- Monolithic blocking state: 3400ms\n+ State synchronized across 3 zones: 24ms\n✔ 0 context switches detected`,
         enTitle: 'Decoupled state execution.',
         arTitle: 'فصل طبقة البيانات عن التنفيذ',
         enBody: userPoint2,

@@ -545,6 +545,153 @@ function checkMarkdownAndPunctuation(slide: SlideData, idx: number): QACheckResu
   return results;
 }
 
+/**
+ * Validate archetype-specific fields (codeLanguage, diff prefixes, metric diff polarity, compare titles, cta)
+ */
+function checkArchetypeFields(slide: SlideData, idx: number): QACheckResult[] {
+  const results: QACheckResult[] = [];
+
+  if (slide.type === 'code') {
+    if (!slide.codeSnippet || slide.codeSnippet.trim().length === 0) {
+      results.push({
+        id: `archetype-code-missing-snippet-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'codeSnippet',
+        message: `Slide ${idx + 1} (code archetype) is missing a codeSnippet.`,
+      });
+    } else {
+      const lines = slide.codeSnippet.split('\n');
+      if (lines.length > 7) {
+        results.push({
+          id: `archetype-code-lines-${idx}`,
+          severity: 'warn',
+          slideIndex: idx,
+          field: 'codeSnippet',
+          message: `Slide ${idx + 1} code snippet has ${lines.length} lines (recommended: max 7 for canvas window).`,
+          value: lines.length,
+          limit: '≤ 7 lines',
+        });
+      }
+
+      // Check for terminal diff highlighting prefixes ($, +, -, ✔, >, #)
+      const hasDiffPrefixes = lines.some((l) => /^[+$>\-✔#]/.test(l.trim()));
+      if (!hasDiffPrefixes) {
+        results.push({
+          id: `archetype-code-prefixes-${idx}`,
+          severity: 'warn',
+          slideIndex: idx,
+          field: 'codeSnippet',
+          message: `Slide ${idx + 1} code lines lack diff prefixes ($, +, -, ✔) for terminal syntax highlighting.`,
+        });
+      }
+    }
+
+    if (!slide.codeLanguage || slide.codeLanguage.trim().length === 0) {
+      results.push({
+        id: `archetype-code-language-${idx}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field: 'codeLanguage',
+        message: `Slide ${idx + 1} (code archetype) has no codeLanguage badge specified (e.g. BASH, TS, RUST, YAML).`,
+      });
+    }
+  } else if (slide.type === 'metric') {
+    if (!slide.metricValue || slide.metricValue.trim().length === 0) {
+      results.push({
+        id: `archetype-metric-missing-value-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'metricValue',
+        message: `Slide ${idx + 1} (metric archetype) has no metricValue.`,
+      });
+    }
+
+    if (!slide.metricDiff || slide.metricDiff.trim().length === 0) {
+      results.push({
+        id: `archetype-metric-missing-diff-${idx}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field: 'metricDiff',
+        message: `Slide ${idx + 1} (metric archetype) is missing a metricDiff comparison badge.`,
+      });
+    } else {
+      // Confirm polarity indicator exists (▲, ▼, +, -)
+      const hasPolarity = /[▲▼+\-]/.test(slide.metricDiff);
+      if (!hasPolarity) {
+        results.push({
+          id: `archetype-metric-polarity-${idx}`,
+          severity: 'warn',
+          slideIndex: idx,
+          field: 'metricDiff',
+          message: `Slide ${idx + 1} metricDiff ("${slide.metricDiff}") lacks a polarity indicator (▲ or ▼).`,
+        });
+      }
+    }
+  } else if (slide.type === 'compare') {
+    if (!slide.compareLeftTitle || !slide.compareRightTitle) {
+      results.push({
+        id: `archetype-compare-titles-${idx}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field: 'compareLeftTitle',
+        message: `Slide ${idx + 1} (compare archetype) is missing left or right comparison column titles.`,
+      });
+    }
+  } else if (slide.type === 'cta') {
+    if (!slide.ctaText || slide.ctaText.trim().length === 0) {
+      results.push({
+        id: `archetype-cta-missing-text-${idx}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field: 'ctaText',
+        message: `Slide ${idx + 1} (CTA archetype) has no action button text.`,
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Check Arabic RTL text safe-zone bounds (right margin clearance >= 135px and vertical boundary y <= 1760)
+ */
+function checkArabicSafeZone(slide: SlideData, idx: number): QACheckResult[] {
+  const results: QACheckResult[] = [];
+
+  if (slide.arBody) {
+    const lines = slide.arBody.split('\n');
+    if (lines.length > 4) {
+      results.push({
+        id: `arabic-safezone-lines-${idx}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field: 'arBody',
+        message: `Slide ${idx + 1} Arabic body has ${lines.length} lines (max 4 recommended to avoid clipping past y=1760 safe zone).`,
+        value: lines.length,
+        limit: '≤ 4 lines',
+      });
+    }
+
+    // Check for overly long unbroken words/tokens in Arabic body that could clip on the right
+    const words = slide.arBody.split(/\s+/);
+    for (const w of words) {
+      if (w.length > 35) {
+        results.push({
+          id: `arabic-safezone-word-length-${idx}`,
+          severity: 'warn',
+          slideIndex: idx,
+          field: 'arBody',
+          message: `Slide ${idx + 1} Arabic body contains an unbroken string of ${w.length} chars ("${w.slice(0, 15)}..."), which may overflow the right safe-zone margin.`,
+        });
+        break;
+      }
+    }
+  }
+
+  return results;
+}
+
 // ─── Main QA Runner ─────────────────────────────────────────────────
 
 /**
@@ -578,6 +725,8 @@ export function runQAChecks(carousel: CarouselData): QAReport {
     results.push(...checkBoilerplatePhrases(slides[i], i));
     results.push(...checkCharLimits(slides[i], i, isHook));
     results.push(...checkArabicLineEndings(slides[i], i));
+    results.push(...checkArabicSafeZone(slides[i], i));
+    results.push(...checkArchetypeFields(slides[i], i));
     results.push(...checkMarkdownAndPunctuation(slides[i], i));
     results.push(...checkPlaceholders(slides[i], i));
   }
