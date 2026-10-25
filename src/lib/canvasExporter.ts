@@ -1066,7 +1066,8 @@ export async function renderSlideToCanvas(
 
   // 4. Header: Top-Left Authentic MARROK Vector Badge + Full Wordmark "MARROK" + Pulsing Accent Dot
   ctx.save();
-  const displayBrandText = (carousel.brand || 'MARROK').trim();
+  const rawBrand = (carousel.brand || 'MARROK').trim();
+  const displayBrandText = rawBrand.toUpperCase() === 'ARROK' ? 'MARROK' : (rawBrand || 'MARROK');
 
   // Crisp compact authentic MARROK vector logo badge (32x32px)
   const logoBadgeSize = 32;
@@ -1358,7 +1359,16 @@ export async function renderSlideToCanvas(
     const slideText = `${slide.enTitle || ''} ${slide.enBody || ''} ${slide.arTitle || ''}`.toLowerCase();
     const iconCount = slide.icons?.length || 0;
 
-    if (
+    // Prioritize explicit diagramVariant layout choice if set
+    if (slide.diagramVariant === 'isolation') {
+      textZoneStartY = await drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
+    } else if (slide.diagramVariant === 'stack') {
+      textZoneStartY = await drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
+    } else if (slide.diagramVariant === 'takeaway') {
+      textZoneStartY = await drawKeyTakeawayCard(ctx, slide, theme, options, 240);
+    } else if (slide.diagramVariant === 'topology') {
+      textZoneStartY = await drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
+    } else if (
       slideText.includes('blast radius') ||
       slideText.includes('microsegment') ||
       slideText.includes('isolation') ||
@@ -2618,9 +2628,10 @@ export async function downloadAllSlidesZip(
   for (let i = 0; i < total; i++) {
     if (onProgress) onProgress(i + 1, total);
     const canvas = await renderSlideToCanvas(carousel, i, undefined, customPalette, visualOptions);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    const dataUrl = canvas.toDataURL('image/png');
     const base64 = dataUrl.split(',')[1];
-    folder?.file(`slide${i + 1}.jpg`, base64, { base64: true });
+    folder?.file(`slide${i + 1}.png`, base64, { base64: true });
+    zip.file(`slide${i + 1}.png`, base64, { base64: true });
   }
 
   // Spec §18 Complete Deliverables: Caption, Pinned First Comment, Short Caption, Metadata, and Claims Citations
@@ -2641,14 +2652,23 @@ export async function downloadAllSlidesZip(
   // 1. Ready-to-paste bilingual TikTok caption, hook, standardized Marrok closing line/CTA, and hashtags
   const mainCaption = carousel.captionVariants?.[0]?.caption || carousel.caption || '';
   const ctaLine = carousel.slides[carousel.slides.length - 1]?.ctaText || 'DM us  •  رسالة خاصة';
-  const metricoolCaption = `${mainCaption}
+  const screenHookText = carousel.screenHook || carousel.hookVariants?.[0]?.enTitle || carousel.slides[0]?.enTitle || '';
 
-═════════════════════════════════════
-🔗 Reference & Documentation: https://${carousel.brandUrl || 'marrok.org'}
-💬 Action: [ ${ctaLine} ]
-`.trim();
+  let metricoolCaption = '';
+  if (screenHookText) {
+    metricoolCaption += `🎯 ${screenHookText}\n\n`;
+  }
+  metricoolCaption += mainCaption;
 
-  const cleanBilingualCaption = metricoolCaption.replace(/\u00A0/g, ' ');
+  if (!metricoolCaption.includes('marrok.org') && !metricoolCaption.includes('Reference & Source')) {
+    metricoolCaption += `\n\n═════════════════════════════════════\n🎬 MARROK Technical Studio // Verified Engineering Breakdown\n🔗 Reference & Source: https://${carousel.brandUrl || 'marrok.org'}\n💬 Action: [ ${ctaLine} ]\n`;
+  }
+
+  if (!metricoolCaption.includes('#')) {
+    metricoolCaption += `\n#SoftwareEngineering #SystemDesign #DevOps #MARROK #TechInArabic`;
+  }
+
+  const cleanBilingualCaption = metricoolCaption.replace(/\u00A0/g, ' ').trim();
   folder?.file('caption-bilingual.txt', cleanBilingualCaption);
   zip.file('caption-bilingual.txt', cleanBilingualCaption);
 
@@ -2731,28 +2751,31 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
   folder?.file('post_metadata.json', JSON.stringify(metadata, null, 2));
 
   // Quick Creator Publishing Guide
-  const readme = `MARROK TIKTOK CAROUSEL EXPORT PACKAGE
-=====================================
+  const readme = `MARROK TIKTOK & METRICOOL PUBLISHING BUNDLE
+=============================================
 Deck: ${carousel.category} (${carousel.slides.length} slides)
 Theme: ${carousel.theme}
 Search Grounded: ${carousel.sourceMeta?.isSearchGrounded ? 'YES (Google Search)' : 'Autonomous Synthesizer'}
 Created: ${new Date().toLocaleString()}
 
-FILES IN THIS PACKAGE:
-- slide1.jpg to slide${total}.jpg (1080x1920 9:16 high-res JPGs, Safe-Zone compliant)
+FILES IN THIS METRICOOL PACKAGE:
+- slide1.png to slide${total}.png (1080x1920 9:16 high-res PNGs, Safe-Zone compliant)
+- caption-bilingual.txt (Metricool ready bilingual copy with hook, CTA, and hashtags)
+- carousel-manifest.json (Complete serialized CarouselData schema for archiving and re-import)
 - caption.txt (Bilingual TikTok post caption with hashtags and verification block)
 - claims_citations.txt (Audit log of all verified numbers, benchmarks, and source links)
 - first_comment.txt (Pinned first comment to drive engagement and save rate)
 - short_caption.txt (Clean 2-line version for TikTok quick post)
 - post_metadata.json (Machine-readable post schema with grounding metadata)
 
-HOW TO PUBLISH TO TIKTOK:
-1. Transfer slide1.jpg through slide${total}.jpg to your phone (AirDrop, Google Drive, etc.).
-2. Open TikTok -> Tap '+' -> Choose 'Photos' -> Select all ${total} slides in numerical order.
-3. Copy text from 'caption.txt' and paste into TikTok's description box.
-4. Hit 'Post'. Immediately open your video comments and paste 'first_comment.txt', then pin it!
+HOW TO PUBLISH TO METRICOOL / TIKTOK:
+1. Open Metricool -> New Post -> Select TikTok / Instagram.
+2. Drag and drop slide1.png through slide${total}.png.
+3. Open 'caption-bilingual.txt', copy all and paste into post caption.
+4. Schedule or publish immediately!
 `;
   folder?.file('README.txt', readme);
+  zip.file('README.txt', readme);
 
   const content = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(content);

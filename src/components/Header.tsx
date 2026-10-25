@@ -31,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
               <img src="/marrok-logo.svg" alt="M" className="w-full h-full object-contain" />
             </div>
             <span className="text-xl font-extrabold tracking-tight text-white font-jakarta tracking-wide">
-              ARROK
+              MARROK
             </span>
             <span
               className="w-2.5 h-2.5 rounded-full inline-block ml-0.5 transition-transform duration-200 group-hover:scale-125"

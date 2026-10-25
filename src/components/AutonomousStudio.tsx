@@ -34,7 +34,7 @@ import {
   X,
   CheckCircle,
 } from 'lucide-react';
-import { CarouselData, SlideData, SlideType, ThemePalette, HookVariant, DEFAULT_PALETTES } from '../types';
+import { CarouselData, SlideData, SlideType, ThemePalette, HookVariant, DiagramVariant, DiagramNode, DEFAULT_PALETTES } from '../types';
 import { DEFAULT_STARTER_DECK, PRESET_CAROUSELS } from '../lib/presets';
 import { renderSlideToCanvas, downloadAllSlidesZip, downloadSingleSlidePng, copySlideToClipboard } from '../lib/canvasExporter';
 import { runAutonomousPipeline } from '../lib/autonomousPipeline';
@@ -77,6 +77,13 @@ const STARTER_TOPICS = [
     desc: 'Multi-threaded core engine & active clustering',
     prompt: 'Redis 8 architectural leap: multi-threaded core engine and active-active clustering',
   },
+];
+
+const DIAGRAM_VARIANTS: { id: DiagramVariant; label: string }[] = [
+  { id: 'topology', label: 'Topology Flow' },
+  { id: 'stack', label: 'Layered Stack' },
+  { id: 'isolation', label: 'Isolation Grid' },
+  { id: 'takeaway', label: 'Key Takeaway' },
 ];
 
 const ARCHETYPES: { id: SlideType; label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }> }[] = [
@@ -372,6 +379,41 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const currentSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
+
+  // Satellite Labels Updater (Slide 1 Hub)
+  const handleUpdateSatLabel = (index: number, value: string) => {
+    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length >= 6
+      ? [...currentSlide.satLabels]
+      : ['Node 1', 'Node 2', 'Node 3', 'Node 4', 'Node 5', 'Node 6'];
+    currentLabels[index] = value;
+    handleUpdateCurrentSlide('satLabels', currentLabels);
+  };
+
+  // Diagram Node Updater (Slide 2-7 Mechanism Slides)
+  const handleUpdateDiagramNode = (nodeIndex: number, field: keyof DiagramNode, value: string) => {
+    const defaultNodes: DiagramNode[] = [
+      { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE' },
+      { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED' },
+      { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED' },
+    ];
+    const existing = currentSlide.diagramNodes && currentSlide.diagramNodes.length >= 3
+      ? currentSlide.diagramNodes.map((n) => ({ ...n }))
+      : defaultNodes;
+    existing[nodeIndex] = {
+      ...existing[nodeIndex],
+      [field]: value,
+    };
+    handleUpdateCurrentSlide('diagramNodes', existing);
+  };
+
+  // Diagram Connector / Edge Updater
+  const handleUpdateDiagramEdge = (edgeIndex: number, value: string) => {
+    const currentEdges = currentSlide.diagramEdges && currentSlide.diagramEdges.length >= 2
+      ? [...currentSlide.diagramEdges]
+      : ['Mutual Auth', 'Encrypted Pipe'];
+    currentEdges[edgeIndex] = value;
+    handleUpdateCurrentSlide('diagramEdges', currentEdges);
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-40 animate-fade-in">
@@ -890,6 +932,167 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 />
               </div>
             </div>
+
+            {/* Live Diagram Controls in Slide Editor UI */}
+            {/* Slide 1 (Hub): 6 Compact Satellite Labels */}
+            {currentSlide.type === 'hub' && (
+              <div className="pt-3 border-t border-white/[0.08] space-y-2.5 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                    <span>Orbital Satellite Labels (6 Component Nodes)</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-mono">Live on Canvas</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <div key={idx} className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-500 font-bold">
+                        #{idx + 1}
+                      </span>
+                      <input
+                        type="text"
+                        value={currentSlide.satLabels?.[idx] ?? ''}
+                        onChange={(e) => handleUpdateSatLabel(idx, e.target.value)}
+                        placeholder={`Node ${idx + 1}`}
+                        className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl pl-8 pr-2.5 py-1.5 text-xs text-white font-medium focus:outline-none transition-colors"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Architecture Diagram Slides (Row / Mechanism slides) */}
+            {currentSlide.type === 'row' && (
+              <div className="pt-3 border-t border-white/[0.08] space-y-3.5 animate-fade-in">
+                {/* 1. Diagram Layout Switcher */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Cpu className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                      <span>Diagram Layout Switcher</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">1-Click Schematic Flip</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
+                    {DIAGRAM_VARIANTS.map((variant) => {
+                      const isSelected = (currentSlide.diagramVariant || 'topology') === variant.id;
+                      return (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => handleUpdateCurrentSlide('diagramVariant', variant.id)}
+                          className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-white/20 text-white shadow-sm border border-white/30'
+                              : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                          }`}
+                          style={isSelected ? { color: theme.accent } : undefined}
+                        >
+                          <span>{variant.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Compact editable fields for the 3 diagramNodes */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <span>Schematic Nodes (3 Components)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">Label / Sublabel / Status</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {Array.from({ length: 3 }).map((_, nIdx) => {
+                      const defaultNodes = [
+                        { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE' },
+                        { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED' },
+                        { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED' },
+                      ];
+                      const node = currentSlide.diagramNodes?.[nIdx] || defaultNodes[nIdx];
+                      return (
+                        <div key={nIdx} className="bg-black/50 border border-white/10 rounded-xl p-2.5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold font-mono text-slate-400">
+                              Node #{nIdx + 1}
+                            </span>
+                            <input
+                              type="text"
+                              value={node.status || ''}
+                              onChange={(e) => handleUpdateDiagramNode(nIdx, 'status', e.target.value)}
+                              placeholder="STATUS"
+                              className="w-20 text-right bg-transparent border-b border-white/15 focus:border-white/40 text-[9px] font-mono text-emerald-400 uppercase focus:outline-none"
+                              title="Status Badge (e.g. ACTIVE, VERIFIED, ISOLATED)"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              value={node.label || ''}
+                              onChange={(e) => handleUpdateDiagramNode(nIdx, 'label', e.target.value)}
+                              placeholder="Primary Label"
+                              className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              value={node.sublabel || ''}
+                              onChange={(e) => handleUpdateDiagramNode(nIdx, 'sublabel', e.target.value)}
+                              placeholder="Sublabel / Spec"
+                              className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. diagramEdges & diagramFooter */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                      Connector 1 → 2
+                    </label>
+                    <input
+                      type="text"
+                      value={currentSlide.diagramEdges?.[0] ?? ''}
+                      onChange={(e) => handleUpdateDiagramEdge(0, e.target.value)}
+                      placeholder="e.g. Mutual Auth"
+                      className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                      Connector 2 → 3
+                    </label>
+                    <input
+                      type="text"
+                      value={currentSlide.diagramEdges?.[1] ?? ''}
+                      onChange={(e) => handleUpdateDiagramEdge(1, e.target.value)}
+                      placeholder="e.g. Encrypted Pipe"
+                      className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                      Footer Telemetry Line
+                    </label>
+                    <input
+                      type="text"
+                      value={currentSlide.diagramFooter ?? ''}
+                      onChange={(e) => handleUpdateCurrentSlide('diagramFooter', e.target.value)}
+                      placeholder="e.g. Telemetry metric"
+                      className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Expandable Advanced Customizer Drawer */}
             {isAdvancedCustomizerOpen && (

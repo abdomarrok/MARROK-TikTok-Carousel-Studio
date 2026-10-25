@@ -529,4 +529,31 @@ This document records the chronological development history, engineering decisio
     - **Docker & Proxmox Virtualization Architecture:** Contact sheet screenshot (`contact_sheet_docker_proxmox_1792935833157.png`) shows Docker whale SVG, blueprint palette, OCI / OverlayFS / cgroups satellites, and container shim / kernel virtualization stack.
   - Verified 0 occurrences of hardcoded mTLS/Envoy on non-security decks.
 
+## Step 24: Live Diagram Controls in Slide Editor & Metricool Publishing Bundle
+- **1. Live Diagram Controls in Slide Editor (`AutonomousStudio.tsx`):**
+  - **Slide 1 (`hub`)**: Added compact input pills allowing live editing of each of the 6 orbital satellite labels (`satLabels`), with real-time canvas preview updates.
+  - **Architecture Diagram Slides (`row` / mechanism slides)**:
+    - **Diagram Layout Switcher**: Added 1-click layout switcher pills (`Topology Flow`, `Layered Stack`, `Isolation Grid`, `Key Takeaway`) bound to `slide.diagramVariant`. Prioritized `slide.diagramVariant` in `canvasExporter.ts` over heuristic fallback to ensure immediate 1-click schematic toggling.
+    - **Schematic Nodes (3 Components)**: Added compact editable fields for `label`, `sublabel`, and `status` tags on all 3 nodes.
+    - **Connectors & Telemetry**: Added live inputs for Connector 1 → 2 (`diagramEdges[0]`), Connector 2 → 3 (`diagramEdges[1]`), and Footer Telemetry Line (`diagramFooter`).
+  - Added dedicated helper update functions (`handleUpdateSatLabel`, `handleUpdateDiagramNode`, `handleUpdateDiagramEdge`) that preserve source metadata and trigger reactive canvas updates.
+  - Sanitized diagram fields in `textSanitizer.ts` (`sanitizeSlide`).
+- **2. Header Wordmark Polish (`canvasExporter.ts` & `Header.tsx`):**
+  - Ensured top-left slide header text next to `drawMarrokVectorBadge()` strictly renders the full word **`MARROK`** (`[Badge] MARROK •`), guarding against any raw brand string starting with or set to `ARROK`.
+  - Updated web application header wordmark in `Header.tsx` to `MARROK` for consistency.
+- **3. Metricool ZIP Export Bundle (`downloadAllSlidesZip` in `canvasExporter.ts`):**
+  - High-res PNG export: Slides are generated lossless as 1080x1920 PNGs (`slide1.png` to `slideN.png`) at both folder and root levels.
+  - `caption-bilingual.txt`: Formatted ready-to-paste Metricool copy including screen hook, bilingual English + Arabic caption, standardized Marrok closing line/CTA (`marrok.org`), and engineering hashtags.
+  - `carousel-manifest.json`: Full serialized `CarouselData` (with active palette, visualOptions, and diagram fields) for deck archival and re-import.
+  - Updated `README.txt` with clear step-by-step Metricool publishing instructions.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 errors.
+  - `npm run build` (`vite build`): Passed with 0 errors.
+  - Browser subagent tested and recorded live interactive editing on `http://localhost:3000`:
+    - Slide 1 Hub: Edited satellite node 1 to `CORE GATEWAY` and verified real-time canvas update.
+    - Slide Mechanism (`row`): Toggled layout switcher between `Layered Stack`, `Isolation Grid`, and `Topology Flow`.
+    - Live node editing: Updated node 1 to `CUSTOM CLIENT`, sublabel to `TLS 1.3`, status to `VERIFIED`, connector to `SYNC`, and footer to `TESTED LIVE // P99 < 0.2ms` with instantaneous visual feedback on canvas.
+  - Automated Node.js script verified Metricool ZIP file hierarchy and parsing.
+
+
 

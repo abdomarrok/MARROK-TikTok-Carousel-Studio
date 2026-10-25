@@ -334,6 +334,24 @@ export function sanitizeSlide(
     ctaText: slide.ctaText
       ? stripMarkdown(slide.ctaText)
       : slide.ctaText,
+    satLabels: slide.satLabels
+      ? slide.satLabels.map((l) => stripMarkdown(l))
+      : slide.satLabels,
+    diagramVariant: slide.diagramVariant,
+    diagramNodes: slide.diagramNodes
+      ? slide.diagramNodes.map((n) => ({
+          ...n,
+          label: stripMarkdown(n.label || ''),
+          sublabel: n.sublabel ? stripMarkdown(n.sublabel) : undefined,
+          status: n.status ? stripMarkdown(n.status).toUpperCase() : undefined,
+        }))
+      : slide.diagramNodes,
+    diagramEdges: slide.diagramEdges
+      ? slide.diagramEdges.map((e) => stripMarkdown(e))
+      : slide.diagramEdges,
+    diagramFooter: slide.diagramFooter
+      ? stripMarkdown(slide.diagramFooter)
+      : slide.diagramFooter,
   };
 }
 
