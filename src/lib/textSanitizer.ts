@@ -98,35 +98,72 @@ export function sanitizeMetricForArabic(rawMetric: string): string {
  * Must be strictly 2 to 5 words ending in a period ('.').
  * Zero colons, dashes, or ellipses.
  */
-export function enforceHeadlineSpecRule(rawHeadline: string, fallbackSubject: string = 'System'): string {
-  if (!rawHeadline) return `${fallbackSubject}, explained.`;
+export interface HeadlineOptions {
+  isHook?: boolean;
+  isCta?: boolean;
+  fallbackSubject?: string;
+}
 
-  // Clean markdown, symbols, and remove ALL colons
+/**
+ * Enforces Spec §8 rule on English headlines:
+ * - Slide 1 Hook: Strictly 2 to 5 words, ending in '.', '?', or '!'. Zero colons.
+ * - CTA Slide: Up to 8 words, ending in '?', '!', or '.'. Allows question hooks.
+ * - Content Slides: Up to 8 words, clean punctuation.
+ */
+export function enforceHeadlineSpecRule(
+  rawHeadline: string,
+  options: HeadlineOptions | string = {}
+): string {
+  const opts: HeadlineOptions = typeof options === 'string' ? { fallbackSubject: options } : options;
+  const { isHook = false, isCta = false, fallbackSubject = 'System' } = opts;
+
+  if (!rawHeadline || !rawHeadline.trim()) {
+    if (isCta) return 'Need a custom tool?';
+    return `${fallbackSubject}, explained.`;
+  }
+
+  const trimmed = rawHeadline.trim();
+  let endingPunc = '.';
+  if (trimmed.endsWith('?')) endingPunc = '?';
+  else if (trimmed.endsWith('!')) endingPunc = '!';
+  else if (isCta && /^(?:need|how|why|what|ready|scaling)\b/i.test(trimmed)) endingPunc = '?';
+
+  // Clean markdown, symbols, and remove ALL colons (preserve compound hyphens like Zero-Trust)
   let clean = stripMarkdown(rawHeadline)
-    .replace(/[:;\-_/]+/g, ' ')
+    .replace(/[:;]+/g, ' ')
     .replace(/[.?!،؟…]+/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
   const words = clean.split(/\s+/).filter(Boolean);
 
-  let pickedWords: string[] = [];
-  if (words.length >= 2 && words.length <= 5) {
-    pickedWords = words;
-  } else if (words.length > 5) {
-    pickedWords = words.slice(0, 4);
-  } else if (words.length === 1) {
-    pickedWords = [words[0], 'explained'];
-  } else {
-    pickedWords = ['Architecture', 'overview'];
+  if (isHook) {
+    let pickedWords: string[] = [];
+    if (words.length >= 2 && words.length <= 5) {
+      pickedWords = words;
+    } else if (words.length > 5) {
+      pickedWords = words.slice(0, 5);
+    } else if (words.length === 1) {
+      pickedWords = [words[0], 'explained'];
+    } else {
+      pickedWords = [fallbackSubject, 'overview'];
+    }
+    return `${pickedWords.join(' ')}${endingPunc}`;
   }
 
-  return `${pickedWords.join(' ')}.`;
+  if (isCta) {
+    const pickedWords = words.length > 8 ? words.slice(0, 8) : words;
+    return `${pickedWords.join(' ')}${endingPunc}`;
+  }
+
+  // Content slides: allow up to 8 words
+  const pickedWords = words.length > 8 ? words.slice(0, 8) : words;
+  return `${pickedWords.join(' ')}${endingPunc}`;
 }
 
 /**
  * Cleans user prompt / title into a crisp English headline without markdown.
- * Strictly guarantees 2 to 5 words ending in a period ('.').
+ * Strictly guarantees 2 to 5 words ending in '.', '?', or '!'.
  */
 export function extractCleanHeadline(
   rawText: string,
@@ -134,7 +171,7 @@ export function extractCleanHeadline(
 ): { headline: string; cleanTitle: string } {
   if (!rawText || !rawText.trim()) {
     const fallback = fallbackDomain.split('&')[0].trim();
-    const h = enforceHeadlineSpecRule(fallback, 'Architecture');
+    const h = enforceHeadlineSpecRule(fallback, { isHook: true, fallbackSubject: 'Architecture' });
     return { headline: h, cleanTitle: h };
   }
 
@@ -156,8 +193,8 @@ export function extractCleanHeadline(
     }
   }
 
-  // Generate crisp 2-5 word headline
-  const headline = enforceHeadlineSpecRule(subjectPart, 'Architecture');
+  // Generate crisp 2-5 word hook headline preserving questions if present
+  const headline = enforceHeadlineSpecRule(subjectPart, { isHook: true, fallbackSubject: 'Architecture' });
   return { headline, cleanTitle: headline };
 }
 
@@ -255,13 +292,18 @@ export function sanitizeEnglishSlideText(
 /**
  * Deeply sanitizes a single slide to guarantee crisp, defect-free rendering on canvas and UI.
  */
-export function sanitizeSlide(slide: SlideData): SlideData {
-  const isSlide1 = slide.type === 'hub';
+export function sanitizeSlide(
+  slide: SlideData,
+  slideIndex: number = 0,
+  totalSlides: number = 8
+): SlideData {
+  const isHook = slideIndex === 0 || slide.type === 'hub';
+  const isCta = slideIndex === totalSlides - 1 || slide.type === 'cta';
 
   return {
     ...slide,
     enTitle: slide.enTitle
-      ? enforceHeadlineSpecRule(slide.enTitle)
+      ? enforceHeadlineSpecRule(slide.enTitle, { isHook, isCta })
       : slide.enTitle,
     arTitle: slide.arTitle
       ? sanitizeArabicSlideText(slide.arTitle, { isTitle: true })
@@ -295,12 +337,13 @@ export function sanitizeSlide(slide: SlideData): SlideData {
 
 /**
  * Cleans the full caption text to eliminate markdown headings, duplicate prefixes,
- * and double punctuation.
+ * double punctuation, and strips non-breaking spaces (\u00A0).
  */
 export function sanitizeCaption(caption: string): string {
   if (!caption) return '';
 
   return caption
+    .replace(/\u00A0/g, ' ')
     .split('\n')
     .map((line) => {
       // Don't strip hashtags from the hashtags line at the bottom
@@ -322,6 +365,7 @@ export function sanitizeCaption(caption: string): string {
  * Comprehensive sanitize function for full CarouselData before rendering or saving.
  */
 export function sanitizeFullCarousel(carousel: CarouselData): CarouselData {
+  const slideCount = carousel.slides?.length || 8;
   return {
     ...carousel,
     category: stripMarkdown(carousel.category || '').toUpperCase(),
@@ -332,7 +376,7 @@ export function sanitizeFullCarousel(carousel: CarouselData): CarouselData {
     screenHook: carousel.screenHook
       ? sanitizeEnglishSlideText(carousel.screenHook, { isTitle: true }).replace(/[.?!]$/, '')
       : undefined,
-    slides: (carousel.slides || []).map((s) => sanitizeSlide(s)),
+    slides: (carousel.slides || []).map((s, idx) => sanitizeSlide(s, idx, slideCount)),
     hookVariants: (carousel.hookVariants || []).map((h) => ({
       ...h,
       enTitle: sanitizeEnglishSlideText(h.enTitle, { isTitle: true }),

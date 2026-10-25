@@ -70,7 +70,7 @@ export interface CaptionVariant {
 export interface ExtractedFact {
   text: string;
   type: 'number' | 'date' | 'name' | 'quote' | 'claim';
-  verified: 'verified' | 'partially_verified' | 'unconfirmed';
+  verified: 'verified' | 'partially_verified' | 'unconfirmed' | 'unverified';
   evidence?: string;
   sourceUrl?: string;
   sourceTitle?: string;
@@ -92,6 +92,8 @@ export interface PostSourceMeta {
   isSearchGrounded?: boolean;
   isFallback?: boolean;
   engine?: 'gemini-ai' | 'offline-synthesizer';
+  status?: 'verified_live' | 'unverified_draft';
+  userReviewed?: boolean;
 }
 
 export interface CarouselData {

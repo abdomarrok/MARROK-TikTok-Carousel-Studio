@@ -32,12 +32,14 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  CheckCircle,
 } from 'lucide-react';
 import { CarouselData, SlideData, SlideType, ThemePalette, HookVariant } from '../types';
 import { DEFAULT_STARTER_DECK, PRESET_CAROUSELS } from '../lib/presets';
 import { renderSlideToCanvas, downloadAllSlidesZip, downloadSingleSlidePng, copySlideToClipboard } from '../lib/canvasExporter';
 import { runAutonomousPipeline } from '../lib/autonomousPipeline';
 import { sanitizeSlide } from '../lib/textSanitizer';
+import { runQAChecks } from '../lib/qaChecks';
 import { MultimodalInputPanel } from './MultimodalInputPanel';
 import { SlideImageStudio } from './SlideImageStudio';
 import { MediaSearchModal } from './MediaSearchModal';
@@ -202,19 +204,41 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     }
   };
 
-  // Inline Slide Data Updater (Editing slide content automatically unblocks draft status)
+  // Inline Slide Data Updater (Slide editing keeps sourceMeta intact without bypassing draft status)
   const handleUpdateCurrentSlide = (field: keyof SlideData, value: any) => {
     const newSlides = [...carousel.slides];
-    const updated = sanitizeSlide({
-      ...newSlides[currentSlideIndex],
-      [field]: value,
-    });
+    const updated = sanitizeSlide(
+      {
+        ...newSlides[currentSlideIndex],
+        [field]: value,
+      },
+      currentSlideIndex,
+      carousel.slides.length
+    );
     newSlides[currentSlideIndex] = updated;
     onUpdateCarousel({
       ...carousel,
       slides: newSlides,
-      sourceMeta: carousel.sourceMeta ? { ...carousel.sourceMeta, isFallback: false } : undefined,
+      sourceMeta: carousel.sourceMeta ? { ...carousel.sourceMeta } : undefined,
     });
+  };
+
+  // Explicit confirmation: Creator must confirm draft review to unlock export
+  const handleToggleReviewDraft = () => {
+    const isCurrentlyReviewed = Boolean(carousel.sourceMeta?.userReviewed);
+    const newReviewed = !isCurrentlyReviewed;
+    onUpdateCarousel({
+      ...carousel,
+      sourceMeta: {
+        ...carousel.sourceMeta,
+        userReviewed: newReviewed,
+      },
+    });
+    if (newReviewed) {
+      onShowToast('✓ Draft marked as reviewed. Pre-export QA validation active.');
+    } else {
+      onShowToast('Draft review unmarked. Export locked.');
+    }
   };
 
   // Slide Management Handlers
@@ -282,11 +306,18 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const isOfflineDraft = Boolean(carousel.sourceMeta?.isFallback);
+  const isReviewed = Boolean(carousel.sourceMeta?.userReviewed);
+  const qaReport = runQAChecks(carousel);
+  const isExportBlocked = (isOfflineDraft && !isReviewed) || !qaReport.canExport;
 
-  // 1-Click Export ZIP (Strictly blocked on offline drafts per specification)
+  // 1-Click Export ZIP (Strictly verified per specification)
   const handleExportZip = async () => {
-    if (isOfflineDraft) {
-      onShowToast('⚠️ Export blocked: Offline draft detected. Edit slide copy or regenerate with AI.');
+    if (isOfflineDraft && !isReviewed) {
+      onShowToast('⚠️ Export locked: Click "✓ I reviewed this draft" in the banner above first.');
+      return;
+    }
+    if (!qaReport.canExport) {
+      onShowToast(`⚠️ Export blocked: ${qaReport.failCount} QA issue(s) detected (e.g. duplicate body copy or boilerplate).`);
       return;
     }
     setIsExportingZip(true);
@@ -307,8 +338,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   // Copy Single Slide
   const handleCopySlide = async () => {
-    if (isOfflineDraft) {
-      onShowToast('⚠️ Copy blocked: Offline draft detected. Please edit slide text first.');
+    if (isOfflineDraft && !isReviewed) {
+      onShowToast('⚠️ Copy locked: Please confirm "I reviewed this draft" first.');
       return;
     }
     try {
@@ -321,9 +352,10 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     }
   };
 
-  // Copy TikTok Caption
+  // Copy TikTok Caption (strips non-breaking spaces for platform compatibility)
   const handleCopyCaption = async () => {
-    const text = `${carousel.caption || ''}\n\n#SoftwareArchitecture #TechTok #Programming #SystemDesign`;
+    const rawCaption = carousel.caption || '';
+    const text = `${rawCaption}\n\n#SoftwareArchitecture #TechTok #Programming #SystemDesign`.replace(/\u00A0/g, ' ');
     try {
       await navigator.clipboard.writeText(text);
       setCopiedType('caption');
@@ -430,33 +462,76 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
       {/* Offline Draft Warning Banner */}
       {isOfflineDraft && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-md">
+        <div
+          className={`border rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-md transition-colors ${
+            isReviewed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
-              <span className="text-amber-400 font-bold text-sm">⚠️</span>
+            <div
+              className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+                isReviewed
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                  : 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+              }`}
+            >
+              <span className="font-bold text-sm">{isReviewed ? '✓' : '⚠️'}</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-amber-300 font-jakarta uppercase tracking-wider">
-                  Offline Draft (AI Engine Unavailable)
+                <span
+                  className={`text-xs font-bold font-jakarta uppercase tracking-wider ${
+                    isReviewed ? 'text-emerald-300' : 'text-amber-300'
+                  }`}
+                >
+                  {isReviewed ? 'Draft Reviewed — QA Validation Active' : 'Unverified Offline Draft (AI Unavailable)'}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-mono font-bold">
-                  Export Blocked
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    isReviewed
+                      ? qaReport.canExport
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'bg-rose-500/20 text-rose-300'
+                      : 'bg-amber-500/20 text-amber-300'
+                  }`}
+                >
+                  {isReviewed
+                    ? qaReport.canExport
+                      ? 'QA Passed · Ready'
+                      : `Blocked: ${qaReport.failCount} QA Issue(s)`
+                    : 'Export Locked'}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                This deck was generated using the offline fallback synthesizer. Export is blocked until slide text is edited or regenerated with AI.
+                {isReviewed
+                  ? 'You explicitly confirmed review of this draft. QA rules enforce unique body copy across slides and strict headline guidelines.'
+                  : 'Synthesized using offline fallback templates. Facts are unverified estimates. Review slide copy and click "I reviewed this draft" to proceed.'}
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => handleRunAutonomousPipeline()}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-semibold cursor-pointer transition-all shrink-0 flex items-center gap-1.5"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Retry with AI</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              id="confirm-review-draft-btn"
+              type="button"
+              onClick={handleToggleReviewDraft}
+              className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
+                isReviewed
+                  ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-200'
+                  : 'bg-amber-500 hover:bg-amber-400 border-amber-400 text-slate-950 shadow-md'
+              }`}
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>{isReviewed ? '✓ Reviewed (Click to Unmark)' : '✓ I reviewed this draft'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRunAutonomousPipeline()}
+              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry with AI</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -643,20 +718,20 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (isOfflineDraft) {
-                      onShowToast('⚠️ Download blocked: Offline draft detected. Edit slide copy first.');
+                    if (isOfflineDraft && !isReviewed) {
+                      onShowToast('⚠️ Download blocked: Please review draft and click "I reviewed this" first.');
                       return;
                     }
                     downloadSingleSlidePng(carousel, currentSlideIndex, `MARROK_Slide_${currentSlideIndex + 1}.jpg`, theme);
                     onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
                   }}
-                  disabled={isOfflineDraft}
+                  disabled={isOfflineDraft && !isReviewed}
                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-                    isOfflineDraft
+                    isOfflineDraft && !isReviewed
                       ? 'border-white/5 bg-white/[0.02] text-slate-500 cursor-not-allowed'
                       : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 cursor-pointer'
                   }`}
-                  title={isOfflineDraft ? 'Download blocked on offline draft' : `Download Slide ${currentSlideIndex + 1} JPG`}
+                  title={isOfflineDraft && !isReviewed ? 'Download locked: Review draft first' : `Download Slide ${currentSlideIndex + 1} JPG`}
                 >
                   <Download className="w-3.5 h-3.5 text-cyan-400" />
                   <span className="text-[11px]">JPG</span>
@@ -665,13 +740,13 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 <button
                   type="button"
                   onClick={handleCopySlide}
-                  disabled={isOfflineDraft}
+                  disabled={isOfflineDraft && !isReviewed}
                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-                    isOfflineDraft
+                    isOfflineDraft && !isReviewed
                       ? 'border-white/5 bg-white/[0.02] text-slate-500 cursor-not-allowed'
                       : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 cursor-pointer'
                   }`}
-                  title="Copy Slide to Clipboard"
+                  title={isOfflineDraft && !isReviewed ? 'Copy locked: Review draft first' : 'Copy Slide to Clipboard'}
                 >
                   {copiedType === 'slide' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
                   <span className="text-[11px]">Copy</span>
@@ -682,23 +757,34 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               <button
                 type="button"
                 onClick={handleExportZip}
-                disabled={isExportingZip || isOfflineDraft}
+                disabled={isExportingZip || isExportBlocked}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold text-xs tracking-wider transition-all shadow-lg whitespace-nowrap ${
-                  isOfflineDraft
+                  isExportBlocked
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-not-allowed'
                     : 'bg-teal-400 hover:bg-teal-300 text-slate-950 cursor-pointer disabled:opacity-50'
                 }`}
-                title={isOfflineDraft ? 'Export blocked: Offline draft detected. Edit slide text to enable.' : 'Export all 1080×1920 slides as ZIP'}
+                title={
+                  isOfflineDraft && !isReviewed
+                    ? 'Export locked: Confirm "I reviewed this draft" in banner first.'
+                    : !qaReport.canExport
+                    ? `Export blocked: ${qaReport.failCount} QA issue(s) detected.`
+                    : 'Export all 1080×1920 slides as ZIP'
+                }
               >
                 {isExportingZip ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                     <span className="text-[11px]">{exportProgress ? `${exportProgress.current}/${exportProgress.total}` : 'Exporting...'}</span>
                   </>
-                ) : isOfflineDraft ? (
+                ) : isOfflineDraft && !isReviewed ? (
+                  <>
+                    <span className="text-xs">🔒</span>
+                    <span className="text-[11px]">Draft Locked</span>
+                  </>
+                ) : !qaReport.canExport ? (
                   <>
                     <span className="text-xs">⚠️</span>
-                    <span className="text-[11px]">Draft (Blocked)</span>
+                    <span className="text-[11px]">QA Issues ({qaReport.failCount})</span>
                   </>
                 ) : (
                   <>

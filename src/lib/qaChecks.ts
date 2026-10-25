@@ -195,48 +195,216 @@ function checkArabicLineEndings(slide: SlideData, idx: number): QACheckResult[] 
 
 /**
  * Spec §8 Headline Rule:
- * English headline must be strictly 2 to 5 words ending in a period ('.').
- * Zero colons, dashes, or ellipses.
+ * - Slide 1 Hook: Strictly 2 to 5 words, ending in '.', '?', or '!'. Zero colons.
+ * - CTA Slide: Up to 8 words, ending in '?', '!', or '.'. Allows question hooks.
+ * - Content Slides: Up to 8 words, clean punctuation, no trailing colons.
  */
-function checkHeadlineSpecRule(slide: SlideData, idx: number): QACheckResult[] {
+function checkHeadlineSpecRule(slide: SlideData, idx: number, totalSlides: number): QACheckResult[] {
   const results: QACheckResult[] = [];
   if (!slide.enTitle || typeof slide.enTitle !== 'string') return results;
 
   const title = slide.enTitle.trim();
   const words = title.split(/\s+/).filter(Boolean);
+  const isHook = idx === 0 || slide.type === 'hub';
+  const isCta = idx === totalSlides - 1 || slide.type === 'cta';
 
-  if (title.endsWith(':') || title.includes(':')) {
-    results.push({
-      id: `headline-colon-${idx}`,
-      severity: 'fail',
-      slideIndex: idx,
-      field: 'enTitle',
-      message: `Slide ${idx + 1} headline contains a colon (':'). Headlines must end in a period, not a colon.`,
-      value: title,
-    });
+  if (isHook) {
+    if (title.includes(':')) {
+      results.push({
+        id: `headline-colon-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `Slide 1 hook contains a colon (':'). Hooks must not contain colons.`,
+        value: title,
+      });
+    }
+
+    if (!/[.?!]$/.test(title)) {
+      results.push({
+        id: `headline-punctuation-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `Slide 1 hook must end with '.', '?', or '!'.`,
+        value: title,
+      });
+    }
+
+    if (words.length < 2 || words.length > 5) {
+      results.push({
+        id: `headline-length-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `Slide 1 hook has ${words.length} words (rule is 2 to 5 words). Shorten or lengthen to 2–5 words.`,
+        value: words.length,
+        limit: '2–5 words',
+      });
+    }
+  } else if (isCta) {
+    if (title.includes(':')) {
+      results.push({
+        id: `headline-colon-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `CTA slide title contains a colon (':'). Remove colon.`,
+        value: title,
+      });
+    }
+
+    if (!/[.?!]$/.test(title)) {
+      results.push({
+        id: `headline-punctuation-${idx}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `CTA slide title should end with '?' or '.'.`,
+        value: title,
+      });
+    }
+
+    if (words.length > 8) {
+      results.push({
+        id: `headline-length-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `CTA slide headline has ${words.length} words (limit is 8 words). Shorten to 8 words or less.`,
+        value: words.length,
+        limit: '≤ 8 words',
+      });
+    }
+  } else {
+    // Content slide titles: up to 8 words
+    if (title.endsWith(':') || /::/.test(title)) {
+      results.push({
+        id: `headline-colon-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `Slide ${idx + 1} title ends with a colon. Remove trailing colon.`,
+        value: title,
+      });
+    }
+
+    if (words.length > 8) {
+      results.push({
+        id: `headline-length-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'enTitle',
+        message: `Slide ${idx + 1} title has ${words.length} words (spec allows up to 8 words). Shorten to 8 words or less.`,
+        value: words.length,
+        limit: '≤ 8 words',
+      });
+    }
   }
 
-  if (!title.endsWith('.')) {
-    results.push({
-      id: `headline-period-${idx}`,
-      severity: 'fail',
-      slideIndex: idx,
-      field: 'enTitle',
-      message: `Slide ${idx + 1} headline must end with a period ('.').`,
-      value: title,
-    });
+  return results;
+}
+
+// ─── Known Boilerplate & Template Patterns ─────────────────────────
+const KNOWN_BOILERPLATE_PATTERNS: { pattern: RegExp; description: string }[] = [
+  {
+    pattern: /A breakdown of technical mechanisms/i,
+    description: 'Generic fallback template summary ("A breakdown of technical mechanisms...")',
+  },
+  {
+    pattern: /النقلة المعمارية لمنظومة/i,
+    description: 'Generic template Arabic title ("النقلة المعمارية لمنظومة...")',
+  },
+  {
+    pattern: /When system frequency increases, legacy architectures become memory bottlenecks/i,
+    description: 'Generic fallback body ("When system frequency increases...")',
+  },
+  {
+    pattern: /A breakdown of technical mechanisms, benchmarks, and production architecture/i,
+    description: 'Boilerplate body text',
+  },
+];
+
+/** Check that slide does not contain unedited generic boilerplate phrases */
+function checkBoilerplatePhrases(slide: SlideData, idx: number): QACheckResult[] {
+  const results: QACheckResult[] = [];
+  const fieldsToCheck: (keyof SlideData)[] = ['enTitle', 'arTitle', 'enBody', 'arBody', 'ctaText'];
+
+  for (const field of fieldsToCheck) {
+    const val = slide[field];
+    if (typeof val !== 'string' || !val) continue;
+
+    for (const { pattern, description } of KNOWN_BOILERPLATE_PATTERNS) {
+      if (pattern.test(val)) {
+        results.push({
+          id: `boilerplate-${idx}-${field}`,
+          severity: 'fail',
+          slideIndex: idx,
+          field,
+          message: `Slide ${idx + 1} ${field} contains known template boilerplate: ${description}. Replace with authentic content.`,
+          value: val.substring(0, 50),
+        });
+        break;
+      }
+    }
   }
 
-  if (words.length > 5) {
-    results.push({
-      id: `headline-length-${idx}`,
-      severity: 'fail',
-      slideIndex: idx,
-      field: 'enTitle',
-      message: `Slide ${idx + 1} headline has ${words.length} words (rule is 2 to 5 words). Shorten to 2–5 words.`,
-      value: words.length,
-      limit: '2–5 words',
-    });
+  return results;
+}
+
+/** Check that no two slides share identical body copy */
+function checkDuplicateBodyText(slides: SlideData[]): QACheckResult[] {
+  const results: QACheckResult[] = [];
+  const seenEn = new Map<string, number>();
+  const seenAr = new Map<string, number>();
+
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+
+    // Normalize English body
+    const en = (slide.enBody || '')
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (en.length > 20) {
+      if (seenEn.has(en)) {
+        const prevIdx = seenEn.get(en)!;
+        results.push({
+          id: `duplicate-en-body-${i}`,
+          severity: 'fail',
+          slideIndex: i,
+          field: 'enBody',
+          message: `Slide ${i + 1} English body is identical to Slide ${prevIdx + 1}. Each slide must have unique copy.`,
+          value: slide.enBody?.substring(0, 60),
+        });
+      } else {
+        seenEn.set(en, i);
+      }
+    }
+
+    // Normalize Arabic body
+    const ar = (slide.arBody || '')
+      .replace(/[^\u0600-\u06FF\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (ar.length > 20) {
+      if (seenAr.has(ar)) {
+        const prevIdx = seenAr.get(ar)!;
+        results.push({
+          id: `duplicate-ar-body-${i}`,
+          severity: 'fail',
+          slideIndex: i,
+          field: 'arBody',
+          message: `Slide ${i + 1} Arabic body is identical to Slide ${prevIdx + 1}. Each slide must have unique copy.`,
+          value: slide.arBody?.substring(0, 60),
+        });
+      } else {
+        seenAr.set(ar, i);
+      }
+    }
   }
 
   return results;
@@ -391,21 +559,23 @@ export function runQAChecks(carousel: CarouselData): QAReport {
   results.push(checkLastSlideCta(slides));
   results.push(...checkCreditPresence(slides));
   results.push(...checkFirstFrame(slides));
+  results.push(...checkDuplicateBodyText(slides));
 
   // Check if deck is an offline fallback draft
-  if (carousel.sourceMeta?.isFallback) {
+  if (carousel.sourceMeta?.isFallback && !carousel.sourceMeta?.userReviewed) {
     results.push({
       id: 'fallback-draft-blocker',
       severity: 'fail',
-      message: 'Offline draft template detected. Review and verify slide copy before export.',
-      field: 'sourceMeta.isFallback',
+      message: 'Unverified offline draft detected. Review slide copy and click "I reviewed this" before export.',
+      field: 'sourceMeta.userReviewed',
     });
   }
 
   // Per-slide checks
   for (let i = 0; i < slides.length; i++) {
     const isHook = i === 0 && (slides[i].type === 'hub');
-    results.push(...checkHeadlineSpecRule(slides[i], i));
+    results.push(...checkHeadlineSpecRule(slides[i], i, slides.length));
+    results.push(...checkBoilerplatePhrases(slides[i], i));
     results.push(...checkCharLimits(slides[i], i, isHook));
     results.push(...checkArabicLineEndings(slides[i], i));
     results.push(...checkMarkdownAndPunctuation(slides[i], i));

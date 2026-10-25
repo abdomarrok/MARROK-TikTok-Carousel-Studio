@@ -27,10 +27,40 @@ function wrapTextLines(
       lines.push('');
       continue;
     }
-    const words = para.split(' ');
+    const rawWords = para.split(' ');
+    const safeWords: string[] = [];
+
+    // Safety check: if an NBSP-bound chunk exceeds maxWidth, unbind \u00A0 back to spaces
+    for (const w of rawWords) {
+      if (w.includes('\u00A0') && ctx.measureText(w).width > maxWidth) {
+        safeWords.push(...w.split('\u00A0'));
+      } else {
+        safeWords.push(w);
+      }
+    }
+
+    // Secondary safety: if any single word still exceeds maxWidth, split characters so it cannot overflow canvas
+    const expandedWords: string[] = [];
+    for (const w of safeWords) {
+      if (ctx.measureText(w).width > maxWidth) {
+        let chunk = '';
+        for (const char of w) {
+          if (ctx.measureText(chunk + char).width > maxWidth) {
+            if (chunk) expandedWords.push(chunk);
+            chunk = char;
+          } else {
+            chunk += char;
+          }
+        }
+        if (chunk) expandedWords.push(chunk);
+      } else {
+        expandedWords.push(w);
+      }
+    }
+
     let currentLine = '';
 
-    for (const word of words) {
+    for (const word of expandedWords) {
       const testLine = currentLine ? `${currentLine} ${word}` : word;
       const metrics = ctx.measureText(testLine);
       if (metrics.width > maxWidth && currentLine) {
@@ -1251,7 +1281,7 @@ export async function downloadAllSlidesZip(
       .join('\n');
     fullCaptionText += `\n\n═════════════════════════════════════\n🔍 Verified Claims & Citations:\n${factsBlock}`;
   }
-  folder?.file('caption.txt', fullCaptionText);
+  folder?.file('caption.txt', fullCaptionText.replace(/\u00A0/g, ' '));
 
   // 2. Separate dedicated claims & citations verification file
   if (carousel.facts && carousel.facts.length > 0) {
@@ -1281,14 +1311,14 @@ ${(carousel.sourceMeta?.groundingQueries || []).map((q) => `• ${q}`).join('\n'
 AUTHORITATIVE SOURCES & DOCUMENTATION:
 ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.url}`).join('\n') || `• https://${carousel.brandUrl || 'marrok.org'}`}
 `;
-    folder?.file('claims_citations.txt', claimsReport);
+    folder?.file('claims_citations.txt', claimsReport.replace(/\u00A0/g, ' '));
   }
 
   if (carousel.firstComment) {
-    folder?.file('first_comment.txt', carousel.firstComment);
+    folder?.file('first_comment.txt', carousel.firstComment.replace(/\u00A0/g, ' '));
   }
   if (carousel.shortCaption) {
-    folder?.file('short_caption.txt', carousel.shortCaption);
+    folder?.file('short_caption.txt', carousel.shortCaption.replace(/\u00A0/g, ' '));
   }
 
   // Structured Post Metadata JSON (for automation, analytics, and archiving)

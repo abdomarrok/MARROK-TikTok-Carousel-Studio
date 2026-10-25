@@ -10,7 +10,7 @@ This document records the chronological development history, engineering decisio
   1. Strict adherence to the 5 MARROK slide archetypes (Hub Hook, Row with 1 icon, Row with 2 icons, Row with 3 icons, CTA slide).
   2. Native bilingual layout: Bold English headline on top, natural technical Arabic subtitle directly underneath.
   3. Latin technical noun preservation: Keep proper nouns (e.g. *Git, Anthropic, Docker, DefectDojo, Ghidra*) in Latin characters inside Arabic text to avoid phonetic distortion.
-  4. TikTok 1080×1920 9:16 export with safe zones.
+  4. TikTok 1080Ã—1920 9:16 export with safe zones.
   5. One-tap mobile clipboard copy for rapid publishing on iOS/Android TikTok apps.
 
 ---
@@ -41,7 +41,7 @@ This document records the chronological development history, engineering decisio
 ## Step 4: Investigating & Resolving the Mobile "Failed to Fetch" Issue
 - **User Incident Report:** User experienced indefinite loading screens followed by a client network error `Failed to fetch` when uploading mobile phone screenshots.
 - **Root Cause Analysis:**
-  1. **Uncompressed Mobile Uploads:** Uploading uncompressed 15MB–20MB camera photos over cellular LTE caused request timeouts and high memory spikes.
+  1. **Uncompressed Mobile Uploads:** Uploading uncompressed 15MBâ€“20MB camera photos over cellular LTE caused request timeouts and high memory spikes.
   2. **Upstream 503 Spikes:** Google GenAI models (`gemini-3.8-flash` / `gemini-3.1-flash-lite`) intermittently returned HTTP 503 `UNAVAILABLE` due to temporary cluster demand.
   3. **Indefinite Hangs in Model Iteration:** When an upstream endpoint lagged, sequential model retries took over 25 seconds, causing mobile browser fetch requests to timeout.
 - **Engineering Solutions Implemented:**
@@ -54,7 +54,7 @@ This document records the chronological development history, engineering decisio
   3. **Zero-Fail Resilient Synthesizer (`src/lib/synthesizer.ts`):**
      - Built an instant, deterministic generator that extracts domain entities and builds full 8-slide decks in under 5ms.
      - Enabled both server-side fast-break and client-side error rescue.
-  4. **⚡ Instant Synthesize Button:** Added a prominent zero-latency action button for immediate offline generation.
+  4. **âš¡ Instant Synthesize Button:** Added a prominent zero-latency action button for immediate offline generation.
 
 ---
 
@@ -100,9 +100,9 @@ This document records the chronological development history, engineering decisio
 - **Engineering Solutions Implemented:**
   1. **UI Noise Audit & Streamlining:**
      - Collapsed redundant banner drawers into a clean, unified top action bar with modal dialogs (`Ingest Material`, `Download All (ZIP)`, `API Key`, `Theme Picker`).
-     - Kept application site chrome stable dark (`#080d11`) while confining color theme changes strictly to the carousel canvas (`1080×1920`).
+     - Kept application site chrome stable dark (`#080d11`) while confining color theme changes strictly to the carousel canvas (`1080Ã—1920`).
   2. **Smart Dynamic Slide Count (5 to 9 Slides):**
-     - Replaced rigid 8-slide structure with adaptive length based on content density (lean 5–6 slide decks for concise announcements, 8–9 slides for complex architecture breakdowns).
+     - Replaced rigid 8-slide structure with adaptive length based on content density (lean 5â€“6 slide decks for concise announcements, 8â€“9 slides for complex architecture breakdowns).
   3. **7-Archetype Visual System:**
      - Expanded from 3 archetypes to 7 specialized technical layouts:
        - `hub`: Central pulsing icon + 6 orbiting satellites (The Hook).
@@ -164,11 +164,11 @@ This document records the chronological development history, engineering decisio
   5. **Interactive Filmstrip & In-Between Inserters (`src/components/SlideCanvasPreview.tsx`):**
      - Thumbnails with archetype tags (`HUB`, `CLI`, `VS`, `ROW`, `CTA`) and hover **`+`** inserters between any two slides.
   6. **Desktop Keyboard Navigation:**
-     - **`←` / `→`** to traverse slides, **`1`--`9`** to jump directly to any slide.
+     - **`â†�` / `â†’`** to traverse slides, **`1`--`9`** to jump directly to any slide.
   7. **Local Draft Persistence (`src/App.tsx` & `src/components/Header.tsx`):**
-     - Auto-save to `localStorage` with a subtle **`✓ Saved [Time]`** status pill and reset action.
+     - Auto-save to `localStorage` with a subtle **`âœ“ Saved [Time]`** status pill and reset action.
   8. **Complete Deliverables ZIP Package (`src/lib/canvasExporter.ts`):**
-     - Bundles 8 high-res 1080×1920 JPGs, `caption.txt`, `first_comment.txt`, `short_caption.txt`, `post_metadata.json`, and `README.txt`.
+     - Bundles 8 high-res 1080Ã—1920 JPGs, `caption.txt`, `first_comment.txt`, `short_caption.txt`, `post_metadata.json`, and `README.txt`.
   9. **Font Integration (`index.html`):**
      - Added `JetBrains Mono` for monospace terminal and metric typography.
 
@@ -198,17 +198,17 @@ This document records the chronological development history, engineering decisio
      - Replaced manual button-clicking with a single unified orchestrator:
        - **Synthesize:** Calls `/api/generate` or local synthesizer.
        - **Auto-Sanitize:** Strips markdown syntax (`#`, `**`), orphan dots, and fixes Arabic BiDi character order.
-       - **Auto-Fit Limits:** Trims copy to Spec §8 character limits (Title $\le 45$, Body $\le 110$) without visual overflow.
+       - **Auto-Fit Limits:** Trims copy to Spec Â§8 character limits (Title $\le 45$, Body $\le 110$) without visual overflow.
        - **Auto-Generate Architecture Diagram:** Calls `gemini-nano-banana-2.1` to generate a 9:16 blueprint diagram for the core mechanism slide.
        - **Auto-Verify QA:** Silently checks QA compliance and auto-corrects.
   2. **Minimalist Autonomous Studio (`src/components/AutonomousStudio.tsx`):**
      - Single prominent command bar at the top with real-time pipeline status feedback.
      - Integrated **"Ingest Material"** button opening `MultimodalInputPanel` modal for screenshots, code/PDF docs, web URLs, and raw transcripts.
-     - Center 1080×1920 slide preview with keyboard navigation (`←`/`→`), safe zones toggle, and slide thumbnail strip.
+     - Center 1080Ã—1920 slide preview with keyboard navigation (`â†�`/`â†’`), safe zones toggle, and slide thumbnail strip.
      - Sleek **Slide Management Bar**: Add (+), Clone/Duplicate, Delete (min 3 guarded), Reorder (Move Left / Right), and Slide 1 Hook variants picker.
      - Direct **Inline Text Editing**: click on any headline or mechanism text (English or Arabic) directly to edit in place.
      - Expandable **Advanced Customizer Drawer**: full archetype controls (Code diff, Metric card, Compare columns, Hub satellite icons, and AI Diagram Studio / Web Media search).
-     - Floating 1-Click Delivery Bar: Export All 1080×1920 JPGs (ZIP), Copy TikTok Caption, Copy Slide to Clipboard, Download Active Slide JPG, Theme Switcher, Contact Sheet, and Plan Inspector.
+     - Floating 1-Click Delivery Bar: Export All 1080Ã—1920 JPGs (ZIP), Copy TikTok Caption, Copy Slide to Clipboard, Download Active Slide JPG, Theme Switcher, Contact Sheet, and Plan Inspector.
   3. **Streamlined Header (`src/components/Header.tsx`):**
      - Focused wordmark, theme switcher, API key modal, Contact Sheet, Plan Inspector, and auto-save pill.
 
@@ -225,7 +225,7 @@ This document records the chronological development history, engineering decisio
   3. **Cleaned Ingestion UI (`MultimodalInputPanel.tsx`):**
      - Removed the redundant static "Presets" tab from the ingestion modal, focusing purely on authentic creator inputs: Screenshots/Images, Web/GitHub URLs, and Code/Transcripts.
   4. **Realistic TikTok HUD Safe Zone Simulator:**
-     - Upgraded the Safe Zone overlay on the canvas preview to accurately simulate TikTok's top 180px margin (search/header), bottom 320px margin (caption/audio), right-side interaction column (like, comment, bookmark, share), and central 840×1420 content bounding box.
+     - Upgraded the Safe Zone overlay on the canvas preview to accurately simulate TikTok's top 180px margin (search/header), bottom 320px margin (caption/audio), right-side interaction column (like, comment, bookmark, share), and central 840Ã—1420 content bounding box.
   5. **Vite 8 & Tooling Modernization:**
      - Replaced deprecated `__dirname` in `vite.config.ts` with `import.meta.dirname`.
      - Configured `rollupOptions.output.manualChunks` splitting React/ReactDOM, Lucide icons, and JSZip into separate cached chunks, eliminating the `>500 kB` bundle warning.
@@ -240,7 +240,7 @@ This document records the chronological development history, engineering decisio
 - **Context & User Feedback:**
   - Fallback text was silently shipping identical boilerplate copy across topics ("A breakdown of technical mechanisms...") and identical Arabic titles ("?????? ????????? ??????? X").
   - Toast falsely claimed "Autonomously generated and perfected..." on offline drafts.
-  - Headlines violated Spec �8 rule (used colons or >5 words like "Zero-Trust mesh architecture with mTLS:" and "Redis 8 architectural leap: Next-Gen Shift.").
+  - Headlines violated Spec §8 rule (used colons or >5 words like "Zero-Trust mesh architecture with mTLS:" and "Redis 8 architectural leap: Next-Gen Shift.").
   - BiDi punctuation inversion flipped Arabic text touching Latin words ("???? :Anthropic's Scion").
   - False positive subject detection matched the Rust logo on Zero-Trust decks due to "zero-trust".includes("rust").
   - Wordmark improperly adopted topic names ("ANTHROPIC") instead of staying strictly locked to "MARROK".
@@ -250,7 +250,7 @@ This document records the chronological development history, engineering decisio
      - Added isFallback: boolean and engine: string flags to PostSourceMeta.
      - Decks generated via offline fallback display an **Offline Draft (AI Engine Unavailable)** warning banner with an amber status pill.
      - Export is strictly blocked in both UI and runQAChecks() (fallback-draft-blocker fail rule). Editing any slide copy unmarks fallback status.
-  2. **Spec �8 Headline Rule Enforcement (2-5 words ending in a period, zero colons):**
+  2. **Spec §8 Headline Rule Enforcement (2-5 words ending in a period, zero colons):**
      - Updated enforceHeadlineSpecRule() in src/lib/textSanitizer.ts.
      - Integrated checkHeadlineSpecRule() into src/lib/qaChecks.ts failing any slide with colons, >5 words, or missing terminal period.
      - Updated LLM generation schema and all synthesizer templates ("Zero-Trust, explained.", "Redis 8 gets faster.", "Beyond traditional Git.").
@@ -267,3 +267,41 @@ This document records the chronological development history, engineering decisio
      - Docked the Action Bar (JPG, Copy, Export ZIP) directly below the slide thumbnails and controls in the left column.
      - Removed the redundant floating bottom bar, guaranteeing zero overlap with the preview canvas and leaving subtitle copy 100% visible on all viewports.
      - Constrained canvas preview to max-h-[min(540px,calc(100vh-250px))] to ensure comfortable fit on standard screens.
+
+---
+
+## Step 16: Draft Review Confirmation, Strict QA Duplicate/Boilerplate Rules, Flexible Headlines & Security Sanitization
+- **Context & User Feedback:**
+  - Editing any slide character previously cleared the fallback draft status, allowing immediate bypass to export boilerplate.
+  - Required an explicit "I reviewed this" confirmation instead of auto-unmarking.
+  - Added QA rules that fail duplicated body text across slides and known boilerplate phrases.
+  - Headline rule was overly rigid: forcing 2-5 words ending in a period across all slides blocked question hooks and CTA questions like "Need a custom tool?".
+  - Required 2-5 words ending in '.', '?', or '!' only for Slide 1 hook, allowed '?' and '!' on CTA slides (up to 8 words), and allowed content slide titles up to 8 words.
+  - Hardcoded facts in fallback drafts must be explicitly marked `unverified` and presented as `unverified_draft` (never finished/verified).
+  - The `x-gemini-key` header and API secrets must never be logged to console/stdout/stderr.
+  - Non-breaking spaces (`\u00A0`) binding Latin to Arabic must be stripped from `caption.txt` and clipboard copies, and long unbreakable chunks must never overflow canvas lines.
+- **Engineering Solutions Implemented:**
+  1. **Explicit Draft Review Confirmation & Invariant Typing:**
+     - Removed auto-clearing of `isFallback` in `handleUpdateCurrentSlide()`. Slide text editing keeps draft metadata intact.
+     - Added `handleToggleReviewDraft()` and explicit confirmation button `[✓ I reviewed this draft]` (ID: `confirm-review-draft-btn`).
+     - Added `userReviewed?: boolean` and `status: 'unverified_draft'` to `PostSourceMeta`. Export remains locked until creator explicitly confirms review AND passes all pre-export QA rules.
+  2. **Automated QA Duplicate Body & Boilerplate Rules (`qaChecks.ts`):**
+     - Implemented `checkDuplicateBodyText()`: Fails with severity `fail` if any two slides share identical normalized English or Arabic body copy.
+     - Implemented `checkBoilerplatePhrases()`: Fails with severity `fail` if any slide contains known unedited template phrases (e.g. `"A breakdown of technical mechanisms"`, `"النقلة المعمارية لمنظومة"`, `"When system frequency increases, legacy architectures become memory bottlenecks"`).
+     - Updated `fallback-draft-blocker` check in `runQAChecks()`: Blocks export unless `carousel.sourceMeta?.userReviewed === true`.
+  3. **Multi-Archetype Headline Rules (`textSanitizer.ts` & `qaChecks.ts`):**
+     - Slide 1 Hook: Strictly 2 to 5 words, ending in `.`, `?`, or `!`, zero colons.
+     - CTA Slide: Allows question hooks up to 8 words ending in `?`, `!`, or `.`.
+     - Content Slides: Up to 8 words, clean punctuation, no trailing colons.
+     - Updated `enforceHeadlineSpecRule()` to support `{ isHook, isCta }` and preserved hyphens in compound technical tokens (e.g. `Zero-Trust`).
+  4. **Unverified Fallback Draft Representation (`synthesizer.ts`):**
+     - Fallback facts marked `verified: 'unverified'` with evidence stating `Template fallback estimate — unverified offline draft`.
+     - Synthesizer metadata initialized with `status: 'unverified_draft'` and `userReviewed: false`.
+     - Dynamic subject-aware fallbacks replace static sentences in general synthesizer structures.
+  5. **Zero Secret Logging (`api/index.ts`):**
+     - Added `sanitizeLogText()` redacting `x-gemini-key`, `AIza...` tokens, and URL key query parameters before any error or notice is logged.
+     - Guaranteed `x-gemini-key` and API keys are never printed in console output or stack traces.
+  6. **NBSP Protection & Canvas Overflow Prevention (`canvasExporter.ts`):**
+     - In `wrapTextLines()`, bound chunks with `\u00A0` that exceed `maxWidth` are unbound back to spaces so they wrap naturally. Single oversized tokens are chunked to guarantee zero canvas line overflow.
+     - Stripped `\u00A0` from `caption.txt`, `claims_citations.txt`, `first_comment.txt`, `short_caption.txt`, and clipboard copies.
+

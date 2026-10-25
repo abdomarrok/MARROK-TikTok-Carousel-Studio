@@ -56,6 +56,26 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+/**
+ * Redacts any occurrence of x-gemini-key, API keys, and authorization secrets from log strings.
+ * Guarantees sensitive client headers are never logged.
+ */
+function sanitizeLogText(input: unknown, activeKey?: string): string {
+  let str = input instanceof Error ? (input.stack || input.message) : typeof input === 'string' ? input : JSON.stringify(input);
+  if (!str) return '';
+  if (activeKey && activeKey.length > 4) {
+    str = str.split(activeKey).join('[REDACTED_API_KEY]');
+  }
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 4) {
+    str = str.split(process.env.GEMINI_API_KEY).join('[REDACTED_API_KEY]');
+  }
+  str = str
+    .replace(/x-gemini-key[:=\s]+[a-zA-Z0-9_\-]+/gi, 'x-gemini-key: [REDACTED]')
+    .replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_GEMINI_KEY]')
+    .replace(/key=[a-zA-Z0-9_\-]+/gi, 'key=[REDACTED]');
+  return str;
+}
+
 // Curated Tech Brand Icons from Simple Icons CDN
 const TECH_ICONS_LIST = [
   { name: 'docker', title: 'Docker', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/docker.svg', category: 'DevOps & Containers' },
@@ -336,7 +356,7 @@ app.post('/api/generate-image', async (req, res) => {
         }
       } catch (modelErr: unknown) {
         const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
-        console.log(`Image model ${model} notice: ${msg.slice(0, 150)}`);
+        console.log(`Image model ${model} notice: ${sanitizeLogText(msg, customKey).slice(0, 150)}`);
         // If it's the last model, rethrow to outer catch
         if (model === candidateModels[candidateModels.length - 1]) {
           throw modelErr;
@@ -347,10 +367,10 @@ app.post('/api/generate-image', async (req, res) => {
     return res.status(500).json({ error: 'No image data returned from generation models.' });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error('Image generation error:', errMsg);
+    console.error('Image generation error:', sanitizeLogText(errMsg, customKey).slice(0, 200));
     return res.status(500).json({
       error: 'Failed to generate image',
-      details: errMsg.slice(0, 200),
+      details: sanitizeLogText(errMsg, customKey).slice(0, 200),
     });
   }
 });
@@ -680,6 +700,7 @@ const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'i
 // API endpoint for generating carousel and TikTok caption
 app.post('/api/generate', async (req, res) => {
   const { prompt, inputMode, imageBase64, imageMimeType, categoryHint, imageName } = req.body;
+  const customKey = (req.headers['x-gemini-key'] as string) || req.body?.apiKey;
 
   if (!prompt && !imageBase64) {
     return res.status(400).json({ error: 'Prompt or image is required' });
@@ -733,7 +754,6 @@ app.post('/api/generate', async (req, res) => {
     parts.push({ text: userPromptText });
 
     // Support user-provided API key from UI or default to system environment key
-    const customKey = (req.headers['x-gemini-key'] as string) || req.body.apiKey;
     const activeApiKey = customKey || process.env.GEMINI_API_KEY;
     const activeAi = activeApiKey ? new GoogleGenAI({ apiKey: activeApiKey }) : null;
 
@@ -822,7 +842,7 @@ app.post('/api/generate', async (req, res) => {
           }
         } catch (groundingErr: unknown) {
           const errMsg = groundingErr instanceof Error ? groundingErr.message : String(groundingErr);
-          console.warn(`Search grounding attempt failed on ${model} (${errMsg.slice(0, 100)}). Retrying ${model} with direct LLM schema generation...`);
+          console.warn(`Search grounding attempt failed on ${model} (${sanitizeLogText(errMsg, customKey).slice(0, 100)}). Retrying ${model} with direct LLM schema generation...`);
 
           // Attempt 2: Direct LLM generation without search tool (bypasses 429 search quota)
           try {
@@ -855,6 +875,8 @@ app.post('/api/generate', async (req, res) => {
                 }
                 jsonResult.sourceMeta.isSearchGrounded = false;
                 jsonResult.sourceMeta.isFallback = false;
+                jsonResult.sourceMeta.status = 'verified_live';
+                jsonResult.sourceMeta.userReviewed = true;
                 jsonResult.sourceMeta.engine = 'gemini-ai';
                 jsonResult.brand = 'MARROK';
 
@@ -865,7 +887,7 @@ app.post('/api/generate', async (req, res) => {
             }
           } catch (directErr: unknown) {
             const directMsg = directErr instanceof Error ? directErr.message : String(directErr);
-            console.warn(`Direct LLM attempt failed on ${model}: ${directMsg.slice(0, 100)}`);
+            console.warn(`Direct LLM attempt failed on ${model}: ${sanitizeLogText(directMsg, customKey).slice(0, 100)}`);
           }
         }
       }
@@ -873,6 +895,10 @@ app.post('/api/generate', async (req, res) => {
 
     if (jsonResult) {
       jsonResult.brand = 'MARROK';
+      if (!jsonResult.sourceMeta) jsonResult.sourceMeta = {};
+      jsonResult.sourceMeta.isFallback = false;
+      jsonResult.sourceMeta.status = 'verified_live';
+      jsonResult.sourceMeta.userReviewed = true;
       res.setHeader('X-Marrok-Engine', 'gemini-ai');
       return res.json(jsonResult);
     }
@@ -890,13 +916,15 @@ app.post('/api/generate', async (req, res) => {
     synthesizedData.sourceMeta = {
       ...synthesizedData.sourceMeta,
       isFallback: true,
+      status: 'unverified_draft',
+      userReviewed: false,
       engine: 'offline-synthesizer',
     };
 
     res.setHeader('X-Marrok-Engine', 'offline-synthesizer');
     return res.json(synthesizedData);
   } catch (error: unknown) {
-    console.log('Activating fallback synthesizer after generation error:', error);
+    console.log('Activating fallback synthesizer after generation error:', sanitizeLogText(error, customKey).slice(0, 200));
     // Never fail with 500: synthesize archetype-compliant output
     const fallbackData = synthesizeCarousel({
       prompt: safePrompt,
@@ -908,6 +936,8 @@ app.post('/api/generate', async (req, res) => {
     fallbackData.sourceMeta = {
       ...fallbackData.sourceMeta,
       isFallback: true,
+      status: 'unverified_draft',
+      userReviewed: false,
       engine: 'offline-synthesizer',
     };
     res.setHeader('X-Marrok-Engine', 'offline-synthesizer');

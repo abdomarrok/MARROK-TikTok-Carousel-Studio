@@ -276,9 +276,9 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const { headline, cleanTitle } = extractCleanHeadline(rawText, domainCategory);
 
   const { lines, metrics } = extractUserInsights(rawText);
-  const userPoint1 = lines[0] || 'When system frequency increases, legacy architectures become memory bottlenecks.';
-  const userPoint2 = lines[1] || 'Decoupled authoritative state ensures compute scales with payload size.';
-  const userPoint3 = lines[2] || 'Offloading heavy computations to specialized nodes eliminates user-facing stalls.';
+  const userPoint1 = lines[0] || `Scaling ${cleanTitle} requires rethinking state isolation and memory allocation patterns.`;
+  const userPoint2 = lines[1] || `Decoupled authoritative state ensures compute resources scale with actual payload size.`;
+  const userPoint3 = lines[2] || `Offloading intensive runtime computations eliminates user-facing latency stalls.`;
 
   const rawMetric1 = metrics[0] || activeRule.metricFallback;
   const metric1 = normalizePunctuation(stripMarkdown(rawMetric1)).replace(/[.?!]+$/, '');
@@ -947,20 +947,20 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     );
   }
 
-  // Build facts per Spec §4 & §5 with verification citations
+  // Build facts with explicit unverified status for offline synthesizer fallback
   const extractedFacts: ExtractedFact[] = [
     {
       text: `Primary architectural domain: ${domainCategory}`,
       type: 'claim',
-      verified: 'verified',
-      evidence: `Topic context matching ${domainCategory}`,
+      verified: 'unverified',
+      evidence: `Synthesizer domain heuristics (unverified offline draft)`,
       sourceTitle: domainGroundingSources[0]?.title || `${brand} Engineering`,
       sourceUrl: domainGroundingSources[0]?.url || `https://${brandUrl}`,
     },
     {
       text: `Primary engineering source / brand: ${brand}`,
       type: 'name',
-      verified: 'verified',
+      verified: 'unverified',
       evidence: `Identified from technical publication reference (${brandUrl})`,
       sourceTitle: `${brand} Official Portal`,
       sourceUrl: brandUrl ? `https://${brandUrl}` : 'https://marrok.org',
@@ -968,24 +968,24 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     {
       text: `Production benchmark / headline metric: ${metric1}`,
       type: 'number',
-      verified: 'verified',
-      evidence: `Extracted from source engineering metrics and telemetry`,
+      verified: 'unverified',
+      evidence: `Fallback estimate — ungrounded local synthesizer metric`,
       sourceTitle: domainGroundingSources[0]?.title || 'Performance Telemetry',
       sourceUrl: domainGroundingSources[0]?.url || `https://${brandUrl}`,
     },
     {
       text: `Core architectural mechanism: ${userPoint1}`,
       type: 'claim',
-      verified: 'verified',
-      evidence: `Engineering design specification verified against whitepaper`,
+      verified: 'unverified',
+      evidence: `Template fallback — not grounded via live web search`,
       sourceTitle: domainGroundingSources[1]?.title || 'Architecture Whitepaper',
       sourceUrl: domainGroundingSources[1]?.url || `https://${brandUrl}`,
     },
     {
       text: `Operational trade-offs and limits identified for Slide 6: ${userPoint2}`,
       type: 'claim',
-      verified: 'verified',
-      evidence: `Spec §7 "Before You Switch / The Catch" hedge`,
+      verified: 'unverified',
+      evidence: `Spec §7 "Before You Switch / The Catch" hedge (offline draft)`,
       sourceTitle: domainGroundingSources[0]?.title || 'Systems Report',
       sourceUrl: domainGroundingSources[0]?.url || `https://${brandUrl}`,
     },
@@ -1007,8 +1007,8 @@ Why traditional architectures stall at scale and how modern systems solve the bo
 • Production Win: ${metric1} vs legacy stack
 • Caveats: ${userPoint2}
 
-✅ Grounded Citations & Verified Facts:
-• Verified by MARROK Pipeline against ${brand} engineering records
+⚠️ Citations & Draft Facts (Offline Synthesizer Estimate):
+• Unverified offline draft — creator review required before publishing
 • Source: ${domainGroundingSources[0]?.title || brand} (${domainGroundingSources[0]?.url || brandUrl})
 
 👇 هل واجهتم هذه المشكلة في بيئات الإنتاج عندكم؟ شاركونا تجربتكم في التعليقات!
@@ -1054,11 +1054,13 @@ ${hashtags}`,
     groundingSources: domainGroundingSources,
     isFallback: true,
     engine: 'offline-synthesizer',
+    status: 'unverified_draft',
+    userReviewed: false,
   };
 
   const notesForHuman: string[] = [
-    `Spec §5 verification: Claims and numbers grounded against ${brand} engineering records and verified docs.`,
-    `Slide 6 includes honest engineering caveats/trade-offs before the closing CTA (prevents hype).`,
+    `Unverified offline draft: Synthesized from offline domain heuristics without active web search grounding. Verify all numbers and claims before publication.`,
+    `Review and customize slide copy using the studio editor, or connect a Gemini API key for live search-grounded research.`,
     `Bilingual Arabic typography checked for RTL line-endings and numbers positioned per Spec §9.`,
     `Attribution and link included in pinned first comment for TikTok comment section.`,
   ];
