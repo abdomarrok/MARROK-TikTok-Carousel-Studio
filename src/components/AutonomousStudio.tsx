@@ -34,7 +34,7 @@ import {
   X,
 } from 'lucide-react';
 import { CarouselData, SlideData, SlideType, ThemePalette, HookVariant } from '../types';
-import { PRESET_CAROUSELS } from '../lib/presets';
+import { DEFAULT_STARTER_DECK, PRESET_CAROUSELS } from '../lib/presets';
 import { renderSlideToCanvas, downloadAllSlidesZip, downloadSingleSlidePng, copySlideToClipboard } from '../lib/canvasExporter';
 import { runAutonomousPipeline } from '../lib/autonomousPipeline';
 import { sanitizeSlide } from '../lib/textSanitizer';
@@ -54,11 +54,27 @@ interface AutonomousStudioProps {
   onShowToast: (msg: string) => void;
 }
 
-const STARTER_PRESETS = [
-  { id: 'scion', name: 'Scion Architecture', desc: 'Microkernel isolation & zero-trust service dispatch' },
-  { id: 'valtown', name: 'Val Town MicroVMs', desc: 'Serverless TypeScript execution in secure isolates' },
-  { id: 'zerotrust', name: 'Zero-Trust Mesh', desc: 'mTLS egress perimeters & least-privilege tokens' },
-  { id: 'sqlite', name: 'Client SQLite & Wasm', desc: 'OPFS filesystem & browser database caching' },
+const STARTER_TOPICS = [
+  {
+    name: 'Scion Architecture',
+    desc: 'Moving Beyond Git with server-authoritative VCS',
+    prompt: "Anthropic's Scion: Moving Beyond Git with server-authoritative VCS for AI agents",
+  },
+  {
+    name: 'Val Town MicroVMs',
+    desc: 'Serverless TypeScript inside secure isolates',
+    prompt: 'Val Town serverless execution inside secure V8 isolates and microVM boundaries',
+  },
+  {
+    name: 'Zero-Trust Mesh',
+    desc: 'mTLS egress perimeters & least-privilege tokens',
+    prompt: 'Zero-Trust mesh architecture with mTLS egress perimeters and least-privilege tokens',
+  },
+  {
+    name: 'Redis 8 Engine',
+    desc: 'Multi-threaded core engine & active clustering',
+    prompt: 'Redis 8 architectural leap: multi-threaded core engine and active-active clustering',
+  },
 ];
 
 const ARCHETYPES: { id: SlideType; label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }> }[] = [
@@ -166,9 +182,15 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     }
   };
 
-  // Instant starter preset loader
+  // Dynamic starter topic generator: immediately runs the autonomous pipeline for chosen topic
+  const handleTriggerStarterTopic = (topic: typeof STARTER_TOPICS[number]) => {
+    setPromptInput(topic.prompt);
+    handleRunAutonomousPipeline(topic.prompt);
+  };
+
+  // Instant starter preset loader fallback
   const handleLoadPreset = (key: string) => {
-    const preset = PRESET_CAROUSELS[key as keyof typeof PRESET_CAROUSELS];
+    const preset = PRESET_CAROUSELS[key as keyof typeof PRESET_CAROUSELS] || { name: 'Starter Deck', data: DEFAULT_STARTER_DECK };
     if (preset?.data) {
       onUpdateCarousel(preset.data);
       setCurrentSlideIndex(0);
@@ -373,16 +395,18 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
           {/* Quick Starter Suggestions */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-[11px] text-slate-500 font-medium">Try starter:</span>
-            {STARTER_PRESETS.map((preset) => (
+            <span className="text-[11px] text-slate-500 font-medium">Try topic:</span>
+            {STARTER_TOPICS.map((topic) => (
               <button
-                key={preset.id}
+                key={topic.name}
                 type="button"
-                onClick={() => handleLoadPreset(preset.id)}
-                className="px-2.5 py-1 rounded-lg text-xs bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-400 hover:text-white transition-all cursor-pointer"
-                title={preset.desc}
+                onClick={() => handleTriggerStarterTopic(topic)}
+                disabled={isGenerating}
+                className="px-2.5 py-1 rounded-lg text-xs bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                title={topic.desc}
               >
-                {preset.name}
+                <Sparkles className="w-3 h-3 text-cyan-400" />
+                <span>{topic.name}</span>
               </button>
             ))}
           </div>
@@ -397,11 +421,35 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           <div className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-full max-w-[340px] sm:max-w-[360px] aspect-[9/16]">
             <canvas ref={canvasRef} className="w-full h-full object-contain" />
 
-            {/* Safe Zone Overlay */}
+            {/* TikTok Feed Safe Zone Simulator Overlay */}
             {showSafeZones && (
-              <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-rose-500/50 m-6 flex flex-col justify-between text-[10px] text-rose-300 font-mono p-2">
-                <span>Safe Top (Header & Status)</span>
-                <span className="text-right">Safe Bottom (TikTok UI overlay)</span>
+              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-mono text-[9px] select-none">
+                {/* Top 9.4% Safe Zone (Status & Search) */}
+                <div className="h-[9.4%] bg-rose-500/20 border-b border-rose-500/40 flex items-center justify-between px-3 text-rose-300">
+                  <span>TOP 180px MARGIN</span>
+                  <span>[Search / For You]</span>
+                </div>
+
+                {/* Center Content Bounding Box (840x1420) */}
+                <div className="flex-1 mx-3 border-2 border-dashed border-rose-400/40 rounded-lg flex items-center justify-between p-2">
+                  <span className="text-rose-400/70 rotate-90 origin-left text-[8px] tracking-wider">SAFE BOUNDARY</span>
+                  {/* Right-side TikTok Icons HUD Indicator */}
+                  <div className="h-full flex flex-col justify-end items-center gap-2 text-rose-300/80 pr-1 pb-4 text-[10px]">
+                    <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">♥</div>
+                    <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">💬</div>
+                    <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">★</div>
+                    <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">↗</div>
+                  </div>
+                </div>
+
+                {/* Bottom 16.7% Safe Zone (Caption & Audio) */}
+                <div className="h-[16.7%] bg-rose-500/20 border-t border-rose-500/40 flex flex-col justify-center px-3 text-rose-300 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span>BOTTOM 320px MARGIN</span>
+                    <span>@username</span>
+                  </div>
+                  <span className="text-[8px] text-rose-400/80">TikTok Captions & Audio Track Area</span>
+                </div>
               </div>
             )}
 

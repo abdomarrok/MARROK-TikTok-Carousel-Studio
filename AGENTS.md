@@ -15,7 +15,7 @@
 | `npm run start` | `tsx server.ts` — production mode (serves `dist/` if exists). |
 | `npm run preview` | `vite preview` (Vite preview server). |
 | `npm run lint` | `tsc --noEmit` (typecheck only). |
-| `npm run clean` | `rm -rf dist server.js` (POSIX rm; on Windows use `rmdir /s /q dist` or equivalent). |
+| `npm run clean` | `node -e ...` — cross-platform cleanup of `dist/` and `server.js` (works on Windows, macOS, Linux). |
 
 ## Environment
 - Copy `.env.example` to `.env`. Set `GEMINI_API_KEY` (optional in practice — see fallback). `APP_URL` is injected by some hosts.

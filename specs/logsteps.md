@@ -212,4 +212,24 @@ This document records the chronological development history, engineering decisio
   3. **Streamlined Header (`src/components/Header.tsx`):**
      - Focused wordmark, theme switcher, API key modal, Contact Sheet, Plan Inspector, and auto-save pill.
 
+---
+
+## Step 14: Codebase Pruning, UI Noise Reduction & Build Optimization
+- **Context & User Feedback:** Clean up project dead code, investigate preset data redundancy, and reduce UI clutter.
+- **Engineering Solutions Implemented:**
+  1. **Purged 7 Dead Components (~194.4 KB / ~3,940 lines):**
+     - Safely deleted `SlideEditor.tsx`, `SlideCanvasPreview.tsx`, `QAModal.tsx`, `ExportView.tsx`, `SmartPipelineBar.tsx`, `CaptionBox.tsx`, and `CreateView.tsx` with zero regressions.
+  2. **Streamlined Presets & Dynamic Starter Topics:**
+     - Reduced `src/lib/presets.ts` from 23 KB to ~4 KB, maintaining a single lean `DEFAULT_STARTER_DECK` for initial hydration.
+     - Upgraded starter chips to `STARTER_TOPICS` that dynamically populate the command bar and trigger `runAutonomousPipeline()`, creating custom on-demand decks instead of loading static mock JSON.
+  3. **Cleaned Ingestion UI (`MultimodalInputPanel.tsx`):**
+     - Removed the redundant static "Presets" tab from the ingestion modal, focusing purely on authentic creator inputs: Screenshots/Images, Web/GitHub URLs, and Code/Transcripts.
+  4. **Realistic TikTok HUD Safe Zone Simulator:**
+     - Upgraded the Safe Zone overlay on the canvas preview to accurately simulate TikTok's top 180px margin (search/header), bottom 320px margin (caption/audio), right-side interaction column (like, comment, bookmark, share), and central 840×1420 content bounding box.
+  5. **Vite 8 & Tooling Modernization:**
+     - Replaced deprecated `__dirname` in `vite.config.ts` with `import.meta.dirname`.
+     - Configured `rollupOptions.output.manualChunks` splitting React/ReactDOM, Lucide icons, and JSZip into separate cached chunks, eliminating the `>500 kB` bundle warning.
+     - Updated `npm run clean` to a cross-platform Node script and removed unused `motion` dependency.
+
+
 

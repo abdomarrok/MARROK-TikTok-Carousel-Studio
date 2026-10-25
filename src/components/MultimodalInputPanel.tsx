@@ -8,11 +8,9 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  Compass,
   RotateCw,
 } from 'lucide-react';
 import { CarouselData, ThemePalette } from '../types';
-import { PRESET_CAROUSELS } from '../lib/presets';
 import { synthesizeCarousel } from '../lib/synthesizer';
 
 interface MultimodalInputPanelProps {
@@ -21,13 +19,12 @@ interface MultimodalInputPanelProps {
   onClose?: () => void;
 }
 
-type InputTab = 'upload' | 'text' | 'youtube' | 'presets';
+type InputTab = 'upload' | 'text' | 'youtube';
 
 const INPUT_TABS: { id: InputTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'upload', label: 'Screenshot / Image', icon: Upload },
   { id: 'text', label: 'Blog / GitHub / Notes', icon: FileText },
   { id: 'youtube', label: 'YouTube Summary', icon: Youtube },
-  { id: 'presets', label: 'Built-In Presets', icon: Compass },
 ];
 
 /**
@@ -433,108 +430,66 @@ In this video by Low Level, we explore whether AI can reverse engineer software.
         </div>
       )}
 
-      {/* Tab 4: Presets */}
-      {activeTab === 'presets' && (
-        <div className="space-y-3">
-          <div className="text-xs text-slate-400 mb-2">
-            Instant 1-Click Load verified production carousels:
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {Object.entries(PRESET_CAROUSELS).map(([key, item]) => (
-              <div
-                key={key}
-                className="p-3.5 rounded-xl border border-white/10 bg-black/30 hover:border-white/25 transition-all flex flex-col justify-between"
+      {/* Domain Category Selector & Actions */}
+      <div className="pt-4 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-slate-400 font-medium">Domain Classification:</span>
+          <div className="flex flex-wrap items-center bg-black/50 p-1 rounded-xl border border-white/10 gap-1">
+            {[
+              { id: 'auto', label: 'Auto-detect' },
+              { id: 'REVERSE ENGINEERING', label: 'Reversing & CVEs' },
+              { id: 'AI AGENTS & MODELS', label: 'AI & Inference' },
+              { id: 'LINUX KERNEL', label: 'Kernel & eBPF' },
+              { id: 'KUBERNETES & CLOUD', label: 'Cloud & K8s' },
+              { id: 'DISTRIBUTED SYSTEMS', label: 'Distributed Systems' },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setCategoryHint(opt.id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] transition-colors ${
+                  categoryHint === opt.id
+                    ? 'bg-white/20 text-white font-bold'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
               >
-                <div className="space-y-1 mb-3">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                    {item.category}
-                  </span>
-                  <h4 className="text-xs font-bold text-white font-jakarta">
-                    {item.name}
-                  </h4>
-                  <p className="text-[11px] text-slate-400 line-clamp-2">
-                    {item.description}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onApplyCarousel(item.data);
-                    setSuccessMsg(`Loaded "${item.name}" preset!`);
-                    if (onClose) setTimeout(() => onClose(), 800);
-                  }}
-                  className="w-full py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors bg-white/10 hover:bg-white/20 text-white cursor-pointer"
-                >
-                  Load Preset
-                </button>
-              </div>
+                {opt.label}
+              </button>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Domain Category Selector & Actions */}
-      {activeTab !== 'presets' && (
-        <div className="pt-4 border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400 font-medium">Domain Classification:</span>
-            <div className="flex flex-wrap items-center bg-black/50 p-1 rounded-xl border border-white/10 gap-1">
-              {[
-                { id: 'auto', label: 'Auto-detect' },
-                { id: 'REVERSE ENGINEERING', label: 'Reversing & CVEs' },
-                { id: 'AI AGENTS & MODELS', label: 'AI & Inference' },
-                { id: 'LINUX KERNEL', label: 'Kernel & eBPF' },
-                { id: 'KUBERNETES & CLOUD', label: 'Cloud & K8s' },
-                { id: 'DISTRIBUTED SYSTEMS', label: 'Distributed Systems' },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setCategoryHint(opt.id)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] transition-colors ${
-                    categoryHint === opt.id
-                      ? 'bg-white/20 text-white font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleInstantSynthesize}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-xs tracking-wide transition-all cursor-pointer disabled:opacity-50"
+            title="Generate immediately using local MARROK engine (0ms latency)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Instant Synthesize</span>
+          </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleInstantSynthesize}
-              disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-xs tracking-wide transition-all cursor-pointer disabled:opacity-50"
-              title="Generate immediately using local MARROK engine (0ms latency)"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Instant Synthesize</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs tracking-wide transition-all shadow-md cursor-pointer disabled:opacity-75"
-              style={{
-                backgroundColor: theme.accent,
-                color: '#0e1117',
-              }}
-            >
-              <Sparkles className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>
-                {isLoading
-                  ? (pipelinePhase || 'Processing Pipeline...')
-                  : 'Generate Carousel & Caption'}
-              </span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs tracking-wide transition-all shadow-md cursor-pointer disabled:opacity-75"
+            style={{
+              backgroundColor: theme.accent,
+              color: '#0e1117',
+            }}
+          >
+            <Sparkles className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>
+              {isLoading
+                ? (pipelinePhase || 'Processing Pipeline...')
+                : 'Generate Carousel & Caption'}
+            </span>
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Dynamic Progress indicator during loading */}
       {isLoading && pipelinePhase && (

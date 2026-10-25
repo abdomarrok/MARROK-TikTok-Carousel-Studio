@@ -6,7 +6,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { ContactSheetModal } from './components/ContactSheetModal';
 import { PlanInspectorModal } from './components/PlanInspectorModal';
 import { CarouselData, DEFAULT_PALETTES, ThemePalette } from './types';
-import { PRESET_CAROUSELS } from './lib/presets';
+import { DEFAULT_STARTER_DECK } from './lib/presets';
 import { sanitizeFullCarousel } from './lib/textSanitizer';
 
 export default function App() {
@@ -23,7 +23,7 @@ export default function App() {
     } catch (err) {
       console.warn('Failed to restore draft from localStorage:', err);
     }
-    return PRESET_CAROUSELS.scion.data;
+    return DEFAULT_STARTER_DECK;
   });
 
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export default function App() {
   };
 
   const handleResetDraft = () => {
-    setCarousel(PRESET_CAROUSELS.scion.data);
+    setCarousel(DEFAULT_STARTER_DECK);
     localStorage.removeItem('marrok_deck_draft_v1');
     showToast('Reset to Scion Architecture starter deck');
   };
