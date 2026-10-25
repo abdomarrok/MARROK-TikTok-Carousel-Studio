@@ -26,6 +26,30 @@ interface DomainRule {
 
 const DOMAIN_RULES: DomainRule[] = [
   {
+    category: 'CYBERSECURITY & ZERO-TRUST MESH',
+    theme: 'cyber',
+    centerIcon: 'lock',
+    satIcons: ['shieldAlert', 'network', 'key', 'server', 'eyeRisk', 'terminal'],
+    keywords: ['zero-trust', 'zerotrust', 'mtls', 'egress', 'bastion', 'perimeter', 'least-privilege', 'mesh', 'mutual-tls', 'envoy', 'service-mesh', 'microsegmentation'],
+    metricFallback: '100% mTLS encrypted',
+  },
+  {
+    category: 'IN-MEMORY CACHE & DATA STORES',
+    theme: 'amber',
+    centerIcon: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/redis.svg',
+    satIcons: ['database', 'zap', 'hardDrive', 'server', 'cpu', 'activity'],
+    keywords: ['redis', 'valkey', 'memcached', 'cache', 'key-value', 'in-memory', 'eviction', 'lru', 'redis 8', 'throughput'],
+    metricFallback: '1.2M ops/sec',
+  },
+  {
+    category: 'VCS & DEVSECOPS',
+    theme: 'teal',
+    centerIcon: 'gitMerge',
+    satIcons: ['server', 'cpu', 'database', 'changesets', 'terminal', 'gauge'],
+    keywords: ['git', 'vcs', 'monorepo', 'ci/cd', 'devops', 'scion', 'changeset', 'pull request', 'github', 'version control', 'source control', 'agent-scale'],
+    metricFallback: '25M checkouts/day',
+  },
+  {
     category: 'LINUX KERNEL & OBSERVABILITY',
     theme: 'emerald',
     centerIcon: 'terminal',
@@ -46,7 +70,7 @@ const DOMAIN_RULES: DomainRule[] = [
     theme: 'violet',
     centerIcon: 'brain',
     satIcons: ['cpu', 'robot', 'database', 'lightbulb', 'gauge', 'changesets'],
-    keywords: ['llm', 'gpt', 'inference', 'token', 'deep learning', 'weights', 'transformer', 'anthropic', 'openai', 'gemini', 'agent'],
+    keywords: ['llm', 'gpt', 'inference', 'token', 'deep learning', 'weights', 'transformer', 'neural network', 'embedding'],
     metricFallback: '10x token efficiency',
   },
   {
@@ -64,14 +88,6 @@ const DOMAIN_RULES: DomainRule[] = [
     satIcons: ['server', 'gitMerge', 'cpu', 'changesets', 'clock', 'scales'],
     keywords: ['consensus', 'raft', 'paxos', 'database', 'distributed', 'kafka', 'replication', 'storage', 'postgres', 'clickhouse'],
     metricFallback: '50x query speedup',
-  },
-  {
-    category: 'VCS & DEVSECOPS',
-    theme: 'teal',
-    centerIcon: 'gitMerge',
-    satIcons: ['server', 'cpu', 'database', 'changesets', 'terminal', 'gauge'],
-    keywords: ['git', 'vcs', 'monorepo', 'ci/cd', 'devops', 'scion', 'changeset', 'pull request', 'github'],
-    metricFallback: '25M checkouts/day',
   },
   {
     category: 'DEVSECOPS & VULNERABILITY',
@@ -96,26 +112,26 @@ const ICON_AFFINITY: Record<string, string[]> = {
   zap: ['speed', 'latency', 'faster', 'p99', 'fast', 'quick', 'boost', 'ms', 'instant', 'throttle'],
   gauge: ['benchmark', 'rps', 'requests', 'scale', 'load', 'metric', 'rate', 'performance'],
   activity: ['health', 'pulse', 'monitor', 'uptime', 'sla', 'status', 'telemetry', 'realtime'],
-  database: ['sql', 'postgres', 'clickhouse', 'database', 'table', 'store', 'storage', 'data', 'redis', 'db'],
+  database: ['sql', 'postgres', 'clickhouse', 'database', 'table', 'store', 'storage', 'data', 'db'],
   hardDrive: ['disk', 'ssd', 'memory', 'ram', 'io', 'iops', 'cache', 'nvme', 'filesystem', 'heap'],
   server: ['server', 'node', 'cluster', 'backend', 'instance', 'bare-metal', 'datacenter'],
   cloud: ['cloud', 'aws', 'gcp', 'azure', 'serverless', 'lambda', 's3', 'vpc'],
   box: ['docker', 'container', 'pod', 'kubernetes', 'k8s', 'image', 'microservice', 'helm'],
   layers: ['architecture', 'stack', 'layer', 'monolith', 'infrastructure', 'foundation'],
-  network: ['network', 'mesh', 'traffic', 'http', 'grpc', 'tcp', 'proxy', 'dns', 'gateway', 'ip'],
+  network: ['network', 'mesh', 'traffic', 'http', 'grpc', 'tcp', 'proxy', 'dns', 'gateway', 'ip', 'mtls'],
   shieldAlert: ['cve', 'exploit', 'vulnerability', 'attack', 'zero-day', 'hacker', 'breach', 'ransomware', 'threat'],
-  lock: ['security', 'auth', 'oauth', 'token', 'jwt', 'encrypt', 'tls', 'ssl', 'cert'],
+  lock: ['security', 'auth', 'oauth', 'token', 'jwt', 'encrypt', 'tls', 'ssl', 'cert', 'zero-trust', 'zerotrust'],
   key: ['key', 'secret', 'credentials', 'vault', 'api-key'],
   bug: ['bug', 'defect', 'crash', 'panic', 'flaw', 'fix', 'patch', 'error'],
   eyeRisk: ['audit', 'risk', 'inspect', 'scan', 'sast', 'dast', 'trivy', 'leak'],
-  gitMerge: ['merge', 'pull-request', 'pr', 'branch', 'git', 'vcs', 'trunk'],
+  gitMerge: ['merge', 'pull-request', 'pr', 'branch', 'git', 'vcs', 'trunk', 'scion'],
   gitBranch: ['branch', 'checkout', 'fork', 'commit', 'diff', 'repo', 'repository'],
   codeFile: ['code', 'file', 'script', 'source', 'syntax', 'function', 'class'],
   terminal: ['terminal', 'cli', 'bash', 'shell', 'command', 'exec', 'sh', 'linux'],
   binary: ['binary', 'elf', 'pe', 'assembly', 'asm', 'ghidra', 'ida', 'disassembly', 'hex'],
   cpu: ['cpu', 'processor', 'core', 'thread', 'hardware', 'chip', 'instruction', 'kernel', 'ebpf'],
-  brain: ['ai', 'agent', 'llm', 'gpt', 'model', 'neural', 'transformer', 'deep learning', 'weights'],
-  robot: ['bot', 'automation', 'crawler', 'agentic', 'copilot'],
+  brain: ['ai', 'llm', 'gpt', 'model', 'neural', 'transformer', 'deep learning', 'weights'],
+  robot: ['bot', 'automation', 'crawler', 'agentic', 'copilot', 'agent'],
   lightbulb: ['idea', 'tip', 'lesson', 'rule', 'learn', 'pattern', 'insight'],
   scales: ['tradeoff', 'balance', 'vs', 'compare', 'contrast', 'cost'],
   arrowRightLeft: ['migration', 'transition', 'sync', 'transfer', 'switch'],
@@ -130,11 +146,23 @@ const ICON_AFFINITY: Record<string, string[]> = {
 function extractDynamicIcons(lowerText: string, fallbackBase: string[]): { centerIcon: string; satIcons: string[] } {
   const scoredIcons: { icon: string; score: number }[] = [];
 
-  // 1. Check for official tech brand logos from the internet (highest priority)
+  // 1. Check for official tech brand logos with strict word-boundary matching
   for (const [techKey, cdnUrl] of Object.entries(KNOWN_TECH_LOGOS)) {
-    // Exact word or boundary match
+    // Avoid substring false matches (e.g. 'rust' inside 'trust' or 'zero-trust')
+    if (techKey === 'rust') {
+      const stripped = lowerText.replace(/\bzero[- ]trust\b/gi, '').replace(/\btrust\b/gi, '');
+      if (!/\brust\b/i.test(stripped)) {
+        continue;
+      }
+    }
+    if (techKey === 'go') {
+      if (!/\bgo\b/i.test(lowerText) || /\b(google|golang|cargo|django)\b/i.test(lowerText)) {
+        continue;
+      }
+    }
+
     const regex = new RegExp(`\\b${techKey}\\b`, 'i');
-    if (regex.test(lowerText) || lowerText.includes(techKey)) {
+    if (regex.test(lowerText)) {
       scoredIcons.push({ icon: cdnUrl, score: 10 });
     }
   }
@@ -190,16 +218,10 @@ function extractUserInsights(rawText: string) {
 }
 
 /**
- * Detect brand or creator organization from text
+ * Brand wordmark is strictly MARROK per brand identity specification.
+ * Domain topics and technologies are represented via category tags and slide copy.
  */
-function detectBrandAndUrl(lowerText: string): { brand: string; brandUrl: string } {
-  if (lowerText.includes('anthropic')) return { brand: 'ANTHROPIC', brandUrl: 'anthropic.com' };
-  if (lowerText.includes('clickhouse')) return { brand: 'CLICKHOUSE', brandUrl: 'clickhouse.com' };
-  if (lowerText.includes('defectdojo')) return { brand: 'DEFECTDOJO', brandUrl: 'defectdojo.org' };
-  if (lowerText.includes('low level')) return { brand: 'LOW LEVEL', brandUrl: 'lowlevel.academy' };
-  if (lowerText.includes('ghidra')) return { brand: 'GHIDRA', brandUrl: 'ghidra-sre.org' };
-  if (lowerText.includes('docker')) return { brand: 'DOCKER', brandUrl: 'docker.com' };
-  if (lowerText.includes('kubernetes')) return { brand: 'KUBERNETES', brandUrl: 'kubernetes.io' };
+function detectBrandAndUrl(_lowerText: string): { brand: string; brandUrl: string } {
   return { brand: 'MARROK', brandUrl: 'marrok.org' };
 }
 
@@ -211,10 +233,26 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const rawText = (input.prompt || input.imageFileName || '').trim();
   const lowerText = rawText.toLowerCase();
 
-  // 1. Domain Detection via Config Rules
-  let matchedRule = DOMAIN_RULES.find((rule) =>
-    rule.keywords.some((kw) => lowerText.includes(kw))
-  );
+  // 1. Scored Domain Detection via Config Rules (highest specificity wins)
+  let bestScore = -1;
+  let matchedRule: DomainRule | undefined;
+
+  for (const rule of DOMAIN_RULES) {
+    let score = 0;
+    for (const kw of rule.keywords) {
+      if (lowerText.includes(kw)) {
+        if (['zero-trust', 'zerotrust', 'mtls', 'scion', 'monorepo', 'redis', 'redis 8', 'valkey', 'ebpf', 'cve'].includes(kw)) {
+          score += 10;
+        } else {
+          score += 2;
+        }
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      matchedRule = rule;
+    }
+  }
 
   if (input.categoryHint && input.categoryHint !== 'auto') {
     const hintMatch = DOMAIN_RULES.find((r) => r.category.includes(input.categoryHint!));
@@ -224,14 +262,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     };
   }
 
-  const activeRule = matchedRule || DEFAULT_RULE;
+  const activeRule = (bestScore > 0 && matchedRule) ? matchedRule : (matchedRule || DEFAULT_RULE);
   const domainCategory = activeRule.category;
   const recommendedTheme = activeRule.theme;
 
   // Extract smart subject-aware dynamic icons (never static/repeated)
   const { centerIcon, satIcons } = extractDynamicIcons(lowerText, activeRule.satIcons);
 
-  // 2. Dynamic Brand and URL
+  // 2. Strict Brand Wordmark (Always MARROK per Spec)
   const { brand, brandUrl } = detectBrandAndUrl(lowerText);
 
   // 3. Extract Clean Title and User Points
@@ -245,10 +283,27 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const rawMetric1 = metrics[0] || activeRule.metricFallback;
   const metric1 = normalizePunctuation(stripMarkdown(rawMetric1)).replace(/[.?!]+$/, '');
   const arMetric1 = sanitizeMetricForArabic(metric1);
-  const metric2 = metrics[1] || 'Low latency';
-  const metric3 = metrics[2] || 'Zero downtime';
 
   // 4. Content Blueprint Classification
+  const isZeroTrust =
+    lowerText.includes('zero-trust') ||
+    lowerText.includes('zerotrust') ||
+    lowerText.includes('mtls') ||
+    lowerText.includes('mutual-tls') ||
+    lowerText.includes('least-privilege') ||
+    domainCategory.includes('ZERO-TRUST');
+
+  const isRedis =
+    lowerText.includes('redis') ||
+    lowerText.includes('valkey') ||
+    lowerText.includes('memcached') ||
+    domainCategory.includes('IN-MEMORY CACHE');
+
+  const isScion =
+    lowerText.includes('scion') ||
+    (lowerText.includes('anthropic') && lowerText.includes('git')) ||
+    (lowerText.includes('beyond git') && lowerText.includes('vcs'));
+
   const isBenchmark =
     metrics.length >= 2 ||
     lowerText.includes('speedup') ||
@@ -272,8 +327,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     lowerText.includes('moved') ||
     lowerText.includes('beyond git') ||
     lowerText.includes('transition') ||
-    lowerText.includes('replace') ||
-    lowerText.includes('scion');
+    lowerText.includes('replace');
 
   // 5. Determine Dynamic Slide Count (Spec §7: 8 slides standard for technical narrative arc)
   let targetSlideCount = 8;
@@ -281,29 +335,28 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     targetSlideCount = 6;
   }
 
-  // 6. Generate Hook Variants (A/B testing)
-  const enHook1 = headline.includes(':') ? `${headline}\nWhat broke?` : `${headline}:\nWhat broke?`;
+  // 6. Generate Hook Variants (A/B testing) adhering strictly to 2-5 words ending in a period
   const hookVariants: HookVariant[] = [
     {
-      tag: 'Curiosity & Surprise',
-      enTitle: enHook1,
-      arTitle: `نقلة معمارية في ${headline}\nما الذي تغيّر في المنظومة؟`,
-      enBody: `How engineering constraints forced a paradigm shift in ${domainCategory.toLowerCase()}.`,
-      arBody: `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في منظومة ${headline}.`,
+      tag: 'Curiosity & Shift',
+      enTitle: isZeroTrust ? 'Zero-Trust, explained.' : isRedis ? 'Redis 8 gets faster.' : isScion ? 'Beyond traditional Git.' : `${headline}.`,
+      arTitle: isZeroTrust ? 'شرح معمارية Zero-Trust' : isRedis ? 'تسريع محرك Redis 8' : isScion ? 'منظومة Scion لإدارة الشيفرات' : `هندسة منظومة ${cleanTitle}`,
+      enBody: `How engineering constraints forced an architectural paradigm shift in ${domainCategory.toLowerCase()}.`,
+      arBody: `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`,
       centerIcon,
     },
     {
       tag: 'Hard Metrics & Scale',
-      enTitle: `${headline} at scale.`,
-      arTitle: `أداء ${headline} تحت أقصى ضغط`,
+      enTitle: isZeroTrust ? 'mTLS encryption at scale.' : isRedis ? 'Redis 8 throughput record.' : 'Performance telemetry at scale.',
+      arTitle: isZeroTrust ? 'تأمين الشبكات عند التوسع' : isRedis ? 'رقم قياسي في سرعة المعالجة' : 'معايير الأداء عند أقصى ضغط',
       enBody: `Key benchmarks (${metric1}) and lessons learned from high-throughput production.`,
       arBody: `أهم معايير الأداء والدروس المستفادة (${arMetric1}) من تشغيل الأنظمة تحت ضغط هائل.`,
       centerIcon: 'gauge',
     },
     {
-      tag: 'The Problem & Solution',
-      enTitle: `Why standard tools\nfailed for ${headline}.`,
-      arTitle: `لماذا فشلت الأدوات التقليدية\nأمام منظومة ${headline}؟`,
+      tag: 'Problem & Solution',
+      enTitle: isZeroTrust ? 'Why perimeter firewalls failed.' : isRedis ? 'Eliminating memory bottlenecks.' : 'Overcoming legacy system limits.',
+      arTitle: isZeroTrust ? 'لماذا فشلت الجدران النارية التقليدية؟' : isRedis ? 'التخلص من اختناقات الذاكرة' : 'تجاوز حدود الأنظمة السابقة',
       enBody: `Moving beyond legacy assumptions to build modern high-efficiency software.`,
       arBody: `تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والأمان.`,
       centerIcon: 'shieldAlert',
@@ -323,16 +376,277 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   // 7. Generate Rich, Multi-Archetype Slide Structure
   let slides: SlideData[];
 
-  if (isBenchmark) {
+  if (isZeroTrust) {
+    // Dedicated Zero-Trust & mTLS Narrative Arc
+    const candidateSlides: SlideData[] = [
+      {
+        type: 'hub',
+        centerIcon: 'lock',
+        satIcons: ['shieldAlert', 'network', 'key', 'server', 'eyeRisk', 'terminal'],
+        enTitle: 'Zero-Trust, explained.',
+        arTitle: 'شرح معمارية Zero-Trust',
+        enBody: 'How cryptographic identity and least-privilege egress replace perimeter networks.',
+        arBody: 'كيف تلغي معمارية التحقق المستمر الثغرات التقليدية وتؤمن بيئات الإنتاج السحابية.',
+      },
+      {
+        type: 'row',
+        icons: [
+          { icon: 'network', label: 'Mutual TLS' },
+          { icon: 'key', label: 'x509 Certs' },
+        ],
+        enTitle: 'Mutual TLS encryption active.',
+        arTitle: 'تشفير كامل عبر mTLS',
+        enBody: 'Every internal microservice verifies identity with short-lived cryptographic certificates.',
+        arBody: 'كل خدمة داخلية تتحقق من هوية الطرف الآخر باستخدام شهادات رقمية مؤقتة وموثقة.',
+      },
+      {
+        type: 'compare',
+        compareLeftTitle: 'Perimeter Defense',
+        compareLeftBody: '• Flat internal network\n• Implicit trust inside\n• Lateral move exploits',
+        compareRightTitle: 'Zero-Trust Mesh',
+        compareRightBody: '• Cryptographic auth\n• Strict egress control\n• Zero implicit access',
+        enTitle: 'Perimeter vs Zero-Trust.',
+        arTitle: 'الدفاع التقليدي مقابل العزل',
+        enBody: 'Breaching one container no longer grants access to the surrounding cluster.',
+        arBody: 'اختراق أي حاوية فردية لا يمنح المهاجم أي وصول إلى بقية أجزاء الشبكة الداخلية.',
+      },
+      {
+        type: 'code',
+        codeFileName: 'envoy-mtls.yaml',
+        codeLanguage: 'yaml',
+        codeSnippet: `tls_context:\n  common_tls_context:\n    validation_context:\n      trusted_ca: { filename: "/etc/certs/ca.pem" }\n    require_client_certificate: true\n+ enforce_peer_spiffe_id: true\n✔ Handshake: STRICT_MTLS`,
+        enTitle: 'Strict client certificate proof.',
+        arTitle: 'إثبات الهوية بالشهادات الرقمية',
+        enBody: 'Traffic between services fails closed without a valid mutual cryptographic handshake.',
+        arBody: 'يتم رفض أي اتصال داخلي فوراً ما لم يقدم شهادة مصادقة مشفرة وسارية المفعول.',
+      },
+      {
+        type: 'row',
+        icons: [
+          { icon: 'shieldAlert', label: 'Microsegment' },
+          { icon: 'lock', label: 'Egress Policy' },
+        ],
+        enTitle: 'Microsegmentation limits blast radius.',
+        arTitle: 'تقسيم الشبكة يحد الأضرار',
+        enBody: 'Network policies restrict egress to only pre-approved service dependencies.',
+        arBody: 'سياسات العزل الصارمة تمنع خروج أي حزم بيانات إلا إلى الخدمات المعرفة مسبقاً.',
+      },
+      {
+        type: 'row',
+        icons: [
+          { icon: 'alertCircle', label: 'The Catch' },
+          { icon: 'activity', label: 'Cert Rotation' },
+        ],
+        enTitle: 'The Catch: Certificate rotation.',
+        arTitle: 'تحدي إدارة الشهادات الدورية',
+        enBody: 'Short-lived certificates require automated control planes to prevent unexpected service outages.',
+        arBody: 'الشهادات قصيرة الأجل تتطلب أتمتة كاملة لإدارتها تفادياً لانقطاع الخدمات المفاجئ.',
+      },
+      {
+        type: 'row',
+        icons: [{ icon: 'lightbulb', label: 'Security Rule' }],
+        enTitle: 'Never trust, always verify.',
+        arTitle: 'القاعدة الذهبية: لا تثق أبداً',
+        enBody: 'Treat every network packet as if it originated from an untrusted public internet node.',
+        arBody: 'تعامل مع كل اتصال داخلي وكأنه قادم من شبكة عامة غير موثوقة تماماً.',
+      },
+      {
+        type: 'cta',
+        enTitle: 'Hardening cloud networks?',
+        arTitle: 'تؤمن شبكتك السحابية اليوم؟',
+        enBody: 'Discuss service mesh, mTLS, and Zero-Trust architecture with security engineers.',
+        arBody: 'تواصل معنا لمناقشة تطبيق معمارية Zero-Trust وتأمين بيئات الإنتاج.',
+        ctaText: 'DM us  •  رسالة خاصة',
+        url: brandUrl,
+        enCredit: `${brand} · Zero-Trust Security Report`,
+        arCredit: `${brand} · تقرير أمني في معمارية Zero-Trust`,
+      },
+    ];
+    slides = trimSlides(candidateSlides, targetSlideCount);
+  } else if (isRedis) {
+    // Dedicated Redis 8 & In-Memory Cache Arc
+    const candidateSlides: SlideData[] = [
+      {
+        type: 'hub',
+        centerIcon: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/redis.svg',
+        satIcons: ['database', 'zap', 'hardDrive', 'server', 'cpu', 'activity'],
+        enTitle: 'Redis 8 gets faster.',
+        arTitle: 'تسريع محرك Redis 8',
+        enBody: 'How asynchronous I/O and query pipelining deliver sub-millisecond in-memory throughput.',
+        arBody: 'كيف ترفع المعمارية الجديدة سرعة المعالجة في الذاكرة مع خفض استهلاك الموارد.',
+      },
+      {
+        type: 'metric',
+        metricValue: '1.2M ops/s',
+        metricLabel: 'IN-MEMORY THROUGHPUT',
+        metricDiff: '▲ 40% higher ops/sec',
+        metricIcon: 'zap',
+        enTitle: 'Redis 8 throughput record.',
+        arTitle: 'رقم قياسي في سرعة المعالجة',
+        enBody: 'Multi-threaded I/O multiplexing handles millions of operations per second with microsecond latency.',
+        arBody: 'معالجة متزامنة وموزعة للطلبات تضمن استجابة فورية حتى تحت أقصى ضغط تشغيلي.',
+      },
+      {
+        type: 'compare',
+        compareLeftTitle: 'Legacy Redis',
+        compareLeftBody: '• Single-thread bottlenecks\n• Blocking save latency\n• High memory fragmentation',
+        compareRightTitle: 'Redis 8 Engine',
+        compareRightBody: '• Multi-thread I/O workers\n• Zero-copy memory pooling\n• Steady microsecond p99',
+        enTitle: 'Redis 8 architecture contrast.',
+        arTitle: 'المقارنة بين الإصدارين',
+        enBody: 'Offloading network read/write from the main execution thread keeps cache pipelines fluid.',
+        arBody: 'فصل عمليات قراءة الشبكة عن معالج الأوامر الرئيسي يمنع أي بطء في استرجاع البيانات.',
+      },
+      {
+        type: 'code',
+        codeFileName: 'redis_bench.sh',
+        codeLanguage: 'bash',
+        codeSnippet: `$ redis-benchmark -q -n 1000000 -c 50 -P 16\n> Pipelining active across 4 IO threads...\n+ P99 latency: 0.18ms\n✔ Throughput: 1,240,000 requests per second`,
+        enTitle: 'Microsecond p99 benchmark proof.',
+        arTitle: 'إثبات السرعة تحت الضغط',
+        enBody: 'Pipelined requests execute in lock-free shared buffers without thread contention.',
+        arBody: 'تنفيذ الاستعلامات المجمعة في الذاكرة المشتركة دون أي تضارب أو إبطاء للمعالج.',
+      },
+      {
+        type: 'row',
+        icons: [
+          { icon: 'hardDrive', label: 'Zero-Copy' },
+          { icon: 'cpu', label: 'Threading' },
+        ],
+        enTitle: 'Optimized memory allocation buffers.',
+        arTitle: 'إدارة ذاكرة فائقة الدقة',
+        enBody: 'Custom memory allocators eliminate fragmentation spikes during high key churn.',
+        arBody: 'محسنات الذاكرة الخاصة تمنع تبعثر البيانات وتضمن استقرار استهلاك الرام.',
+      },
+      {
+        type: 'row',
+        icons: [
+          { icon: 'alertCircle', label: 'The Catch' },
+          { icon: 'database', label: 'Sharding' },
+        ],
+        enTitle: 'The Catch: Cluster sharding.',
+        arTitle: 'تحدي توزيع المفاتيح والشظايا',
+        enBody: 'Multi-key queries across disparate cluster shards require cross-slot routing overhead.',
+        arBody: 'الاستعلامات المتعددة عبر عقد مختلفة تتطلب توجيهاً إضافياً قد يقلل من الفائدة.',
+      },
+      {
+        type: 'row',
+        icons: [{ icon: 'lightbulb', label: 'Cache Rule' }],
+        enTitle: 'Keep payloads minimal and lean.',
+        arTitle: 'احرص على تقليص أحجام البيانات',
+        enBody: 'In-memory stores remain sub-millisecond only when value payloads stay under 64KB.',
+        arBody: 'قواعد البيانات في الذاكرة تحافظ على سرعتها الفائقة طالما بقيت أحجام السجلات صغيرة.',
+      },
+      {
+        type: 'cta',
+        enTitle: 'Scaling in-memory cache?',
+        arTitle: 'تطور محركات التخزين المؤقت؟',
+        enBody: 'Discuss Redis 8 clustering, memory sizing, and high-throughput cache topologies.',
+        arBody: 'تواصل معنا لمناقشة أداء Redis وتصميم حلول التخزين المؤقت عالية السرعة.',
+        ctaText: 'DM us  •  رسالة خاصة',
+        url: brandUrl,
+        enCredit: `${brand} · Redis 8 Architecture Report`,
+        arCredit: `${brand} · دراسة أداء محرك Redis 8`,
+      },
+    ];
+    slides = trimSlides(candidateSlides, targetSlideCount);
+  } else if (isScion) {
+    // Dedicated Anthropic Scion & Agent-Scale Monorepo VCS Arc
+    const candidateSlides: SlideData[] = [
+      {
+        type: 'hub',
+        centerIcon: 'gitMerge',
+        satIcons: ['server', 'cpu', 'database', 'changesets', 'terminal', 'gauge'],
+        enTitle: 'Beyond traditional Git.',
+        arTitle: 'منظومة Scion لإدارة الشيفرات',
+        enBody: 'Why AI agent concurrency broke standard Git and how Anthropic engineered Scion for monorepos.',
+        arBody: 'لماذا عجزت أنظمة Git التقليدية أمام وتيرة الوكلاء البرمجيين وكيف صممت Anthropic منظومة Scion.',
+      },
+      {
+        type: 'compare',
+        compareLeftTitle: 'Standard Git Model',
+        compareLeftBody: '• Full tree local cloning\n• Merge conflicts with bots\n• 100GB disk bloat per seat',
+        compareRightTitle: 'Scion Agent-Scale VCS',
+        compareRightBody: '• Virtual sparse checkout\n• Server-authoritative state\n• Instant atomic changesets',
+        enTitle: 'Git vs Scion monorepo.',
+        arTitle: 'مقارنة معمارية Git و Scion',
+        enBody: 'Agents generate thousands of commits per hour, rendering client-side git locks unusable.',
+        arBody: 'الوكلاء الآليون ينشئون آلاف التعديلات كل ساعة مما يجعل قفل المستودع محلياً مستحيلاً.',
+      },
+      {
+        type: 'metric',
+        metricValue: '25M checkouts/day',
+        metricLabel: 'AGENT CONCURRENCY',
+        metricDiff: '▲ Zero local disk clone wait',
+        metricIcon: 'activity',
+        enTitle: 'Scion agent concurrency scale.',
+        arTitle: 'استيعاب آلاف الوكلاء بالتزامن',
+        enBody: 'Decoupled virtual filesystem mounts mount only the exact source files an agent inspects.',
+        arBody: 'نظام الملفات الافتراضي يقوم بتحميل وتثبيت الملفات التي يحتاجها الوكيل فقط دون غيرها.',
+      },
+      {
+        type: 'code',
+        codeFileName: 'scion-mount.sh',
+        codeLanguage: 'bash',
+        codeSnippet: `$ scion checkout --virtual --sparse=agent-workspace\n> Mounting virtual repo tree at /work...\n+ 120GB repository linked in 420ms\n✔ Atomic changeset verified by server`,
+        enTitle: 'Virtual filesystem lazy checkout.',
+        arTitle: 'تحميل فوري عبر النظام الافتراضي',
+        enBody: 'Local working copies become lightweight pointers to authoritative server storage.',
+        arBody: 'تصبح النسخ المحلية مجرد مؤشرات خفيفة جداً تشير مباشرة إلى الخوادم المركزية.',
+      },
+      {
+        type: 'row',
+        icons: [
+          { icon: 'server', label: 'Server API' },
+          { icon: 'changesets', label: 'Changesets' },
+        ],
+        enTitle: 'Server authoritative changesets.',
+        arTitle: 'تأكيد التغييرات عبر الخادم',
+        enBody: 'Server-side conflict resolution eliminates the need for agents to rebase whole histories.',
+        arBody: 'معالجة التضارب على مستوى الخادم تلغي حاجة الوكلاء إلى إعادة بناء تاريخ المستودع.',
+      },
+      {
+        type: 'row',
+        icons: [
+          { icon: 'alertCircle', label: 'The Catch' },
+          { icon: 'server', label: 'Monorepo Scale' },
+        ],
+        enTitle: 'The Catch: Monorepo scale.',
+        arTitle: 'متى تحتاج إلى هذه المنظومة',
+        enBody: 'Custom VCS engines like Scion require dedicated infrastructure teams. Stick to Git under 50GB.',
+        arBody: 'الأنظمة المخصصة مثل Scion تحتاج لفرق دعم متفرغة؛ المستودعات الأصغر من 50GB تبقى أفضل مع Git.',
+      },
+      {
+        type: 'row',
+        icons: [{ icon: 'lightbulb', label: 'SRE Rule' }],
+        enTitle: 'Decouple storage from compute.',
+        arTitle: 'افصل التخزين عن المعالجة',
+        enBody: 'Never force developer or agent machines to hold the full historical weight of the repository.',
+        arBody: 'لا تجبر أجهزة المطورين أو الوكلاء على تحميل وتخزين كامل تاريخ المستودع الضخم.',
+      },
+      {
+        type: 'cta',
+        enTitle: 'Scaling agent developer toolchains?',
+        arTitle: 'تطور أدوات التطوير للوكلاء؟',
+        enBody: 'Discuss monorepo architectures, virtual checkouts, and developer infrastructure at scale.',
+        arBody: 'تواصل معنا لمناقشة هندسة المستودعات الضخمة وبناء أدوات الوكلاء البرمجيين.',
+        ctaText: 'DM us  •  رسالة خاصة',
+        url: brandUrl,
+        enCredit: `${brand} · Scion VCS Architecture Report`,
+        arCredit: `${brand} · دراسة معمارية Scion لإدارة المستودعات`,
+      },
+    ];
+    slides = trimSlides(candidateSlides, targetSlideCount);
+  } else if (isBenchmark) {
     // Structure A: Benchmark & Metrics Deep Dive (Hub -> Metric Hero -> Compare -> Code Diff -> Rows -> CTA)
-    const enBenchmarkTitle = headline.includes(':') ? `${headline}\n${metric1} Speedup.` : `${headline}:\n${metric1} Speedup.`;
+    const enBenchmarkTitle = `${headline} speedup.`;
     const candidateSlides: SlideData[] = [
       {
         type: 'hub',
         centerIcon: 'gauge',
         satIcons,
         enTitle: enBenchmarkTitle,
-        arTitle: `قفزة في أداء ${headline}\nتسريع العمليات بمعدل ${arMetric1}`,
+        arTitle: `قفزة في أداء ${cleanTitle}`,
         enBody: `How an architectural redesign delivered ${metric1} faster execution and lowered infrastructure cost.`,
         arBody: `كيف حققت إعادة بناء المنظومة تسريعاً بنسبة ${arMetric1} مع خفض ملحوظ في تكلفة الموارد.`,
       },
@@ -354,7 +668,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         compareRightTitle: 'Optimized Stack',
         compareRightBody: `• Zero-allocation parsing\n• Lock-free parallel pipelines\n• Steady microsecond p99`,
         enTitle: 'Architectural comparison.',
-        arTitle: 'مقارنة معمارية الأنظمة.',
+        arTitle: 'مقارنة معمارية الأنظمة',
         enBody: userPoint1,
         arBody: 'التحول من المعالجة الثقيلة المقيدة إلى بنية موزعة وخفيفة على الذاكرة.',
       },
@@ -364,7 +678,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         codeLanguage: 'bash',
         codeSnippet: `$ ./benchmark --workload=high-concurrency\n> Warming up virtual worktree...\n+ Latency dropped from 240ms -> 12ms\n✔ Target throughput: ${metric1} [PASSED]`,
         enTitle: 'The core optimization in action.',
-        arTitle: 'آلية التحسين أثناء التنفيذ.',
+        arTitle: 'آلية التحسين أثناء التنفيذ',
         enBody: userPoint2,
         arBody: 'إلغاء العمليات الزائدة وحصر المعالجة فقط في البيانات المتغيرة بشكل فوري.',
       },
@@ -375,7 +689,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
           { icon: satIcons[1] || 'hardDrive', label: 'Memory' },
         ],
         enTitle: 'Decoupled state eliminates stalls.',
-        arTitle: 'فصل الحالة يمنع الاختناق.',
+        arTitle: 'فصل الحالة يمنع الاختناق',
         enBody: userPoint3,
         arBody: 'نقل العمليات الثقيلة إلى وحدات متخصصة يضمن استجابة فورية للمستخدمين.',
       },
@@ -386,7 +700,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
           { icon: 'gauge', label: 'Complexity' },
         ],
         enTitle: 'The Catch: When not to optimize.',
-        arTitle: 'ما يجب معرفته قبل الانتقال.',
+        arTitle: 'ما يجب معرفته قبل الانتقال',
         enBody: `Low-level optimization introduces cognitive overhead. Only adopt when profiling proves memory or p99 tail latency harms user workflows.`,
         arBody: `التحسين العميق يزيد من تعقيد الشيفرة؛ لا تطبقه إلا إذا أثبتت القياسات أن بطء الاستجابة يؤثر فعلياً على النظام.`,
       },
@@ -394,14 +708,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         type: 'row',
         icons: [{ icon: 'lightbulb', label: 'SRE Rule' }],
         enTitle: 'Profile p99 continuously.',
-        arTitle: 'قاعدة مهندسي الاعتمادية SRE.',
+        arTitle: 'قاعدة مهندسي الاعتمادية SRE',
         enBody: `Never optimize based on averages. Track 99th percentile response times and memory allocations.`,
         arBody: 'لا تقيس الأداء بالمتوسطات؛ تتبع أبطأ 1% من الطلبات واستنزاف الذاكرة بشكل مستمر.',
       },
       {
         type: 'cta',
-        enTitle: `Benchmarking ${domainCategory.toLowerCase()}?`,
-        arTitle: `تقيس أداء أنظمتك التقنية؟`,
+        enTitle: 'Benchmarking production systems?',
+        arTitle: 'تقيس أداء أنظمتك التقنية؟',
         enBody: `Discuss benchmark profiling and systems optimization with engineers.`,
         arBody: `تواصل معنا لمناقشة تحليل الأداء وهندسة الأنظمة عالية الكفاءة.`,
         ctaText: 'DM us  •  رسالة خاصة',
@@ -413,14 +727,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     slides = trimSlides(candidateSlides, targetSlideCount);
   } else if (isSecurity) {
     // Structure B: Security & Exploits (Hub -> Metric Triage -> Exploit Code -> Compare -> Rows -> CTA)
-    const enSecurityTitle = headline.includes(':') ? `${headline}\nExploit Breakdown.` : `${headline}:\nExploit Breakdown.`;
+    const enSecurityTitle = `${headline} vulnerability.`;
     const candidateSlides: SlideData[] = [
       {
         type: 'hub',
         centerIcon: 'shieldAlert',
         satIcons,
         enTitle: enSecurityTitle,
-        arTitle: `تشريح أمني لمنظومة ${headline}\nآليات الثغرة والوقاية`,
+        arTitle: `تشريح أمني لمنظومة ${cleanTitle}`,
         enBody: `A security deep dive into the vulnerability mechanism, exploit reachability, and defensive hardening.`,
         arBody: `تحليل أمني عميق لجذور الخلل، إمكانية الاستغلال، والحلول الدفاعية الموصى بها.`,
       },
@@ -431,7 +745,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         metricDiff: '▼ 95% false alarms filtered out',
         metricIcon: 'shieldAlert',
         enTitle: `${headline} blast radius.`,
-        arTitle: 'تقييم خطورة الاستغلال الفعلي.',
+        arTitle: 'تقييم خطورة الاستغلال الفعلي',
         enBody: `Distinguishing raw automated alerts from critical vulnerabilities attackers can genuinely reach.`,
         arBody: 'فرز التنبيهات الآلية لتحديد الثغرات الحرجة القابلة للاستغلال الحقيقي.',
       },
@@ -440,8 +754,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         codeFileName: 'exploit_poc.py',
         codeLanguage: 'python',
         codeSnippet: `# CVE Validation & Patch Proof\n$ python3 exploit_poc.py --target=staging\n- Payload triggered: unauthenticated memory read\n+ Applied patch: boundary validation active\n✔ Reachability: MITIGATED`,
-        enTitle: 'Exploit mechanism & patch proof.',
-        arTitle: 'آلية الاستغلال وإثبات الترقيع.',
+        enTitle: 'Exploit mechanism and patch proof.',
+        arTitle: 'آلية الاستغلال وإثبات الترقيع',
         enBody: userPoint1,
         arBody: 'فحص مسار الاستغلال البرمجي والتأكد من إغلاق الثغرة تماماً.',
       },
@@ -452,7 +766,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         compareRightTitle: 'Reachability Triage',
         compareRightBody: `• 5% critical flaws prioritized\n• Focus on exposed APIs\n• Immediate defensive win`,
         enTitle: 'Attack surface vs boundary.',
-        arTitle: 'مسار الهجوم مقابل خط الدفاع.',
+        arTitle: 'مسار الهجوم مقابل خط الدفاع',
         enBody: userPoint2,
         arBody: 'تحديد المسار الذي يمكن للمهاجم استغلاله مقارنة بنطاق العزل الأمني المعمول به.',
       },
@@ -462,8 +776,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
           { icon: 'binary', label: 'Decompilation' },
           { icon: 'search', label: 'Static Analysis' },
         ],
-        enTitle: 'Binary inspection & decompilation.',
-        arTitle: 'فحص الشيفرة المترجمة.',
+        enTitle: 'Binary inspection and decompilation.',
+        arTitle: 'فحص الشيفرة المترجمة',
         enBody: userPoint3,
         arBody: 'فحص ملفات النظام الثنائية للتأكد من عدم وجود مسارات تسريب غير مقصودة.',
       },
@@ -474,7 +788,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
           { icon: 'lock', label: 'Defense' },
         ],
         enTitle: 'The Catch: Beyond vulnerability scans.',
-        arTitle: 'حدود الحماية وأهمية الدفاع المتعدد.',
+        arTitle: 'حدود الحماية وأهمية الدفاع المتعدد',
         enBody: `Patching reachable CVEs is only half the battle. Without strict network isolation and least-privilege tokens, blast radius remains high.`,
         arBody: `ترقيع الثغرات ليس كافياً بمفرده؛ بدون عزل بيئات التشغيل وتقييد الصلاحيات، يبقى خطر الاختراق الداخلي قائماً.`,
       },
@@ -482,14 +796,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         type: 'row',
         icons: [{ icon: 'shieldAlert', label: 'AppSec Rule' }],
         enTitle: 'Fix reachable bugs first.',
-        arTitle: 'قاعدة الأمان السيبراني الأساسية.',
+        arTitle: 'قاعدة الأمان السيبراني الأساسية',
         enBody: `Fixing the 5% of reachable flaws provides 95% of real-world defensive protection for production stacks.`,
         arBody: 'معالجة الثغرات القابلة للوصول الفعلي تمنحك 95% من الحماية الحقيقية ضد الهجمات.',
       },
       {
         type: 'cta',
-        enTitle: `Building secure\nsoftware?`,
-        arTitle: `تبني برمجيات\nآمنة ومحمية؟`,
+        enTitle: 'Building secure software stacks?',
+        arTitle: 'تبني برمجيات آمنة ومحمية؟',
         enBody: `Connect with security researchers to harden your software supply chain.`,
         arBody: `تواصل معنا لمناقشة أمن البرمجيات وحماية بيئات التطوير والإنتاج.`,
         ctaText: 'DM us  •  رسالة خاصة',
@@ -499,105 +813,18 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       },
     ];
     slides = trimSlides(candidateSlides, targetSlideCount);
-  } else if (isMigration) {
-    // Structure C: Architecture Migration (Hub -> Compare -> Metric Scale -> Cutover Code -> Rows -> CTA)
-    const candidateSlides: SlideData[] = [
-      {
-        type: 'hub',
-        centerIcon: centerIcon || 'arrowRightLeft',
-        satIcons,
-        enTitle: `${headline}:\nThe Migration.`,
-        arTitle: `${headline}:\nرحلة الانتقال المعماري.`,
-        enBody: `Why traditional systems broke down under high concurrency and what replaced them.`,
-        arBody: `أسباب وصول الأدوات السابقة إلى أقصى حدودها والحلول المعمارية الجديدة البديلة.`,
-      },
-      {
-        type: 'compare',
-        compareLeftTitle: 'Legacy Monolith / Git',
-        compareLeftBody: `• Full history clone\n• Bloats local disk (100GB+)\n• CI lockups at scale`,
-        compareRightTitle: 'Modern Decoupled Stack',
-        compareRightBody: `• Virtual file system\n• Sparse lazy checkout\n• Instant CI build times`,
-        enTitle: 'The architectural contrast.',
-        arTitle: 'المقارنة بين النظام القديم والجديد.',
-        enBody: userPoint1,
-        arBody: 'الأنظمة السابقة اعتمدت على نماذج أحادية لم تعد تناسب حجم العمليات التزامنية اليوم.',
-      },
-      {
-        type: 'metric',
-        metricValue: metric1.includes('checkouts') || metric1.includes('GB') ? metric1 : '100x',
-        metricLabel: 'SCALE MULTIPLIER',
-        metricDiff: '▲ Zero developer wait time',
-        metricIcon: 'activity',
-        enTitle: `${headline} at scale.`,
-        arTitle: `${headline} عند أقصى ضغط.`,
-        enBody: `Resource consumption became strictly proportional to modified code rather than repository history.`,
-        arBody: 'أصبح استهلاك الموارد مرتبطاً فقط بحجم التعديل الحالي وليس بكامل تاريخ المشروع.',
-      },
-      {
-        type: 'code',
-        codeFileName: 'scion_cutover.sh',
-        codeLanguage: 'bash',
-        codeSnippet: `$ scion init --virtual-mount=/src\n> Initializing sparse lazy checkout...\n+ 100GB worktree mounted in 1.4s\n✔ CI test-after-merge pipeline active`,
-        enTitle: 'Safe cutover execution.',
-        arTitle: 'استراتيجية النقل والتشغيل الفعلي.',
-        enBody: userPoint2,
-        arBody: 'تحويل العمليات الثقيلة إلى الخوادم واعتماد حزم التغييرات النسبية خفيفة الوزن.',
-      },
-      {
-        type: 'row',
-        icons: [
-          { icon: satIcons[2] || 'server', label: 'Server API' },
-          { icon: satIcons[3] || 'changesets', label: 'Changesets' },
-        ],
-        enTitle: 'Server-authoritative state.',
-        arTitle: 'بنية تحتية مركزية ومحكمة.',
-        enBody: userPoint3,
-        arBody: 'إتمام الدمج والتحقق عبر واجهات برمجية مركزية يضمن التزامن التام دون تضارب.',
-      },
-      {
-        type: 'row',
-        icons: [
-          { icon: 'alertCircle', label: 'The Catch' },
-          { icon: 'server', label: 'SRE Overhead' },
-        ],
-        enTitle: 'The Catch: Before you switch.',
-        arTitle: 'ما يجب معرفته قبل اتخاذ القرار.',
-        enBody: `Custom monorepo engines require dedicated tooling engineers. Repositories under 50GB run simpler on standard Git with LFS.`,
-        arBody: `الأنظمة المخصصة تتطلب فرق دعم وصيانة متفرغة؛ إذا كان حجم مشروعك أقل من 50GB، فالأدوات التقليدية تبقى أسهل وأوفر.`,
-      },
-      {
-        type: 'row',
-        icons: [{ icon: 'lightbulb', label: 'SRE Rule' }],
-        enTitle: 'Decouple state from compute.',
-        arTitle: 'قاعدة فصل البيانات عن المعالجة.',
-        enBody: `When data grows faster than developer hardware, offload state authority to high-bandwidth server clusters.`,
-        arBody: 'عندما تتضخم البيانات، يجب تفويض إدارة الحالة إلى خوادم مركزية فائقة السرعة.',
-      },
-      {
-        type: 'cta',
-        enTitle: `Scaling your\ninfrastructure?`,
-        arTitle: `تطور بنيتك التحتية\nللأنظمة الكبيرة؟`,
-        enBody: `Discuss software architecture migration and developer toolchain scaling.`,
-        arBody: `تواصل معنا لمناقشة تطوير أدوات المهندسين وبناء أنظمة برمجية سريعة ومستقرة.`,
-        ctaText: 'DM us  •  رسالة خاصة',
-        url: brandUrl,
-        enCredit: `${brand} · ${domainCategory} Case Study`,
-        arCredit: `${brand} · دراسة حالة في ${domainCategory}`,
-      },
-    ];
-    slides = trimSlides(candidateSlides, targetSlideCount);
   } else {
-    // Structure D: General Systems & Architecture (Hub -> Metric Win -> Compare -> Code -> Rows -> CTA)
-    const enGeneralTitle = headline.includes(':') ? `${headline}\nNext-Gen Shift.` : `${headline}:\nNext-Gen Shift.`;
+    // Structure D: General Systems & Architecture (Non-repetitive, context-aware)
+    const enGeneralTitle = `${headline} overview.`;
     const candidateSlides: SlideData[] = [
       {
         type: 'hub',
         centerIcon,
         satIcons,
         enTitle: enGeneralTitle,
-        arTitle: `النقلة المعمارية لمنظومة ${headline}\nتحليل الأداء وهندسة الأنظمة`,
-        enBody: `A breakdown of technical mechanisms, benchmarks, and production architecture.`,
-        arBody: `تحليل عميق للبنية التحتية، معايير السرعة، وأهم الدروس العملية.`,
+        arTitle: `هندسة منظومة ${cleanTitle}`,
+        enBody: `How modern architecture patterns eliminate bottlenecks in ${domainCategory.toLowerCase()}.`,
+        arBody: `كيف تساهم المعمارية الحديثة في معالجة نقاط الاختناق ورفع كفاءة وموثوقية النظام.`,
       },
       {
         type: 'metric',
@@ -606,7 +833,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         metricDiff: '▲ Measurable architectural speedup',
         metricIcon: 'zap',
         enTitle: `${headline} breakthrough.`,
-        arTitle: `النقلة النوعية في ${headline}.`,
+        arTitle: `نقلة نوعية في الأداء`,
         enBody: `How decoupled architecture eliminated memory bottlenecks and lowered infrastructure spend.`,
         arBody: `كيف ساهمت البنية المفصولة في خفض استهلاك الموارد ورفع الكفاءة التشغيلية.`,
       },
@@ -627,7 +854,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         codeLanguage: 'bash',
         codeSnippet: `$ ./system-engine --mode=distributed\n> Initializing decentralized nodes...\n+ State synchronized across 3 zones\n✔ 0 context switches detected`,
         enTitle: 'Decoupled state execution.',
-        arTitle: 'فصل طبقة البيانات عن التنفيذ.',
+        arTitle: 'فصل طبقة البيانات عن التنفيذ',
         enBody: userPoint2,
         arBody: `من خلال إدارة الحالة بشكل مستقل، تصبح العمليات مرتبطة فقط بالملفات المعدلة دون إهدار الموارد.`,
       },
@@ -638,7 +865,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
           { icon: satIcons[1] || 'server', label: 'Cluster' },
         ],
         enTitle: 'Server-side authoritative design.',
-        arTitle: 'بنية تحتية مركزية ومحكمة.',
+        arTitle: 'بنية تحتية مركزية ومحكمة',
         enBody: userPoint3,
         arBody: `نقل العمليات المعقدة إلى خوادم متخصصة يمنع التجمد وبطء الأجهزة الطرفية.`,
       },
@@ -649,7 +876,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
           { icon: 'layers', label: 'Complexity' },
         ],
         enTitle: 'The Catch: The operational cost.',
-        arTitle: 'التكلفة التشغيلية الخفية.',
+        arTitle: 'التكلفة التشغيلية الخفية',
         enBody: `Decoupled architectures trade local simplicity for network complexity. Ensure distributed tracing is configured before migration.`,
         arBody: `الأنظمة الموزعة تستبدل بساطة الكود بتعقيد الشبكة والمراقبة؛ تأكد من جاهزية أدوات الرصد قبل فصل البيانات.`,
       },
@@ -657,16 +884,16 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         type: 'row',
         icons: [{ icon: 'lightbulb', label: 'Core Rule' }],
         enTitle: 'Ship smaller, verify faster.',
-        arTitle: 'انشر تغييرات أصغر، وتحقق أسرع.',
+        arTitle: 'انشر تغييرات أصغر، وتحقق أسرع',
         enBody: `Smaller incremental changesets reduce blast radius and make troubleshooting instantaneous.`,
         arBody: `التغييرات الصغيرة والمستمرة تقلل نطاق الأعطال وتجعل تتبع المشاكل وحلها فورياً.`,
       },
       {
         type: 'cta',
-        enTitle: `Engineering ${domainCategory.toLowerCase()}?`,
-        arTitle: `تبني أنظمة في مجال ${domainCategory}؟`,
+        enTitle: 'Engineering modern software architectures?',
+        arTitle: 'تبني أنظمة برمجية حديثة؟',
         enBody: `Join the conversation and discuss technical architecture.`,
-        arBody: `تواصل معنا لمناقشة التفاصيل الهندسية وأفضل الممارسات.`,
+        arBody: `تواصل معنا لمناقشة التفاصيل الهندسية وأفضل الممارسات في بناء الأنظمة.`,
         ctaText: 'DM us  •  رسالة خاصة',
         url: brandUrl,
         enCredit: `${brand} · ${domainCategory} Deep Dive`,
@@ -822,9 +1049,11 @@ ${hashtags}`,
     creator: brand,
     url: brandUrl ? `https://${brandUrl}` : 'https://marrok.org',
     published: new Date().toISOString().split('T')[0],
-    isSearchGrounded: true,
+    isSearchGrounded: false,
     groundingQueries: domainGroundingQueries,
     groundingSources: domainGroundingSources,
+    isFallback: true,
+    engine: 'offline-synthesizer',
   };
 
   const notesForHuman: string[] = [

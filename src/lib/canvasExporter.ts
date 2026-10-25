@@ -12,9 +12,12 @@ function wrapTextLines(
   if (!rawText) return [];
 
   // Protect units and metrics from being split across lines (e.g. "510 GB", "10 ms")
-  const textWithNbsp = rawText
+  let textWithNbsp = rawText
     .replace(/\b(\d+(?:\.\d+)?)\s+(GB|TB|MB|KB|ms|s|μs|req|rps|x|X)\b/gi, '$1\u00A0$2')
     .replace(/\b(\d+(?:\.\d+)?)\s+(جيجابايت|تيرابايت|ميجابايت|مللي ثانية|ثواني|ضعفاً)\b/g, '$1\u00A0$2');
+
+  // Prevent isolated Latin technical terms from wrapping as orphans in Arabic text (e.g. "منظومة Zero-Trust")
+  textWithNbsp = textWithNbsp.replace(/([\u0600-\u06FF]+)\s+([A-Za-z0-9_\-]+)\b/g, '$1\u00A0$2');
 
   const paragraphs = textWithNbsp.split('\n');
   const lines: string[] = [];
@@ -39,6 +42,21 @@ function wrapTextLines(
     }
     if (currentLine) {
       lines.push(currentLine);
+    }
+  }
+
+  // Typographic orphan prevention:
+  // If the last line has only 1 word and the preceding line has 3+ words, reflow the last word of the preceding line
+  if (lines.length >= 2) {
+    const lastLine = lines[lines.length - 1].trim();
+    const prevLine = lines[lines.length - 2].trim();
+    const lastWords = lastLine.split(/\s+/);
+    const prevWords = prevLine.split(/\s+/);
+
+    if (lastWords.length === 1 && prevWords.length >= 3) {
+      const movedWord = prevWords.pop()!;
+      lines[lines.length - 2] = prevWords.join(' ');
+      lines[lines.length - 1] = `${movedWord} ${lastLine}`;
     }
   }
 

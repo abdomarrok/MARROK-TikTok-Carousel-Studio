@@ -233,3 +233,37 @@ This document records the chronological development history, engineering decisio
 
 
 
+
+---
+
+## Step 15: Generator Authenticity, Grounding, Strict Headline Rules & UI Overlap Fix
+- **Context & User Feedback:**
+  - Fallback text was silently shipping identical boilerplate copy across topics ("A breakdown of technical mechanisms...") and identical Arabic titles ("?????? ????????? ??????? X").
+  - Toast falsely claimed "Autonomously generated and perfected..." on offline drafts.
+  - Headlines violated Spec §8 rule (used colons or >5 words like "Zero-Trust mesh architecture with mTLS:" and "Redis 8 architectural leap: Next-Gen Shift.").
+  - BiDi punctuation inversion flipped Arabic text touching Latin words ("???? :Anthropic's Scion").
+  - False positive subject detection matched the Rust logo on Zero-Trust decks due to "zero-trust".includes("rust").
+  - Wordmark improperly adopted topic names ("ANTHROPIC") instead of staying strictly locked to "MARROK".
+  - Floating action bar overlapped the bottom of the 1080x1920 preview canvas and obscured subtitle copy on laptop viewports.
+- **Engineering Solutions Implemented:**
+  1. **Strict Fallback Labeling & Export Blocker:**
+     - Added isFallback: boolean and engine: string flags to PostSourceMeta.
+     - Decks generated via offline fallback display an **Offline Draft (AI Engine Unavailable)** warning banner with an amber status pill.
+     - Export is strictly blocked in both UI and runQAChecks() (fallback-draft-blocker fail rule). Editing any slide copy unmarks fallback status.
+  2. **Spec §8 Headline Rule Enforcement (2-5 words ending in a period, zero colons):**
+     - Updated enforceHeadlineSpecRule() in src/lib/textSanitizer.ts.
+     - Integrated checkHeadlineSpecRule() into src/lib/qaChecks.ts failing any slide with colons, >5 words, or missing terminal period.
+     - Updated LLM generation schema and all synthesizer templates ("Zero-Trust, explained.", "Redis 8 gets faster.", "Beyond traditional Git.").
+  3. **BiDi & Arabic Typography Hardening:**
+     - Sanitized all Arabic punctuation touching Latin words (:Latin and Latin:), preventing BiDi inversion.
+     - Implemented typographic widow/orphan prevention in wrapTextLines() (canvasExporter.ts) binding Latin words to Arabic descriptors (\u00A0) so terms like "Zero-Trust" never wrap alone on a line.
+     - Replaced boilerplate Arabic templates with tailored technical translations per domain.
+  4. **Subject Classification & Icon Resolution Fix:**
+     - Eliminated substring matching in extractDynamicIcons(), using strict word boundary regex (\b\b) and guarding against "rust" inside "trust" or "zero-trust".
+     - Added dedicated domain rules: CYBERSECURITY & ZERO-TRUST MESH (lock icon, cyber theme) and IN-MEMORY CACHE & DATA STORES (official Redis SVG logo, amber theme).
+     - Prioritized VCS keywords (scion, monorepo, git) over generic AI keywords to correctly classify Scion under VCS & DEVSECOPS.
+     - Permanently locked brand wordmark to 'MARROK' across both LLM prompts and synthesizer templates.
+  5. **Docked Toolbar & Zero Canvas Overlap:**
+     - Docked the Action Bar (JPG, Copy, Export ZIP) directly below the slide thumbnails and controls in the left column.
+     - Removed the redundant floating bottom bar, guaranteeing zero overlap with the preview canvas and leaving subtitle copy 100% visible on all viewports.
+     - Constrained canvas preview to max-h-[min(540px,calc(100vh-250px))] to ensure comfortable fit on standard screens.

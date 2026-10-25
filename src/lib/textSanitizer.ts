@@ -93,62 +93,78 @@ export function sanitizeMetricForArabic(rawMetric: string): string {
 /**
  * Cleans user prompt / title into a crisp English headline without markdown.
  */
+/**
+ * Enforces Spec §8 rule on English headlines:
+ * Must be strictly 2 to 5 words ending in a period ('.').
+ * Zero colons, dashes, or ellipses.
+ */
+export function enforceHeadlineSpecRule(rawHeadline: string, fallbackSubject: string = 'System'): string {
+  if (!rawHeadline) return `${fallbackSubject}, explained.`;
+
+  // Clean markdown, symbols, and remove ALL colons
+  let clean = stripMarkdown(rawHeadline)
+    .replace(/[:;\-_/]+/g, ' ')
+    .replace(/[.?!،؟…]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const words = clean.split(/\s+/).filter(Boolean);
+
+  let pickedWords: string[] = [];
+  if (words.length >= 2 && words.length <= 5) {
+    pickedWords = words;
+  } else if (words.length > 5) {
+    pickedWords = words.slice(0, 4);
+  } else if (words.length === 1) {
+    pickedWords = [words[0], 'explained'];
+  } else {
+    pickedWords = ['Architecture', 'overview'];
+  }
+
+  return `${pickedWords.join(' ')}.`;
+}
+
+/**
+ * Cleans user prompt / title into a crisp English headline without markdown.
+ * Strictly guarantees 2 to 5 words ending in a period ('.').
+ */
 export function extractCleanHeadline(
   rawText: string,
   fallbackDomain: string = 'SYSTEMS ARCHITECTURE'
 ): { headline: string; cleanTitle: string } {
   if (!rawText || !rawText.trim()) {
     const fallback = fallbackDomain.split('&')[0].trim();
-    return { headline: fallback, cleanTitle: fallback };
+    const h = enforceHeadlineSpecRule(fallback, 'Architecture');
+    return { headline: h, cleanTitle: h };
   }
 
   // Strip initial URLs
   const withoutUrls = rawText.replace(/https?:\/\/\S+/gi, '').trim();
-
-  // Grab the first line or meaningful segment
   const firstLine = withoutUrls.split('\n')[0].trim();
 
-  // Clean markdown and symbols
   let sanitized = stripMarkdown(firstLine);
   sanitized = normalizePunctuation(sanitized);
 
-  // Strip leading colons or trailing colons
-  sanitized = sanitized.replace(/^[:\-\s]+/, '').replace(/[:\-\s]+$/, '').trim();
-
-  if (sanitized.length < 3) {
-    sanitized = fallbackDomain.split('&')[0].trim();
-  }
-
-  // If a colon is present (e.g. "Deepseek 4.1 Flash 1017: 510 GB Speedup"),
-  // the segment before the colon is the authentic subject name.
+  // If a colon is present (e.g. "Scion: Moving Beyond Git"), extract the core subject
   let subjectPart = sanitized;
   if (sanitized.includes(':')) {
-    const beforeColon = sanitized.split(':')[0].trim();
-    if (beforeColon.length >= 3 && beforeColon.length <= 45) {
-      subjectPart = beforeColon;
+    const parts = sanitized.split(':').map((p) => p.trim()).filter(Boolean);
+    if (parts[0] && parts[0].length >= 3 && parts[0].length <= 40) {
+      subjectPart = parts[0];
+    } else if (parts[1]) {
+      subjectPart = parts[1];
     }
   }
 
-  // Build headline (first 4-6 concise words)
-  const words = subjectPart.split(/\s+/);
-  const headlineWords = words.slice(0, Math.min(words.length, 5));
-  let headline = headlineWords.join(' ').replace(/[:;,.\-]+$/, '').trim();
-
-  if (headline.length > 45) {
-    headline = headline.slice(0, 42).trim() + '...';
-  }
-
-  let cleanTitle = sanitized;
-  if (cleanTitle.length > 60) {
-    cleanTitle = cleanTitle.slice(0, 57).trim() + '...';
-  }
-
-  return { headline, cleanTitle };
+  // Generate crisp 2-5 word headline
+  const headline = enforceHeadlineSpecRule(subjectPart, 'Architecture');
+  return { headline, cleanTitle: headline };
 }
 
 /**
  * Sanitizes Arabic slide titles and body text to prevent BiDi reordering bugs (Spec §8).
  * - Strips raw English markdown headers accidentally prepended (like ":Deepseek 4.1 Flash 1017 #")
+ * - Fixes colons touching Latin words (e.g. "رحلة :Scion" -> "رحلة Scion")
  * - Replaces trailing Latin words before periods that cause ".GB" or ".Git" flips
  * - Strips trailing periods from Arabic slide titles (slide graphic titles never need periods)
  */
@@ -168,6 +184,10 @@ export function sanitizeArabicSlideText(
   // Strip leading colons, hashes, dashes
   clean = clean.replace(/^[:#\-_،؛\s]+/, '').trim();
 
+  // Fix colons adjacent to Latin characters which causes BiDi character order scrambling
+  // E.g. ":Anthropic" -> " Anthropic", "Scion:" -> "Scion "
+  clean = clean.replace(/:\s*([a-zA-Z0-9])/g, ' $1').replace(/([a-zA-Z0-9])\s*:/g, '$1 ');
+
   // Prevent trailing Latin unit with period inversion (e.g. "510 GB." or "510 .GB" -> "510 جيجابايت")
   clean = clean
     .replace(/\b(\d+(?:\.\d+)?)\s*\.?GB\.?/gi, '$1 جيجابايت')
@@ -175,7 +195,23 @@ export function sanitizeArabicSlideText(
     .replace(/\b(\d+(?:\.\d+)?)\s*\.?MB\.?/gi, '$1 ميجابايت')
     .replace(/\b(\d+(?:\.\d+)?)\s*\.?ms\.?/gi, '$1 مللي ثانية');
 
-  // If title, never end with a period (prevents BiDi flipping on line end)
+  // Fix orphan Latin words on their own line (prevents "Zero-Trust" hanging alone on line 2)
+  const lines = clean.split('\n');
+  if (lines.length > 1) {
+    const fixedLines: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      // If line is just a single Latin token, merge with previous line
+      if (line && /^[a-zA-Z0-9\-_.]+$/.test(line) && fixedLines.length > 0) {
+        fixedLines[fixedLines.length - 1] = `${fixedLines[fixedLines.length - 1]} ${line}`;
+      } else {
+        fixedLines.push(line);
+      }
+    }
+    clean = fixedLines.join('\n');
+  }
+
+  // If title, never end with a period or colon (prevents BiDi flipping on line end)
   if (options.isTitle) {
     clean = clean.replace(/[.:;،؛\s]+$/, '').trim();
   } else {
@@ -225,7 +261,7 @@ export function sanitizeSlide(slide: SlideData): SlideData {
   return {
     ...slide,
     enTitle: slide.enTitle
-      ? sanitizeEnglishSlideText(slide.enTitle, { isTitle: true })
+      ? enforceHeadlineSpecRule(slide.enTitle)
       : slide.enTitle,
     arTitle: slide.arTitle
       ? sanitizeArabicSlideText(slide.arTitle, { isTitle: true })

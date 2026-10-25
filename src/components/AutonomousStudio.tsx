@@ -172,7 +172,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
       onUpdateCarousel(generated);
       setCurrentSlideIndex(0);
-      onShowToast('✨ Autonomously generated and perfected 8-slide carousel!');
+      if (generated.sourceMeta?.isFallback) {
+        onShowToast('⚠️ Offline draft generated (API unavailable). Review text before exporting.');
+      } else {
+        onShowToast('✨ Autonomously generated and perfected 8-slide carousel!');
+      }
     } catch (err) {
       console.error('Autonomous pipeline error:', err);
       onShowToast('Pipeline error — loaded resilient backup template.');
@@ -198,7 +202,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     }
   };
 
-  // Inline Slide Data Updater
+  // Inline Slide Data Updater (Editing slide content automatically unblocks draft status)
   const handleUpdateCurrentSlide = (field: keyof SlideData, value: any) => {
     const newSlides = [...carousel.slides];
     const updated = sanitizeSlide({
@@ -209,6 +213,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     onUpdateCarousel({
       ...carousel,
       slides: newSlides,
+      sourceMeta: carousel.sourceMeta ? { ...carousel.sourceMeta, isFallback: false } : undefined,
     });
   };
 
@@ -276,8 +281,14 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     onShowToast(`Applied "${variant.tag}" Hook to Slide 1`);
   };
 
-  // 1-Click Export ZIP
+  const isOfflineDraft = Boolean(carousel.sourceMeta?.isFallback);
+
+  // 1-Click Export ZIP (Strictly blocked on offline drafts per specification)
   const handleExportZip = async () => {
+    if (isOfflineDraft) {
+      onShowToast('⚠️ Export blocked: Offline draft detected. Edit slide copy or regenerate with AI.');
+      return;
+    }
     setIsExportingZip(true);
     setExportProgress({ current: 0, total: carousel.slides.length });
     try {
@@ -296,6 +307,10 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   // Copy Single Slide
   const handleCopySlide = async () => {
+    if (isOfflineDraft) {
+      onShowToast('⚠️ Copy blocked: Offline draft detected. Please edit slide text first.');
+      return;
+    }
     try {
       await copySlideToClipboard(carousel, currentSlideIndex, theme);
       setCopiedType('slide');
@@ -322,7 +337,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const currentSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in">
+    <div className="max-w-6xl mx-auto space-y-6 pb-40 animate-fade-in">
       {/* 1. Autonomous Command Bar with Integrated Ingest Button */}
       <div className="bg-black/50 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl relative overflow-hidden backdrop-blur-md">
         <div className="space-y-3">
@@ -413,12 +428,44 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         </div>
       </div>
 
+      {/* Offline Draft Warning Banner */}
+      {isOfflineDraft && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+              <span className="text-amber-400 font-bold text-sm">⚠️</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-amber-300 font-jakarta uppercase tracking-wider">
+                  Offline Draft (AI Engine Unavailable)
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-mono font-bold">
+                  Export Blocked
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                This deck was generated using the offline fallback synthesizer. Export is blocked until slide text is edited or regenerated with AI.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleRunAutonomousPipeline()}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-semibold cursor-pointer transition-all shrink-0 flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry with AI</span>
+          </button>
+        </div>
+      )}
+
       {/* 2. Main Studio Viewport: Canvas on Left + Direct Inline Edit on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left: 1080x1920 Slide Preview with Carousel Navigator & Slide Management Bar */}
         <div className="lg:col-span-5 flex flex-col items-center lg:sticky lg:top-20 self-start z-10 space-y-3.5">
-          {/* Canvas Wrapper */}
-          <div className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-full max-w-[340px] sm:max-w-[360px] aspect-[9/16]">
+          {/* Canvas Wrapper - Constrained height so it never collides with bottom floating bar */}
+          <div className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(540px,calc(100vh-250px))] aspect-[9/16] shrink-0">
             <canvas ref={canvasRef} className="w-full h-full object-contain" />
 
             {/* TikTok Feed Safe Zone Simulator Overlay */}
@@ -589,6 +636,78 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Docked Action & Delivery Bar (No floating overlap) */}
+            <div className="p-2.5 rounded-xl bg-black/60 border border-white/15 shadow-xl flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isOfflineDraft) {
+                      onShowToast('⚠️ Download blocked: Offline draft detected. Edit slide copy first.');
+                      return;
+                    }
+                    downloadSingleSlidePng(carousel, currentSlideIndex, `MARROK_Slide_${currentSlideIndex + 1}.jpg`, theme);
+                    onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
+                  }}
+                  disabled={isOfflineDraft}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                    isOfflineDraft
+                      ? 'border-white/5 bg-white/[0.02] text-slate-500 cursor-not-allowed'
+                      : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 cursor-pointer'
+                  }`}
+                  title={isOfflineDraft ? 'Download blocked on offline draft' : `Download Slide ${currentSlideIndex + 1} JPG`}
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="text-[11px]">JPG</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopySlide}
+                  disabled={isOfflineDraft}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                    isOfflineDraft
+                      ? 'border-white/5 bg-white/[0.02] text-slate-500 cursor-not-allowed'
+                      : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 cursor-pointer'
+                  }`}
+                  title="Copy Slide to Clipboard"
+                >
+                  {copiedType === 'slide' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                  <span className="text-[11px]">Copy</span>
+                </button>
+              </div>
+
+              {/* Primary Export All ZIP */}
+              <button
+                type="button"
+                onClick={handleExportZip}
+                disabled={isExportingZip || isOfflineDraft}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold text-xs tracking-wider transition-all shadow-lg whitespace-nowrap ${
+                  isOfflineDraft
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-not-allowed'
+                    : 'bg-teal-400 hover:bg-teal-300 text-slate-950 cursor-pointer disabled:opacity-50'
+                }`}
+                title={isOfflineDraft ? 'Export blocked: Offline draft detected. Edit slide text to enable.' : 'Export all 1080×1920 slides as ZIP'}
+              >
+                {isExportingZip ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span className="text-[11px]">{exportProgress ? `${exportProgress.current}/${exportProgress.total}` : 'Exporting...'}</span>
+                  </>
+                ) : isOfflineDraft ? (
+                  <>
+                    <span className="text-xs">⚠️</span>
+                    <span className="text-[11px]">Draft (Blocked)</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="text-[11px]">Export ZIP</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -943,89 +1062,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         </div>
       </div>
 
-      {/* 3. Sticky Bottom Action Bar (1-Click Delivery) */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#080d11]/90 backdrop-blur-lg border border-white/15 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3">
-        {/* Contact Sheet Modal Trigger */}
-        {onOpenContactSheet && (
-          <button
-            type="button"
-            onClick={onOpenContactSheet}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
-            title="Inspect all slides in full contact sheet"
-          >
-            <Grid className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline">Contact Sheet</span>
-          </button>
-        )}
 
-        {/* Plan Inspector Trigger */}
-        {onOpenPlanInspector && (
-          <button
-            type="button"
-            onClick={onOpenPlanInspector}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
-            title="View extracted technical facts & architecture plan"
-          >
-            <FileCheck2 className="w-3.5 h-3.5 text-teal-400" />
-            <span className="hidden sm:inline">Plan</span>
-          </button>
-        )}
-
-        {/* Single Slide Download */}
-        <button
-          type="button"
-          onClick={() => {
-            downloadSingleSlidePng(carousel, currentSlideIndex, `MARROK_Slide_${currentSlideIndex + 1}.jpg`, theme);
-            onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
-        >
-          <Download className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden sm:inline">Slide #{currentSlideIndex + 1} JPG</span>
-          <span className="sm:hidden">JPG</span>
-        </button>
-
-        {/* Copy Slide to Clipboard */}
-        <button
-          type="button"
-          onClick={handleCopySlide}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
-        >
-          {copiedType === 'slide' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-          <span className="hidden sm:inline">Copy Slide</span>
-        </button>
-
-        {/* Palette Studio */}
-        <button
-          type="button"
-          onClick={onOpenThemeCustomizer}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-200 cursor-pointer transition-all"
-          title="Change Theme Accent"
-        >
-          <div className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: theme.accent }} />
-          <span className="hidden md:inline font-bold">{theme.name.split(' ')[0]}</span>
-        </button>
-
-        {/* Primary Export All ZIP */}
-        <button
-          type="button"
-          onClick={handleExportZip}
-          disabled={isExportingZip}
-          className="flex items-center gap-2 px-5 py-2 rounded-xl text-slate-950 font-extrabold text-xs tracking-wider transition-all shadow-lg cursor-pointer disabled:opacity-50 whitespace-nowrap bg-teal-400 hover:bg-teal-300"
-        >
-          {isExportingZip ? (
-            <>
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              <span>{exportProgress ? `${exportProgress.current}/${exportProgress.total}...` : 'Exporting...'}</span>
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4" />
-              <span>Export All 1080×1920 (ZIP)</span>
-            </>
-          )}
-        </button>
-      </div>
 
       {/* Multimodal Ingestion Modal Overlay */}
       {isIngestModalOpen && (

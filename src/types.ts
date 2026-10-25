@@ -90,6 +90,8 @@ export interface PostSourceMeta {
   groundingQueries?: string[];
   groundingSources?: GroundingSource[];
   isSearchGrounded?: boolean;
+  isFallback?: boolean;
+  engine?: 'gemini-ai' | 'offline-synthesizer';
 }
 
 export interface CarouselData {

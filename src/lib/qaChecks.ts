@@ -137,14 +137,17 @@ function checkCharLimits(slide: SlideData, idx: number, isHook: boolean): QAChec
 }
 
 /**
- * Arabic line-ending lint (Spec §8):
- * No Arabic line should end with a Latin word followed by punctuation.
- * In RTL rendering, the period or question mark jumps to the wrong side.
+ * Arabic line-ending and BiDi punctuation lint (Spec §8):
+ * - No Arabic line should end with a Latin word followed by punctuation.
+ * - No colon or punctuation should directly touch a Latin word in an Arabic string (e.g. "رحلة :Scion").
  */
 export function hasArabicPunctuationJump(text?: string): boolean {
   if (!text) return false;
+  // Ends with Latin word + punctuation
   const badEndingPattern = /[A-Za-z0-9]+[.?!،؟:؛]\s*$/;
-  return text.split(/\n/).some(line => badEndingPattern.test(line.trim()));
+  // Colon touching Latin word
+  const colonTouchingLatin = /:[a-zA-Z0-9]|[a-zA-Z0-9]:/;
+  return text.split(/\n/).some((line) => badEndingPattern.test(line.trim()) || colonTouchingLatin.test(line.trim()));
 }
 
 function checkArabicLineEndings(slide: SlideData, idx: number): QACheckResult[] {
@@ -160,20 +163,80 @@ function checkArabicLineEndings(slide: SlideData, idx: number): QACheckResult[] 
     const text = slide[key];
     if (typeof text !== 'string' || !text) continue;
 
-    // Check the full text and also split by implicit visual lines
+    // Check for colon touching Latin word (BiDi scrambling bug)
+    if (/:[a-zA-Z0-9]|[a-zA-Z0-9]:/.test(text)) {
+      results.push({
+        id: `arabic-bidi-colon-${idx}-${key}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: key,
+        message: `Slide ${idx + 1} ${label}: colon touches Latin word, causing BiDi order reversal. Separate colon or remove it.`,
+      });
+    }
+
+    // Check line endings
     const lines = text.split(/\n/);
     for (const line of lines) {
       if (hasArabicPunctuationJump(line)) {
         results.push({
           id: `arabic-line-end-${idx}-${key}`,
-          severity: 'warn',
+          severity: 'fail',
           slideIndex: idx,
           field: key,
           message: `Slide ${idx + 1} ${label}: ends with Latin word + punctuation ("${line.trim().slice(-20)}"). Rephrase so the line ends with an Arabic word.`,
         });
-        break; // One warning per field is enough
+        break;
       }
     }
+  }
+
+  return results;
+}
+
+/**
+ * Spec §8 Headline Rule:
+ * English headline must be strictly 2 to 5 words ending in a period ('.').
+ * Zero colons, dashes, or ellipses.
+ */
+function checkHeadlineSpecRule(slide: SlideData, idx: number): QACheckResult[] {
+  const results: QACheckResult[] = [];
+  if (!slide.enTitle || typeof slide.enTitle !== 'string') return results;
+
+  const title = slide.enTitle.trim();
+  const words = title.split(/\s+/).filter(Boolean);
+
+  if (title.endsWith(':') || title.includes(':')) {
+    results.push({
+      id: `headline-colon-${idx}`,
+      severity: 'fail',
+      slideIndex: idx,
+      field: 'enTitle',
+      message: `Slide ${idx + 1} headline contains a colon (':'). Headlines must end in a period, not a colon.`,
+      value: title,
+    });
+  }
+
+  if (!title.endsWith('.')) {
+    results.push({
+      id: `headline-period-${idx}`,
+      severity: 'fail',
+      slideIndex: idx,
+      field: 'enTitle',
+      message: `Slide ${idx + 1} headline must end with a period ('.').`,
+      value: title,
+    });
+  }
+
+  if (words.length > 5) {
+    results.push({
+      id: `headline-length-${idx}`,
+      severity: 'fail',
+      slideIndex: idx,
+      field: 'enTitle',
+      message: `Slide ${idx + 1} headline has ${words.length} words (rule is 2 to 5 words). Shorten to 2–5 words.`,
+      value: words.length,
+      limit: '2–5 words',
+    });
   }
 
   return results;
@@ -329,9 +392,20 @@ export function runQAChecks(carousel: CarouselData): QAReport {
   results.push(...checkCreditPresence(slides));
   results.push(...checkFirstFrame(slides));
 
+  // Check if deck is an offline fallback draft
+  if (carousel.sourceMeta?.isFallback) {
+    results.push({
+      id: 'fallback-draft-blocker',
+      severity: 'fail',
+      message: 'Offline draft template detected. Review and verify slide copy before export.',
+      field: 'sourceMeta.isFallback',
+    });
+  }
+
   // Per-slide checks
   for (let i = 0; i < slides.length; i++) {
     const isHook = i === 0 && (slides[i].type === 'hub');
+    results.push(...checkHeadlineSpecRule(slides[i], i));
     results.push(...checkCharLimits(slides[i], i, isHook));
     results.push(...checkArabicLineEndings(slides[i], i));
     results.push(...checkMarkdownAndPunctuation(slides[i], i));

@@ -387,18 +387,27 @@ STAGE 4: SMART CAROUSEL PLANNER (Spec §7 & §12.1)
   scion (AI + engineering), backend (infrastructure), pqc (cryptography), security_spec (defense/CVEs), node (Node/JS), ajax (AI news), concat (video/graphics), estonia (education/policy), artcraft (design tools), arch (architecture), zerobreach (digital security).
 
 STAGE 5: COPYWRITING & RTL LINT (Spec §8)
-- Strict character limits:
-  * English title: max 45 characters (max 60 on Slide 1 hook)
+- STRICT ENGLISH HEADLINE RULE:
+  * English headlines must be EXACTLY 2 to 5 words and MUST end with a period ('.').
+  * NEVER end a headline with a colon (':'), dash ('-'), or ellipsis ('...').
+  * NEVER copy the raw input or output rambling titles like 'Zero-Trust mesh architecture with mTLS:' or 'Redis 8 architectural leap: Next-Gen Shift.'.
+  * Clean, punchy examples: 'Zero-Trust, explained.', 'Redis 8 gets faster.', 'Beyond traditional Git.', 'Virtual tree checkouts.', 'Server-side merges.', 'The real catch.'
+- STRICT CHARACTER LIMITS:
+  * English title: max 45 characters (max 50 on Slide 1 hook)
   * Arabic title: max 40 characters
   * English body: max 140 characters
   * Arabic body: max 150 characters
 - ZERO RAW MARKDOWN: NEVER output '#', '##', '*', '_', or backticks in slide titles or bodies.
 - ZERO LEADING/TRAILING DEFECT PUNCTUATION: Never output orphan dots like "Speedup .", double periods "..", or duplicate colons like ".:".
 - ARABIC INTEGRITY & BIDI:
-  * Write natural, idiomatic technical Arabic. Keep product names in Latin (Docker, Redis, Scion, DeepSeek).
-  * NEVER prepend English titles or colons into Arabic titles (e.g. NEVER output ':Deepseek 4.1 Flash #' or ':DeepSeek:').
-  * NEVER end an Arabic line with a Latin word followed by punctuation (e.g. do not end with .Git or .GB or ?AI).
+  * Write natural, authentic, context-specific technical Arabic tailored to the exact mechanism on each slide.
+  * NEVER reuse cookie-cutter template phrases like 'النقلة المعمارية لمنظومة X'. Every slide must have a unique, accurate translation.
+  * NEVER place colons next to Latin product names (e.g. NEVER output 'رحلة :Anthropic’s Scion' or 'Scion:'). Write 'الانتقال إلى بنية Scion' or 'نظام Scion'.
+  * Slide graphic Arabic titles must NEVER end with a period or colon.
   * Express units clearly in Arabic where appropriate (e.g. '510 جيجابايت' instead of '510 .GB').
+- BRAND WORDMARK:
+  * The watermark brand in the top left of the slide MUST ALWAYS strictly be 'MARROK'.
+  * NEVER change brand to company or product names (do NOT set brand to 'ANTHROPIC', 'REDIS', or 'DOCKER'). The subject belongs exclusively in category or titles.
 - No emojis inside slides (Cairo font has none). Emojis belong in captions only.
 
 STAGE 6 & 7: CAPTIONS, FIRST COMMENT & SCHEDULING (Spec §8 & §14)
@@ -428,15 +437,15 @@ const CAROUSEL_RESPONSE_SCHEMA = {
     },
     category: {
       type: Type.STRING,
-      description: 'Specific technical domain category extracted directly from input context (e.g. AI SYSTEMS & MONOREPOS, LINUX KERNEL, REVERSE ENGINEERING)',
+      description: 'Specific technical domain category extracted directly from input context (e.g. CYBERSECURITY & DEFENSE, VCS & MONOREPOS, DATABASES & CACHING, LINUX KERNEL)',
     },
     brand: {
       type: Type.STRING,
-      description: 'Brand or creator wordmark for slide watermark and CTA (e.g. ANTHROPIC, MARROK)',
+      description: 'Brand wordmark for slide watermark. MUST strictly be "MARROK".',
     },
     brandUrl: {
       type: Type.STRING,
-      description: 'Website URL or social handle (e.g. anthropic.com, marrok.org)',
+      description: 'Website URL (defaults to "marrok.org")',
     },
     sourceMeta: {
       type: Type.OBJECT,
@@ -620,11 +629,11 @@ const CAROUSEL_RESPONSE_SCHEMA = {
           },
           enTitle: {
             type: Type.STRING,
-            description: 'English headline (2-6 words)',
+            description: 'English headline: MUST be strictly 2 to 5 words ending in a period (.). E.g. "Zero-Trust, explained." or "Redis 8 gets faster." NEVER use colons or rambling titles.',
           },
           arTitle: {
             type: Type.STRING,
-            description: 'Arabic headline',
+            description: 'Concise, contextual Arabic headline (2-5 words). Never use colons touching Latin words.',
           },
           enBody: {
             type: Type.STRING,
@@ -728,18 +737,18 @@ app.post('/api/generate', async (req, res) => {
     const activeApiKey = customKey || process.env.GEMINI_API_KEY;
     const activeAi = activeApiKey ? new GoogleGenAI({ apiKey: activeApiKey }) : null;
 
-    // Primary: 'gemini-3.8-flash' (recommended model with search grounding & high reasoning)
-    // Fallback: 'gemini-3.1-flash-lite' (high throughput, light reasoning)
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
-    let lastError: unknown = null;
+    // Primary: 'gemini-3.1-flash-lite' (high throughput, low latency)
+    // Fallback: 'gemini-3.8-flash' (deep reasoning)
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
     let jsonResult: CarouselData | null = null;
 
     if (activeAi) {
       for (const model of candidateModels) {
+        // Attempt 1: Grounded generation with Google Search tool
         try {
           console.log(`Calling Gemini model with Google Search Grounding: ${model} (using ${customKey ? 'custom user key' : 'system key'})...`);
           const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`Timeout: ${model} exceeded 10000ms threshold`)), 10000)
+            setTimeout(() => reject(new Error(`Timeout: ${model} search exceeded 8000ms threshold`)), 8000)
           );
 
           const response = await Promise.race([
@@ -790,6 +799,9 @@ app.post('/api/generate', async (req, res) => {
               if (webSources.length > 0) {
                 jsonResult.sourceMeta.groundingSources = webSources;
               }
+              jsonResult.sourceMeta.isFallback = false;
+              jsonResult.sourceMeta.engine = 'gemini-ai';
+              jsonResult.brand = 'MARROK';
 
               // Enrich facts with real search citations
               if (Array.isArray(jsonResult.facts) && webSources.length > 0) {
@@ -803,49 +815,69 @@ app.post('/api/generate', async (req, res) => {
                 });
               }
 
-              // Deeply sanitize all slides, titles, bodies, and captions to eliminate markdown & BiDi defects
               jsonResult = sanitizeFullCarousel(jsonResult);
+              console.log(`Successfully generated grounded carousel with model ${model} (found ${webSources.length} sources)`);
+              break;
             }
-
-            console.log(`Successfully generated grounded carousel with model ${model} (found ${webSources.length} sources)`);
-            break;
           }
-        } catch (err: unknown) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          lastError = err;
+        } catch (groundingErr: unknown) {
+          const errMsg = groundingErr instanceof Error ? groundingErr.message : String(groundingErr);
+          console.warn(`Search grounding attempt failed on ${model} (${errMsg.slice(0, 100)}). Retrying ${model} with direct LLM schema generation...`);
 
-          const isQuotaOrRateLimit =
-            errMsg.includes('429') ||
-            errMsg.includes('RESOURCE_EXHAUSTED') ||
-            errMsg.includes('quota') ||
-            errMsg.includes('rate-limit') ||
-            errMsg.includes('rate limits');
+          // Attempt 2: Direct LLM generation without search tool (bypasses 429 search quota)
+          try {
+            const timeoutPromiseDirect = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error(`Timeout: ${model} direct exceeded 8000ms threshold`)), 8000)
+            );
 
-          const isUnavailable =
-            errMsg.includes('503') ||
-            errMsg.includes('high demand') ||
-            errMsg.includes('UNAVAILABLE') ||
-            errMsg.includes('Timeout');
+            const directResponse = await Promise.race([
+              activeAi.models.generateContent({
+                model,
+                contents: { parts },
+                config: {
+                  systemInstruction: MARROK_SYSTEM_PROMPT,
+                  temperature: 0.2,
+                  responseMimeType: 'application/json',
+                  responseSchema: CAROUSEL_RESPONSE_SCHEMA,
+                },
+              }),
+              timeoutPromiseDirect,
+            ]);
 
-          if (isQuotaOrRateLimit) {
-            console.log(`Gemini API rate/quota limit reached on ${model}. Smoothly activating MARROK resilient synthesizer.`);
-            break; // Stop immediately to avoid redundant quota failures
-          } else if (isUnavailable) {
-            console.log(`Upstream bottleneck or timeout detected on ${model}. Fast-breaking to resilient synthesizer.`);
-            break;
-          } else {
-            console.log(`Model ${model} note: ${errMsg.slice(0, 120)}. Proceeding with resilient synthesizer.`);
+            const directText = directResponse.text;
+            if (directText) {
+              const cleanText = directText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+              jsonResult = JSON.parse(cleanText) as CarouselData;
+
+              if (jsonResult) {
+                if (!jsonResult.sourceMeta) {
+                  jsonResult.sourceMeta = {};
+                }
+                jsonResult.sourceMeta.isSearchGrounded = false;
+                jsonResult.sourceMeta.isFallback = false;
+                jsonResult.sourceMeta.engine = 'gemini-ai';
+                jsonResult.brand = 'MARROK';
+
+                jsonResult = sanitizeFullCarousel(jsonResult);
+                console.log(`Successfully generated authentic carousel with model ${model} (direct LLM mode)`);
+                break;
+              }
+            }
+          } catch (directErr: unknown) {
+            const directMsg = directErr instanceof Error ? directErr.message : String(directErr);
+            console.warn(`Direct LLM attempt failed on ${model}: ${directMsg.slice(0, 100)}`);
           }
         }
       }
     }
 
     if (jsonResult) {
+      jsonResult.brand = 'MARROK';
+      res.setHeader('X-Marrok-Engine', 'gemini-ai');
       return res.json(jsonResult);
     }
 
-    // Upstream AI API is experiencing high demand (503) or rate limits (429).
-    // Gracefully activate MARROK intelligent content synthesizer:
+    // Upstream AI API completely unavailable — activate MARROK resilient content synthesizer:
     console.log('Activating MARROK resilient content synthesizer for input:', safePrompt || safeImageName);
     const synthesizedData = synthesizeCarousel({
       prompt: safePrompt,
@@ -854,10 +886,17 @@ app.post('/api/generate', async (req, res) => {
       imageFileName: safeImageName,
     });
 
-    res.setHeader('X-Marrok-Engine', 'resilient-synthesizer');
+    synthesizedData.brand = 'MARROK';
+    synthesizedData.sourceMeta = {
+      ...synthesizedData.sourceMeta,
+      isFallback: true,
+      engine: 'offline-synthesizer',
+    };
+
+    res.setHeader('X-Marrok-Engine', 'offline-synthesizer');
     return res.json(synthesizedData);
   } catch (error: unknown) {
-    console.log('Activating fallback synthesizer after generation error');
+    console.log('Activating fallback synthesizer after generation error:', error);
     // Never fail with 500: synthesize archetype-compliant output
     const fallbackData = synthesizeCarousel({
       prompt: safePrompt,
@@ -865,6 +904,13 @@ app.post('/api/generate', async (req, res) => {
       inputMode: safeInputMode,
       imageFileName: safeImageName,
     });
+    fallbackData.brand = 'MARROK';
+    fallbackData.sourceMeta = {
+      ...fallbackData.sourceMeta,
+      isFallback: true,
+      engine: 'offline-synthesizer',
+    };
+    res.setHeader('X-Marrok-Engine', 'offline-synthesizer');
     return res.json(fallbackData);
   }
 });
