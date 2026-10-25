@@ -1,4 +1,4 @@
-import { CarouselData, SlideData, DiagramNode, DiagramVariant, HookVariant, CaptionVariant, ExtractedFact, PostSourceMeta } from '../types.ts';
+import { CarouselData, SlideData, SlideType, DiagramNode, DiagramVariant, HookVariant, CaptionVariant, ExtractedFact, PostSourceMeta } from '../types.ts';
 import { KNOWN_TECH_LOGOS } from './icons.ts';
 import {
   extractCleanHeadline,
@@ -209,17 +209,17 @@ export function enrichCarouselDiagrams(
     if (isPostgres) {
       if (variant === 'stack') {
         diagramNodes = [
-          { label: 'CONNECTION POOL & INGRESS', sublabel: 'PgBouncer • Transaction Mode • 10k Conns', status: 'LAYER 01', icon: 'network' },
-          { label: 'QUERY OPTIMIZER & INDEX SCAN', sublabel: 'Cost Planner • B-Tree Index • Parallel Scan', status: 'LAYER 02', icon: 'cpu' },
-          { label: 'BUFFER CACHE & STORAGE', sublabel: 'Shared Buffers • ACID WAL Write • Dirty Flush', status: 'LAYER 03', icon: 'database' },
+          { label: 'PgBouncer Pool', sublabel: 'Ingress • Tx Mode • 10k Conns', status: 'LAYER 01', icon: 'network' },
+          { label: 'Query Planner', sublabel: 'Cost Optimizer • B-Tree Index', status: 'LAYER 02', icon: 'cpu' },
+          { label: 'Buffer Cache', sublabel: 'Shared Buffers • ACID WAL Write', status: 'LAYER 03', icon: 'database' },
         ];
         diagramEdges = ['PARSE', 'EXECUTE'];
         diagramFooter = 'ZERO UNINDEXED TABLE SCANS • EXPLAIN ANALYZE < 1.0ms';
       } else if (variant === 'isolation') {
         diagramNodes = [
           { label: 'Unindexed Scan', sublabel: 'Seq Scan Blocked', status: 'DENIED', icon: 'alertCircle' },
-          { label: 'Index Scan Buffer', sublabel: 'Index Hit (0.2ms)', status: 'ACTIVE', icon: 'zap' },
-          { label: 'Cold Storage / WAL', sublabel: 'WAL Sync Commit', status: 'COMMITTED', icon: 'database' },
+          { label: 'Index Buffer', sublabel: 'Index Hit (0.2ms)', status: 'ACTIVE', icon: 'zap' },
+          { label: 'WAL Storage', sublabel: 'WAL Sync Commit', status: 'COMMITTED', icon: 'database' },
         ];
         diagramEdges = ['GUARD', 'WRITE'];
         diagramFooter = 'QUERY COST MINIMIZED • LOCK CONTENTION: 0ms • READ COMMITTED';
@@ -243,15 +243,15 @@ export function enrichCarouselDiagrams(
     } else if (isDockerVirt) {
       if (variant === 'stack') {
         diagramNodes = [
-          { label: 'CONTAINER WORKLOAD & SHIM', sublabel: 'containerd • OCI Bundle • Virtual veth Bridge', status: 'LAYER 01', icon: 'box' },
-          { label: 'KERNEL VIRTUALIZATION ENGINE', sublabel: 'PID / MNT Namespaces • cgroups v2 Quotas • seccomp', status: 'LAYER 02', icon: 'cpu' },
-          { label: 'HARDWARE HOST & HYPERVISOR', sublabel: 'Bare-Metal CPU • Proxmox VE / KVM • ZFS Thin Pools', status: 'LAYER 03', icon: 'server' },
+          { label: 'Container Shim', sublabel: 'containerd • OCI Bundle • veth', status: 'LAYER 01', icon: 'box' },
+          { label: 'Kernel Engine', sublabel: 'PID/MNT Namespaces • cgroups v2', status: 'LAYER 02', icon: 'cpu' },
+          { label: 'Host Hypervisor', sublabel: 'Proxmox VE / KVM • ZFS Pools', status: 'LAYER 03', icon: 'server' },
         ];
         diagramEdges = ['SYSCALL', 'VM RUN'];
         diagramFooter = 'ZERO EMULATION PENALTY • HARDWARE-ASSISTED VIRTUALIZATION';
       } else if (variant === 'isolation') {
         diagramNodes = [
-          { label: 'Quarantined Container', sublabel: 'seccomp Denied', status: 'RESTRICTED', icon: 'shieldAlert' },
+          { label: 'Quarantine Pod', sublabel: 'seccomp Denied', status: 'RESTRICTED', icon: 'shieldAlert' },
           { label: 'Bridge VLAN', sublabel: 'veth0 Isolated', status: 'ISOLATED', icon: 'network' },
           { label: 'Proxmox Core', sublabel: 'Host Ring 0', status: 'PROTECTED', icon: 'server' },
         ];
@@ -268,9 +268,9 @@ export function enrichCarouselDiagrams(
       } else {
         if (slideText.includes('proxmox') || slideText.includes('hypervisor') || slideText.includes('kvm') || slideText.includes('qemu')) {
           diagramNodes = [
-            { label: 'Proxmox API / Web', sublabel: 'Port 8006 / HTTPS', status: 'CLIENT', icon: 'server' },
-            { label: 'KVM / QEMU Core', sublabel: 'Hardware Virtualization', status: 'HYPERVISOR', icon: 'cpu' },
-            { label: 'ZFS Storage Pool', sublabel: 'Thin Provisioned LVM', status: 'STORAGE', icon: 'hardDrive' },
+            { label: 'Proxmox API', sublabel: 'Port 8006 / HTTPS', status: 'CLIENT', icon: 'server' },
+            { label: 'KVM Core', sublabel: 'Hardware Virtualization', status: 'HYPERVISOR', icon: 'cpu' },
+            { label: 'ZFS Pool', sublabel: 'Thin Provisioned LVM', status: 'STORAGE', icon: 'hardDrive' },
           ];
           diagramEdges = ['PVE REST', 'IOCTL / KVM'];
           diagramFooter = 'HYPERVISOR: KVM/QEMU • STORAGE: ZFS RAID-Z2 • HARDWARE: VT-X';
@@ -287,9 +287,9 @@ export function enrichCarouselDiagrams(
     } else if (isNextWeb) {
       if (variant === 'stack') {
         diagramNodes = [
-          { label: 'GLOBAL EDGE & ROUTING', sublabel: 'Edge Middleware • Route Matcher • Geo POP', status: 'LAYER 01', icon: 'network' },
-          { label: 'REACT SERVER COMPONENTS', sublabel: 'Async Streaming • Server Actions • React Tree', status: 'LAYER 02', icon: 'code' },
-          { label: 'DATA FETCH & BACKEND', sublabel: 'REST / GraphQL • Connection Pool • Redis Cache', status: 'LAYER 03', icon: 'database' },
+          { label: 'Global Edge', sublabel: 'Edge Middleware • Geo POP', status: 'LAYER 01', icon: 'network' },
+          { label: 'React RSC', sublabel: 'Server Components • Streaming', status: 'LAYER 02', icon: 'code' },
+          { label: 'Data Backend', sublabel: 'REST/GraphQL • Connection Pool', status: 'LAYER 03', icon: 'database' },
         ];
         diagramEdges = ['DISPATCH', 'RESOLVE'];
         diagramFooter = 'CORE WEB VITALS: 100/100 • INSTANT CLIENT INTERACTIVITY';
@@ -320,9 +320,9 @@ export function enrichCarouselDiagrams(
       diagramFooter = 'THROUGHPUT: 1.2M OPS/S • P99: 0.18ms • SHARDS: ACTIVE';
     } else if (isScion) {
       diagramNodes = [
-        { label: 'AI Agent Worker', sublabel: 'Sparse Workspace', status: 'CLIENT', icon: 'robot' },
-        { label: 'Scion VFS Daemon', sublabel: 'Virtual File Mount', status: 'MOUNTED', icon: 'server' },
-        { label: 'Monorepo Server', sublabel: 'Authoritative Store', status: 'COMMITTED', icon: 'database' },
+        { label: 'AI Worker', sublabel: 'Sparse Workspace', status: 'CLIENT', icon: 'robot' },
+        { label: 'Scion VFS', sublabel: 'Virtual File Mount', status: 'MOUNTED', icon: 'server' },
+        { label: 'Monorepo Store', sublabel: 'Authoritative Store', status: 'COMMITTED', icon: 'database' },
       ];
       diagramEdges = ['Virtual Read', 'Atomic Commit'];
       diagramFooter = 'CONCURRENCY: 25M CHECKOUTS/DAY • LOCAL DISK BLOAT: 0MB';
@@ -353,6 +353,156 @@ export function enrichCarouselDiagrams(
       diagramFooter,
     };
   });
+}
+
+/**
+ * Auto-seeds missing archetype fields on the fly when switching or rendering archetypes.
+ * Uses existing enTitle, enBody, and diagramNodes to synthesize cohesive, topic-relevant data.
+ */
+export function seedSlideArchetypeData(slide: SlideData, targetType: SlideType): SlideData {
+  const updated: SlideData = {
+    ...slide,
+    type: targetType,
+  };
+
+  const title = slide.enTitle || '';
+  const body = slide.enBody || '';
+  const dNodes = slide.diagramNodes || [];
+
+  switch (targetType) {
+    case 'metric': {
+      let extractedMetric = '';
+      const metricMatch = `${title} ${body}`.match(/\b(\d+(?:\.\d+)?(?:x|%|ms|μs|s|GB|MB|TB|req\/s|rps)?)\b/i);
+      if (metricMatch && metricMatch[1] && /\d/.test(metricMatch[1])) {
+        extractedMetric = metricMatch[1];
+        if (/^\d+$/.test(extractedMetric) && Number(extractedMetric) <= 100) {
+          extractedMetric = `${extractedMetric}x`;
+        }
+      }
+      if (!updated.metricValue) {
+        updated.metricValue = extractedMetric || '10x';
+      }
+      if (!updated.metricLabel) {
+        updated.metricLabel = dNodes[0]?.label ? `${dNodes[0].label} Multiplier`.toUpperCase() : 'PERFORMANCE MULTIPLIER';
+      }
+      if (!updated.metricDiff) {
+        updated.metricDiff = dNodes[0]?.sublabel ? `▲ ${dNodes[0].sublabel}` : '▲ 94% faster vs baseline';
+      }
+      if (!updated.metricIcon) {
+        updated.metricIcon = dNodes[0]?.icon || 'zap';
+      }
+      break;
+    }
+
+    case 'code': {
+      if (!updated.codeFileName) {
+        const isSql = /sql|query|table|postgres|db/i.test(`${title} ${body}`);
+        const isBash = /deploy|curl|install|docker|cli/i.test(`${title} ${body}`);
+        updated.codeFileName = isSql ? 'query.sql' : isBash ? 'deploy.sh' : 'engine.rs';
+        updated.codeLanguage = isSql ? 'sql' : isBash ? 'bash' : 'rust';
+      }
+      if (!updated.codeSnippet) {
+        if (dNodes.length >= 2) {
+          const n0 = dNodes[0]?.label || 'Client';
+          const n1 = dNodes[1]?.label || 'Engine';
+          const sub1 = dNodes[1]?.sublabel || 'Active';
+          updated.codeSnippet = `$ exec --target=${n0.toLowerCase().replace(/[^a-z0-9]/g, '_')}\n> Initializing ${n1}...\n+ ${sub1}\n✔ Execution verified · 0 disk stalls`;
+        } else {
+          updated.codeSnippet = `$ psql -h localhost -U postgres\n> EXPLAIN ANALYZE SELECT * FROM users;\n+ B-Tree Index Scan using idx_users_id\n✔ Execution time: 0.12ms`;
+        }
+      }
+      break;
+    }
+
+    case 'compare': {
+      if (!updated.compareLeftTitle) {
+        updated.compareLeftTitle = 'LEGACY BOTTLENECK';
+      }
+      if (!updated.compareLeftBody) {
+        updated.compareLeftBody = '• Full table sequential scans\n• High disk I/O wait & drift\n• Stalls active pipeline';
+      }
+      if (!updated.compareRightTitle) {
+        updated.compareRightTitle = 'MODERN ARCHITECTURE';
+      }
+      if (!updated.compareRightBody) {
+        if (dNodes.length >= 2) {
+          updated.compareRightBody = dNodes.slice(0, 3).map((n) => `• ${n.label}: ${n.sublabel || 'Active'}`).join('\n');
+        } else {
+          updated.compareRightBody = '• Zero-copy memory architecture\n• Sub-millisecond latency\n• Strict bounded blast radius';
+        }
+      }
+      break;
+    }
+
+    case 'hub': {
+      if (!updated.satLabels || updated.satLabels.length < 6) {
+        const seeds: string[] = [];
+        if (dNodes.length > 0) {
+          dNodes.forEach((n) => {
+            if (n.label) seeds.push(n.label.toUpperCase().slice(0, 16));
+          });
+        }
+        const titleWords = title
+          .replace(/[^A-Za-z0-9\s]/g, '')
+          .split(/\s+/)
+          .filter((w) => w.length >= 4)
+          .map((w) => w.toUpperCase());
+        seeds.push(...titleWords);
+        const fallbacks = ['INGRESS', 'RUNTIME', 'EXECUTION', 'STORAGE', 'TELEMETRY', 'CORE API'];
+        for (const fb of fallbacks) {
+          if (seeds.length >= 6) break;
+          if (!seeds.includes(fb)) seeds.push(fb);
+        }
+        updated.satLabels = seeds.slice(0, 6);
+      }
+      if (!updated.centerIcon) {
+        updated.centerIcon = dNodes[0]?.icon || 'cpu';
+      }
+      break;
+    }
+
+    case 'cta': {
+      if (!updated.ctaText) {
+        updated.ctaText = 'DM us • رسالة خاصة';
+      }
+      break;
+    }
+
+    case 'row': {
+      if (!updated.diagramVariant) {
+        updated.diagramVariant = 'topology';
+      }
+      if (!updated.diagramNodes || updated.diagramNodes.length < 3) {
+        updated.diagramNodes = [
+          { label: 'Client Ingress', sublabel: 'Port 443 / HTTPS', status: 'CLIENT', icon: 'server' },
+          { label: 'Processing Core', sublabel: 'Zero-Copy Engine', status: 'ROUTED', icon: 'cpu' },
+          { label: 'Storage Target', sublabel: 'State Committed', status: 'COMMITTED', icon: 'database' },
+        ];
+        updated.diagramEdges = ['DISPATCH', 'SYNC'];
+        updated.diagramFooter = 'LATENCY: P99 < 1.0ms • SYSTEM: ONLINE';
+      }
+      break;
+    }
+
+    case 'image': {
+      if (!updated.imageFit) {
+        updated.imageFit = 'contain';
+      }
+      break;
+    }
+
+    case 'number': {
+      if (!updated.stepNumber) {
+        updated.stepNumber = '01';
+      }
+      if (!updated.stepLabel) {
+        updated.stepLabel = 'STEP 01';
+      }
+      break;
+    }
+  }
+
+  return updated;
 }
 
 /**

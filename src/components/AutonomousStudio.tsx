@@ -39,6 +39,7 @@ import { DEFAULT_STARTER_DECK, PRESET_CAROUSELS } from '../lib/presets';
 import { renderSlideToCanvas, downloadAllSlidesZip, downloadSingleSlidePng, copySlideToClipboard } from '../lib/canvasExporter';
 import { runAutonomousPipeline } from '../lib/autonomousPipeline';
 import { sanitizeSlide } from '../lib/textSanitizer';
+import { seedSlideArchetypeData } from '../lib/synthesizer';
 import { runQAChecks } from '../lib/qaChecks';
 import { MultimodalInputPanel } from './MultimodalInputPanel';
 import { SlideImageStudio } from './SlideImageStudio';
@@ -233,6 +234,26 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       slides: newSlides,
       sourceMeta: carousel.sourceMeta ? { ...carousel.sourceMeta } : undefined,
     });
+  };
+
+  // Immediate Archetype Switcher: Auto-seeds required fields on the fly and updates canvas
+  const handleSetSlideType = (newType: SlideType) => {
+    const current = carousel.slides[currentSlideIndex];
+    if (!current) return;
+
+    // Auto-seed missing fields (e.g. metric, code snippet, compare sides, satLabels)
+    const seeded = seedSlideArchetypeData(current, newType);
+    const updated = sanitizeSlide(seeded, currentSlideIndex, carousel.slides.length);
+
+    const newSlides = [...carousel.slides];
+    newSlides[currentSlideIndex] = updated;
+
+    onUpdateCarousel({
+      ...carousel,
+      slides: newSlides,
+      sourceMeta: carousel.sourceMeta ? { ...carousel.sourceMeta } : undefined,
+    });
+    onShowToast(`Switched layout to ${newType.toUpperCase()}`);
   };
 
   // Explicit confirmation: Creator must confirm draft review to unlock export
@@ -1110,7 +1131,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                         <button
                           key={arch.id}
                           type="button"
-                          onClick={() => handleUpdateCurrentSlide('type', arch.id)}
+                          onClick={() => handleSetSlideType(arch.id)}
                           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-white/20 text-white shadow-sm'

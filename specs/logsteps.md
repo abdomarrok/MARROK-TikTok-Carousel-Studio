@@ -605,5 +605,49 @@ This document records the chronological development history, engineering decisio
     - Verified zero adjacent duplicate diagram layouts (Slide 5 = `stack`, Slide 6 = `isolation`).
     - Verified balanced optical vertical breathing room and collision-free typography throughout.
 
+---
+
+## Step 26: Slide Layout Archetype Switching & Node Auto-Wrap Bug Fix
+- **Context & Problem Statement:**
+  - Clicking buttons under `SLIDE LAYOUT ARCHETYPE` (`Hub`, `Mechanism`, `Diagram / AI`, `Code Diff`, `Metric`, `Compare`, `CTA`) in `AutonomousStudio.tsx` failed to switch the slide graphic on the canvas.
+  - On Slide 5, inside the 3 horizontal cards of `Topology Flow`, long titles (`CONNECTION POOL & IN...`, `QUERY OPTIMIZER & INDE...`, `BUFFER CACHE & STORAG...`) were truncated with `...` due to single-line truncation in ~240px wide cards.
+- **Root Cause Analysis:**
+  1. **Sanitizer Mid-Deck Overwrite (`textSanitizer.ts`):** `sanitizeSlide()` contained `const safeType = slideIndex === 0 ? 'hub' : slideIndex === totalSlides - 1 ? 'cta' : (slide.type === 'cta' || slide.type === 'hub' ? 'row' : slide.type);`, which forcefully reset any mid-deck slide clicked to `Hub` or `CTA` back to `row`.
+  2. **Canvas Exporter Type Dispatch Interference (`canvasExporter.ts`):** Line 1507 checked `slide.type === 'row' || (slide.type === 'cta' && slideIndex !== totalSlides - 1)`, routing mid-deck CTA slides into `row` schematics, while line 2318 strictly checked `slideIndex === totalSlides - 1`.
+  3. **Empty Data on Archetype Switch:** Switching a slide from `row` to `code`, `metric`, or `compare` left `codeSnippet`, `metricValue`, or `compareLeftTitle`/`compareRightTitle` undefined, causing empty/fallback renders without slide context.
+  4. **Node Title Truncation:** `drawMultiNodeTopologyFlow` called `fitTextInBox` with `initialFontSize: 19, minFontSize: 13`, causing titles exceeding 2 lines at 13px to truncate with `...`. Furthermore, `synthesizer.ts` domain presets had verbose 25–34 character node labels.
+- **Engineering Solutions Implemented:**
+  1. **Preserve User-Selected Archetypes (`src/lib/textSanitizer.ts`):**
+     - Updated `sanitizeSlide()` to use `const safeType = slide.type || (slideIndex === 0 ? 'hub' : slideIndex === totalSlides - 1 ? 'cta' : 'row');`.
+     - Preserves user explicit archetype clicks on any slide, enforcing the no-mid-deck-CTA rule strictly during initial AI synthesis (`synthesizer.ts`).
+  2. **Strict Archetype Dispatching (`src/lib/canvasExporter.ts`):**
+     - Changed dispatch order to strictly evaluate `slide.type` FIRST (`hub`, `metric`, `code`, `compare`, `image`, `cta`, `number`, default `row`), ensuring `slide.diagramVariant` never overrides `slide.type` when `slide.type !== 'row'`.
+     - Updated text zone rendering to `if (slide.type !== 'cta')`, allowing CTA closer slides to render self-contained at any slide index.
+  3. **Auto-Seed Archetype Data on Switch (`src/lib/synthesizer.ts`, `src/components/AutonomousStudio.tsx`, `src/lib/canvasExporter.ts`):**
+     - Implemented and exported `seedSlideArchetypeData(slide, targetType)`:
+       - `metric`: Extracts metrics from title/body or defaults to `'10x'`, auto-populates `metricLabel` and delta pill from `diagramNodes[0]`.
+       - `code`: Formats terminal diff snippet from `diagramNodes` with appropriate syntax language and filename (`query.sql`, `deploy.sh`, `engine.rs`).
+       - `compare`: Synthesizes Before/After comparison columns (`LEGACY BOTTLENECK` vs `MODERN ARCHITECTURE`) using `diagramNodes`.
+       - `hub`: Auto-populates 6 orbital `satLabels` from `diagramNodes` and topic keywords.
+       - `image`: Activates HUD blueprint frame and exposes `SlideImageStudio` controls.
+       - `cta`: Populates bilingual closer action copy (`DM us • رسالة خاصة`).
+     - Added `handleSetSlideType(newType)` in `AutonomousStudio.tsx` to immediately seed data and update canvas on archetype button click.
+     - Added `seedSlideArchetypeData` fallback inside `renderSlideToCanvas` so rendering is always robust even if called externally.
+  4. **Self-Healing 2-Line Auto-Wrapping for Topology Nodes (`src/lib/canvasExporter.ts` & `src/lib/synthesizer.ts`):**
+     - In `drawMultiNodeTopologyFlow` and `drawBlastRadiusIsolationGrid`, updated `fitTextInBox` to scale font size from `16px` down to `12px` with `maxLines: 2` and adjusted vertical baseline positions (`nodeY + 98` and `nodeY + 98 + lineHeight`).
+     - In `wrapTextLines()`, safeguarded orphan reflow so words are only moved to the last line if `candidateLastLine` fits within `maxWidth`.
+     - In `synthesizer.ts`, pruned all generated `diagramNodes[i].label` across all domain packs (Postgres, Docker, Next.js, AI, Scion, Zero-Trust) to concise 2–3 word names ($\le 18$ characters: e.g. `PgBouncer Pool`, `Query Planner`, `Buffer Cache`), keeping rich technical explanations in `sublabel`.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 errors.
+  - `npm run build` (`vite build`): Production bundle built in 228ms with 0 errors.
+  - Browser subagent tested interactive archetype switching on `http://localhost:3000` (Slide 5):
+    - Clicked `Hub` -> Canvas immediately updated to Hub circular orbit with 6 auto-seeded satellite badges.
+    - Clicked `Code Diff` -> Canvas immediately updated to Terminal window with clean diff lines and language badge.
+    - Clicked `Metric` -> Canvas immediately updated to Metric benchmark card with `10x` multiplier and sparkline.
+    - Clicked `Compare` -> Canvas immediately updated to Before vs After dual-card columns.
+    - Clicked `CTA` -> Canvas immediately updated to Marrok Closer with calibration rings and DM pill.
+    - Clicked `Diagram / AI` -> Canvas immediately updated to Blueprint HUD frame with corner CAD brackets.
+    - Clicked `Mechanism` -> Canvas returned to Topology Flow with all 3 node titles cleanly wrapped across 2 lines without any `...` truncation.
+
 
 

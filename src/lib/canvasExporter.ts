@@ -1,6 +1,7 @@
 import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette, VisualSystemOptions } from '../types.ts';
 import { getIconDataUrl, getIconSvg, drawMarrokVectorBadge } from './icons.ts';
 import { sanitizeArabicSlideText, sanitizeEnglishSlideText } from './textSanitizer.ts';
+import { seedSlideArchetypeData } from './synthesizer.ts';
 import JSZip from 'jszip';
 
 // Helper to wrap text with max width, handle manual newlines, and prevent splitting metrics
@@ -84,9 +85,13 @@ function wrapTextLines(
     const prevWords = prevLine.split(/\s+/);
 
     if (lastWords.length === 1 && prevWords.length >= 3) {
-      const movedWord = prevWords.pop()!;
-      lines[lines.length - 2] = prevWords.join(' ');
-      lines[lines.length - 1] = `${movedWord} ${lastLine}`;
+      const candidateWord = prevWords[prevWords.length - 1];
+      const candidateLastLine = `${candidateWord} ${lastLine}`;
+      if (ctx.measureText(candidateLastLine).width <= maxWidth) {
+        prevWords.pop();
+        lines[lines.length - 2] = prevWords.join(' ');
+        lines[lines.length - 1] = candidateLastLine;
+      }
     }
   }
 
@@ -492,15 +497,15 @@ async function drawMultiNodeTopologyFlow(
     ctx.fillStyle = theme.textMuted;
     ctx.fillText(fitSub.lines[0] || n.sub, n.x + 68, nodeY + 52);
 
-    // Primary Title with self-healing 1-or-2 line auto-fit
-    const fitTitle = fitTextInBox(ctx, n.title, nodeW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+    // Primary Title with self-healing 1-or-2 line auto-fit (16px down to 12px)
+    const fitTitle = fitTextInBox(ctx, n.title, nodeW - 36, 16, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 12, maxLines: 2 });
     ctx.font = `800 ${fitTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     if (fitTitle.lines.length <= 1) {
-      ctx.fillText(fitTitle.lines[0] || n.title, n.x + 18, nodeY + 115);
+      ctx.fillText(fitTitle.lines[0] || n.title, n.x + 18, nodeY + 110);
     } else {
-      ctx.fillText(fitTitle.lines[0], n.x + 18, nodeY + 104);
-      ctx.fillText(fitTitle.lines[1], n.x + 18, nodeY + 104 + fitTitle.lineHeight);
+      ctx.fillText(fitTitle.lines[0], n.x + 18, nodeY + 98);
+      ctx.fillText(fitTitle.lines[1], n.x + 18, nodeY + 98 + fitTitle.lineHeight);
     }
 
     // Detail spec lines
@@ -679,15 +684,15 @@ async function drawBlastRadiusIsolationGrid(
   ctx.fillStyle = '#F87171';
   ctx.fillText(fitC1Sub.lines[0] || c1Sub, cx1 + 68, cellY + 52);
 
-  // Self-healing title: auto steps down font or wraps to 2 lines
-  const fitC1Title = fitTextInBox(ctx, c1Title, cellW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+  // Self-healing title: auto steps down font or wraps to 2 lines (16px down to 12px)
+  const fitC1Title = fitTextInBox(ctx, c1Title, cellW - 36, 16, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 12, maxLines: 2 });
   ctx.font = `800 ${fitC1Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
   if (fitC1Title.lines.length <= 1) {
-    ctx.fillText(fitC1Title.lines[0] || c1Title, cx1 + 18, cellY + 115);
+    ctx.fillText(fitC1Title.lines[0] || c1Title, cx1 + 18, cellY + 110);
   } else {
-    ctx.fillText(fitC1Title.lines[0], cx1 + 18, cellY + 104);
-    ctx.fillText(fitC1Title.lines[1], cx1 + 18, cellY + 104 + fitC1Title.lineHeight);
+    ctx.fillText(fitC1Title.lines[0], cx1 + 18, cellY + 98);
+    ctx.fillText(fitC1Title.lines[1], cx1 + 18, cellY + 98 + fitC1Title.lineHeight);
   }
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
@@ -742,15 +747,15 @@ async function drawBlastRadiusIsolationGrid(
   ctx.fillStyle = theme.textMuted;
   ctx.fillText(fitC2Sub.lines[0] || c2Sub, cx2 + 68, cellY + 52);
 
-  // Self-healing title
-  const fitC2Title = fitTextInBox(ctx, c2Title, cellW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+  // Self-healing title (16px down to 12px)
+  const fitC2Title = fitTextInBox(ctx, c2Title, cellW - 36, 16, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 12, maxLines: 2 });
   ctx.font = `800 ${fitC2Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
   if (fitC2Title.lines.length <= 1) {
-    ctx.fillText(fitC2Title.lines[0] || c2Title, cx2 + 18, cellY + 115);
+    ctx.fillText(fitC2Title.lines[0] || c2Title, cx2 + 18, cellY + 110);
   } else {
-    ctx.fillText(fitC2Title.lines[0], cx2 + 18, cellY + 104);
-    ctx.fillText(fitC2Title.lines[1], cx2 + 18, cellY + 104 + fitC2Title.lineHeight);
+    ctx.fillText(fitC2Title.lines[0], cx2 + 18, cellY + 98);
+    ctx.fillText(fitC2Title.lines[1], cx2 + 18, cellY + 98 + fitC2Title.lineHeight);
   }
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
@@ -1112,7 +1117,9 @@ export async function renderSlideToCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get 2D canvas context');
 
-  const slide = carousel.slides[slideIndex];
+  const rawSlide = carousel.slides[slideIndex];
+  if (!rawSlide) throw new Error(`Slide at index ${slideIndex} not found`);
+  const slide = seedSlideArchetypeData(rawSlide, rawSlide.type);
   const themeMode = carousel.theme || 'engineering';
   const theme: ThemePalette =
     customPalette ||
@@ -1504,7 +1511,7 @@ export async function renderSlideToCanvas(
     }
 
     yGraphicEnd = 980;
-  } else if (slide.type === 'row' || (slide.type === 'cta' && slideIndex !== totalSlides - 1)) {
+  } else if (slide.type === 'row') {
     // Dynamic Technical Schematics: Dispatch to bespoke labeled diagrams instead of rigid flat boxes
     const slideText = `${slide.enTitle || ''} ${slide.enBody || ''} ${slide.arTitle || ''}`.toLowerCase();
     const iconCount = slide.icons?.length || 0;
@@ -2315,7 +2322,7 @@ export async function renderSlideToCanvas(
     }
 
     yGraphicEnd = 670;
-  } else if (slide.type === 'cta' && slideIndex === totalSlides - 1) {
+  } else if (slide.type === 'cta') {
     // Archetype 8: Standardized Marrok Closer (Isometric Core, Domain Hook, Bilingual CTA Pill, Verified Card)
     const emblemX = 518;
     const emblemY = 440;
@@ -2583,7 +2590,7 @@ export async function renderSlideToCanvas(
   // 6. Text Zone Rendering (for hub, row, metric, code, and compare slides)
   // Strict Safe-Zone Rule: Center at x = 518 with maxWidth 850 (titles) and 820 (body)
   // to enforce right safe margin >= 135px (x <= 945) clearing TikTok native right-side action buttons
-  if (slide.type !== 'cta' || slideIndex !== totalSlides - 1) {
+  if (slide.type !== 'cta') {
     // 6a. Pre-measure all lines and calculate precise text block metrics
     const cleanEnTitle = slide.enTitle ? sanitizeEnglishSlideText(slide.enTitle, { isTitle: true }) : '';
     let enTitleLines: string[] = [];
