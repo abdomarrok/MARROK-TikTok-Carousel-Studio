@@ -49,7 +49,8 @@ Creators provide a single input (topic prompt, engineering summary, architecture
 - **Direct Inline Text Editing:** Click directly on English headlines, Arabic text, or body mechanism copy in the live preview to edit instantly without clumsy forms.
 - **Sleek Slide Management Bar:** Rapid Add (`+`), Duplicate, Delete (safely guarded $\ge 3$ slides), Reorder (Move Left / Right), and Slide 1 Hook Variant selector (Curiosity, Metric, Contrast).
 - **Expandable Advanced Customizer Drawer:** Power features are cleanly tucked into a collapsible side drawer:
-  - *Diagram Layout Switcher & Live Node Editor:* 1-click layout toggle (`Topology Flow`, `Layered Stack`, `Isolation Grid`, `Key Takeaway`), 3 live component nodes, connectors, and telemetry line.
+  - *Instant Archetype Switcher & Auto-Seeding:* 1-click toggle between `Hub`, `Mechanism`, `Diagram / AI`, `Code Diff`, `Metric`, `Compare`, and `CTA`. Missing fields (`codeSnippet`, `metricValue`, comparison columns, `satLabels`) are automatically synthesized on the spot from slide content and rendered live on canvas.
+  - *Diagram Layout Switcher & Live Node Editor:* 1-click layout toggle (`Topology Flow`, `Layered Stack`, `Isolation Grid`, `Key Takeaway`), 3 live component nodes with unclipped 2-line auto-wrapping (16px $\to$ 12px), protocol connectors, and telemetry line.
   - *Code Archetype:* Language selector, terminal dot styles, line numbers, and diff syntax (`+`, `-`, `$`).
   - *Metric Archetype:* Giant contrast value, category label, sparkline acceleration curve, and delta pill.
   - *Compare Archetype:* Legacy vs Modern bullet points and advantage tags.

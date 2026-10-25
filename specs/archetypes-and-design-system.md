@@ -116,12 +116,18 @@ The MARROK visual system provides 8 core archetypes tailored for high-density mo
 8. **CTA Slide (`cta`) (The Closer)**:
    - Geometric branding emblem, domain question hook, high-contrast bilingual CTA pill, and verified source attribution card.
 
+### Instant Archetype Switching & Live Auto-Seeding (`seedSlideArchetypeData`)
+- **1-Click Archetype Toggle:** Creators can switch any slide in the deck to any archetype (`hub`, `row`, `image`, `code`, `metric`, `compare`, `cta`) at any time.
+- **On-The-Fly Auto-Seeding:** If the target archetype's fields are empty, `seedSlideArchetypeData()` automatically synthesizes them on the spot from the slide's existing `enTitle`, `enBody`, and `diagramNodes` (e.g. extracting numbers into `metricValue`, structuring terminal diffs into `codeSnippet`, and mapping components into `leftTitle`/`rightTitle` comparison columns).
+- **Manual Preservation Rule:** `sanitizeSlide()` strictly retains explicit user-selected slide types and never reverts mid-deck slides to `'row'`. `canvasExporter.ts` dispatches strictly on `slide.type` FIRST, ensuring `slide.diagramVariant` never overrides an explicit archetype.
+
 ### Autonomous Visual Pacing & Layout Anti-Repetition
 - **Pacing Engine (`balanceCarouselVisualPacing`)**: Automatically inspects the deck during generation. If consecutive mechanism slides occur, it guarantees zero adjacent duplicate layouts by rotating across `['topology', 'stack', 'isolation', 'takeaway']` using the least-used variant.
 
 ### Self-Healing Typography & Auto-Fit Engine (`fitTextInBox`)
 - Text in pills, badges, node cards, and comparison columns is dynamically measured prior to drawing.
 - If text width exceeds the available container width, the engine automatically steps down the font size or wraps text into 2 lines, preventing any label overflow or truncation artifacts without manual editing.
+- **Topology Flow & Isolation Grid 2-Line Auto-Wrapping:** Node titles in horizontal topology cards auto-scale font size from `16px` down to `12px` across 2 lines (`nodeY + 98` and `nodeY + 98 + lineHeight`), ensuring 100% readable component titles without single-line ellipsis truncation. Diagram node labels in `synthesizer.ts` are kept concise (2–3 words, $\le 18$ characters) with longer descriptions in `sublabel`.
 
 ### Dynamic Vertical Optical Centering
 - Rather than using static y-coordinates, the canvas engine calculates the bottom boundary of the top graphic (`yGraphicEnd`) and the exact total height of the English + Arabic title and body block (`hTextTotal`).

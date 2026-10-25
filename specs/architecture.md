@@ -142,6 +142,11 @@ The system is engineered for zero-latency mobile workflows, high availability du
 - **Self-Healing Typography Engine (`fitTextInBox`):**
   - Dynamically measures text bounds in real-time during canvas rasterization.
   - Automatically steps down font sizes or smart-wraps to 2 lines for `satLabels` pills, `diagramNodes` cards, `diagramEdges` badges, status pills, and comparison columns.
+  - **Topology Flow & Isolation Grid 2-Line Auto-Wrapping:** Node titles in horizontal topology cards auto-scale font size from `16px` down to `12px` across 2 lines (`nodeY + 98` and `nodeY + 98 + lineHeight`), ensuring 100% readable component titles without single-line ellipsis truncation. Diagram node labels in `synthesizer.ts` are kept concise (2–3 words, $\le 18$ characters) with longer descriptions in `sublabel`.
+- **Instant Archetype Switching & Live Auto-Seeding (`seedSlideArchetypeData`):**
+  - Allows creators to switch any slide in the deck to any archetype (`hub`, `row`, `image`, `code`, `metric`, `compare`, `cta`) at any time.
+  - Automatically synthesizes missing fields from slide content on switch.
+  - Strict dispatching on `slide.type` FIRST ensures `slide.diagramVariant` never overrides the active archetype.
 - **Dynamic Vertical Optical Centering:**
   - Calculates the exact bottom boundary of the top graphic (`yGraphicEnd`) and pre-measures all English and Arabic title and body lines.
   - Distributes vertical breathing room using a 38% top cushion / 62% bottom ratio between `yGraphicEnd` and `y = 1710` (clearing footer dots at `y = 1826`).
