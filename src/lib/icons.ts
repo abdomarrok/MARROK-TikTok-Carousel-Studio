@@ -358,51 +358,10 @@ export const ICONS_REGISTRY: Record<string, { label: string; svgInner: string }>
   },
 };
 
-// Curated map of top tech brand logos hosted on Simple Icons CDN
-export const KNOWN_TECH_LOGOS: Record<string, string> = {
-  docker: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/docker.svg',
-  kubernetes: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg',
-  k8s: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg',
-  redis: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/redis.svg',
-  postgresql: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/postgresql.svg',
-  postgres: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/postgresql.svg',
-  mysql: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/mysql.svg',
-  mongodb: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/mongodb.svg',
-  clickhouse: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/clickhouse.svg',
-  apachekafka: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/apachekafka.svg',
-  kafka: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/apachekafka.svg',
-  fastapi: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/fastapi.svg',
-  python: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/python.svg',
-  go: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/go.svg',
-  golang: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/go.svg',
-  rust: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/rust.svg',
-  typescript: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/typescript.svg',
-  javascript: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/javascript.svg',
-  linux: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/linux.svg',
-  ubuntu: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/ubuntu.svg',
-  git: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/git.svg',
-  github: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/github.svg',
-  gitlab: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/gitlab.svg',
-  aws: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/amazonwebservices.svg',
-  amazonwebservices: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/amazonwebservices.svg',
-  googlecloud: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/googlecloud.svg',
-  microsoftazure: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/microsoftazure.svg',
-  azure: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/microsoftazure.svg',
-  cloudflare: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/cloudflare.svg',
-  nginx: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/nginx.svg',
-  graphql: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/graphql.svg',
-  terraform: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/terraform.svg',
-  ansible: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/ansible.svg',
-  prometheus: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/prometheus.svg',
-  grafana: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/grafana.svg',
-  anthropic: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/anthropic.svg',
-  openai: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/openai.svg',
-  react: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/react.svg',
-  nodejs: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/nodedotjs.svg',
-  cplusplus: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/cplusplus.svg',
-  sqlite: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/sqlite.svg',
-  supabase: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/supabase.svg',
-};
+// Curated map of top tech brand logos from shared single source of truth
+import { KNOWN_TECH_LOGOS, TECH_ICONS_LIST } from './techLogos.ts';
+export { KNOWN_TECH_LOGOS, TECH_ICONS_LIST };
+
 
 
 /**

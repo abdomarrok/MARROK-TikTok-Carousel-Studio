@@ -1,0 +1,422 @@
+import React from 'react';
+import {
+  Cpu,
+  Layers,
+  Image as ImageIcon,
+  Code,
+  Gauge,
+  Columns,
+  ArrowRight,
+} from 'lucide-react';
+import { SlideData, SlideType, ThemePalette, DiagramVariant, DiagramNode } from '../../types.ts';
+
+interface ArchetypeControlsProps {
+  currentSlide: SlideData;
+  theme: ThemePalette;
+  isAdvancedCustomizerOpen: boolean;
+  onSetSlideType: (type: SlideType) => void;
+  onUpdateField: (field: keyof SlideData, value: any) => void;
+  onUpdateSatLabel: (index: number, value: string) => void;
+  onUpdateDiagramNode: (nodeIndex: number, field: keyof DiagramNode, value: string) => void;
+  onUpdateDiagramEdge: (edgeIndex: number, value: string) => void;
+  onOpenAiImageStudio: () => void;
+  onOpenMediaSearch: () => void;
+}
+
+const DIAGRAM_VARIANTS: { id: DiagramVariant; label: string }[] = [
+  { id: 'topology', label: 'Topology Flow' },
+  { id: 'stack', label: 'Layered Stack' },
+  { id: 'isolation', label: 'Isolation Grid' },
+  { id: 'takeaway', label: 'Key Takeaway' },
+];
+
+const ARCHETYPES: { id: SlideType; label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }> }[] = [
+  { id: 'hub', label: 'Hub', icon: Cpu },
+  { id: 'row', label: 'Mechanism', icon: Layers },
+  { id: 'image', label: 'Diagram / AI', icon: ImageIcon },
+  { id: 'code', label: 'Code Diff', icon: Code },
+  { id: 'metric', label: 'Metric', icon: Gauge },
+  { id: 'compare', label: 'Compare', icon: Columns },
+  { id: 'cta', label: 'CTA', icon: ArrowRight },
+];
+
+export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
+  currentSlide,
+  theme,
+  isAdvancedCustomizerOpen,
+  onSetSlideType,
+  onUpdateField,
+  onUpdateSatLabel,
+  onUpdateDiagramNode,
+  onUpdateDiagramEdge,
+  onOpenAiImageStudio,
+  onOpenMediaSearch,
+}) => {
+  return (
+    <div className="space-y-4">
+      {/* Slide 1 (Hub): 6 Compact Satellite Labels */}
+      {currentSlide.type === 'hub' && (
+        <div className="pt-3 border-t border-white/[0.08] space-y-2.5 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+              <span>Orbital Satellite Labels (6 Component Nodes)</span>
+            </label>
+            <span className="text-[10px] text-slate-400 font-mono">Live on Canvas</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-500 font-bold">
+                  #{idx + 1}
+                </span>
+                <input
+                  type="text"
+                  value={currentSlide.satLabels?.[idx] ?? ''}
+                  onChange={(e) => onUpdateSatLabel(idx, e.target.value)}
+                  placeholder={`Node ${idx + 1}`}
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl pl-8 pr-2.5 py-1.5 text-xs text-white font-medium focus:outline-none transition-colors"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mechanism Slides (Row Archetype) */}
+      {currentSlide.type === 'row' && (
+        <div className="pt-3 border-t border-white/[0.08] space-y-3.5 animate-fade-in">
+          {/* Diagram Layout Switcher */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                <Cpu className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                <span>Diagram Layout Switcher</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-mono">1-Click Schematic Flip</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
+              {DIAGRAM_VARIANTS.map((variant) => {
+                const isSelected = (currentSlide.diagramVariant || 'topology') === variant.id;
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => onUpdateField('diagramVariant', variant.id)}
+                    className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-white/20 text-white shadow-sm border border-white/30'
+                        : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                    }`}
+                    style={isSelected ? { color: theme.accent } : undefined}
+                  >
+                    <span>{variant.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3 Diagram Nodes */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                <span>Schematic Nodes (3 Components)</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-mono">Label / Sublabel / Status</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {Array.from({ length: 3 }).map((_, nIdx) => {
+                const defaultNodes = [
+                  { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE' },
+                  { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED' },
+                  { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED' },
+                ];
+                const node = currentSlide.diagramNodes?.[nIdx] || defaultNodes[nIdx];
+                return (
+                  <div key={nIdx} className="bg-black/50 border border-white/10 rounded-xl p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold font-mono text-slate-400">
+                        Node #{nIdx + 1}
+                      </span>
+                      <input
+                        type="text"
+                        value={node.status || ''}
+                        onChange={(e) => onUpdateDiagramNode(nIdx, 'status', e.target.value)}
+                        placeholder="STATUS"
+                        className="w-20 text-right bg-transparent border-b border-white/15 focus:border-white/40 text-[9px] font-mono text-emerald-400 uppercase focus:outline-none"
+                        title="Status Badge (e.g. ACTIVE, VERIFIED, ISOLATED)"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        value={node.label || ''}
+                        onChange={(e) => onUpdateDiagramNode(nIdx, 'label', e.target.value)}
+                        placeholder="Primary Label"
+                        className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2 py-1 text-xs text-white font-semibold focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        value={node.sublabel || ''}
+                        onChange={(e) => onUpdateDiagramNode(nIdx, 'sublabel', e.target.value)}
+                        placeholder="Sublabel / Spec"
+                        className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* diagramEdges & diagramFooter */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                Connector 1 → 2
+              </label>
+              <input
+                type="text"
+                value={currentSlide.diagramEdges?.[0] ?? ''}
+                onChange={(e) => onUpdateDiagramEdge(0, e.target.value)}
+                placeholder="e.g. Mutual Auth"
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                Connector 2 → 3
+              </label>
+              <input
+                type="text"
+                value={currentSlide.diagramEdges?.[1] ?? ''}
+                onChange={(e) => onUpdateDiagramEdge(1, e.target.value)}
+                placeholder="e.g. Encrypted Pipe"
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                Footer Telemetry Line
+              </label>
+              <input
+                type="text"
+                value={currentSlide.diagramFooter ?? ''}
+                onChange={(e) => onUpdateField('diagramFooter', e.target.value)}
+                placeholder="e.g. Telemetry metric"
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expandable Advanced Customizer Drawer */}
+      {isAdvancedCustomizerOpen && (
+        <div className="pt-3 border-t border-white/[0.08] space-y-4 animate-fade-in">
+          {/* 1. Archetype Switcher */}
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+              Slide Layout Archetype
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
+              {ARCHETYPES.map((arch) => {
+                const Icon = arch.icon;
+                const isSelected = currentSlide.type === arch.id;
+                return (
+                  <button
+                    key={arch.id}
+                    type="button"
+                    onClick={() => onSetSlideType(arch.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-white/20 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" style={{ color: isSelected ? theme.accent : undefined }} />
+                    <span>{arch.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Archetype Specific Deep Editors */}
+          {/* Code Diff Archetype */}
+          {currentSlide.type === 'code' && (
+            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Code className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Code Diff & Terminal Controls</span>
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">File Name</label>
+                  <input
+                    type="text"
+                    value={currentSlide.codeFileName || 'sys_exec.sh'}
+                    onChange={(e) => onUpdateField('codeFileName', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Language</label>
+                  <input
+                    type="text"
+                    value={currentSlide.codeLanguage || 'bash'}
+                    onChange={(e) => onUpdateField('codeLanguage', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Code Snippet (+ / - diff)</label>
+                <textarea
+                  rows={4}
+                  value={currentSlide.codeSnippet || ''}
+                  onChange={(e) => onUpdateField('codeSnippet', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Metric Card Archetype */}
+          {currentSlide.type === 'metric' && (
+            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-amber-400" />
+                <span>Metric Benchmark Card</span>
+              </span>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Metric Value</label>
+                  <input
+                    type="text"
+                    value={currentSlide.metricValue || '0.4ms'}
+                    onChange={(e) => onUpdateField('metricValue', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Label</label>
+                  <input
+                    type="text"
+                    value={currentSlide.metricLabel || 'p99 Latency'}
+                    onChange={(e) => onUpdateField('metricLabel', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Delta / Diff</label>
+                  <input
+                    type="text"
+                    value={currentSlide.metricDiff || '▲ 94% faster'}
+                    onChange={(e) => onUpdateField('metricDiff', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-emerald-400 font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Compare Archetype */}
+          {currentSlide.type === 'compare' && (
+            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Columns className="w-3.5 h-3.5 text-purple-400" />
+                <span>Before vs After Architecture Comparison</span>
+              </span>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 block">Legacy (Left)</label>
+                  <input
+                    type="text"
+                    value={currentSlide.compareLeftTitle || 'Legacy Stack'}
+                    onChange={(e) => onUpdateField('compareLeftTitle', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
+                  />
+                  <textarea
+                    rows={3}
+                    value={currentSlide.compareLeftBody || ''}
+                    onChange={(e) => onUpdateField('compareLeftBody', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 block">Modern (Right)</label>
+                  <input
+                    type="text"
+                    value={currentSlide.compareRightTitle || 'Modern Engine'}
+                    onChange={(e) => onUpdateField('compareRightTitle', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
+                  />
+                  <textarea
+                    rows={3}
+                    value={currentSlide.compareRightBody || ''}
+                    onChange={(e) => onUpdateField('compareRightBody', e.target.value)}
+                    className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Image & AI Diagram Studio */}
+          {currentSlide.type === 'image' && (
+            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Visual Diagram & AI Studio</span>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={onOpenAiImageStudio}
+                    className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-200 border border-purple-500/40 text-xs font-semibold cursor-pointer"
+                  >
+                    AI Diagram Studio
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenMediaSearch}
+                    className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 text-xs font-semibold cursor-pointer"
+                  >
+                    Search Web
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Image URL / Path</label>
+                  <input
+                    type="text"
+                    value={currentSlide.imageUrl || ''}
+                    onChange={(e) => onUpdateField('imageUrl', e.target.value)}
+                    placeholder="https://... or /generated/..."
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Caption / Sub-title</label>
+                  <input
+                    type="text"
+                    value={currentSlide.imageCaption || ''}
+                    onChange={(e) => onUpdateField('imageCaption', e.target.value)}
+                    placeholder="e.g. Distributed Consensus State Machine"
+                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

@@ -38,7 +38,15 @@ export const ContactSheetModal: React.FC<ContactSheetModalProps> = ({
         const c = canvasRefs.current[i];
         if (c && isMounted) {
           try {
-            await renderSlideToCanvas(carousel, i, c, theme);
+            // Render full-res offscreen, then downsample cleanly to lightweight preview thumbnail
+            const offscreen = await renderSlideToCanvas(carousel, i, undefined, theme);
+            const ctx = c.getContext('2d');
+            if (ctx && isMounted) {
+              ctx.clearRect(0, 0, c.width, c.height);
+              ctx.drawImage(offscreen, 0, 0, 1080, 1920, 0, 0, c.width, c.height);
+            }
+            // Yield microtask so the browser UI stays completely fluid
+            await new Promise((r) => setTimeout(r, 0));
           } catch (err) {
             console.error(`Failed rendering thumbnail ${i}:`, err);
           }
@@ -143,8 +151,8 @@ export const ContactSheetModal: React.FC<ContactSheetModalProps> = ({
                     ref={(el) => {
                       canvasRefs.current[idx] = el;
                     }}
-                    width={1080}
-                    height={1920}
+                    width={270}
+                    height={480}
                     className="w-full h-full object-contain"
                   />
 

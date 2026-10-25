@@ -1,0 +1,279 @@
+import { CarouselData, SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts';
+import { wrapTextLines } from '../textLayout.ts';
+import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
+import { drawRoundRect } from '../background.ts';
+import { drawMarrokVectorBadge } from '../../icons.ts';
+
+/**
+ * Archetype 8: Standardized Marrok Closer (CTA Slide)
+ * Renders isometric emblem with authentic MARROK vector logo, domain hook,
+ * high-contrast bilingual CTA button, URL, and verified attribution card.
+ */
+export async function drawCtaSlide(
+  ctx: CanvasRenderingContext2D,
+  slide: SlideData,
+  carousel: CarouselData,
+  theme: ThemePalette,
+  _options: VisualSystemOptions,
+  themeMode: string = 'engineering'
+): Promise<number> {
+  const emblemX = 518;
+  const emblemY = 440;
+  const calRadius = 145;
+
+  // 1. Outer 45° Calibration Ring & Cardinal CAD Reticles
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(emblemX, emblemY, calRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = `${theme.accent}35`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Outer segmented dashed ring
+  ctx.beginPath();
+  ctx.arc(emblemX, emblemY, calRadius + 10, 0, Math.PI * 2);
+  ctx.strokeStyle = `${theme.accent}22`;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 8]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 8 Calibration Tick Marks at 45° intervals
+  ctx.strokeStyle = `${theme.accent}80`;
+  ctx.lineWidth = 2;
+  for (let a = 0; a < 360; a += 45) {
+    const rad = (a * Math.PI) / 180;
+    const x1 = emblemX + (calRadius - 6) * Math.cos(rad);
+    const y1 = emblemY + (calRadius - 6) * Math.sin(rad);
+    const x2 = emblemX + (calRadius + 6) * Math.cos(rad);
+    const y2 = emblemY + (calRadius + 6) * Math.sin(rad);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Outer cardinal CAD reticles (+) at 0°, 90°, 180°, 270°
+  const reticleOffset = calRadius + 18;
+  const cardAngles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+  for (const ang of cardAngles) {
+    const rx = emblemX + reticleOffset * Math.cos(ang);
+    const ry = emblemY + reticleOffset * Math.sin(ang);
+    ctx.beginPath();
+    ctx.moveTo(rx - 5, ry);
+    ctx.lineTo(rx + 5, ry);
+    ctx.moveTo(rx, ry - 5);
+    ctx.lineTo(rx, ry + 5);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 2. Layered Isometric Cube / Diamond Geometry
+  const cubeR = 82;
+  const vAngles = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, (5 * Math.PI) / 6, (-5 * Math.PI) / 6];
+  const pts = vAngles.map((ang) => ({
+    x: emblemX + cubeR * Math.cos(ang),
+    y: emblemY + cubeR * Math.sin(ang),
+  }));
+
+  // Ambient glow behind cube
+  ctx.save();
+  const cubeGlow = ctx.createRadialGradient(emblemX, emblemY, 10, emblemX, emblemY, 130);
+  cubeGlow.addColorStop(0, `${theme.accent}26`);
+  cubeGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = cubeGlow;
+  ctx.fillRect(emblemX - 130, emblemY - 130, 260, 260);
+
+  // Facet 1: Top Diamond
+  ctx.beginPath();
+  ctx.moveTo(emblemX, emblemY);
+  ctx.lineTo(pts[5].x, pts[5].y);
+  ctx.lineTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.closePath();
+  ctx.fillStyle = `${theme.accent}26`;
+  ctx.fill();
+  ctx.strokeStyle = `${theme.accent}66`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Facet 2: Left Diamond
+  ctx.beginPath();
+  ctx.moveTo(emblemX, emblemY);
+  ctx.lineTo(pts[5].x, pts[5].y);
+  ctx.lineTo(pts[4].x, pts[4].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.fillStyle = '#0c151c';
+  ctx.fill();
+  ctx.strokeStyle = `${theme.accent}55`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Facet 3: Right Diamond
+  ctx.beginPath();
+  ctx.moveTo(emblemX, emblemY);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.fillStyle = `${theme.accent}14`;
+  ctx.fill();
+  ctx.strokeStyle = `${theme.accent}55`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Outer Hexagon Perimeter
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x, pts[i].y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = theme.accent;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = theme.accent;
+  ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+
+  // 3. Central Core: Authentic MARROK Vector Emblem
+  const coreSize = 58;
+  const coreX = emblemX - coreSize / 2;
+  const coreY = emblemY - coreSize / 2;
+
+  ctx.save();
+  ctx.shadowColor = theme.accent;
+  ctx.shadowBlur = 14;
+  drawRoundRect(ctx, coreX, coreY, coreSize, coreSize, 14, '#081216', theme.accent, 2);
+  ctx.restore();
+
+  drawMarrokVectorBadge(ctx, emblemX, emblemY, coreSize - 6, theme.accent, 'transparent');
+  ctx.restore();
+
+  // 4. Brand Wordmark & Domain Hook Badge directly below emblem
+  ctx.save();
+  const ctaBrand = carousel.brand || 'MARROK';
+  ctx.font = '800 56px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(ctaBrand, 518, 625);
+
+  // Accent Divider Line: 100x6 pill
+  drawRoundRect(ctx, 518 - 50, 646, 100, 6, 3, theme.accent);
+
+  // Micro Domain Category Badge
+  const ctaCategory = (carousel.category || 'AI + SOFTWARE ARCHITECTURE').toUpperCase();
+  ctx.font = '700 16px "Plus Jakarta Sans", monospace';
+  const catMetrics = ctx.measureText(ctaCategory);
+  const catBadgeW = Math.min(catMetrics.width + 32, 600);
+  const catBadgeH = 32;
+  drawRoundRect(ctx, 518 - catBadgeW / 2, 672, catBadgeW, catBadgeH, 8, `${theme.accent}14`, `${theme.accent}45`, 1);
+  ctx.fillStyle = theme.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(ctaCategory, 518, 672 + catBadgeH / 2);
+  ctx.restore();
+
+  // 5. Domain Question Hook
+  ctx.save();
+  ctx.font = '800 64px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  const rawCtaEnTitle = (slide.enTitle || (themeMode === 'security' ? 'Building secure software?' : 'Building with AI agents at scale?')).trim();
+  const enCtaLines = wrapTextLines(ctx, rawCtaEnTitle, 850);
+  let curY = 755;
+  for (const line of enCtaLines) {
+    ctx.fillText(line, 518, curY);
+    curY += 76;
+  }
+
+  curY += 8;
+  ctx.font = '800 60px "Cairo", sans-serif';
+  ctx.fillStyle = theme.accent;
+  ctx.direction = 'rtl';
+  const rawCtaArTitle = (slide.arTitle || (themeMode === 'security' ? 'تبني برمجيات آمنة؟' : 'تبني بوكلاء الذكاء الاصطناعي؟')).trim();
+  const arCtaLines = wrapTextLines(ctx, rawCtaArTitle, 850);
+  for (const line of arCtaLines) {
+    ctx.fillText(line, 518, curY);
+    curY += 78;
+  }
+  ctx.restore();
+
+  // 6. High-Contrast Bilingual CTA Pill Button (at y = 1380)
+  const pillW = 656;
+  const pillH = 110;
+  const pillX = 518 - pillW / 2;
+  const pillY = 1380;
+  ctx.save();
+  ctx.shadowColor = theme.accent;
+  ctx.shadowBlur = 14;
+  drawRoundRect(ctx, pillX, pillY, pillW, pillH, 55, theme.accent);
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = '800 40px "Cairo", "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#081216';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 518, pillY + pillH / 2);
+  ctx.restore();
+
+  // 7. Verified marrok.org Attribution Card (Safe from bottom y <= 1840)
+  const displayUrl = carousel.brandUrl || slide.url || 'marrok.org';
+  ctx.save();
+  ctx.font = '600 36px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#E2E8EC';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(displayUrl, 518, pillY + pillH + 75);
+  ctx.restore();
+
+  // Bilingual Source Attribution Card container (y = 1595 to 1705)
+  const cardW = 780;
+  const cardH = 96;
+  const cardX = 518 - cardW / 2;
+  const cardY = 1595;
+  drawRoundRect(ctx, cardX, cardY, cardW, cardH, 20, `${theme.surface}99`, theme.surfaceBorder, 1.5);
+
+  // 1. Miniature authentic MARROK logo badge
+  const mBadgeSize = 42;
+  const mBadgeX = cardX + 22;
+  const mBadgeY = cardY + (cardH - mBadgeSize) / 2;
+  drawRoundRect(ctx, mBadgeX, mBadgeY, mBadgeSize, mBadgeSize, 10, '#0D0D0D', `${theme.accent}55`, 1.2);
+  drawMarrokVectorBadge(ctx, mBadgeX + mBadgeSize / 2, mBadgeY + mBadgeSize / 2, mBadgeSize - 6, theme.accent, 'transparent');
+
+  // 2. Verified shield icon badge alongside MARROK badge
+  const sBadgeSize = 42;
+  const sBadgeX = mBadgeX + mBadgeSize + 10;
+  const sBadgeY = cardY + (cardH - sBadgeSize) / 2;
+  drawRoundRect(ctx, sBadgeX, sBadgeY, sBadgeSize, sBadgeSize, 10, `${theme.accent}20`, `${theme.accent}65`, 1.2);
+  const shieldImg = await loadIconImage('shieldAlert', theme.accent);
+  safeDrawImage(ctx, shieldImg, sBadgeX + 9, sBadgeY + 9, 24, 24);
+
+  // 3. Attribution text tier
+  const textStartX = sBadgeX + sBadgeSize + 18;
+  const enCredit = slide.enCredit || `Verified Technical Analysis // ${carousel.brand || 'MARROK'}`;
+  const arCredit = slide.arCredit || `تحليل تقني موثق ومعتمد من منصة ${carousel.brand || 'ماروك'}`;
+
+  ctx.save();
+  ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = theme.textMuted;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(enCredit, textStartX, cardY + 42);
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = '500 22px "Cairo", sans-serif';
+  ctx.fillStyle = theme.textMuted;
+  ctx.textAlign = 'left';
+  ctx.direction = 'rtl';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(arCredit, textStartX, cardY + 76);
+  ctx.restore();
+
+  return 1705;
+}

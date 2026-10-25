@@ -649,5 +649,71 @@ This document records the chronological development history, engineering decisio
     - Clicked `Diagram / AI` -> Canvas immediately updated to Blueprint HUD frame with corner CAD brackets.
     - Clicked `Mechanism` -> Canvas returned to Topology Flow with all 3 node titles cleanly wrapped across 2 lines without any `...` truncation.
 
+---
+
+## Step 27: Architecture Audit & Batch 1 Refactoring (Phases 1, 2, and 3)
+- **Context & Audit:**
+  - Evaluated the codebase against `specs/codebase_audit_and_refactor_plan.md` to eliminate file bloat, dead code, and god-files without regressions.
+- **Engineering Solutions Implemented:**
+  1. **Phase 1: Pure Foundations & Dead Code Purge:**
+     - Extracted themes and palettes into `src/lib/theme/palettes.ts` and `src/lib/theme/specThemes.ts`.
+     - Purged 300+ lines of dead code and top-level mutation loops in `src/types.ts`.
+     - Kept `src/types.ts` as a backwards-compatible barrel re-export.
+  2. **Phase 2: Text Processing & BiDi Pipeline Modularization:**
+     - Split 740-line `textSanitizer.ts` into `src/lib/text/`: `bidi.ts`, `arabicPunctuation.ts`, `headlineRules.ts`, `characterLimits.ts`, `markdownStripper.ts`, `slideSanitizer.ts`.
+     - Maintained `src/lib/textSanitizer.ts` as a barrel re-export.
+  3. **Phase 3: Content Synthesizer Decomposition:**
+     - Split 1,223-line `synthesizer.ts` into `src/lib/synthesis/`: `types.ts`, `domainProfiles.ts`, `pacingEngine.ts`, `diagramPacing.ts`, `templates.ts`, `pipeline.ts`.
+     - Maintained `src/lib/synthesizer.ts` as a barrel re-export.
+- **Verification:**
+  - Gates 1, 2, and 3 verified with `npm run lint` and `npm run build` passing with 0 errors.
+
+---
+
+## Step 28: Architecture Refactoring Batch 2 (Phases 4, 5, and 6) & System Optimization
+- **Context & Objectives:**
+  - Execute Batch 2 of the approved refactoring plan to modularize the 3,118-line canvas exporter, 1,434-line studio UI, and 1,011-line server API routes.
+- **Engineering Solutions Implemented:**
+  1. **Phase 4: Canvas Exporter Modularization (`src/lib/canvas/`):**
+     - Split monolithic `canvasExporter.ts` into focused modules:
+       - `constants.ts`: Centralized 1080x1920 coordinates, safe zones (`x <= 945`, `y <= 1840`), and typography scales.
+       - `textLayout.ts`: `wrapTextLines` with NBSP metric unit protection and orphan prevention, plus `fitTextInBox` self-healing font auto-scaler.
+       - `imageLoader.ts`: SVG rasterization, image caching, and CORS proxy routing.
+       - `background.ts`: OLED backgrounds, ambient radial glow, engineering grid, CAD corner brackets, brand header, and footer.
+       - `archetypes/`: Dedicated render modules (`renderHub.ts`, `renderMetric.ts`, `renderCode.ts`, `renderCompare.ts`, `renderDiagram.ts`, `renderImage.ts`, `renderCta.ts`).
+       - `renderSlide.ts`: Master slide coordinator. **Critical fix**: Removed text re-sanitization from inside the canvas draw loop; text rendering is now a pure, read-only projection of state.
+       - `exporter.ts`: PNG export, Contact Sheet generation, and `downloadAllSlidesZip` with asynchronous microtask yielding (`await new Promise(r => setTimeout(r, 0))`) preventing UI thread lock.
+     - Kept `src/lib/canvasExporter.ts` as a backwards-compatible 5-line barrel re-export.
+  2. **Phase 5: Studio UI Decomposition & GPU Performance (`src/components/studio/`):**
+     - Split `AutonomousStudio.tsx` into modular subcomponents:
+       - `ViewportCanvas.tsx`: Interactive canvas viewport with safe-zone guides and ~150ms debounced text input redrawing (with 0ms instant archetype switching).
+       - `SlideNavigator.tsx`: Slide thumbnail strip, add/duplicate/delete/reorder controls, and hook variant picker.
+       - `InlineSlideEditor.tsx`: Direct bilingual headline and body inputs.
+       - `ArchetypeControls.tsx`: Collapsible drawer for diagram nodes, code diffs, metrics, and comparisons.
+       - `ExportBar.tsx`: Export triggers and review status indicators.
+     - Reduced `AutonomousStudio.tsx` from 1,434 lines to 594 lines as a clean coordinator.
+     - Optimized `ContactSheetModal.tsx`: Scaled thumbnail previews from 1080x1920 to 270x480 preview canvases with microtask yielding, reducing GPU texture memory from ~83MB down to ~5MB while preserving full Q95 master exports.
+  3. **Phase 6: Server & API Modularization (`api/`):**
+     - Created `src/lib/techLogos.ts`: Single source of truth for `TECH_ICONS_LIST` and `KNOWN_TECH_LOGOS` shared across client and server.
+     - Split 1,011-line `api/index.ts` into:
+       - `api/prompts/systemPrompt.ts`: MARROK system prompt and prompt decorator utilities.
+       - `api/prompts/responseSchema.ts`: Structured JSON schema for Gemini.
+       - `api/constants.ts`: Shared constants and log sanitization.
+       - `api/controllers/proxyController.ts`: CORS image proxy with SVG dynamic recoloring.
+       - `api/controllers/mediaController.ts`: Curated tech icons + Wikimedia Commons search.
+       - `api/controllers/imageController.ts`: AI diagram generator/editor with `gemini-nano-banana-2.1`.
+       - `api/controllers/generateController.ts`: Autonomous carousel generator with Google Search Grounding, direct LLM fallback, and local synthesizer fallback.
+       - `api/index.ts`: Clean Express router entry point (< 50 lines).
+- **Verification:**
+  - Gates 4, 5, and 6 verified: `npm run lint` and `npm run build` passing with 0 errors.
+  - Server verification: `/api/health` returned `{ status: 'ok', hasApiKey: true }`.
+  - Endpoint verification: `/api/generate` successfully generated a 6-slide deck via resilient synthesis without errors.
+  - Interactive Browser subagent verified on `http://localhost:3000`:
+    - Canvas rendering, safe-zone overlays, and 150ms text debouncing.
+    - All 8 archetypes (`hub`, `row`, `number`, `metric`, `code`, `compare`, `image`, `cta`) switched smoothly with auto-seeded context.
+    - Contact Sheet visual QA modal opened and rendered all 8 slide previews instantly with low memory usage.
+    - ZIP export functionality tested and operational.
+
+
 
 
