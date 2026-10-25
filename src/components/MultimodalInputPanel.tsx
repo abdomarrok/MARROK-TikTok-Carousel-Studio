@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { CarouselData, ThemePalette } from '../types';
 import { synthesizeCarousel } from '../lib/synthesizer';
+import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline';
 
 interface MultimodalInputPanelProps {
   theme: ThemePalette;
@@ -145,20 +146,25 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
 
   // Instant local synthesis fallback (0ms latency, zero network dependence)
   const handleInstantSynthesize = () => {
-    const generated = synthesizeCarousel({
-      prompt: promptText,
-      categoryHint,
-      inputMode: activeTab,
-      imageFileName: uploadedImageName,
-    });
-    onApplyCarousel(generated);
-    setSuccessMsg(`Generated ${generated.slides.length}-slide carousel & bilingual caption (Instant Mode)!`);
-    if (onClose) {
-      setTimeout(() => onClose(), 1200);
+    try {
+      const generated = synthesizeCarousel({
+        prompt: promptText,
+        categoryHint,
+        inputMode: activeTab,
+        imageFileName: uploadedImageName,
+      });
+      const processed = enrichAndPaceCarousel(generated, promptText);
+      onApplyCarousel(processed);
+      setSuccessMsg(`Generated ${processed.slides.length}-slide carousel & bilingual caption (Instant Mode)!`);
+      if (onClose) {
+        setTimeout(() => onClose(), 1200);
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Instant synthesis failed.');
     }
   };
 
-  // Submit to server-side Gemini API with progressive status and resilient fallback
+  // Submit to unified autonomous pipeline with progressive status and resilient fallback
   const handleGenerate = async () => {
     if (!promptText && !uploadedImageBase64) {
       setErrorMsg('Please provide some raw text, transcript, or upload a screenshot to analyze.');
@@ -170,44 +176,17 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
     setSuccessMsg(null);
     setPipelinePhase(uploadedImageBase64 ? 'Processing image & synthesizing carousel...' : 'Synthesizing carousel & bilingual copy...');
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second mobile safeguard timeout
-
-    const customKey = typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_key') : null;
-    const requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (customKey) {
-      requestHeaders['x-gemini-key'] = customKey;
-    }
-
     try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: requestHeaders,
-        signal: controller.signal,
-        body: JSON.stringify({
-          prompt: promptText,
-          inputMode: activeTab,
-          imageBase64: uploadedImageBase64,
-          imageMimeType: uploadedImageMime,
-          imageName: uploadedImageName,
-          categoryHint,
-        }),
+      const generatedData = await runAutonomousPipeline(promptText, {
+        onProgress: (status) => setPipelinePhase(status),
+        inputMode: activeTab,
+        imageBase64: uploadedImageBase64,
+        imageMimeType: uploadedImageMime,
+        imageName: uploadedImageName,
+        categoryHint,
+        generateDiagram: !uploadedImageBase64,
       });
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        let errMessage = 'Failed to generate carousel';
-        try {
-          const errorData = await response.json();
-          errMessage = errorData.error || errMessage;
-        } catch {
-          // ignore parsing error
-        }
-        throw new Error(errMessage);
-      }
-
-      const generatedData: CarouselData = await response.json();
       onApplyCarousel(generatedData);
       setSuccessMsg(`Generated ${generatedData.slides.length}-slide carousel & bilingual caption!`);
       if (onClose) {
@@ -215,9 +194,8 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.log('Cloud generation route transitioned to local autonomous synthesizer:', errMsg);
+      console.warn('Autonomous pipeline generation encountered an error, falling back locally:', errMsg);
 
-      // Resilient fallback: Never leave user stuck on mobile "Failed to fetch"!
       try {
         const fallbackData = synthesizeCarousel({
           prompt: promptText,
@@ -225,8 +203,9 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
           inputMode: activeTab,
           imageFileName: uploadedImageName,
         });
-        onApplyCarousel(fallbackData);
-        setSuccessMsg(`Generated ${fallbackData.slides.length}-slide carousel & caption via MARROK Resilient Engine!`);
+        const processed = enrichAndPaceCarousel(fallbackData, promptText);
+        onApplyCarousel(processed);
+        setSuccessMsg(`Generated ${processed.slides.length}-slide carousel & caption via MARROK Resilient Engine!`);
         if (onClose) {
           setTimeout(() => onClose(), 1400);
         }
@@ -235,7 +214,6 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
         setErrorMsg(fbMessage || 'Generation failed. Tap Instant Synthesize to generate immediately.');
       }
     } finally {
-      clearTimeout(timeoutId);
       setIsLoading(false);
       setPipelinePhase('');
     }

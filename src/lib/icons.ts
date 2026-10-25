@@ -1,10 +1,3 @@
-export interface IconDefinition {
-  name: string;
-  label: string;
-  paths?: string[];
-  isCustom?: boolean;
-  dataUrl?: string;
-}
 
 export const MARROK_LOGO_PATHS = {
   center: { x: 353.8, y: 383.45 },
@@ -411,16 +404,6 @@ export const KNOWN_TECH_LOGOS: Record<string, string> = {
   supabase: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/supabase.svg',
 };
 
-// Global in-memory custom icon storage for user uploads
-const CUSTOM_ICONS_MAP: Record<string, string> = {};
-
-export function registerCustomIcon(id: string, dataUrl: string): void {
-  CUSTOM_ICONS_MAP[id] = dataUrl;
-}
-
-export function getCustomIcon(id: string): string | undefined {
-  return CUSTOM_ICONS_MAP[id];
-}
 
 /**
  * Returns the authentic MARROK vector logo SVG with custom theme accent and rounded rectangle background.
@@ -509,10 +492,6 @@ export function getIconDataUrl(iconName: string, strokeColor = '#13131E', stroke
   if (lower === 'marrok' || lower === 'marroklogo') {
     const svg = getMarrokLogoSvg(strokeColor === '#13131E' ? '#364bde' : strokeColor);
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  }
-  // Check if it's a registered custom icon data URL
-  if (CUSTOM_ICONS_MAP[iconName]) {
-    return CUSTOM_ICONS_MAP[iconName];
   }
   // Check if iconName is already a data URL or blob URL
   if (iconName.startsWith('data:') || iconName.startsWith('blob:')) {

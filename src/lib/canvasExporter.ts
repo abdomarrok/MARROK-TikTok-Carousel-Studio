@@ -1224,7 +1224,7 @@ export async function renderSlideToCanvas(
   // 4. Header: Top-Left Authentic MARROK Vector Badge + Full Wordmark "MARROK" + Pulsing Accent Dot
   ctx.save();
   const rawBrand = (carousel.brand || 'MARROK').trim();
-  const displayBrandText = rawBrand.toUpperCase() === 'ARROK' ? 'MARROK' : (rawBrand || 'MARROK');
+  const displayBrandText = rawBrand || 'MARROK';
 
   // Crisp compact authentic MARROK vector logo badge (32x32px)
   const logoBadgeSize = 32;

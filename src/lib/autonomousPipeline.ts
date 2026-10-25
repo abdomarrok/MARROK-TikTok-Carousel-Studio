@@ -1,38 +1,122 @@
 import { CarouselData, SlideData, ThemePalette } from '../types';
-import { sanitizeFullCarousel } from './textSanitizer';
-import { autoFitTextToLimits, autoPolishHeadline, fixArabicPunctuation } from './smartEditor';
+import { sanitizeFullCarousel } from './text/sanitizer';
+import { autoFitTextToLimits, autoPolishHeadline } from './text/headlines';
+import { fixArabicPunctuation } from './text/arabicBiDi';
 import { runQAChecks, CHAR_LIMITS } from './qaChecks';
-import { synthesizeCarousel, resolveDomainTheme, enrichCarouselDiagrams, balanceCarouselVisualPacing } from './synthesizer';
+import {
+  synthesizeCarousel,
+  resolveDomainTheme,
+  enrichCarouselDiagrams,
+  balanceCarouselVisualPacing,
+} from './synthesis';
 
 export interface AutonomousPipelineOptions {
   onProgress?: (status: string) => void;
   theme?: ThemePalette;
   generateDiagram?: boolean;
+  inputMode?: string;
+  imageBase64?: string | null;
+  imageMimeType?: string;
+  imageName?: string;
+  categoryHint?: string;
+}
+
+/**
+ * Enforces Spec §8 sanitization, character limit auto-fitting,
+ * headline polishing, multi-node diagram enrichment, and visual pacing.
+ */
+export function enrichAndPaceCarousel(
+  carousel: CarouselData,
+  rawInput: string = ''
+): CarouselData {
+  // Step 1: Auto-Sanitize Markdown, Hashes, Orphan Dots & BiDi order
+  let cleanCarousel = sanitizeFullCarousel(carousel);
+
+  // Step 2: Auto-Fit Character Limits & Polish Headlines
+  const polishedSlides: SlideData[] = cleanCarousel.slides.map((slide) => {
+    const polishedTitle = autoPolishHeadline(slide.enTitle || '');
+    const fittedEnTitle = autoFitTextToLimits(polishedTitle, CHAR_LIMITS.enTitle);
+    const fittedEnBody = autoFitTextToLimits(slide.enBody || '', CHAR_LIMITS.enBody);
+    const fittedArTitle = autoFitTextToLimits(slide.arTitle || '', CHAR_LIMITS.arTitle);
+
+    const fixedArabicBody = fixArabicPunctuation(slide.arBody || '');
+    const fittedArBody = autoFitTextToLimits(fixedArabicBody, CHAR_LIMITS.arBody);
+
+    return {
+      ...slide,
+      enTitle: fittedEnTitle,
+      enBody: fittedEnBody,
+      arTitle: fittedArTitle,
+      arBody: fittedArBody,
+    };
+  });
+
+  // Step 3: Enrich diagrams and satellites with topic-relevant specifications
+  const enrichedSlides = enrichCarouselDiagrams(
+    polishedSlides,
+    rawInput,
+    cleanCarousel.category || '',
+    cleanCarousel.brand || 'MARROK'
+  );
+  const balancedSlides = balanceCarouselVisualPacing(enrichedSlides);
+
+  cleanCarousel = {
+    ...cleanCarousel,
+    slides: balancedSlides,
+  };
+
+  // Step 4: Quality verification check
+  const qaReport = runQAChecks(cleanCarousel);
+  if (qaReport.warnCount > 0) {
+    cleanCarousel = sanitizeFullCarousel(cleanCarousel);
+  }
+
+  return cleanCarousel;
 }
 
 /**
  * Autonomously runs the entire synthesis, sanitization, localization,
- * character limit fitting, and 9:16 diagram generation pipeline.
+ * character limit fitting, visual pacing, and optional 9:16 diagram generation pipeline.
  * No manual knobs needed: the engine does all the work end-to-end.
  */
 export async function runAutonomousPipeline(
   rawInput: string,
   options: AutonomousPipelineOptions = {}
 ): Promise<CarouselData> {
-  const { onProgress, theme, generateDiagram = true } = options;
+  const {
+    onProgress,
+    theme,
+    generateDiagram = true,
+    inputMode,
+    imageBase64,
+    imageMimeType,
+    imageName,
+    categoryHint,
+  } = options;
 
   // Step 1: Synthesize Content & Bilingual Structure
   onProgress?.('Synthesizing 8-slide architecture carousel...');
   let rawCarousel: CarouselData | null = null;
 
+  const customKey = typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_key') : null;
+  const requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (customKey) {
+    requestHeaders['x-gemini-key'] = customKey;
+  }
+
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: requestHeaders,
       body: JSON.stringify({
         prompt: rawInput,
         topic: rawInput,
         notes: rawInput,
+        inputMode,
+        imageBase64,
+        imageMimeType,
+        imageName,
+        categoryHint,
       }),
     });
 
@@ -48,7 +132,12 @@ export async function runAutonomousPipeline(
 
   // Fallback to local synthesizer if API fails or returns invalid structure
   if (!rawCarousel) {
-    rawCarousel = synthesizeCarousel({ prompt: rawInput });
+    rawCarousel = synthesizeCarousel({
+      prompt: rawInput,
+      categoryHint,
+      inputMode,
+      imageFileName: imageName,
+    });
   }
 
   // Domain-Aware Theme Routing: match input topic to best visual theme
@@ -57,40 +146,9 @@ export async function runAutonomousPipeline(
     rawCarousel.theme = domainTheme;
   }
 
-  // Step 2: Auto-Sanitize Markdown, Hashes, Orphan Dots & BiDi order
-  onProgress?.('Auto-cleaning markdown noise & BiDi character order...');
-  let cleanCarousel = sanitizeFullCarousel(rawCarousel);
-
-  // Step 3: Auto-Fit Character Limits & Polish Headlines
-  onProgress?.('Enforcing Spec §8 character limits & polishing headlines...');
-  const polishedSlides: SlideData[] = cleanCarousel.slides.map((slide) => {
-    // Polish headline (2-5 crisp words ending in period)
-    const polishedTitle = autoPolishHeadline(slide.enTitle || '');
-    const fittedEnTitle = autoFitTextToLimits(polishedTitle, CHAR_LIMITS.enTitle);
-    const fittedEnBody = autoFitTextToLimits(slide.enBody || '', CHAR_LIMITS.enBody);
-    const fittedArTitle = autoFitTextToLimits(slide.arTitle || '', CHAR_LIMITS.arTitle);
-
-    // Auto-fix Arabic line punctuation jump if applicable
-    const fixedArabicBody = fixArabicPunctuation(slide.arBody || '');
-    const fittedArBody = autoFitTextToLimits(fixedArabicBody, CHAR_LIMITS.arBody);
-
-    return {
-      ...slide,
-      enTitle: fittedEnTitle,
-      enBody: fittedEnBody,
-      arTitle: fittedArTitle,
-      arBody: fittedArBody,
-    };
-  });
-
-  // Step 3b: Enrich diagrams and satellites with topic-relevant specifications
-  const enrichedSlides = enrichCarouselDiagrams(polishedSlides, rawInput, cleanCarousel.category || '', cleanCarousel.brand || 'MARROK');
-  const balancedSlides = balanceCarouselVisualPacing(enrichedSlides);
-
-  cleanCarousel = {
-    ...cleanCarousel,
-    slides: balancedSlides,
-  };
+  // Step 2 & 3: Auto-Sanitize, Fit Limits, Polish Headlines, Enrich & Pace
+  onProgress?.('Enforcing Spec §8 character limits, polishing headlines & pacing...');
+  let cleanCarousel = enrichAndPaceCarousel(rawCarousel, rawInput);
 
   // Step 4: Auto-Generate 9:16 Architecture Diagram for Key Mechanism Slide
   if (generateDiagram && cleanCarousel.slides.length >= 3) {
@@ -105,7 +163,7 @@ export async function runAutonomousPipeline(
 
         const imgRes = await fetch('/api/generate-image', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: requestHeaders,
           body: JSON.stringify({
             prompt: diagramPrompt,
             aspectRatio: '9:16',

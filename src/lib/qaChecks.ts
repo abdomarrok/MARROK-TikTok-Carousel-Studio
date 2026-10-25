@@ -141,7 +141,7 @@ function checkCharLimits(slide: SlideData, idx: number, isHook: boolean): QAChec
  * - No Arabic line should end with a Latin word followed by punctuation.
  * - No colon or punctuation should directly touch a Latin word in an Arabic string (e.g. "رحلة :Scion").
  */
-export function hasArabicPunctuationJump(text?: string): boolean {
+function hasArabicPunctuationJump(text?: string): boolean {
   if (!text) return false;
   // Ends with Latin word + punctuation
   const badEndingPattern = /[A-Za-z0-9]+[.?!،؟:؛]\s*$/;
