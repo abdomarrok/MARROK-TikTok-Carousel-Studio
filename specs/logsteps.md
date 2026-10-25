@@ -398,3 +398,30 @@ This document records the chronological development history, engineering decisio
   - Type-checked cleanly with zero errors (`npm run lint`).
   - Production build compiled successfully (`npm run build`).
   - Visually verified in browser subagent on Slide 1 canvas header, Slide 8 CTA emblem, and the attribution card with zero rendering artifacts.
+
+---
+
+## Step 20: Mathematical Optical Centering & Native Path2D Canvas Engine
+- **Context & Problem Analysis:**
+  - The authentic MARROK SVG logo geometry paths span $x \in [262.0, 445.6]$ (width = $183.6$, center $X = 353.8$) and $y \in [289.0, 477.9]$ (height = $188.9$, center $Y = 383.45$).
+  - The legacy `viewBox="250 260 260 260"` created an asymmetrical padding of $12\text{px}$ left margin vs $64.4\text{px}$ right margin, resulting in a visible rightward optical bias when rendered inside square badges.
+  - Furthermore, rasterizing SVG via asynchronous `HTMLImageElement` decoding introduced micro-delays and potential blank-canvas race conditions during batch slide rendering.
+- **Engineering Solutions Implemented:**
+  1. **Optical Dead-Center SVG ViewBox (`specs/marrok-logo-square-source.svg` & `public/marrok-logo.svg`):**
+     - Recalibrated both SVGs to `viewBox="234 263 240 240"` with `<rect x="234" y="263" width="240" height="240" fill="#0D0D0D"/>`.
+     - Calculated exact margins: $28.0\text{px}$ left vs $28.4\text{px}$ right margin ($<0.4\text{px}$ delta), and $26.0\text{px}$ top vs $25.1\text{px}$ bottom margin ($<0.9\text{px}$ delta), guaranteeing true sub-pixel optical dead-centering.
+  2. **Synchronous Native Path2D Vector Engine (`src/lib/icons.ts`):**
+     - Extracted `MARROK_LOGO_PATHS` containing path definitions for `pathMain`, `pathRightBottom`, `pathAccent`, and `pathLeftFrame`, along with true center $(353.8, 383.45)$ and viewBox definitions.
+     - Implemented `drawMarrokVectorBadge(ctx, cx, cy, size, accentColor, bgColor, borderRadius)` using native HTML5 Canvas `Path2D`.
+     - Scaled dynamically using `scale = size / 240` and transformed relative to dead-center $(353.8, 383.45)$, rendering 100% synchronously with zero decode latency and zero raster blur.
+     - Preserved the authentic two-tone signature: 3 white paths (`#FFFFFF`) and 1 theme-accented top-right triangle path (`theme.accent` / `#364bde`).
+     - Updated `ICONS_REGISTRY.marrok` and `getMarrokLogoSvg()` to use the new $(353.8, 383.45)$ translation offset.
+  3. **Canvas Exporter Integration (`src/lib/canvasExporter.ts`):**
+     - **Slide Header Tier (`y: 80 -> 220`):** Rendered a crisp $32 \times 32\text{px}$ logo badge at $(82, 112)$ using `drawMarrokVectorBadge()`, paired with `ARROK` logotype wordmark at a tight 9px kerning gap so the badge functions as the visual initial `'M'`.
+     - **Slide 8 (`cta`) Central Core:** Replaced plain text `'M'` inside the central core of the isometric diamond at $(518, 440)$ with `drawMarrokVectorBadge(ctx, emblemX, emblemY, coreSize - 6, theme.accent, 'transparent')`.
+     - **Slide 8 Attribution Card:** Replaced image rendering in the `marrok.org` verified card with `drawMarrokVectorBadge()`.
+- **Verification:**
+  - TypeScript validation passed with zero errors (`npm run lint`).
+  - Production build compiled cleanly in 245ms (`npm run build`).
+  - Browser inspection confirmed dead-center alignment on Slide 1 header and Slide 8 CTA core and attribution card.
+

@@ -6,6 +6,15 @@ export interface IconDefinition {
   dataUrl?: string;
 }
 
+export const MARROK_LOGO_PATHS = {
+  center: { x: 353.8, y: 383.45 },
+  viewBox: { x: 234, y: 263, width: 240, height: 240 },
+  pathMain: 'M274.593 292.356c7.516 5.431 22.212 18.846 29.88 25.433l57.733 49.435a550 550 0 0 1 15.149-12.803l58.963.067c-24.81 22.418-50.647 43.634-75.56 66.436a4749 4749 0 0 1-50.139-42.56c-.49 31.044-.044 63.633-.034 94.782l.559.69c2.697.605 31.529.368 36.393.367l94.175-.029c-.007-10.958-.07-24.17.056-35.333.016-1.404 1.697-2.216 2.734-2.827 1.817 1.933.945 36.549.911 41.792l-137.518.095c-10.902-8.575-22.944-19.229-33.51-28.38.113-51.464-.857-105.95.208-157.165',
+  pathRightBottom: 'M444.828 364.305c1.139 1.844.571 50.643.56 56.415-14.46 11.842-28.334 26.13-42.456 37.258-1.332-1.635-.761-50.857-.751-57.199 6.602-6.024 14.215-12.152 21.015-18.098 6.797-5.943 14.531-13.018 21.632-18.376',
+  pathAccent: 'M444.698 298.519c1.651 2.305.913 33.331.893 38.505-13.853.389-29.377-.003-43.353-.082l-.6-.273-.018-.815c9.066-9.55 32.459-28.681 43.078-37.335',
+  pathLeftFrame: 'm262.154 289 2.641.632c1.169 1.916.549 37.2.541 41.855l.154 142.47c6.939.09 15.094-.806 21.911.376 1.926.334 2.769 1.824 3.711 3.441l-29.021.05.221-120.184c-.048-21.851-.844-47.135-.158-68.64m25.763.486c13.492-.132 148.331-.571 150.082.271l-.288 1.158c-3.695 2.973-17.296 2.033-22.397 2.047l-33.877.044c-28.986-.004-58.103.059-87.096-.034-3.672-.012-3.662-.558-6.424-3.486',
+};
+
 export const ICONS_REGISTRY: Record<string, { label: string; svgInner: string }> = {
   gitMerge: {
     label: 'Git Merge',
@@ -324,14 +333,35 @@ export const ICONS_REGISTRY: Record<string, { label: string; svgInner: string }>
   marrok: {
     label: 'MARROK Core',
     svgInner: `
-      <rect x="0" y="0" width="64" height="64" rx="14" fill="#0D0D0D" stroke="none" />
-      <g transform="translate(6, 6) scale(0.2) translate(-250, -260)">
-        <path fill="currentColor" d="M274.593 292.356c7.516 5.431 22.212 18.846 29.88 25.433l57.733 49.435a550 550 0 0 1 15.149-12.803l58.963.067c-24.81 22.418-50.647 43.634-75.56 66.436a4749 4749 0 0 1-50.139-42.56c-.49 31.044-.044 63.633-.034 94.782l.559.69c2.697.605 31.529.368 36.393.367l94.175-.029c-.007-10.958-.07-24.17.056-35.333.016-1.404 1.697-2.216 2.734-2.827 1.817 1.933.945 36.549.911 41.792l-137.518.095c-10.902-8.575-22.944-19.229-33.51-28.38.113-51.464-.857-105.95.208-157.165"/>
-        <path fill="currentColor" d="M444.828 364.305c1.139 1.844.571 50.643.56 56.415-14.46 11.842-28.334 26.13-42.456 37.258-1.332-1.635-.761-50.857-.751-57.199 6.602-6.024 14.215-12.152 21.015-18.098 6.797-5.943 14.531-13.018 21.632-18.376"/>
-        <path fill="#364bde" d="M444.698 298.519c1.651 2.305.913 33.331.893 38.505-13.853.389-29.377-.003-43.353-.082l-.6-.273-.018-.815c9.066-9.55 32.459-28.681 43.078-37.335"/>
-        <path fill="currentColor" d="m262.154 289 2.641.632c1.169 1.916.549 37.2.541 41.855l.154 142.47c6.939.09 15.094-.806 21.911.376 1.926.334 2.769 1.824 3.711 3.441l-29.021.05.221-120.184c-.048-21.851-.844-47.135-.158-68.64m25.763.486c13.492-.132 148.331-.571 150.082.271l-.288 1.158c-3.695 2.973-17.296 2.033-22.397 2.047l-33.877.044c-28.986-.004-58.103.059-87.096-.034-3.672-.012-3.662-.558-6.424-3.486"/>
-      </g>
-    `,
+    <rect
+      width="64"
+      height="64"
+      rx="14"
+      fill="#0D0D0D"
+    />
+
+    <g transform="translate(32, 32) scale(0.22) translate(-353.8, -383.45)">
+      <path
+        fill="#ffffff"
+        d="${MARROK_LOGO_PATHS.pathMain}"
+      />
+
+      <path
+        fill="#ffffff"
+        d="${MARROK_LOGO_PATHS.pathRightBottom}"
+      />
+
+      <path
+        fill="#364bde"
+        d="${MARROK_LOGO_PATHS.pathAccent}"
+      />
+
+      <path
+        fill="#ffffff"
+        d="${MARROK_LOGO_PATHS.pathLeftFrame}"
+      />
+    </g>
+  `,
   },
 };
 
@@ -398,15 +428,67 @@ export function getCustomIcon(id: string): string | undefined {
  */
 export function getMarrokLogoSvg(accentColor = '#364bde', options?: { bg?: string; rx?: number }): string {
   const bg = options?.bg ?? '#0D0D0D';
-  const rx = options?.rx ?? 42;
-  const bgRect = bg !== 'transparent' ? `<rect x="250" y="260" width="260" height="260" rx="${rx}" fill="${bg}"/>` : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="250 260 260 260">
+  const rx = options?.rx ?? 40;
+  const bgRect = bg !== 'transparent' ? `<rect x="234" y="263" width="240" height="240" rx="${rx}" fill="${bg}"/>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="234 263 240 240">
     ${bgRect}
-    <path fill="#ffffff" d="M274.593 292.356c7.516 5.431 22.212 18.846 29.88 25.433l57.733 49.435a550 550 0 0 1 15.149-12.803l58.963.067c-24.81 22.418-50.647 43.634-75.56 66.436a4749 4749 0 0 1-50.139-42.56c-.49 31.044-.044 63.633-.034 94.782l.559.69c2.697.605 31.529.368 36.393.367l94.175-.029c-.007-10.958-.07-24.17.056-35.333.016-1.404 1.697-2.216 2.734-2.827 1.817 1.933.945 36.549.911 41.792l-137.518.095c-10.902-8.575-22.944-19.229-33.51-28.38.113-51.464-.857-105.95.208-157.165"/>
-    <path fill="#ffffff" d="M444.828 364.305c1.139 1.844.571 50.643.56 56.415-14.46 11.842-28.334 26.13-42.456 37.258-1.332-1.635-.761-50.857-.751-57.199 6.602-6.024 14.215-12.152 21.015-18.098 6.797-5.943 14.531-13.018 21.632-18.376"/>
-    <path fill="${accentColor || '#364bde'}" d="M444.698 298.519c1.651 2.305.913 33.331.893 38.505-13.853.389-29.377-.003-43.353-.082l-.6-.273-.018-.815c9.066-9.55 32.459-28.681 43.078-37.335"/>
-    <path fill="#ffffff" d="m262.154 289 2.641.632c1.169 1.916.549 37.2.541 41.855l.154 142.47c6.939.09 15.094-.806 21.911.376 1.926.334 2.769 1.824 3.711 3.441l-29.021.05.221-120.184c-.048-21.851-.844-47.135-.158-68.64m25.763.486c13.492-.132 148.331-.571 150.082.271l-.288 1.158c-3.695 2.973-17.296 2.033-22.397 2.047l-33.877.044c-28.986-.004-58.103.059-87.096-.034-3.672-.012-3.662-.558-6.424-3.486"/>
+    <path fill="#ffffff" d="${MARROK_LOGO_PATHS.pathMain}"/>
+    <path fill="#ffffff" d="${MARROK_LOGO_PATHS.pathRightBottom}"/>
+    <path fill="${accentColor || '#364bde'}" d="${MARROK_LOGO_PATHS.pathAccent}"/>
+    <path fill="#ffffff" d="${MARROK_LOGO_PATHS.pathLeftFrame}"/>
   </svg>`.trim();
+}
+
+/**
+ * Renders the authentic MARROK vector logo badge directly using Path2D vector geometry.
+ * Completely synchronous with zero image latency, scaled from true dead-center (353.8, 383.45).
+ */
+export function drawMarrokVectorBadge(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  accentColor = '#364bde',
+  bgColor = '#0D0D0D',
+  borderRadius = size * 0.22
+): void {
+  // 1. Dark OLED rounded background plate
+  if (bgColor && bgColor !== 'transparent') {
+    ctx.save();
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    const half = size / 2;
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(cx - half, cy - half, size, size, borderRadius);
+    } else {
+      ctx.rect(cx - half, cy - half, size, size);
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 2. Direct vector paths scaled from true dead-center (353.8, 383.45)
+  // Scaling by size / 240 preserves the exact 240x240 viewBox proportions
+  const scale = size / 240;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.translate(-MARROK_LOGO_PATHS.center.x, -MARROK_LOGO_PATHS.center.y);
+
+  const pMain = new Path2D(MARROK_LOGO_PATHS.pathMain);
+  const pRight = new Path2D(MARROK_LOGO_PATHS.pathRightBottom);
+  const pAccent = new Path2D(MARROK_LOGO_PATHS.pathAccent);
+  const pFrame = new Path2D(MARROK_LOGO_PATHS.pathLeftFrame);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill(pMain);
+  ctx.fill(pRight);
+  ctx.fill(pFrame);
+
+  ctx.fillStyle = accentColor;
+  ctx.fill(pAccent);
+
+  ctx.restore();
 }
 
 export function getIconSvg(iconName: string, strokeColor = '#13131E', strokeWidth = 4.2): string {

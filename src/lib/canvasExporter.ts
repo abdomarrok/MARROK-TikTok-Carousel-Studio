@@ -1,5 +1,5 @@
 import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette, VisualSystemOptions } from '../types.ts';
-import { getIconDataUrl, getIconSvg } from './icons.ts';
+import { getIconDataUrl, getIconSvg, drawMarrokVectorBadge } from './icons.ts';
 import { sanitizeArabicSlideText, sanitizeEnglishSlideText } from './textSanitizer.ts';
 import JSZip from 'jszip';
 
@@ -433,10 +433,10 @@ export async function renderSlideToCanvas(
   const isMarrokBrand = rawBrand.toUpperCase().trim() === 'MARROK';
   const displayBrandText = isMarrokBrand ? 'ARROK' : rawBrand;
 
-  // Crisp compact authentic MARROK vector logo badge (34x34px) functioning as initial "M"
-  const logoBadgeSize = 34;
+  // Crisp compact authentic MARROK vector logo badge (32x32px) functioning as initial "M"
+  const logoBadgeSize = 32;
   const logoBadgeX = 82;
-  const logoBadgeY = 110;
+  const logoBadgeY = 112;
 
   // Ambient badge glow matching studio header
   ctx.save();
@@ -445,8 +445,8 @@ export async function renderSlideToCanvas(
   drawRoundRect(ctx, logoBadgeX, logoBadgeY, logoBadgeSize, logoBadgeSize, 8, '#0D0D0D', `${theme.accent}66`, 1.2);
   ctx.restore();
 
-  // Render authentic SVG vector mark inside badge
-  safeDrawImage(ctx, marrokLogoImg, logoBadgeX + 2, logoBadgeY + 2, logoBadgeSize - 4, logoBadgeSize - 4);
+  // Render authentic SVG vector mark inside badge using Path2D
+  drawMarrokVectorBadge(ctx, logoBadgeX + logoBadgeSize / 2, logoBadgeY + logoBadgeSize / 2, logoBadgeSize - 4, theme.accent, 'transparent');
 
   // Brand Wordmark: tight kerning gap (9px when ARROK) so [Logo M] + "ARROK" forms "MARROK"
   const brandTextX = logoBadgeX + logoBadgeSize + (isMarrokBrand ? 9 : 14);
@@ -1578,8 +1578,8 @@ export async function renderSlideToCanvas(
     drawRoundRect(ctx, coreX, coreY, coreSize, coreSize, 14, '#081216', theme.accent, 2);
     ctx.restore();
 
-    // Render authentic MARROK vector logo inside core badge
-    safeDrawImage(ctx, marrokLogoImg, coreX + 3, coreY + 3, coreSize - 6, coreSize - 6);
+    // Render authentic MARROK vector logo inside core badge using Path2D
+    drawMarrokVectorBadge(ctx, emblemX, emblemY, coreSize - 6, theme.accent, 'transparent');
     ctx.restore();
 
     // 4. Brand Wordmark & Domain Hook Badge directly below emblem
@@ -1675,7 +1675,7 @@ export async function renderSlideToCanvas(
     const mBadgeX = cardX + 22;
     const mBadgeY = cardY + (cardH - mBadgeSize) / 2;
     drawRoundRect(ctx, mBadgeX, mBadgeY, mBadgeSize, mBadgeSize, 10, '#0D0D0D', `${theme.accent}55`, 1.2);
-    safeDrawImage(ctx, marrokLogoImg, mBadgeX + 3, mBadgeY + 3, mBadgeSize - 6, mBadgeSize - 6);
+    drawMarrokVectorBadge(ctx, mBadgeX + mBadgeSize / 2, mBadgeY + mBadgeSize / 2, mBadgeSize - 6, theme.accent, 'transparent');
 
     // 2. Verified shield icon badge alongside MARROK badge
     const sBadgeSize = 42;
