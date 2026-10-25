@@ -24,9 +24,12 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#080d11]/85 backdrop-blur-md px-4 sm:px-6 py-3 transition-colors">
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-        {/* Wordmark with Accent Dot & Tag */}
+        {/* Wordmark with Authentic Marrok Logo Badge & Accent Dot */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <a href="#" className="flex items-center gap-2 group">
+          <a href="#" className="flex items-center gap-2.5 group">
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15 bg-[#0D0D0D] flex items-center justify-center shadow-sm group-hover:border-white/30 transition-all flex-shrink-0">
+              <img src="/marrok-logo.svg" alt="MARROK" className="w-full h-full object-contain" />
+            </div>
             <span className="text-xl font-extrabold tracking-tight text-white font-jakarta">
               MARROK
             </span>
