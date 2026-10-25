@@ -93,6 +93,80 @@ function wrapTextLines(
   return lines;
 }
 
+interface FitTextOptions {
+  maxLines?: number;
+  minFontSize?: number;
+  lineHeightFactor?: number;
+  ellipsis?: boolean;
+}
+
+/**
+ * Self-healing typography helper:
+ * Measures text width and dynamically scales font size down (to minFontSize) or smart-wraps to maxLines,
+ * ensuring pills, badges, node cards, and comparison columns never clip, overflow, or require manual shortening.
+ */
+function fitTextInBox(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  initialFontSize: number,
+  fontFamily: string,
+  fontWeight: string | number = '700',
+  options: FitTextOptions = {}
+): { fontSize: number; lines: string[]; lineHeight: number } {
+  const { maxLines = 1, minFontSize = 9, lineHeightFactor = 1.25, ellipsis = true } = options;
+  if (!text) {
+    return { fontSize: initialFontSize, lines: [], lineHeight: initialFontSize * lineHeightFactor };
+  }
+
+  const cleanText = text.trim();
+  let currentSize = initialFontSize;
+
+  if (maxLines === 1) {
+    while (currentSize >= minFontSize) {
+      ctx.font = `${fontWeight} ${currentSize}px ${fontFamily}`;
+      const width = ctx.measureText(cleanText).width;
+      if (width <= maxWidth) {
+        return { fontSize: currentSize, lines: [cleanText], lineHeight: currentSize * lineHeightFactor };
+      }
+      currentSize -= 0.5;
+    }
+
+    // If still overflows at minFontSize, truncate with ellipsis
+    ctx.font = `${fontWeight} ${minFontSize}px ${fontFamily}`;
+    let truncated = cleanText;
+    if (ellipsis) {
+      while (truncated.length > 1 && ctx.measureText(truncated + '…').width > maxWidth) {
+        truncated = truncated.slice(0, -1);
+      }
+      truncated += '…';
+    }
+    return { fontSize: minFontSize, lines: [truncated], lineHeight: minFontSize * lineHeightFactor };
+  }
+
+  // Multi-line wrap with font-size scale down if needed
+  while (currentSize >= minFontSize) {
+    ctx.font = `${fontWeight} ${currentSize}px ${fontFamily}`;
+    const wrapped = wrapTextLines(ctx, cleanText, maxWidth);
+    if (wrapped.length <= maxLines) {
+      return { fontSize: currentSize, lines: wrapped, lineHeight: currentSize * lineHeightFactor };
+    }
+    currentSize -= 1;
+  }
+
+  // Truncate to maxLines with ellipsis on final line
+  ctx.font = `${fontWeight} ${minFontSize}px ${fontFamily}`;
+  const wrapped = wrapTextLines(ctx, cleanText, maxWidth).slice(0, maxLines);
+  if (wrapped.length === maxLines && ellipsis) {
+    let last = wrapped[maxLines - 1];
+    while (last.length > 1 && ctx.measureText(last + '…').width > maxWidth) {
+      last = last.slice(0, -1);
+    }
+    wrapped[maxLines - 1] = last + '…';
+  }
+  return { fontSize: minFontSize, lines: wrapped, lineHeight: minFontSize * lineHeightFactor };
+}
+
 // In-memory image cache for fast re-renders without repeated network round-trips
 const CANVAS_IMAGE_CACHE = new Map<string, HTMLImageElement>();
 
@@ -412,32 +486,39 @@ async function drawMultiNodeTopologyFlow(
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(n.role, n.x + 68, nodeY + 36);
 
-    // Sub-title
-    ctx.font = '500 12px "JetBrains Mono", monospace';
+    // Sub-title with auto-fit
+    const fitSub = fitTextInBox(ctx, n.sub, nodeW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
+    ctx.font = `500 ${fitSub.fontSize}px "JetBrains Mono", monospace`;
     ctx.fillStyle = theme.textMuted;
-    const cleanSub = n.sub.length > 18 ? `${n.sub.slice(0, 17)}…` : n.sub;
-    ctx.fillText(cleanSub, n.x + 68, nodeY + 52);
+    ctx.fillText(fitSub.lines[0] || n.sub, n.x + 68, nodeY + 52);
 
-    // Primary Title
-    ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+    // Primary Title with self-healing 1-or-2 line auto-fit
+    const fitTitle = fitTextInBox(ctx, n.title, nodeW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+    ctx.font = `800 ${fitTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(n.title.length > 14 ? `${n.title.slice(0, 13)}…` : n.title, n.x + 18, nodeY + 115);
+    if (fitTitle.lines.length <= 1) {
+      ctx.fillText(fitTitle.lines[0] || n.title, n.x + 18, nodeY + 115);
+    } else {
+      ctx.fillText(fitTitle.lines[0], n.x + 18, nodeY + 104);
+      ctx.fillText(fitTitle.lines[1], n.x + 18, nodeY + 104 + fitTitle.lineHeight);
+    }
 
     // Detail spec lines
     ctx.font = '500 13px "JetBrains Mono", monospace';
     ctx.fillStyle = '#94A3B8';
-    ctx.fillText(`• ${cleanSub}`, n.x + 18, nodeY + 145);
+    ctx.fillText(`• ${fitSub.lines[0] || n.sub}`, n.x + 18, nodeY + 145);
     ctx.fillText(`• ${n.role} Active`, n.x + 18, nodeY + 168);
 
     // Bottom Status Pill
     const pillW = 100;
     const pillH = 24;
     drawRoundRect(ctx, n.x + 18, nodeY + nodeH - 34, pillW, pillH, 8, `${n.statusColor}20`, `${n.statusColor}60`, 1);
-    ctx.font = '700 11px "JetBrains Mono", monospace';
+    const fitStatus = fitTextInBox(ctx, `[ ${n.status} ]`, pillW - 8, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+    ctx.font = `700 ${fitStatus.fontSize}px "JetBrains Mono", monospace`;
     ctx.fillStyle = n.statusColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`[ ${n.status} ]`, n.x + 18 + pillW / 2, nodeY + nodeH - 22);
+    ctx.fillText(fitStatus.lines[0] || `[ ${n.status} ]`, n.x + 18 + pillW / 2, nodeY + nodeH - 22);
     ctx.restore();
   }
 
@@ -454,12 +535,13 @@ async function drawMultiNodeTopologyFlow(
   ctx.stroke();
 
   // Protocol pill 1
-  drawRoundRect(ctx, nx1 + nodeW + 4, midY - 14, 46, 28, 6, '#060a0d', `${theme.accent}80`, 1);
-  ctx.font = '700 10px "JetBrains Mono", monospace';
+  drawRoundRect(ctx, nx1 + nodeW + 2, midY - 14, 50, 28, 6, '#060a0d', `${theme.accent}80`, 1);
+  const fitEdge1 = fitTextInBox(ctx, edge1, 46, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8 });
+  ctx.font = `700 ${fitEdge1.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(edge1.length > 8 ? `${edge1.slice(0, 7)}…` : edge1, nx1 + nodeW + 27, midY);
+  ctx.fillText(fitEdge1.lines[0] || edge1, nx1 + nodeW + 27, midY);
 
   // Arrow 1 Tip
   ctx.fillStyle = theme.accent;
@@ -478,8 +560,10 @@ async function drawMultiNodeTopologyFlow(
   ctx.stroke();
 
   // Protocol pill 2
-  drawRoundRect(ctx, nx2 + nodeW + 4, midY - 14, 46, 28, 6, '#060a0d', `${theme.accent}80`, 1);
-  ctx.fillText(edge2.length > 8 ? `${edge2.slice(0, 7)}…` : edge2, nx2 + nodeW + 27, midY);
+  drawRoundRect(ctx, nx2 + nodeW + 2, midY - 14, 50, 28, 6, '#060a0d', `${theme.accent}80`, 1);
+  const fitEdge2 = fitTextInBox(ctx, edge2, 46, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8 });
+  ctx.font = `700 ${fitEdge2.fontSize}px "JetBrains Mono", monospace`;
+  ctx.fillText(fitEdge2.lines[0] || edge2, nx2 + nodeW + 27, midY);
 
   // Arrow 2 Tip
   ctx.beginPath();
@@ -494,15 +578,16 @@ async function drawMultiNodeTopologyFlow(
   const barY = nodeY + nodeH + 20;
   drawRoundRect(ctx, nx1, barY, cardW - 64, 46, 12, '#091116', `${theme.accent}33`, 1.2);
   ctx.save();
-  ctx.font = '700 13px "JetBrains Mono", monospace';
+  const footerText = slide.diagramFooter || 'LATENCY: P99 < 1.0ms  •  PROTOCOL: ACTIVE  •  PIPELINE: DETERMINISTIC';
+  const fitFooter = fitTextInBox(ctx, footerText, cardW - 80, 13, '"JetBrains Mono", monospace', '700', { minFontSize: 9.5 });
+  ctx.font = `700 ${fitFooter.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = theme.textMuted;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const footerText = slide.diagramFooter || 'LATENCY: P99 < 1.0ms  •  PROTOCOL: ACTIVE  •  PIPELINE: DETERMINISTIC';
-  ctx.fillText(footerText, cardX + cardW / 2, barY + 23);
+  ctx.fillText(fitFooter.lines[0] || footerText, cardX + cardW / 2, barY + 23);
   ctx.restore();
 
-  return 745;
+  return cardX + cardH > 0 ? topY + cardH : 670;
 }
 
 /**
@@ -588,24 +673,36 @@ async function drawBlastRadiusIsolationGrid(
   ctx.fillStyle = '#FDA4AF';
   ctx.textAlign = 'left';
   ctx.fillText(c1Role, cx1 + 68, cellY + 36);
-  ctx.fillStyle = '#F87171';
-  ctx.fillText(c1Sub.length > 16 ? `${c1Sub.slice(0, 15)}…` : c1Sub, cx1 + 68, cellY + 52);
 
-  ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+  const fitC1Sub = fitTextInBox(ctx, c1Sub, cellW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
+  ctx.font = `500 ${fitC1Sub.fontSize}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = '#F87171';
+  ctx.fillText(fitC1Sub.lines[0] || c1Sub, cx1 + 68, cellY + 52);
+
+  // Self-healing title: auto steps down font or wraps to 2 lines
+  const fitC1Title = fitTextInBox(ctx, c1Title, cellW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+  ctx.font = `800 ${fitC1Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(c1Title.length > 14 ? `${c1Title.slice(0, 13)}…` : c1Title, cx1 + 18, cellY + 115);
+  if (fitC1Title.lines.length <= 1) {
+    ctx.fillText(fitC1Title.lines[0] || c1Title, cx1 + 18, cellY + 115);
+  } else {
+    ctx.fillText(fitC1Title.lines[0], cx1 + 18, cellY + 104);
+    ctx.fillText(fitC1Title.lines[1], cx1 + 18, cellY + 104 + fitC1Title.lineHeight);
+  }
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#CBD5E1';
-  ctx.fillText(`• ${c1Sub.length > 18 ? c1Sub.slice(0, 17) + '…' : c1Sub}`, cx1 + 18, cellY + 145);
+  ctx.fillText(`• ${fitC1Sub.lines[0] || c1Sub}`, cx1 + 18, cellY + 145);
   ctx.fillText('• Boundary Enforced', cx1 + 18, cellY + 168);
 
-  drawRoundRect(ctx, cx1 + 18, cellY + cellH - 34, 110, 24, 8, 'rgba(244, 63, 94, 0.25)', 'rgba(244, 63, 94, 0.75)', 1);
-  ctx.font = '700 11px "JetBrains Mono", monospace';
+  const pillW1 = 110;
+  drawRoundRect(ctx, cx1 + 18, cellY + cellH - 34, pillW1, 24, 8, 'rgba(244, 63, 94, 0.25)', 'rgba(244, 63, 94, 0.75)', 1);
+  const fitC1Status = fitTextInBox(ctx, `[ ${c1Status} ]`, pillW1 - 10, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+  ctx.font = `700 ${fitC1Status.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#FDA4AF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`[ ${c1Status} ]`, cx1 + 18 + 55, cellY + cellH - 22);
+  ctx.fillText(fitC1Status.lines[0] || `[ ${c1Status} ]`, cx1 + 18 + pillW1 / 2, cellY + cellH - 22);
   ctx.restore();
 
   // Vertical Air-Gap Firewall Barrier between Cell 1 and Cell 2
@@ -620,11 +717,12 @@ async function drawBlastRadiusIsolationGrid(
   ctx.setLineDash([]);
 
   drawRoundRect(ctx, cx1 + cellW + gap / 2 - 28, cellY + cellH / 2 - 14, 56, 28, 6, '#060a0d', 'rgba(244, 63, 94, 0.70)', 1);
-  ctx.font = '700 10px "JetBrains Mono", monospace';
+  const fitBarrier = fitTextInBox(ctx, barrierTag, 50, 10, '"JetBrains Mono", monospace', '700', { minFontSize: 8 });
+  ctx.font = `700 ${fitBarrier.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#F43F5E';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(barrierTag.length > 7 ? `${barrierTag.slice(0, 6)}…` : barrierTag, cx1 + cellW + gap / 2, cellY + cellH / 2);
+  ctx.fillText(fitBarrier.lines[0] || barrierTag, cx1 + cellW + gap / 2, cellY + cellH / 2);
   ctx.restore();
 
   // Cell 2: Isolated Service Pod (Accent)
@@ -638,24 +736,36 @@ async function drawBlastRadiusIsolationGrid(
   ctx.fillStyle = theme.microLabel;
   ctx.textAlign = 'left';
   ctx.fillText(c2Role, cx2 + 68, cellY + 36);
-  ctx.fillStyle = theme.textMuted;
-  ctx.fillText(c2Sub.length > 16 ? `${c2Sub.slice(0, 15)}…` : c2Sub, cx2 + 68, cellY + 52);
 
-  ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+  const fitC2Sub = fitTextInBox(ctx, c2Sub, cellW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
+  ctx.font = `500 ${fitC2Sub.fontSize}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = theme.textMuted;
+  ctx.fillText(fitC2Sub.lines[0] || c2Sub, cx2 + 68, cellY + 52);
+
+  // Self-healing title
+  const fitC2Title = fitTextInBox(ctx, c2Title, cellW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+  ctx.font = `800 ${fitC2Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(c2Title.length > 14 ? `${c2Title.slice(0, 13)}…` : c2Title, cx2 + 18, cellY + 115);
+  if (fitC2Title.lines.length <= 1) {
+    ctx.fillText(fitC2Title.lines[0] || c2Title, cx2 + 18, cellY + 115);
+  } else {
+    ctx.fillText(fitC2Title.lines[0], cx2 + 18, cellY + 104);
+    ctx.fillText(fitC2Title.lines[1], cx2 + 18, cellY + 104 + fitC2Title.lineHeight);
+  }
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#94A3B8';
-  ctx.fillText(`• ${c2Sub.length > 18 ? c2Sub.slice(0, 17) + '…' : c2Sub}`, cx2 + 18, cellY + 145);
+  ctx.fillText(`• ${fitC2Sub.lines[0] || c2Sub}`, cx2 + 18, cellY + 145);
   ctx.fillText('• 0 Implicit Drift', cx2 + 18, cellY + 168);
 
-  drawRoundRect(ctx, cx2 + 18, cellY + cellH - 34, 100, 24, 8, `${theme.accent}20`, `${theme.accent}60`, 1);
-  ctx.font = '700 11px "JetBrains Mono", monospace';
+  const pillW2 = 100;
+  drawRoundRect(ctx, cx2 + 18, cellY + cellH - 34, pillW2, 24, 8, `${theme.accent}20`, `${theme.accent}60`, 1);
+  const fitC2Status = fitTextInBox(ctx, `[ ${c2Status} ]`, pillW2 - 10, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+  ctx.font = `700 ${fitC2Status.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`[ ${c2Status} ]`, cx2 + 18 + 50, cellY + cellH - 22);
+  ctx.fillText(fitC2Status.lines[0] || `[ ${c2Status} ]`, cx2 + 18 + pillW2 / 2, cellY + cellH - 22);
   ctx.restore();
 
   // Cell 3: Production Vault / Storage (Emerald)
@@ -669,38 +779,51 @@ async function drawBlastRadiusIsolationGrid(
   ctx.fillStyle = '#6EE7B7';
   ctx.textAlign = 'left';
   ctx.fillText(c3Role, cx3 + 68, cellY + 36);
-  ctx.fillStyle = '#10B981';
-  ctx.fillText(c3Sub.length > 16 ? `${c3Sub.slice(0, 15)}…` : c3Sub, cx3 + 68, cellY + 52);
 
-  ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+  const fitC3Sub = fitTextInBox(ctx, c3Sub, cellW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
+  ctx.font = `500 ${fitC3Sub.fontSize}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = '#10B981';
+  ctx.fillText(fitC3Sub.lines[0] || c3Sub, cx3 + 68, cellY + 52);
+
+  // Self-healing title
+  const fitC3Title = fitTextInBox(ctx, c3Title, cellW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+  ctx.font = `800 ${fitC3Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(c3Title.length > 14 ? `${c3Title.slice(0, 13)}…` : c3Title, cx3 + 18, cellY + 115);
+  if (fitC3Title.lines.length <= 1) {
+    ctx.fillText(fitC3Title.lines[0] || c3Title, cx3 + 18, cellY + 115);
+  } else {
+    ctx.fillText(fitC3Title.lines[0], cx3 + 18, cellY + 104);
+    ctx.fillText(fitC3Title.lines[1], cx3 + 18, cellY + 104 + fitC3Title.lineHeight);
+  }
 
   ctx.font = '500 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#94A3B8';
-  ctx.fillText(`• ${c3Sub.length > 18 ? c3Sub.slice(0, 17) + '…' : c3Sub}`, cx3 + 18, cellY + 145);
+  ctx.fillText(`• ${fitC3Sub.lines[0] || c3Sub}`, cx3 + 18, cellY + 145);
   ctx.fillText('• State Verified', cx3 + 18, cellY + 168);
 
-  drawRoundRect(ctx, cx3 + 18, cellY + cellH - 34, 100, 24, 8, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.60)', 1);
-  ctx.font = '700 11px "JetBrains Mono", monospace';
+  const pillW3 = 100;
+  drawRoundRect(ctx, cx3 + 18, cellY + cellH - 34, pillW3, 24, 8, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.60)', 1);
+  const fitC3Status = fitTextInBox(ctx, `[ ${c3Status} ]`, pillW3 - 10, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+  ctx.font = `700 ${fitC3Status.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#10B981';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`[ ${c3Status} ]`, cx3 + 18 + 50, cellY + cellH - 22);
+  ctx.fillText(fitC3Status.lines[0] || `[ ${c3Status} ]`, cx3 + 18 + pillW3 / 2, cellY + cellH - 22);
   ctx.restore();
 
   // Bottom Benchmark Banner
   const barY = cellY + cellH + 20;
   drawRoundRect(ctx, cx1, barY, cardW - 64, 46, 12, 'rgba(16, 185, 129, 0.12)', 'rgba(16, 185, 129, 0.45)', 1.2);
   ctx.save();
-  ctx.font = '700 14px "Plus Jakarta Sans", sans-serif';
+  const fitFooter = fitTextInBox(ctx, footerText, cardW - 80, 14, '"Plus Jakarta Sans", sans-serif', '700', { minFontSize: 10 });
+  ctx.font = `700 ${fitFooter.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#34D399';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(footerText, cardX + cardW / 2, barY + 23);
+  ctx.fillText(fitFooter.lines[0] || footerText, cardX + cardW / 2, barY + 23);
   ctx.restore();
 
-  return 745;
+  return cardX + cardH > 0 ? topY + cardH : 670;
 }
 
 /**
@@ -798,37 +921,46 @@ async function drawLayeredArchitectureStack(
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(t.layer, tierX + 76, t.y + 35);
 
-    ctx.font = '800 17px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(t.title, tierX + 155, t.y + 35);
-
-    ctx.font = '500 13px "JetBrains Mono", monospace';
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText(t.sub, tierX + 76, t.y + 60);
-
     // Right status pill
     const pW = 120;
     drawRoundRect(ctx, tierX + tierW - pW - 18, t.y + 26, pW, 28, 8, `${theme.accent}20`, `${theme.accent}65`, 1);
-    ctx.font = '700 11px "JetBrains Mono", monospace';
+    const fitPill = fitTextInBox(ctx, t.pill, pW - 12, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+    ctx.font = `700 ${fitPill.fontSize}px "JetBrains Mono", monospace`;
     ctx.fillStyle = theme.accent;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(t.pill, tierX + tierW - pW / 2 - 18, t.y + 40);
+    ctx.fillText(fitPill.lines[0] || t.pill, tierX + tierW - pW / 2 - 18, t.y + 40);
+
+    // Tier Title (auto fits in available horizontal width)
+    const maxTitleW = tierW - 155 - pW - 24;
+    const fitTitle = fitTextInBox(ctx, t.title, maxTitleW, 17, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 11 });
+    ctx.font = `800 ${fitTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(fitTitle.lines[0] || t.title, tierX + 155, t.y + 35);
+
+    // Tier Sublabel (auto fits across lower width)
+    const fitSub = fitTextInBox(ctx, t.sub, tierW - 95, 13, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
+    ctx.font = `500 ${fitSub.fontSize}px "JetBrains Mono", monospace`;
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText(fitSub.lines[0] || t.sub, tierX + 76, t.y + 60);
     ctx.restore();
   }
 
   // Bottom Traceability Line
   const footY = startTierY + (tierH + gap) * 3 + 12;
   ctx.save();
-  ctx.font = '700 13px "JetBrains Mono", monospace';
+  const footerText = slide.diagramFooter || 'END-TO-END PIPELINE TRACEABILITY ACROSS ALL TIERS';
+  const fitFooter = fitTextInBox(ctx, footerText, cardW - 80, 13, '"JetBrains Mono", monospace', '700', { minFontSize: 9.5 });
+  ctx.font = `700 ${fitFooter.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = theme.textMuted;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const footerText = slide.diagramFooter || 'END-TO-END PIPELINE TRACEABILITY ACROSS ALL TIERS';
-  ctx.fillText(footerText, cardX + cardW / 2, footY);
+  ctx.fillText(fitFooter.lines[0] || footerText, cardX + cardW / 2, footY);
   ctx.restore();
 
-  return 745;
+  return cardX + cardH > 0 ? topY + cardH : 670;
 }
 
 /**
@@ -883,24 +1015,32 @@ async function drawKeyTakeawayCard(
   safeDrawImage(ctx, iconImg, blockX + 34, blockY + 34, 30, 30);
 
   ctx.save();
-  ctx.font = '800 28px "Plus Jakarta Sans", sans-serif';
+  const cleanTitle = (slide.enTitle || 'Core Architectural Principle.').replace(/[.?!]$/, '');
+  const fitTitle = fitTextInBox(ctx, cleanTitle, blockW - 110, 26, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 16, maxLines: 2 });
+  ctx.font = `800 ${fitTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const cleanTitle = (slide.enTitle || 'Core Architectural Principle.').replace(/[.?!]$/, '');
-  ctx.fillText(cleanTitle, blockX + 96, blockY + 56);
+  if (fitTitle.lines.length <= 1) {
+    ctx.fillText(fitTitle.lines[0] || cleanTitle, blockX + 96, blockY + 56);
+  } else {
+    ctx.fillText(fitTitle.lines[0], blockX + 96, blockY + 44);
+    ctx.fillText(fitTitle.lines[1], blockX + 96, blockY + 44 + fitTitle.lineHeight);
+  }
 
-  ctx.font = '500 18px "JetBrains Mono", monospace';
-  ctx.fillStyle = theme.accent;
   const subHeadline =
     slide.diagramFooter ||
     (slide.diagramNodes?.[0] ? `${slide.diagramNodes[0].label} • Production Architecture` : 'Core Architectural Principle • High Reliability');
-  ctx.fillText(subHeadline.length > 55 ? `${subHeadline.slice(0, 54)}…` : subHeadline, blockX + 96, blockY + 92);
+  const fitSubHead = fitTextInBox(ctx, subHeadline, blockW - 110, 17, '"JetBrains Mono", monospace', '500', { minFontSize: 11 });
+  ctx.font = `500 ${fitSubHead.fontSize}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = theme.accent;
+  ctx.fillText(fitSubHead.lines[0] || subHeadline, blockX + 96, blockY + 92);
 
-  ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
+  const cleanBody = (slide.enBody || 'Decoupled architectural components eliminate system bottlenecks and lock-in.');
+  const fitBody = fitTextInBox(ctx, cleanBody, blockW - 110, 16, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 12 });
+  ctx.font = `400 ${fitBody.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#94A3B8';
-  const cleanBody = (slide.enBody || 'Decoupled architectural components eliminate system bottlenecks and lock-in.').slice(0, 80);
-  ctx.fillText(cleanBody, blockX + 96, blockY + 124);
+  ctx.fillText(fitBody.lines[0] || cleanBody, blockX + 96, blockY + 124);
   ctx.restore();
 
   // 2 Comparative Proof Sub-Cards at bottom
@@ -915,12 +1055,17 @@ async function drawKeyTakeawayCard(
   ctx.fillStyle = '#FBBF24';
   ctx.textAlign = 'left';
   ctx.fillText('⚠️ CRITICAL CONSTRAINT', blockX + 18, subY + 32);
-  ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
-  ctx.fillStyle = '#E2E8F0';
+
   const c1Text1 = slide.diagramNodes?.[1]?.label ? `Avoid unmonitored ${slide.diagramNodes[1].label.toLowerCase()}` : 'Profile production load and avoid premature';
   const c1Text2 = slide.diagramNodes?.[1]?.sublabel || 'abstractions that bloat system memory.';
-  ctx.fillText(c1Text1.length > 40 ? `${c1Text1.slice(0, 39)}…` : c1Text1, blockX + 18, subY + 65);
-  ctx.fillText(c1Text2.length > 42 ? `${c1Text2.slice(0, 41)}…` : c1Text2, blockX + 18, subY + 92);
+  const fitC1Text1 = fitTextInBox(ctx, c1Text1, subW - 36, 16, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 11 });
+  const fitC1Text2 = fitTextInBox(ctx, c1Text2, subW - 36, 15, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 11 });
+
+  ctx.font = `400 ${fitC1Text1.fontSize}px "Plus Jakarta Sans", sans-serif`;
+  ctx.fillStyle = '#E2E8F0';
+  ctx.fillText(fitC1Text1.lines[0] || c1Text1, blockX + 18, subY + 65);
+  ctx.font = `400 ${fitC1Text2.fontSize}px "Plus Jakarta Sans", sans-serif`;
+  ctx.fillText(fitC1Text2.lines[0] || c1Text2, blockX + 18, subY + 92);
   ctx.restore();
 
   // Sub-card 2: Production Best Practice
@@ -930,15 +1075,20 @@ async function drawKeyTakeawayCard(
   ctx.fillStyle = '#34D399';
   ctx.textAlign = 'left';
   ctx.fillText('✔ PRODUCTION STANDARD', blockX + subW + 38, subY + 32);
-  ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
-  ctx.fillStyle = '#E2E8F0';
+
   const c2Text1 = slide.diagramNodes?.[2]?.label ? `Enforce strict ${slide.diagramNodes[2].label.toLowerCase()}` : 'Decouple core processing from storage';
   const c2Text2 = slide.diagramNodes?.[2]?.sublabel || 'to maintain predictable sub-second p99.';
-  ctx.fillText(c2Text1.length > 40 ? `${c2Text1.slice(0, 39)}…` : c2Text1, blockX + subW + 38, subY + 65);
-  ctx.fillText(c2Text2.length > 42 ? `${c2Text2.slice(0, 41)}…` : c2Text2, blockX + subW + 38, subY + 92);
+  const fitC2Text1 = fitTextInBox(ctx, c2Text1, subW - 36, 16, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 11 });
+  const fitC2Text2 = fitTextInBox(ctx, c2Text2, subW - 36, 15, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 11 });
+
+  ctx.font = `400 ${fitC2Text1.fontSize}px "Plus Jakarta Sans", sans-serif`;
+  ctx.fillStyle = '#E2E8F0';
+  ctx.fillText(fitC2Text1.lines[0] || c2Text1, blockX + subW + 38, subY + 65);
+  ctx.font = `400 ${fitC2Text2.fontSize}px "Plus Jakarta Sans", sans-serif`;
+  ctx.fillText(fitC2Text2.lines[0] || c2Text2, blockX + subW + 38, subY + 92);
   ctx.restore();
 
-  return 745;
+  return cardX + cardH > 0 ? topY + cardH : 670;
 }
 
 /**
@@ -1112,7 +1262,7 @@ export async function renderSlideToCanvas(
   ctx.restore();
 
   // 5. Render Archetype Specific Graphics & Layouts
-  let textZoneStartY = 755;
+  let yGraphicEnd = 670;
 
   if (slide.type === 'hub') {
     // Archetype 1: Hub (Exclusively on Slide 1)
@@ -1341,19 +1491,19 @@ export async function renderSlideToCanvas(
 
         drawRoundRect(ctx, pillX, pillY, pillW, pillH, 6, '#060a0d', `${theme.accent}90`, 1.2);
         ctx.save();
-        ctx.font = '700 12px "JetBrains Mono", monospace';
+        const fitSat = fitTextInBox(ctx, labelText, pillW - 10, 12, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+        ctx.font = `700 ${fitSat.fontSize}px "JetBrains Mono", monospace`;
         ctx.fillStyle = '#FFFFFF';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const displayLabel = labelText.length > 12 ? labelText.slice(0, 11) + '…' : labelText;
-        ctx.fillText(displayLabel, sx, pillY + pillH / 2);
+        ctx.fillText(fitSat.lines[0] || labelText, sx, pillY + pillH / 2);
         ctx.restore();
       } catch (satErr) {
         console.warn(`Error rendering satellite ${i}:`, satErr);
       }
     }
 
-    textZoneStartY = 1120;
+    yGraphicEnd = 980;
   } else if (slide.type === 'row' || (slide.type === 'cta' && slideIndex !== totalSlides - 1)) {
     // Dynamic Technical Schematics: Dispatch to bespoke labeled diagrams instead of rigid flat boxes
     const slideText = `${slide.enTitle || ''} ${slide.enBody || ''} ${slide.arTitle || ''}`.toLowerCase();
@@ -1361,13 +1511,13 @@ export async function renderSlideToCanvas(
 
     // Prioritize explicit diagramVariant layout choice if set
     if (slide.diagramVariant === 'isolation') {
-      textZoneStartY = await drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
     } else if (slide.diagramVariant === 'stack') {
-      textZoneStartY = await drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
     } else if (slide.diagramVariant === 'takeaway') {
-      textZoneStartY = await drawKeyTakeawayCard(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawKeyTakeawayCard(ctx, slide, theme, options, 240);
     } else if (slide.diagramVariant === 'topology') {
-      textZoneStartY = await drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
     } else if (
       slideText.includes('blast radius') ||
       slideText.includes('microsegment') ||
@@ -1378,7 +1528,7 @@ export async function renderSlideToCanvas(
       slideText.includes('quarantine') ||
       slideText.includes('sandbox')
     ) {
-      textZoneStartY = await drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
     } else if (
       slideText.includes('stack') ||
       slideText.includes('layer') ||
@@ -1391,11 +1541,11 @@ export async function renderSlideToCanvas(
       slideText.includes('hierarchy') ||
       slideIndex === 4
     ) {
-      textZoneStartY = await drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
     } else if (iconCount === 1) {
-      textZoneStartY = await drawKeyTakeawayCard(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawKeyTakeawayCard(ctx, slide, theme, options, 240);
     } else {
-      textZoneStartY = await drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
+      yGraphicEnd = await drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
     }
   } else if (slide.type === 'number') {
     // Spec §9.4 Number Archetype: Big accent numeral (e.g. "01", "02") at y=330, text block at y=700
@@ -1433,7 +1583,7 @@ export async function renderSlideToCanvas(
     ctx.stroke();
     ctx.restore();
 
-    textZoneStartY = 660;
+    yGraphicEnd = 540;
   } else if (slide.type === 'metric') {
     // Archetype 3: Metric Card (Benchmark, Speedup, Resource ROI)
     const cardX = 100;
@@ -1624,7 +1774,7 @@ export async function renderSlideToCanvas(
     ctx.fillText(diffText, 540, pillY + pillH / 2);
     ctx.restore();
 
-    textZoneStartY = 745;
+    yGraphicEnd = 670;
   } else if (slide.type === 'code') {
     // Archetype 4: Precision Silicon & Terminal Window
     const winX = 100;
@@ -1808,7 +1958,7 @@ export async function renderSlideToCanvas(
 
     ctx.restore(); // End clipping
 
-    textZoneStartY = 745;
+    yGraphicEnd = 670;
   } else if (slide.type === 'compare') {
     // Archetype 5: Side-by-Side Comparison (Legacy vs Modern)
     const cardY = 240;
@@ -1847,18 +1997,18 @@ export async function renderSlideToCanvas(
 
     const leftTitle = slide.compareLeftTitle || 'Legacy Method';
     ctx.save();
-    ctx.font = '800 23px "Plus Jakarta Sans", sans-serif';
+    const fitLeftTitle = fitTextInBox(ctx, `BEFORE · ${leftTitle}`.toUpperCase(), cardW - 100, 21, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13 });
+    ctx.font = `800 ${fitLeftTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#FDA4AF';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`BEFORE · ${leftTitle}`.toUpperCase(), leftX + 72, cardY + 47);
+    ctx.fillText(fitLeftTitle.lines[0] || `BEFORE · ${leftTitle}`.toUpperCase(), leftX + 72, cardY + 47);
     ctx.restore();
 
-    // Left Body Lines with crisp red ✖ bullets
+    // Left Body Lines with crisp red ✖ bullets and self-healing auto-fit
     const leftText = slide.compareLeftBody || '• Full repository clone\n• High disk footprint\n• Stalls CI pipelines';
     const leftLines = leftText.split('\n').slice(0, 5);
     ctx.save();
-    ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
     ctx.textBaseline = 'alphabetic';
     let lY = cardY + 120;
     for (const rawLine of leftLines) {
@@ -1868,11 +2018,18 @@ export async function renderSlideToCanvas(
       ctx.font = '700 22px "JetBrains Mono", monospace';
       ctx.fillText('✖', leftX + 28, lY);
 
-      // Line text
+      // Line text with auto-fit
+      const fitLine = fitTextInBox(ctx, cleanLine, cardW - 75, 22, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 13, maxLines: 2 });
       ctx.fillStyle = '#CDD5D9';
-      ctx.font = '400 23px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(cleanLine, leftX + 58, lY);
-      lY += 48;
+      ctx.font = `400 ${fitLine.fontSize}px "Plus Jakarta Sans", sans-serif`;
+      if (fitLine.lines.length <= 1) {
+        ctx.fillText(fitLine.lines[0] || cleanLine, leftX + 58, lY);
+        lY += 48;
+      } else {
+        ctx.fillText(fitLine.lines[0], leftX + 58, lY - 8);
+        ctx.fillText(fitLine.lines[1], leftX + 58, lY - 8 + fitLine.lineHeight);
+        lY += fitLine.lineHeight + 36;
+      }
     }
     ctx.restore();
 
@@ -1905,18 +2062,18 @@ export async function renderSlideToCanvas(
 
     const rightTitle = slide.compareRightTitle || 'Modern Approach';
     ctx.save();
-    ctx.font = '800 23px "Plus Jakarta Sans", sans-serif';
+    const fitRightTitle = fitTextInBox(ctx, `AFTER · ${rightTitle}`.toUpperCase(), cardW - 100, 21, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13 });
+    ctx.font = `800 ${fitRightTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = theme.accent;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`AFTER · ${rightTitle}`.toUpperCase(), rightX + 72, cardY + 47);
+    ctx.fillText(fitRightTitle.lines[0] || `AFTER · ${rightTitle}`.toUpperCase(), rightX + 72, cardY + 47);
     ctx.restore();
 
-    // Right Body Lines with crisp green ✔ bullets
+    // Right Body Lines with crisp green ✔ bullets and self-healing auto-fit
     const rightText = slide.compareRightBody || '• Virtualized file system\n• Instant sparse checkout\n• Zero local developer wait';
     const rightLines = rightText.split('\n').slice(0, 5);
     ctx.save();
-    ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
     ctx.textBaseline = 'alphabetic';
     let rY = cardY + 120;
     for (const rawLine of rightLines) {
@@ -1926,11 +2083,18 @@ export async function renderSlideToCanvas(
       ctx.font = '700 22px "JetBrains Mono", monospace';
       ctx.fillText('✔', rightX + 28, rY);
 
-      // Line text
+      // Line text with auto-fit
+      const fitLine = fitTextInBox(ctx, cleanLine, cardW - 75, 22, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 13, maxLines: 2 });
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = '400 23px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(cleanLine, rightX + 58, rY);
-      rY += 48;
+      ctx.font = `400 ${fitLine.fontSize}px "Plus Jakarta Sans", sans-serif`;
+      if (fitLine.lines.length <= 1) {
+        ctx.fillText(fitLine.lines[0] || cleanLine, rightX + 58, rY);
+        rY += 48;
+      } else {
+        ctx.fillText(fitLine.lines[0], rightX + 58, rY - 8);
+        ctx.fillText(fitLine.lines[1], rightX + 58, rY - 8 + fitLine.lineHeight);
+        rY += fitLine.lineHeight + 36;
+      }
     }
     ctx.restore();
 
@@ -1972,7 +2136,7 @@ export async function renderSlideToCanvas(
     ctx.fillText('VS', vsX, vsY);
     ctx.restore();
 
-    textZoneStartY = 745;
+    yGraphicEnd = 670;
   } else if (slide.type === 'image') {
     // Archetype: Image / Web Visual Card (Architecture Diagram, Hero Illustration, or Web Photo)
     const cardX = 100;
@@ -2150,7 +2314,7 @@ export async function renderSlideToCanvas(
       ctx.restore();
     }
 
-    textZoneStartY = 745;
+    yGraphicEnd = 670;
   } else if (slide.type === 'cta' && slideIndex === totalSlides - 1) {
     // Archetype 8: Standardized Marrok Closer (Isometric Core, Domain Hook, Bilingual CTA Pill, Verified Card)
     const emblemX = 518;
@@ -2420,73 +2584,150 @@ export async function renderSlideToCanvas(
   // Strict Safe-Zone Rule: Center at x = 518 with maxWidth 850 (titles) and 820 (body)
   // to enforce right safe margin >= 135px (x <= 945) clearing TikTok native right-side action buttons
   if (slide.type !== 'cta' || slideIndex !== totalSlides - 1) {
-    let currentY = textZoneStartY;
+    // 6a. Pre-measure all lines and calculate precise text block metrics
+    const cleanEnTitle = slide.enTitle ? sanitizeEnglishSlideText(slide.enTitle, { isTitle: true }) : '';
+    let enTitleLines: string[] = [];
+    if (cleanEnTitle) {
+      ctx.save();
+      ctx.font = '800 74px "Plus Jakarta Sans", sans-serif';
+      enTitleLines = wrapTextLines(ctx, cleanEnTitle, 850);
+      ctx.restore();
+    }
 
-    // English Headline: 74px, line-height 86px, 800 weight, #FFFFFF
-    if (slide.enTitle) {
+    const cleanArTitle = slide.arTitle ? sanitizeArabicSlideText(slide.arTitle, { isTitle: true }) : '';
+    let arTitleLines: string[] = [];
+    if (cleanArTitle) {
+      ctx.save();
+      ctx.font = '800 70px "Cairo", sans-serif';
+      arTitleLines = wrapTextLines(ctx, cleanArTitle, 850);
+      ctx.restore();
+    }
+
+    const cleanEnBody = slide.enBody ? sanitizeEnglishSlideText(slide.enBody, { isTitle: false }) : '';
+    let enBodyLines: string[] = [];
+    if (cleanEnBody) {
+      ctx.save();
+      ctx.font = '400 38px "Plus Jakarta Sans", sans-serif';
+      enBodyLines = wrapTextLines(ctx, cleanEnBody, 820);
+      ctx.restore();
+    }
+
+    const cleanArBody = slide.arBody ? sanitizeArabicSlideText(slide.arBody, { isTitle: false }) : '';
+    let arBodyLines: string[] = [];
+    if (cleanArBody) {
+      ctx.save();
+      ctx.font = '400 38px "Cairo", sans-serif';
+      arBodyLines = wrapTextLines(ctx, cleanArBody, 820);
+      ctx.restore();
+    }
+
+    // Baseline Line-Heights:
+    // English Headline: 74px font => 88px line-height (1.19x)
+    // Arabic Headline: 70px font => 102px line-height (generous 1.457x for ascenders/descenders/diacritics)
+    // English Body: 38px font => 54px line-height (1.42x)
+    // Arabic Body: 38px font => 58px line-height (generous 1.526x for Arabic baseline balance)
+    let enTitleLH = 88;
+    let arTitleLH = 102;
+    let enBodyLH = 54;
+    let arBodyLH = 58;
+
+    let gapTitles = (enTitleLines.length > 0 && arTitleLines.length > 0) ? 16 : 0;
+    let gapTitlesToBody = ((enTitleLines.length > 0 || arTitleLines.length > 0) && (enBodyLines.length > 0 || arBodyLines.length > 0)) ? 36 : 0;
+    let gapBodies = (enBodyLines.length > 0 && arBodyLines.length > 0) ? 20 : 0;
+
+    let hTextTotal =
+      (enTitleLines.length * enTitleLH) +
+      gapTitles +
+      (arTitleLines.length * arTitleLH) +
+      gapTitlesToBody +
+      (enBodyLines.length * enBodyLH) +
+      gapBodies +
+      (arBodyLines.length * arBodyLH);
+
+    // 6b. Dynamic Vertical Optical Centering:
+    // Upper bound: yGraphicEnd
+    // Lower ceiling: 1710px (clearing the footer pagination dots at y=1826 with 116px padding)
+    const yFooterCeiling = 1710;
+    const availableHeight = yFooterCeiling - yGraphicEnd;
+
+    // Self-healing vertical compression if text is exceptionally long
+    let scale = 1.0;
+    if (hTextTotal > availableHeight - 30) {
+      scale = Math.max((availableHeight - 30) / hTextTotal, 0.82);
+      enTitleLH = Math.round(enTitleLH * scale);
+      arTitleLH = Math.round(arTitleLH * scale);
+      enBodyLH = Math.round(enBodyLH * scale);
+      arBodyLH = Math.round(arBodyLH * scale);
+      gapTitles = Math.round(gapTitles * scale);
+      gapTitlesToBody = Math.round(gapTitlesToBody * scale);
+      gapBodies = Math.round(gapBodies * scale);
+      hTextTotal = Math.round(hTextTotal * scale);
+    }
+
+    const remainingSpace = availableHeight - hTextTotal;
+    // Optical distribution: 38% top cushion, 62% bottom breathing room
+    // Clamped between 28px min and 135px max so content neither hugs the graphic nor floats awkwardly low
+    const topCushion = Math.min(Math.max(remainingSpace * 0.38, 28), 135);
+    let currentY = yGraphicEnd + topCushion;
+
+    // 6c. Render English Headline
+    if (enTitleLines.length > 0) {
       ctx.save();
       ctx.font = '800 74px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = theme.textWhite;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      const cleanEnTitle = sanitizeEnglishSlideText(slide.enTitle, { isTitle: true });
-      const enLines = wrapTextLines(ctx, cleanEnTitle, 850);
-      for (const line of enLines) {
+      for (const line of enTitleLines) {
         ctx.fillText(line, 518, currentY);
-        currentY += 86;
+        currentY += enTitleLH;
       }
       ctx.restore();
     }
 
-    // Arabic Headline: 70px, line-height 88px, 800 weight, var(--accent)
-    if (slide.arTitle) {
-      currentY += 6;
+    // 6d. Render Arabic Headline with generous line-height
+    if (arTitleLines.length > 0) {
+      currentY += gapTitles;
       ctx.save();
       ctx.font = '800 70px "Cairo", sans-serif';
       ctx.fillStyle = theme.accent;
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
-      const cleanArTitle = sanitizeArabicSlideText(slide.arTitle, { isTitle: true });
-      const arLines = wrapTextLines(ctx, cleanArTitle, 850);
-      for (const line of arLines) {
+      for (const line of arTitleLines) {
         ctx.fillText(line, 518, currentY);
-        currentY += 88;
+        currentY += arTitleLH;
       }
       ctx.restore();
     }
 
-    // English Body Copy: 38px, line-height 54px, 400 weight, #CDD5D9
-    if (slide.enBody) {
-      currentY += 34;
+    // 6e. Render English Body Copy
+    if (enBodyLines.length > 0) {
+      currentY += gapTitlesToBody;
       ctx.save();
       ctx.font = '400 38px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = theme.textEnBody;
       ctx.textAlign = 'center';
+      ctx.direction = 'ltr';
       ctx.textBaseline = 'alphabetic';
-      const cleanEnBody = sanitizeEnglishSlideText(slide.enBody, { isTitle: false });
-      const enBodyLines = wrapTextLines(ctx, cleanEnBody, 820);
       for (const line of enBodyLines) {
         ctx.fillText(line, 518, currentY);
-        currentY += 54;
+        currentY += enBodyLH;
       }
       ctx.restore();
     }
 
-    // Arabic Body Copy: 38px, line-height 56px, 400 weight, #9BA5AB
-    if (slide.arBody) {
-      currentY += 18;
+    // 6f. Render Arabic Body Copy with generous line-height and strict right margin safe-zone
+    if (arBodyLines.length > 0) {
+      currentY += gapBodies;
       ctx.save();
       ctx.font = '400 38px "Cairo", sans-serif';
       ctx.fillStyle = theme.textArBody;
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
-      const cleanArBody = sanitizeArabicSlideText(slide.arBody, { isTitle: false });
-      const arBodyLines = wrapTextLines(ctx, cleanArBody, 820);
       for (const line of arBodyLines) {
         ctx.fillText(line, 518, currentY);
-        currentY += 56;
+        currentY += arBodyLH;
       }
       ctx.restore();
     }

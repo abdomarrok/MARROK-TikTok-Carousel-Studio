@@ -263,6 +263,9 @@ app.post('/api/generate-image', async (req, res) => {
     aspectRatio = '9:16',
     imageSize = '1K',
     stylePreset = 'blueprint',
+    themeAccent,
+    themeBg,
+    themeSurface,
   } = req.body;
 
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -299,6 +302,13 @@ app.post('/api/generate-image', async (req, res) => {
     decoratedPrompt = `Minimal modern systems flowchart, microservices nodes and data stream pipelines, dark mode UI with sleek accent connections, clean technical vectors: ${decoratedPrompt}`;
   } else if (stylePreset === 'security') {
     decoratedPrompt = `Cybersecurity threat intelligence diagram, vulnerability blast radius map, network boundary defense mesh, dark technical theme with neon crimson and teal highlights: ${decoratedPrompt}`;
+  }
+
+  // Inject exact theme color palette directives when provided
+  if (themeAccent) {
+    const bgDirect = themeBg || '#080e12';
+    const surfDirect = themeSurface || '#0d151c';
+    decoratedPrompt += ` Color palette strictly anchored to: primary accent ${themeAccent}, deep OLED background ${bgDirect}, surface container ${surfDirect}. Highly legible dark mode schematic.`;
   }
 
   // Model sequence: primary gemini-nano-banana-2.1, fallback gemini-3.1-flash-lite-image

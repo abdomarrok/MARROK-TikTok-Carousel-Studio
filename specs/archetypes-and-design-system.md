@@ -91,24 +91,42 @@ In technical Arabic writing, transliterating modern software tools phonetically 
 
 ## 4. The MARROK Slide Archetypes System
 
-The MARROK visual system provides 7 archetypes tailored for developer engagement:
+The MARROK visual system provides 8 core archetypes tailored for high-density mobile developer engagement:
 
 1. **Hub Slide (`hub`) (Slide 1 - The Hook)**:
-   - Central pulsing hub icon connected to 6 orbiting satellites via radial vectors.
-   - Supports built-in technical icons, custom SVG uploads, or official tech brand CDN logos.
-2. **Row Cards (`row`) (1, 2, or 3 items)**:
-   - Horizontal icon cards with micro-labels for core concepts or step sequences.
-3. **Metric Hero Card (`metric`)**:
-   - Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, and delta pill.
-4. **Terminal / Code Window (`code`)**:
-   - Monospace window with macOS-style window controls, syntax highlighting, diff markings (`+`, `-`, `$`).
-5. **Comparison Split (`compare`)**:
-   - Side-by-side legacy vs modern cards with problem/solution bullet points.
-6. **Image Visual Card (`image`)**:
+   - Central pulsing hub icon (130×130px) surrounded by 6 orbiting satellite badges (`satLabels`) with radial flow vectors and CAD reticles.
+   - Text labels automatically fit into badges via `fitTextInBox` without clipping or overflow.
+2. **Technical Architecture Diagrams (`row`)**:
+   - Replaces static icon boxes with 4 bespoke topic-driven schematics:
+     - **Topology Flow (`topology`)**: 3 connected component nodes (title, sublabel, status tag) with inter-node protocol connectors (`diagramEdges`) and bottom telemetry bar (`diagramFooter`).
+     - **Layered Stack (`stack`)**: 3 horizontal architecture tiers (Ingress, Engine, Storage) with status pills and bottom pipeline traceability line.
+     - **Fault Isolation Grid (`isolation`)**: 3 workload cells (Restricted, Mesh, Core) separated by a dashed air-gap firewall barrier badge (`diagramEdges[0]`) and benchmark footer.
+     - **Key Architectural Takeaway (`takeaway`)**: Prominent principle card with glowing accent border, subheadline, and 2 comparative constraint/standard proof cards.
+3. **Step Number Counter (`number`)**:
+   - Giant 220px accent numeral counter with upper step badge label for procedural sequences.
+4. **Metric Hero Card (`metric`)**:
+   - Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, sparkline acceleration curve with gauge ticks, and paired delta pill.
+5. **Terminal / Code Window (`code`)**:
+   - Monospace window with macOS-style window controls, language badge, line-number gutter, CRT scanlines, and syntax diff markings (`$`, `+`, `-`, `✔`).
+6. **Comparison Split (`compare`)**:
+   - Side-by-side legacy vs modern cards with problem/solution bullet points, red ✖ / green ✔ markers, and central circular `VS` badge.
+7. **Image Visual Card (`image`)**:
    - Elevated technical diagram or visual asset container with `contain` or `cover` fit, caption badge, and subject-based web resolution.
    - Built-in CORS image proxy (`/api/proxy-image`) ensures canvases are never tainted, enabling direct PNG/ZIP export and clipboard copying.
-7. **CTA Slide (`cta`) (The Closer)**:
-   - Geometric branding emblem, domain question, CTA pill, and bilingual source attribution credit.
+8. **CTA Slide (`cta`) (The Closer)**:
+   - Geometric branding emblem, domain question hook, high-contrast bilingual CTA pill, and verified source attribution card.
+
+### Autonomous Visual Pacing & Layout Anti-Repetition
+- **Pacing Engine (`balanceCarouselVisualPacing`)**: Automatically inspects the deck during generation. If consecutive mechanism slides occur, it guarantees zero adjacent duplicate layouts by rotating across `['topology', 'stack', 'isolation', 'takeaway']` using the least-used variant.
+
+### Self-Healing Typography & Auto-Fit Engine (`fitTextInBox`)
+- Text in pills, badges, node cards, and comparison columns is dynamically measured prior to drawing.
+- If text width exceeds the available container width, the engine automatically steps down the font size or wraps text into 2 lines, preventing any label overflow or truncation artifacts without manual editing.
+
+### Dynamic Vertical Optical Centering
+- Rather than using static y-coordinates, the canvas engine calculates the bottom boundary of the top graphic (`yGraphicEnd`) and the exact total height of the English + Arabic title and body block (`hTextTotal`).
+- Distributes vertical space between `yGraphicEnd` and the footer ceiling (`y = 1710`, giving 116px padding above pagination dots at `y = 1826`) using an optical ratio (38% top cushion, 62% bottom breathing room).
+- Arabic headlines (`Cairo` 70px) and body lines (`Cairo` 38px) receive generous vertical line-heights (1.45x–1.55x) with strict safe-zone adherence (`x <= 945`), preventing ascenders/descenders from colliding with English text.
 
 ### Internet Icons & Web Media Resolution
 - **Subject-Aware CDN Resolution**: Automatically resolves official logos for 40+ top developer technologies (Redis, Docker, Kubernetes, Rust, Go, FastAPI, PostgreSQL, AWS, Linux, etc.) via jsDelivr CDN.

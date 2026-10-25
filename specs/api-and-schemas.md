@@ -102,6 +102,9 @@ Generates high-resolution technical diagrams, system blueprints, and architectur
 | `stylePreset` | `string` | Optional | `'blueprint'` \| `'terminal'` \| `'flowchart'` \| `'security'` \| `'raw'` |
 | `baseImageBase64` | `string` | Optional | Base64-encoded image to edit via natural language instructions |
 | `baseImageMimeType` | `string` | Optional | MIME type of base image (e.g. `'image/png'`) |
+| `themeAccent` | `string` | Optional | Hex accent color (e.g. `'#38BDF8'`) to anchor the diagram's color palette |
+| `themeBg` | `string` | Optional | Hex background color (e.g. `'#080E14'`) for dark mode harmonization |
+| `themeSurface` | `string` | Optional | Hex surface color (e.g. `'#0D151C'`) for container alignment |
 
 **Response Body (HTTP 200):**
 ```json
@@ -117,11 +120,18 @@ Generates high-resolution technical diagrams, system blueprints, and architectur
 ## 2. Core TypeScript Interfaces (`src/types.ts`)
 
 ```typescript
-export type SlideType = 'hub' | 'row' | 'metric' | 'code' | 'compare' | 'image' | 'cta';
+export type SlideType = 'hub' | 'row' | 'number' | 'metric' | 'code' | 'compare' | 'image' | 'cta';
 
 export interface RowIconItem {
   icon: string;
   label: string;
+}
+
+export interface DiagramNodeItem {
+  label: string;
+  sublabel?: string;
+  status?: string;
+  icon?: string;
 }
 
 export interface SlideData {
@@ -131,9 +141,18 @@ export interface SlideData {
   // Hub Archetype properties (Slide 1 Hook)
   centerIcon?: string;
   satIcons?: string[];
+  satLabels?: string[];      // 6 crisp component labels for orbital satellites
   
-  // Row Archetype properties (Slides 2-7)
+  // Dynamic Architecture Diagram properties (Mechanism Archetype)
+  diagramVariant?: 'topology' | 'stack' | 'isolation' | 'takeaway';
+  diagramNodes?: DiagramNodeItem[]; // 3 connected component nodes / tiers / cells
+  diagramEdges?: string[];   // Inter-node flow connectors e.g. ["mTLS 1.3", "REST"]
+  diagramFooter?: string;    // Bottom telemetry line e.g. "LATENCY: P99 < 1.0ms"
   icons?: RowIconItem[];
+  
+  // Step Number Archetype properties
+  stepNumber?: string;
+  stepLabel?: string;
   
   // Metric Hero Card Archetype properties
   metricValue?: string;      // e.g. "200x", "0ms", "99.9%", "45GB"

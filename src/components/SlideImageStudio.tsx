@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Wand2,
@@ -15,6 +15,7 @@ import {
   X,
   Layers,
   Sliders,
+  Zap,
 } from 'lucide-react';
 import { SlideData, ThemePalette } from '../types';
 
@@ -37,6 +38,24 @@ const STYLE_PRESETS: { id: StylePreset; label: string; icon: React.ComponentType
   { id: 'raw', label: 'Custom Prompt', icon: Sliders, desc: 'Raw prompt without style decorator' },
 ];
 
+/**
+ * Automatically constructs a zero-config technical prompt behind the scenes using the slide's
+ * title, diagram nodes, and the active theme's exact hex colors (bg, surface, accent).
+ */
+export function buildThemeAwareDiagramPrompt(slide: SlideData, theme: ThemePalette): string {
+  const title = (slide.enTitle || 'System Architecture').replace(/\n/g, ' ').replace(/[.?!]$/, '').trim();
+  const nodes = (slide.diagramNodes || []).map((n) => n.label).filter(Boolean);
+  const nodeFlow = nodes.length > 0 ? `Data pipeline stages: ${nodes.join(' -> ')}` : '';
+  const sublabels = (slide.diagramNodes || []).map((n) => n.sublabel).filter(Boolean).slice(0, 2).join('; ');
+  const details = sublabels ? `Technical mechanisms: ${sublabels}` : '';
+  const footer = slide.diagramFooter ? `Telemetry: ${slide.diagramFooter}` : '';
+  const body = slide.enBody ? `System details: ${slide.enBody.slice(0, 90)}` : '';
+
+  const hexTheme = `Color palette strictly: accent highlight ${theme.accent}, dark base background ${theme.baseBg || '#080e12'}, container surface ${theme.surface || '#0d151c'}`;
+
+  return `High-contrast dark OLED architectural diagram for "${title}". ${nodeFlow}. ${details}. ${body}. ${footer}. ${hexTheme}. Isometric vector schema, clean glowing connections, no human faces.`;
+}
+
 export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
   slide,
   theme,
@@ -45,7 +64,7 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
   onShowToast,
 }) => {
   const [activeMode, setActiveMode] = useState<'generate' | 'edit'>(slide.imageUrl ? 'edit' : 'generate');
-  const [prompt, setPrompt] = useState<string>('');
+  const [prompt, setPrompt] = useState<string>(() => buildThemeAwareDiagramPrompt(slide, theme));
   const [selectedPreset, setSelectedPreset] = useState<StylePreset>('blueprint');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('9:16');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -53,13 +72,18 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
   const [usedModel, setUsedModel] = useState<string>('gemini-nano-banana-2.1');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Synchronize auto-prompt if slide changes and user hasn't typed custom prompt
+  useEffect(() => {
+    if (!prompt || prompt.startsWith('High-contrast dark OLED') || prompt.startsWith('Architectural system diagram')) {
+      setPrompt(buildThemeAwareDiagramPrompt(slide, theme));
+    }
+  }, [slide, theme]);
+
   // Auto-fill prompt from current slide context
   const handleAutoFillFromSlide = () => {
-    const title = slide.enTitle?.replace(/\n/g, ' ') || '';
-    const body = slide.enBody || '';
-    const autoPrompt = `Architectural system diagram for: ${title}. Key mechanism: ${body.slice(0, 140)}`;
+    const autoPrompt = buildThemeAwareDiagramPrompt(slide, theme);
     setPrompt(autoPrompt);
-    onShowToast?.('Auto-populated technical prompt from slide copy');
+    onShowToast?.('Auto-populated technical prompt matching active theme palette');
   };
 
   // Quick edit suggestions
@@ -67,8 +91,8 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
     setPrompt(quickText);
   };
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) {
+  const executeGenerate = async (targetPrompt: string, targetAspectRatio: AspectRatio, targetPreset: StylePreset) => {
+    if (!targetPrompt.trim()) {
       setErrorMsg('Please enter a prompt describing the diagram or visual to create.');
       return;
     }
@@ -84,10 +108,13 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
 
     try {
       const payload: Record<string, unknown> = {
-        prompt: prompt.trim(),
-        aspectRatio,
+        prompt: targetPrompt.trim(),
+        aspectRatio: targetAspectRatio,
         imageSize: '1K',
-        stylePreset: selectedPreset,
+        stylePreset: targetPreset,
+        themeAccent: theme.accent,
+        themeBg: theme.baseBg,
+        themeSurface: theme.surface,
       };
 
       // If in edit mode and an existing image is present, pass it as base image
@@ -127,6 +154,16 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleGenerate = () => executeGenerate(prompt, aspectRatio, selectedPreset);
+
+  const handle1ClickThemeGenerate = () => {
+    const autoPrompt = buildThemeAwareDiagramPrompt(slide, theme);
+    setPrompt(autoPrompt);
+    setSelectedPreset('blueprint');
+    setAspectRatio('9:16');
+    executeGenerate(autoPrompt, '9:16', 'blueprint');
   };
 
   const handleApplyToSlide = () => {
@@ -320,6 +357,24 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
           <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
           <span className="truncate">{errorMsg}</span>
         </div>
+      )}
+
+      {/* 1-Click Zero-Config Theme Diagram Bar */}
+      {activeMode === 'generate' && (
+        <button
+          type="button"
+          onClick={handle1ClickThemeGenerate}
+          disabled={isGenerating}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md border hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            backgroundColor: `${theme.accent}1A`,
+            borderColor: `${theme.accent}55`,
+            color: '#FFFFFF',
+          }}
+        >
+          <Zap className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+          <span>⚡ 1-Click Generate Theme Schematic (Zero-Config)</span>
+        </button>
       )}
 
       {/* Action Buttons */}

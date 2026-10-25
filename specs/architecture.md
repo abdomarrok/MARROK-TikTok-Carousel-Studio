@@ -134,6 +134,22 @@ The system is engineered for zero-latency mobile workflows, high availability du
   - *Visual Diagram Studio*: AI prompt generation, style presets, 1-click diagram creation, and Web Media logo search.
 - **Floating 1-Click Deliverables Dock:** Bottom action bar for immediate batch ZIP download, single-slide PNG export, TikTok caption copying, and Theme switching.
 
+### 2.10 Zero-Touch Autonomous Layout & Pacing Engine
+- **Autonomous Visual Pacing Balancer (`balanceCarouselVisualPacing`):**
+  - Analyzes the deck's slide sequence and tracks the previous mechanism layout (`lastMechanismVariant`).
+  - Guarantees **zero adjacent duplicate diagram layouts** across `row` slides by rotating through `['topology', 'stack', 'isolation', 'takeaway']` and selecting the least-used variant.
+  - Automatically validates and self-heals missing `diagramNodes`, `diagramEdges`, `diagramFooter`, `codeFileName`, `codeLanguage`, `codeSnippet`, and `metricDiff` pill data.
+- **Self-Healing Typography Engine (`fitTextInBox`):**
+  - Dynamically measures text bounds in real-time during canvas rasterization.
+  - Automatically steps down font sizes or smart-wraps to 2 lines for `satLabels` pills, `diagramNodes` cards, `diagramEdges` badges, status pills, and comparison columns.
+- **Dynamic Vertical Optical Centering:**
+  - Calculates the exact bottom boundary of the top graphic (`yGraphicEnd`) and pre-measures all English and Arabic title and body lines.
+  - Distributes vertical breathing room using a 38% top cushion / 62% bottom ratio between `yGraphicEnd` and `y = 1710` (clearing footer dots at `y = 1826`).
+  - Implements generous Arabic line-heights (1.45x–1.55x) with strict right-margin safe zones (`x <= 945`).
+- **Zero-Config Theme-Aware AI Schematics:**
+  - Automatically derives technical diagram prompts from the slide's `enTitle`, `diagramNodes`, and the deck's exact hex colors (`theme.accent`, `theme.baseBg`, `theme.surface`).
+  - Provides a 1-click execution pathway producing dark OLED schematics that match the active deck palette without manual user prompts.
+
 ---
 
 ## 3. Scope Isolation: Site Chrome vs. Carousel Canvas

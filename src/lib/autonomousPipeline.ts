@@ -2,7 +2,7 @@ import { CarouselData, SlideData, ThemePalette } from '../types';
 import { sanitizeFullCarousel } from './textSanitizer';
 import { autoFitTextToLimits, autoPolishHeadline, fixArabicPunctuation } from './smartEditor';
 import { runQAChecks, CHAR_LIMITS } from './qaChecks';
-import { synthesizeCarousel, resolveDomainTheme, enrichCarouselDiagrams } from './synthesizer';
+import { synthesizeCarousel, resolveDomainTheme, enrichCarouselDiagrams, balanceCarouselVisualPacing } from './synthesizer';
 
 export interface AutonomousPipelineOptions {
   onProgress?: (status: string) => void;
@@ -85,10 +85,11 @@ export async function runAutonomousPipeline(
 
   // Step 3b: Enrich diagrams and satellites with topic-relevant specifications
   const enrichedSlides = enrichCarouselDiagrams(polishedSlides, rawInput, cleanCarousel.category || '', cleanCarousel.brand || 'MARROK');
+  const balancedSlides = balanceCarouselVisualPacing(enrichedSlides);
 
   cleanCarousel = {
     ...cleanCarousel,
-    slides: enrichedSlides,
+    slides: balancedSlides,
   };
 
   // Step 4: Auto-Generate 9:16 Architecture Diagram for Key Mechanism Slide

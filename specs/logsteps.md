@@ -555,5 +555,55 @@ This document records the chronological development history, engineering decisio
     - Live node editing: Updated node 1 to `CUSTOM CLIENT`, sublabel to `TLS 1.3`, status to `VERIFIED`, connector to `SYNC`, and footer to `TESTED LIVE // P99 < 0.2ms` with instantaneous visual feedback on canvas.
   - Automated Node.js script verified Metricool ZIP file hierarchy and parsing.
 
+---
+
+## Step 25: Zero-Touch Autonomous Layout & Pacing Engine
+- **Context & User Goal:**
+  - Eliminate manual tweaking and maximize automatic slide layout quality on the first pass so that generating a carousel produces balanced, varied, and collision-free slides without manual label edits or layout switching.
+- **Engineering Solutions Implemented:**
+  1. **Autonomous Visual Pacing & Anti-Repetition (`src/lib/synthesizer.ts` & `src/lib/autonomousPipeline.ts`):**
+     - Implemented `balanceCarouselVisualPacing(slides: SlideData[])`:
+       - Tracks preceding mechanism layout (`lastMechanismVariant`) and cumulative variant counts to guarantee **zero adjacent duplicate diagram layouts** across a carousel.
+       - Cycles mechanism slides through `['topology', 'stack', 'isolation', 'takeaway']` based on slide semantics, picking the least-used candidate to prevent repetition.
+       - Automatically validates and repairs missing `diagramNodes`, `diagramEdges`, `diagramFooter`, `codeFileName`, `codeLanguage`, `codeSnippet`, and `metricDiff` fields during pipeline execution so no slide renders half-empty.
+     - Integrated `balanceCarouselVisualPacing()` directly into Step 3b of `autonomousPipeline.ts` and `synthesizeCarousel()`.
+  2. **Self-Healing Canvas Layout & Auto-Fit Typography (`src/lib/canvasExporter.ts`):**
+     - **`fitTextInBox` Helper:** Dynamically measures `ctx.measureText(text).width` and steps down font size (down to readable minimums) or wraps into 2 lines for `satLabels` pills, `diagramNodes` cards, `diagramEdges` badges, status pills, and `compare` columns, eliminating text overflow and manual shortening.
+     - Applied `fitTextInBox` across:
+       - `drawHub`: Auto-fits all 6 orbital satellite label pills.
+       - `drawMultiNodeTopologyFlow`: Auto-fits 3 node titles, sublabels, status pills, 2 connector edge pills, and bottom telemetry bar.
+       - `drawBlastRadiusIsolationGrid`: Auto-fits 3 cell titles, sublabels, status pills, firewall barrier badge, and benchmark banner.
+       - `drawLayeredArchitectureStack`: Auto-fits 3 tier titles, sublabels, right status pills, and bottom traceability line.
+       - `drawKeyTakeawayCard`: Auto-fits principle headline, subheadline, body copy, and 2 constraint/standard cards.
+       - `drawCompare`: Auto-fits left/right column header badges and bullet lines with 2-line auto-wrap.
+     - **Dynamic Vertical Optical Centering:**
+       - Replaced hardcoded vertical coordinates with dynamic tracking of `yGraphicEnd` (`980` for `hub`, `540` for `number`, `670` for `row`/`metric`/`code`/`compare`/`image`).
+       - Pre-measures English and Arabic titles and body lines, computing exact `hTextTotal`.
+       - Distributes breathing room using an optical ratio (38% top cushion, 62% bottom breathing room) between `yGraphicEnd` and `y = 1710` (116px safe cushion above footer pagination dots).
+       - Automatically scales down vertical line spacing if copy is exceptionally long, preventing both awkward empty gaps on short slides and footer collisions on long slides.
+     - **Arabic RTL Line-Height & Margin Polish:**
+       - Provided generous line-heights (`102px` for 70px Cairo headline = 1.457x; `58px` for 38px Cairo body = 1.526x) to prevent ascender/descender/diacritic clashes with Latin text above.
+       - Strictly maintained right margin safe zone (`maxWidth <= 850` centered at `x = 518`, ensuring `x <= 943 <= 945` safe CAD boundary clearing TikTok right-side action buttons).
+  3. **Zero-Config Theme-Aware AI Diagrams (`src/components/SlideImageStudio.tsx` & `api/index.ts`):**
+     - Exported `buildThemeAwareDiagramPrompt(slide, theme)` which automatically constructs a technical dark OLED schematic prompt using `slide.enTitle`, `slide.diagramNodes`, and the deck's exact hex colors (`theme.accent`, `theme.baseBg`, `theme.surface`).
+     - Added prominent `⚡ 1-Click Generate Theme Schematic (Zero-Config)` button in `SlideImageStudio.tsx` that triggers generation with 1 click without requiring the user to type a prompt.
+     - Updated `api/index.ts` (`POST /api/generate-image`) to accept `themeAccent`, `themeBg`, and `themeSurface` and inject exact palette directives into the image generation prompt.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 errors.
+  - `npm run build` (`vite build`): Passed with 0 errors (built in 340ms).
+  - Browser subagent tested and recorded live interactive generation on `http://localhost:3000`:
+    - Generated complex engineering topic: *"PostgreSQL B-Tree Indexing vs LSM Tree Write Amplification in Distributed Storage"*.
+    - Contact Sheet verified all 8 slides:
+      - Slide 1: Hub archetype with PostgreSQL elephant icon and 6 auto-fitted satellite pills (`PgBouncer Pool`, `Shared Buffers`, `WAL Engine`, `B-Tree Index`, `Query Planner`, `Vacuum Worker`).
+      - Slide 2: Metric card (`50x query speedup`, sparkline, delta pill).
+      - Slide 3: Compare card (`Where legacy approaches hit limits`, VS badge).
+      - Slide 4: Code terminal (`Decoupled state execution`, syntax highlighting).
+      - Slide 5: Layered Architecture Stack (`Server-side authoritative design`, 3 tiers).
+      - Slide 6: Fault Isolation Grid (`The Catch The operational cost`, 3 cells with firewall air-gap).
+      - Slide 7: Metric card (`10x`, sparkline).
+      - Slide 8: Standardized Marrok Closer (CTA, isometric badge, DM pill, attribution card).
+    - Verified zero adjacent duplicate diagram layouts (Slide 5 = `stack`, Slide 6 = `isolation`).
+    - Verified balanced optical vertical breathing room and collision-free typography throughout.
+
 
 
