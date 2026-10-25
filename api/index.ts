@@ -699,10 +699,11 @@ const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'i
 
 // API endpoint for generating carousel and TikTok caption
 app.post('/api/generate', async (req, res) => {
-  const { prompt, inputMode, imageBase64, imageMimeType, categoryHint, imageName } = req.body;
+  const rawPrompt = (req.body.prompt || req.body.topic || req.body.notes || '') as string;
+  const { inputMode, imageBase64, imageMimeType, categoryHint, imageName } = req.body;
   const customKey = (req.headers['x-gemini-key'] as string) || req.body?.apiKey;
 
-  if (!prompt && !imageBase64) {
+  if (!rawPrompt && !imageBase64) {
     return res.status(400).json({ error: 'Prompt or image is required' });
   }
 
@@ -710,7 +711,7 @@ app.post('/api/generate', async (req, res) => {
   const safeInputMode = typeof inputMode === 'string' && ALLOWED_INPUT_MODES.has(inputMode) ? inputMode : 'text';
   const safeCategoryHint = typeof categoryHint === 'string' ? categoryHint.slice(0, 100).replace(/[<>{}]/g, '') : 'auto';
   const safeMimeType = typeof imageMimeType === 'string' && ALLOWED_IMAGE_MIMES.has(imageMimeType) ? imageMimeType : 'image/jpeg';
-  const safePrompt = typeof prompt === 'string' ? prompt.slice(0, 50000) : '';
+  const safePrompt = typeof rawPrompt === 'string' ? rawPrompt.slice(0, 50000) : '';
   const safeImageName = typeof imageName === 'string' ? imageName.slice(0, 200) : '';
 
   try {

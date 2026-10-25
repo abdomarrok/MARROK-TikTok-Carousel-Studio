@@ -454,3 +454,41 @@ This document records the chronological development history, engineering decisio
   - `npm run build` (`vite build`): Production bundle compiled in 255ms.
   - Verified in browser with `browser_subagent`: confirmed `[Badge] MARROK •` header formatting, auto-theme routing on topic generation, syntax diff code highlighting, metric polarity pills, and QA checks contact sheet.
 
+---
+
+## Step 22: Redesign of Slide Graphics Engine (Abolish Static Icon Boxes, Labeled Architecture Maps, Bespoke Schematics & CTA Isolation)
+- **Context & Design Decisions:**
+  - Abolished rigid, repetitive, solid-colored icon boxes (`[Icon] [Icon]`) that visually failed to explain architecture on exported slides (`canvasExporter.ts`).
+  - Redesigned Slide 1 (`hub`) from anonymous floating squares into an authentic, labeled system architecture map with technical label pills (`mTLS / x509`, `Envoy Mesh`, `IAM Policy`, etc.) and directional flow paths.
+  - Eliminated the bug where Slide 4 rendered the `cta` Marrok closer in the middle of the deck, strictly isolating the `cta` closer to the final slide (`slideIndex === totalSlides - 1`).
+  - Replaced lonely single-icon placeholder boxes on Slide 7 with rich metric telemetry cards and architectural takeaway cards.
+  - Fixed `/api/generate` parameter parsing to accept `prompt`, `topic`, and `notes`, eliminating 400 Bad Request fallbacks.
+- **Engineering Solutions Implemented:**
+  1. **Bespoke Architecture Diagram Engines (`canvasExporter.ts`):**
+     - `drawMultiNodeTopologyFlow`: 3-node connected protocol handshake sequence (`Client Node` $\to$ `mTLS Envoy Proxy` $\to$ `Isolated Workload Pod`) with dark glassmorphic cards, protocol badge pills (`mTLS`, `ALLOW`), status pills (`INITIATOR`, `VERIFIED`, `ISOLATED`), and telemetry footer.
+     - `drawBlastRadiusIsolationGrid`: Multi-cell segmented boundary featuring quarantined breached pod (crimson), vertical air-gap firewall barrier (`|| DENY ||`), protected mesh pod, and air-gapped DB vault with lateral spread prevention benchmark banner.
+     - `drawLayeredArchitectureStack`: 3-tier horizontal architecture stack (Edge Ingress & Auth, Service Mesh Control Plane, Hardened Storage) with left neon strips, flow chevrons, and end-to-end cryptographic traceability.
+     - `drawKeyTakeawayCard`: High-impact architectural principle card with prominent headline, left neon bar, and dual comparative constraint sub-cards (`CRITICAL CONSTRAINT` vs `PRODUCTION DEFENSE`).
+  2. **Slide 1 Labeled Architecture Map (`canvasExporter.ts`):**
+     - Central hero hub rendered with dark glassmorphic plate (`#081216` with accent border, not solid neon) and `[ SYSTEM CORE ]` micro-badge.
+     - 6 satellites rendered as dark glassmorphic plates with CAD corner marks, directional flow chevrons (`►`), and crisp technical label pills (`mTLS / x509`, `Envoy Mesh`, `IAM Policy`, `Micro-Seg`, `Cert Rotation`, `Telemetry API`).
+  3. **Strict CTA Archetype Isolation (`canvasExporter.ts`, `textSanitizer.ts`, `synthesizer.ts`):**
+     - Guarded `cta` rendering in `canvasExporter.ts` with `slideIndex === totalSlides - 1`. Non-final slides with `type: 'cta'` are redirected to technical schematics and render text zones cleanly.
+     - Enforced `safeType` in `sanitizeSlide` (`src/lib/textSanitizer.ts`) and slide mapping invariant in `src/lib/synthesizer.ts`.
+  4. **Upstream API Parameter Normalization (`api/index.ts` & `autonomousPipeline.ts`):**
+     - Added `rawPrompt = req.body.prompt || req.body.topic || req.body.notes` to handle all client payloads without 400 Bad Request errors.
+  5. **No Repeated Graphic Layouts Across Slide Decks:**
+     - Decks now present 8 unique visual archetypes:
+       - Slide 1: Labeled Hub Architecture Map
+       - Slide 2: Metric Benchmark Card
+       - Slide 3: Split Architecture Comparison (`compare`)
+       - Slide 4: Silicon Monospace Terminal Diff (`code`)
+       - Slide 5: Layered Architecture Pipeline Stack
+       - Slide 6: Multi-Node Protocol Topology Flow
+       - Slide 7: Blast Radius Isolation Grid / Takeaway Card
+       - Slide 8: Standardized Marrok CTA Closer
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 errors.
+  - `npm run build` (`vite build`): Production bundle compiled in 516ms.
+  - Subagent visual inspection of Contact Sheet (`contact_sheet_8_slides_1792932004426.png`) verified all 8 slides render bespoke technical schematics with zero static flat boxes and zero mid-deck CTA duplications.
+

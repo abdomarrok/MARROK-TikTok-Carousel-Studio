@@ -305,6 +305,576 @@ function drawTintedImage(
 }
 
 /**
+ * Visual Variant 1: Multi-Node Architecture Topology Flow
+ * Replaces static icon boxes with a 3-node connected protocol handshake sequence
+ * (e.g. Client Node -> mTLS Envoy Proxy -> Isolated Workload Pod).
+ */
+async function drawMultiNodeTopologyFlow(
+  ctx: CanvasRenderingContext2D,
+  slide: SlideData,
+  theme: ThemePalette,
+  _options: VisualSystemOptions,
+  topY: number = 240
+): Promise<number> {
+  const cardX = 100;
+  const cardW = 880;
+  const cardH = 430;
+  const radius = 28;
+
+  // 1. Ambient Glow & Deep Glassmorphic Container
+  ctx.save();
+  const glow = ctx.createRadialGradient(cardX + cardW / 2, topY + cardH / 2, 40, cardX + cardW / 2, topY + cardH / 2, cardW / 1.8);
+  glow.addColorStop(0, `${theme.accent}18`);
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(cardX - 30, topY - 30, cardW + 60, cardH + 60);
+  ctx.restore();
+
+  drawRoundRect(ctx, cardX, topY, cardW, cardH, radius, '#060a0d', `${theme.accent}45`, 2);
+
+  // Top Neon Accent Line
+  ctx.save();
+  ctx.beginPath();
+  ctx.strokeStyle = theme.accent;
+  ctx.lineWidth = 2.5;
+  ctx.moveTo(cardX + radius + 10, topY);
+  ctx.lineTo(cardX + cardW - radius - 10, topY);
+  ctx.stroke();
+  ctx.restore();
+
+  // Top Header Tag
+  drawRoundRect(ctx, cardX + 32, topY + 22, 310, 36, 10, `${theme.accent}18`, `${theme.accent}50`, 1.2);
+  ctx.save();
+  ctx.font = '700 14px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TOPOLOGY // PROTOCOL HANDSHAKE', cardX + 32 + 155, topY + 40);
+  ctx.restore();
+
+  // 2. 3 Connected Component Node Cards
+  const nodeW = 236;
+  const nodeH = 220;
+  const nodeY = topY + 74;
+  const gap = 54;
+  const nx1 = cardX + 32;
+  const nx2 = nx1 + nodeW + gap;
+  const nx3 = nx2 + nodeW + gap;
+
+  // Extract labels and icons from slide
+  const icons = slide.icons || [];
+  const n1IconName = icons[0]?.icon || 'server';
+  const n1Label = icons[0]?.label || 'Client Node';
+  const n2IconName = icons[1]?.icon || 'shieldAlert';
+  const n2Label = icons[1]?.label || 'Envoy Proxy';
+  const n3IconName = icons[2]?.icon || 'lock';
+  const n3Label = icons[2]?.label || 'Target Workload';
+
+  const nodes = [
+    { x: nx1, icon: n1IconName, title: n1Label, role: 'CLIENT NODE', sub: '10.0.1.4:8443', status: 'INITIATOR', statusColor: theme.accent },
+    { x: nx2, icon: n2IconName, title: n2Label, role: 'mTLS PROXY', sub: 'SPIFFE ID Valid', status: 'VERIFIED', statusColor: '#10B981' },
+    { x: nx3, icon: n3IconName, title: n3Label, role: 'SECURE POD', sub: 'Zero-Trust Policy', status: 'ISOLATED', statusColor: theme.accent },
+  ];
+
+  for (const n of nodes) {
+    drawRoundRect(ctx, n.x, nodeY, nodeW, nodeH, 18, '#0b1319', `${theme.accent}65`, 1.8);
+
+    // Inner icon badge
+    drawRoundRect(ctx, n.x + 18, nodeY + 18, 42, 42, 12, `${theme.accent}20`, `${theme.accent}70`, 1.2);
+    const nImg = await loadIconImage(n.icon, theme.accent);
+    safeDrawImage(ctx, nImg, n.x + 27, nodeY + 27, 24, 24);
+
+    // Role Micro-Badge
+    ctx.save();
+    ctx.font = '700 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.microLabel;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(n.role, n.x + 68, nodeY + 36);
+
+    // Sub-title
+    ctx.font = '500 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.textMuted;
+    ctx.fillText(n.sub, n.x + 68, nodeY + 52);
+
+    // Primary Title
+    ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(n.title.length > 14 ? `${n.title.slice(0, 13)}…` : n.title, n.x + 18, nodeY + 115);
+
+    // Detail spec lines
+    ctx.font = '500 13px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText('• Cryptographic Auth', n.x + 18, nodeY + 145);
+    ctx.fillText('• Strict Port 8443', n.x + 18, nodeY + 168);
+
+    // Bottom Status Pill
+    const pillW = 100;
+    const pillH = 24;
+    drawRoundRect(ctx, n.x + 18, nodeY + nodeH - 34, pillW, pillH, 8, `${n.statusColor}20`, `${n.statusColor}60`, 1);
+    ctx.font = '700 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = n.statusColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`[ ${n.status} ]`, n.x + 18 + pillW / 2, nodeY + nodeH - 22);
+    ctx.restore();
+  }
+
+  // 3. Inter-Node Protocol Flow Arrows & Protocol Badges
+  // Arrow 1: Node 1 -> Node 2
+  const midY = nodeY + 110;
+  ctx.save();
+  ctx.strokeStyle = `${theme.accent}80`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(nx1 + nodeW, midY);
+  ctx.lineTo(nx2, midY);
+  ctx.stroke();
+
+  // Protocol pill 1
+  drawRoundRect(ctx, nx1 + nodeW + 6, midY - 14, 42, 28, 6, '#060a0d', `${theme.accent}80`, 1);
+  ctx.font = '700 10px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('mTLS', nx1 + nodeW + 27, midY);
+
+  // Arrow 1 Tip
+  ctx.fillStyle = theme.accent;
+  ctx.beginPath();
+  ctx.moveTo(nx2 - 2, midY);
+  ctx.lineTo(nx2 - 8, midY - 5);
+  ctx.lineTo(nx2 - 8, midY + 5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Arrow 2: Node 2 -> Node 3
+  ctx.beginPath();
+  ctx.moveTo(nx2 + nodeW, midY);
+  ctx.lineTo(nx3, midY);
+  ctx.stroke();
+
+  // Protocol pill 2
+  drawRoundRect(ctx, nx2 + nodeW + 6, midY - 14, 42, 28, 6, '#060a0d', `${theme.accent}80`, 1);
+  ctx.fillText('ALLOW', nx2 + nodeW + 27, midY);
+
+  // Arrow 2 Tip
+  ctx.beginPath();
+  ctx.moveTo(nx3 - 2, midY);
+  ctx.lineTo(nx3 - 8, midY - 5);
+  ctx.lineTo(nx3 - 8, midY + 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // 4. Bottom Telemetry Bar
+  const barY = nodeY + nodeH + 20;
+  drawRoundRect(ctx, nx1, barY, cardW - 64, 46, 12, '#091116', `${theme.accent}33`, 1.2);
+  ctx.save();
+  ctx.font = '700 13px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.textMuted;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HANDSHAKE: 0.4ms P99  •  CIPHER: TLS_AES_256_GCM_SHA384  •  EGRESS: ENFORCED', cardX + cardW / 2, barY + 23);
+  ctx.restore();
+
+  return 745;
+}
+
+/**
+ * Visual Variant 2: Blast Radius & Network Isolation Grid
+ * Replaces static icon boxes with a multi-cell segmented firewall boundary
+ */
+async function drawBlastRadiusIsolationGrid(
+  ctx: CanvasRenderingContext2D,
+  _slide: SlideData,
+  theme: ThemePalette,
+  _options: VisualSystemOptions,
+  topY: number = 240
+): Promise<number> {
+  const cardX = 100;
+  const cardW = 880;
+  const cardH = 430;
+  const radius = 28;
+
+  drawRoundRect(ctx, cardX, topY, cardW, cardH, radius, '#060a0d', `${theme.accent}45`, 2);
+
+  // Top Neon Line
+  ctx.save();
+  ctx.beginPath();
+  ctx.strokeStyle = theme.accent;
+  ctx.lineWidth = 2.5;
+  ctx.moveTo(cardX + radius + 10, topY);
+  ctx.lineTo(cardX + cardW - radius - 10, topY);
+  ctx.stroke();
+
+  // Header Tag
+  drawRoundRect(ctx, cardX + 32, topY + 22, 380, 36, 10, `${theme.accent}18`, `${theme.accent}50`, 1.2);
+  ctx.font = '700 14px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('MICROSEGMENTATION // BLAST RADIUS CONFINED', cardX + 32 + 190, topY + 40);
+  ctx.restore();
+
+  // 3 Workload Cells: Breached Pod (Left) || Divider || Protected Mesh (Mid) || DB Vault (Right)
+  const cellW = 236;
+  const cellH = 220;
+  const cellY = topY + 74;
+  const gap = 54;
+  const cx1 = cardX + 32;
+  const cx2 = cx1 + cellW + gap;
+  const cx3 = cx2 + cellW + gap;
+
+  // Cell 1: Breached Workload (Crimson)
+  drawRoundRect(ctx, cx1, cellY, cellW, cellH, 18, 'rgba(244, 63, 94, 0.08)', 'rgba(244, 63, 94, 0.65)', 2);
+  drawRoundRect(ctx, cx1 + 18, cellY + 18, 42, 42, 12, 'rgba(244, 63, 94, 0.20)', 'rgba(244, 63, 94, 0.70)', 1.2);
+  const alertImg = await loadIconImage('shieldAlert', '#F43F5E');
+  safeDrawImage(ctx, alertImg, cx1 + 27, cellY + 27, 24, 24);
+
+  ctx.save();
+  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#FDA4AF';
+  ctx.textAlign = 'left';
+  ctx.fillText('ATTACK SURFACE', cx1 + 68, cellY + 36);
+  ctx.fillStyle = '#F87171';
+  ctx.fillText('Exploit Active', cx1 + 68, cellY + 52);
+
+  ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('Compromised Pod', cx1 + 18, cellY + 115);
+
+  ctx.font = '500 13px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#CBD5E1';
+  ctx.fillText('• Egress: BLOCKED', cx1 + 18, cellY + 145);
+  ctx.fillText('• Spiffe: REVOKED', cx1 + 18, cellY + 168);
+
+  drawRoundRect(ctx, cx1 + 18, cellY + cellH - 34, 110, 24, 8, 'rgba(244, 63, 94, 0.25)', 'rgba(244, 63, 94, 0.75)', 1);
+  ctx.font = '700 11px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#FDA4AF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('[ QUARANTINED ]', cx1 + 18 + 55, cellY + cellH - 22);
+  ctx.restore();
+
+  // Vertical Air-Gap Firewall Barrier between Cell 1 and Cell 2
+  ctx.save();
+  ctx.strokeStyle = 'rgba(244, 63, 94, 0.60)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(cx1 + cellW + gap / 2, cellY + 10);
+  ctx.lineTo(cx1 + cellW + gap / 2, cellY + cellH - 10);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawRoundRect(ctx, cx1 + cellW + gap / 2 - 24, cellY + cellH / 2 - 14, 48, 28, 6, '#060a0d', 'rgba(244, 63, 94, 0.70)', 1);
+  ctx.font = '700 10px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#F43F5E';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('DENY', cx1 + cellW + gap / 2, cellY + cellH / 2);
+  ctx.restore();
+
+  // Cell 2: Isolated Service Pod (Accent)
+  drawRoundRect(ctx, cx2, cellY, cellW, cellH, 18, '#0b1319', `${theme.accent}65`, 1.8);
+  drawRoundRect(ctx, cx2 + 18, cellY + 18, 42, 42, 12, `${theme.accent}20`, `${theme.accent}70`, 1.2);
+  const lockImg = await loadIconImage('lock', theme.accent);
+  safeDrawImage(ctx, lockImg, cx2 + 27, cellY + 27, 24, 24);
+
+  ctx.save();
+  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.microLabel;
+  ctx.textAlign = 'left';
+  ctx.fillText('PROTECTED MESH', cx2 + 68, cellY + 36);
+  ctx.fillStyle = theme.textMuted;
+  ctx.fillText('Zero Implicit Trust', cx2 + 68, cellY + 52);
+
+  ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('Internal Service', cx2 + 18, cellY + 115);
+
+  ctx.font = '500 13px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText('• Strict Ingress Only', cx2 + 18, cellY + 145);
+  ctx.fillText('• 0 Lateral Ingress', cx2 + 18, cellY + 168);
+
+  drawRoundRect(ctx, cx2 + 18, cellY + cellH - 34, 100, 24, 8, `${theme.accent}20`, `${theme.accent}60`, 1);
+  ctx.font = '700 11px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('[ ISOLATED ]', cx2 + 18 + 50, cellY + cellH - 22);
+  ctx.restore();
+
+  // Cell 3: Database Vault (Emerald)
+  drawRoundRect(ctx, cx3, cellY, cellW, cellH, 18, '#0b1319', 'rgba(16, 185, 129, 0.65)', 1.8);
+  drawRoundRect(ctx, cx3 + 18, cellY + 18, 42, 42, 12, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.70)', 1.2);
+  const dbImg = await loadIconImage('database', '#10B981');
+  safeDrawImage(ctx, dbImg, cx3 + 27, cellY + 27, 24, 24);
+
+  ctx.save();
+  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#6EE7B7';
+  ctx.textAlign = 'left';
+  ctx.fillText('AIR-GAPPED DB', cx3 + 68, cellY + 36);
+  ctx.fillStyle = '#10B981';
+  ctx.fillText('Mutual Auth Only', cx3 + 68, cellY + 52);
+
+  ctx.font = '800 19px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('Production Vault', cx3 + 18, cellY + 115);
+
+  ctx.font = '500 13px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText('• Encrypted at Rest', cx3 + 18, cellY + 145);
+  ctx.fillText('• Audit Logged', cx3 + 18, cellY + 168);
+
+  drawRoundRect(ctx, cx3 + 18, cellY + cellH - 34, 100, 24, 8, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.60)', 1);
+  ctx.font = '700 11px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#10B981';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('[ AIR-GAPPED ]', cx3 + 18 + 50, cellY + cellH - 22);
+  ctx.restore();
+
+  // Bottom Security Benchmark Banner
+  const barY = cellY + cellH + 20;
+  drawRoundRect(ctx, cx1, barY, cardW - 64, 46, 12, 'rgba(16, 185, 129, 0.12)', 'rgba(16, 185, 129, 0.45)', 1.2);
+  ctx.save();
+  ctx.font = '700 14px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#34D399';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('✔ BLAST RADIUS CONFINED: 0 LATERAL ACCESS TO ADJACENT PODS OR STORAGE', cardX + cardW / 2, barY + 23);
+  ctx.restore();
+
+  return 745;
+}
+
+/**
+ * Visual Variant 3: Layered Architecture Stack & Request Pipeline
+ * Replaces static icon boxes with a 3-tier horizontal architecture stack
+ */
+async function drawLayeredArchitectureStack(
+  ctx: CanvasRenderingContext2D,
+  _slide: SlideData,
+  theme: ThemePalette,
+  _options: VisualSystemOptions,
+  topY: number = 240
+): Promise<number> {
+  const cardX = 100;
+  const cardW = 880;
+  const cardH = 430;
+  const radius = 28;
+
+  drawRoundRect(ctx, cardX, topY, cardW, cardH, radius, '#060a0d', `${theme.accent}45`, 2);
+
+  // Top Neon Line
+  ctx.save();
+  ctx.beginPath();
+  ctx.strokeStyle = theme.accent;
+  ctx.lineWidth = 2.5;
+  ctx.moveTo(cardX + radius + 10, topY);
+  ctx.lineTo(cardX + cardW - radius - 10, topY);
+  ctx.stroke();
+
+  // Header Tag
+  drawRoundRect(ctx, cardX + 32, topY + 22, 340, 36, 10, `${theme.accent}18`, `${theme.accent}50`, 1.2);
+  ctx.font = '700 14px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ARCHITECTURE // PIPELINE STACK', cardX + 32 + 170, topY + 40);
+  ctx.restore();
+
+  // 3 Stacked Horizontal Tier Cards
+  const tierW = cardW - 64;
+  const tierH = 82;
+  const tierX = cardX + 32;
+  const gap = 16;
+  const startTierY = topY + 74;
+
+  const tiers = [
+    {
+      y: startTierY,
+      layer: 'LAYER 01',
+      title: 'EDGE INGRESS & AUTHENTICATION TIER',
+      sub: 'TLS 1.3 Termination • Token Validation • Rate Limiting',
+      pill: '10K REQ/S',
+      icon: 'network',
+    },
+    {
+      y: startTierY + tierH + gap,
+      layer: 'LAYER 02',
+      title: 'SERVICE MESH & ROUTING CONTROL PLANE',
+      sub: 'Envoy Sidecars • Dynamic Routing • Cryptographic Identity',
+      pill: 'LEAST PRIVILEGE',
+      icon: 'gitMerge',
+    },
+    {
+      y: startTierY + (tierH + gap) * 2,
+      layer: 'LAYER 03',
+      title: 'HARDENED WORKLOADS & SECURE STORAGE',
+      sub: 'Encrypted at Rest • Mutual Authentication • Audit Trail',
+      pill: 'SECURED',
+      icon: 'database',
+    },
+  ];
+
+  for (const t of tiers) {
+    drawRoundRect(ctx, tierX, t.y, tierW, tierH, 14, '#0b1319', `${theme.accent}55`, 1.5);
+
+    // Left neon accent strip
+    drawRoundRect(ctx, tierX, t.y, 6, tierH, 3, theme.accent);
+
+    // Icon badge
+    drawRoundRect(ctx, tierX + 18, t.y + 18, 44, 44, 10, `${theme.accent}20`, `${theme.accent}65`, 1);
+    const tImg = await loadIconImage(t.icon, theme.accent);
+    safeDrawImage(ctx, tImg, tierX + 27, t.y + 27, 26, 26);
+
+    // Typography
+    ctx.save();
+    ctx.font = '700 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(t.layer, tierX + 76, t.y + 35);
+
+    ctx.font = '800 17px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(t.title, tierX + 155, t.y + 35);
+
+    ctx.font = '500 13px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText(t.sub, tierX + 76, t.y + 60);
+
+    // Right status pill
+    const pW = 120;
+    drawRoundRect(ctx, tierX + tierW - pW - 18, t.y + 26, pW, 28, 8, `${theme.accent}20`, `${theme.accent}65`, 1);
+    ctx.font = '700 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.pill, tierX + tierW - pW / 2 - 18, t.y + 40);
+    ctx.restore();
+  }
+
+  // Bottom Traceability Line
+  const footY = startTierY + (tierH + gap) * 3 + 12;
+  ctx.save();
+  ctx.font = '700 13px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.textMuted;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('END-TO-END CRYPTOGRAPHIC TRACEABILITY ACROSS ALL TIERS', cardX + cardW / 2, footY);
+  ctx.restore();
+
+  return 745;
+}
+
+/**
+ * Visual Variant 4: Key Architectural Takeaway Card
+ * Replaces lonely single-icon boxes with a high-impact architectural principle card
+ */
+async function drawKeyTakeawayCard(
+  ctx: CanvasRenderingContext2D,
+  slide: SlideData,
+  theme: ThemePalette,
+  _options: VisualSystemOptions,
+  topY: number = 240
+): Promise<number> {
+  const cardX = 100;
+  const cardW = 880;
+  const cardH = 430;
+  const radius = 28;
+
+  drawRoundRect(ctx, cardX, topY, cardW, cardH, radius, '#060a0d', `${theme.accent}45`, 2);
+
+  // Top Neon Line
+  ctx.save();
+  ctx.beginPath();
+  ctx.strokeStyle = theme.accent;
+  ctx.lineWidth = 2.5;
+  ctx.moveTo(cardX + radius + 10, topY);
+  ctx.lineTo(cardX + cardW - radius - 10, topY);
+  ctx.stroke();
+
+  // Header Tag
+  drawRoundRect(ctx, cardX + 32, topY + 22, 360, 36, 10, `${theme.accent}18`, `${theme.accent}50`, 1.2);
+  ctx.font = '700 14px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ARCHITECTURAL PRINCIPLE // RULE', cardX + 32 + 180, topY + 40);
+  ctx.restore();
+
+  // Highlighted Principle Block
+  const blockW = cardW - 64;
+  const blockH = 150;
+  const blockX = cardX + 32;
+  const blockY = topY + 74;
+
+  drawRoundRect(ctx, blockX, blockY, blockW, blockH, 16, '#0b1319', `${theme.accent}65`, 1.5);
+  drawRoundRect(ctx, blockX, blockY, 6, blockH, 3, theme.accent);
+
+  const iconName = slide.icons?.[0]?.icon || 'shieldAlert';
+  const iconImg = await loadIconImage(iconName, theme.accent);
+  drawRoundRect(ctx, blockX + 22, blockY + 22, 54, 54, 14, `${theme.accent}20`, `${theme.accent}70`, 1.2);
+  safeDrawImage(ctx, iconImg, blockX + 34, blockY + 34, 30, 30);
+
+  ctx.save();
+  ctx.font = '800 28px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  const cleanTitle = (slide.enTitle || 'Never trust, always verify.').replace(/[.?!]$/, '');
+  ctx.fillText(cleanTitle, blockX + 96, blockY + 56);
+
+  ctx.font = '500 18px "JetBrains Mono", monospace';
+  ctx.fillStyle = theme.accent;
+  ctx.fillText('Zero Implicit Trust • Continuous Cryptographic Identity', blockX + 96, blockY + 92);
+
+  ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#94A3B8';
+  ctx.fillText('Treat every internal packet as untrusted public network traffic.', blockX + 96, blockY + 124);
+  ctx.restore();
+
+  // 2 Comparative Proof Sub-Cards at bottom
+  const subW = (blockW - 20) / 2;
+  const subH = 135;
+  const subY = blockY + blockH + 20;
+
+  // Sub-card 1: Critical Constraint
+  drawRoundRect(ctx, blockX, subY, subW, subH, 14, 'rgba(245, 158, 11, 0.08)', 'rgba(245, 158, 11, 0.40)', 1.2);
+  ctx.save();
+  ctx.font = '700 13px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#FBBF24';
+  ctx.textAlign = 'left';
+  ctx.fillText('⚠️ CRITICAL CONSTRAINT', blockX + 18, subY + 32);
+  ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#E2E8F0';
+  ctx.fillText('Short-lived certificates require automated', blockX + 18, subY + 65);
+  ctx.fillText('control planes to prevent service outages.', blockX + 18, subY + 92);
+  ctx.restore();
+
+  // Sub-card 2: Production Best Practice
+  drawRoundRect(ctx, blockX + subW + 20, subY, subW, subH, 14, 'rgba(16, 185, 129, 0.08)', 'rgba(16, 185, 129, 0.40)', 1.2);
+  ctx.save();
+  ctx.font = '700 13px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#34D399';
+  ctx.textAlign = 'left';
+  ctx.fillText('✔ PRODUCTION DEFENSE', blockX + subW + 38, subY + 32);
+  ctx.font = '400 16px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = '#E2E8F0';
+  ctx.fillText('Fix reachable attack paths first to eliminate', blockX + subW + 38, subY + 65);
+  ctx.fillText('95% of real-world exploitation risks.', blockX + subW + 38, subY + 92);
+  ctx.restore();
+
+  return 745;
+}
+
+/**
  * Render a single MARROK slide at 1080x1920 to an offscreen or provided canvas
  */
 export async function renderSlideToCanvas(
@@ -567,7 +1137,7 @@ export async function renderSlideToCanvas(
     }
     ctx.restore();
 
-    // Center Hub Box: 280x280 rounded rect (radius 64) with restrained glow
+    // Center Hub Box: 280x280 rounded rect (radius 48) with dark glassmorphic styling
     const centerBoxW = 280;
     const centerBoxH = 280;
     const centerBoxX = cx - centerBoxW / 2;
@@ -575,21 +1145,53 @@ export async function renderSlideToCanvas(
     ctx.save();
     ctx.shadowColor = theme.accent;
     ctx.shadowBlur = 14;
-    drawRoundRect(ctx, centerBoxX, centerBoxY, centerBoxW, centerBoxH, 64, theme.accent);
+    drawRoundRect(ctx, centerBoxX, centerBoxY, centerBoxW, centerBoxH, 48, '#081216', theme.accent, 2.5);
     ctx.restore();
 
-    // Center Hub Icon: 140x140 in icon-stroke
+    // Center Hub Icon: 130x130 in theme.accent
     const centerIconName = slide.centerIcon || 'gitMerge';
-    const centerImg = await loadIconImage(centerIconName, theme.iconStroke);
-    const iconSize = 140;
-    drawTintedImage(ctx, centerImg, cx - iconSize / 2, cy - iconSize / 2, iconSize, iconSize, theme.iconStroke);
+    const centerImg = await loadIconImage(centerIconName, theme.accent);
+    const iconSize = 130;
+    drawTintedImage(ctx, centerImg, cx - iconSize / 2, cy - iconSize / 2 - 14, iconSize, iconSize, theme.accent);
 
-    // 6 Satellite Badges with subtle glowing connection nodes where radial axes intersect
+    // Center Core Tag Pill at bottom of center box
+    drawRoundRect(ctx, cx - 85, centerBoxY + centerBoxH - 42, 170, 26, 8, `${theme.accent}20`, `${theme.accent}70`, 1.2);
+    ctx.save();
+    ctx.font = '700 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SYSTEM CORE', cx, centerBoxY + centerBoxH - 29);
+    ctx.restore();
+
+    // 6 Satellite Badges with crisp technical label pills and spoke flow indicators
     const satAngles = [-90, -30, 30, 90, 150, 210];
     const satIcons = slide.satIcons || ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
-    const satW = 132;
-    const satH = 132;
-    const satIconSize = 68;
+    const satLabels = slide.satLabels || [];
+    const satW = 138;
+    const satH = 104;
+    const satIconSize = 48;
+
+    // Default technical labels mapping if not explicitly provided
+    const DEFAULT_ICON_LABELS: Record<string, string> = {
+      server: 'SERVICE POD',
+      database: 'STORAGE',
+      gauge: 'TELEMETRY',
+      users: 'IAM IDENTITY',
+      robot: 'AI AGENT',
+      gitMerge: 'VCS ENGINE',
+      cpu: 'EXEC ENGINE',
+      box: 'CONTAINER',
+      activity: 'HEALTH P99',
+      shieldAlert: 'POLICY GATE',
+      lock: 'CRYPTO MESH',
+      network: 'mTLS PROXY',
+      key: 'x509 CERTS',
+      code: 'VIRTUAL FS',
+      terminal: 'CLI GATEWAY',
+      cloud: 'K8s CLUSTER',
+      zap: 'LOW LATENCY',
+    };
 
     for (let i = 0; i < satAngles.length; i++) {
       try {
@@ -600,13 +1202,13 @@ export async function renderSlideToCanvas(
         // Glowing connection node at intersection
         ctx.save();
         ctx.beginPath();
-        ctx.arc(sx, sy, 76, 0, Math.PI * 2);
+        ctx.arc(sx, sy, 70, 0, Math.PI * 2);
         ctx.strokeStyle = `${theme.accent}30`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+        ctx.arc(sx, sy, 8, 0, Math.PI * 2);
         ctx.fillStyle = theme.accent;
         ctx.shadowColor = theme.accent;
         ctx.shadowBlur = 10;
@@ -614,79 +1216,109 @@ export async function renderSlideToCanvas(
         ctx.shadowBlur = 0;
         ctx.shadowColor = 'transparent';
         ctx.beginPath();
-        ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+        ctx.arc(sx, sy, 3, 0, Math.PI * 2);
         ctx.fillStyle = '#081216';
         ctx.fill();
         ctx.restore();
 
-        // Satellite Box
-        drawRoundRect(ctx, sx - satW / 2, sy - satH / 2, satW, satH, 34, theme.accent);
+        // Directional spoke arrow chevrons radiating from center to satellite
+        const arrowDist = r * 0.58;
+        const ax = cx + arrowDist * Math.cos(rad);
+        const ay = cy + arrowDist * Math.sin(rad);
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.rotate(rad);
+        ctx.fillStyle = theme.accent;
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(-4, -4);
+        ctx.lineTo(-2, 0);
+        ctx.lineTo(-4, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
 
+        // Dark Glassmorphic Satellite Box (NOT solid neon)
+        drawRoundRect(ctx, sx - satW / 2, sy - satH / 2, satW, satH, 20, '#091319', `${theme.accent}80`, 2);
+
+        // CAD Corner marks on satellite
+        ctx.save();
+        ctx.strokeStyle = `${theme.accent}60`;
+        ctx.lineWidth = 1.2;
+        const sm = 6;
+        ctx.beginPath();
+        ctx.moveTo(sx - satW / 2 + 5, sy - satH / 2 + 5 + sm);
+        ctx.lineTo(sx - satW / 2 + 5, sy - satH / 2 + 5);
+        ctx.lineTo(sx - satW / 2 + 5 + sm, sy - satH / 2 + 5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx + satW / 2 - 5 - sm, sy + satH / 2 - 5);
+        ctx.lineTo(sx + satW / 2 - 5, sy + satH / 2 - 5);
+        ctx.lineTo(sx + satW / 2 - 5, sy + satH / 2 - 5 - sm);
+        ctx.stroke();
+        ctx.restore();
+
+        // Satellite Icon (centered in upper portion)
         const sIconName = satIcons[i % satIcons.length] || 'gitMerge';
-        const sImg = await loadIconImage(sIconName, theme.iconStroke);
-        drawTintedImage(ctx, sImg, sx - satIconSize / 2, sy - satIconSize / 2, satIconSize, satIconSize, theme.iconStroke);
+        const sImg = await loadIconImage(sIconName, theme.accent);
+        drawTintedImage(ctx, sImg, sx - satIconSize / 2, sy - satH / 2 + 12, satIconSize, satIconSize, theme.accent);
+
+        // Crisp Technical Label Pill (attached to lower portion of satellite)
+        const labelText = satLabels[i] || DEFAULT_ICON_LABELS[sIconName] || sIconName.toUpperCase();
+        const pillW = Math.min(satW - 14, 126);
+        const pillH = 24;
+        const pillX = sx - pillW / 2;
+        const pillY = sy + satH / 2 - 32;
+
+        drawRoundRect(ctx, pillX, pillY, pillW, pillH, 6, '#060a0d', `${theme.accent}90`, 1.2);
+        ctx.save();
+        ctx.font = '700 12px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const displayLabel = labelText.length > 12 ? labelText.slice(0, 11) + '…' : labelText;
+        ctx.fillText(displayLabel, sx, pillY + pillH / 2);
+        ctx.restore();
       } catch (satErr) {
         console.warn(`Error rendering satellite ${i}:`, satErr);
       }
     }
 
     textZoneStartY = 1120;
-  } else if (slide.type === 'row') {
-    const icons = slide.icons || [{ icon: 'database', label: '' }];
-    const count = Math.min(Math.max(icons.length, 1), 5);
+  } else if (slide.type === 'row' || (slide.type === 'cta' && slideIndex !== totalSlides - 1)) {
+    // Dynamic Technical Schematics: Dispatch to bespoke labeled diagrams instead of rigid flat boxes
+    const slideText = `${slide.enTitle || ''} ${slide.enBody || ''} ${slide.arTitle || ''}`.toLowerCase();
+    const iconCount = slide.icons?.length || 0;
 
-    // Spec §9.4: 1=300, 2=260, 3=220, 4=190, 5=156. Gap 36 (26 for five). Row at y=290.
-    let boxW = 220;
-    let boxH = 220;
-    let gap = 36;
-    let radius = 54;
-    let iconSize = 106;
-    let labelFontSize = 28;
-
-    if (count === 1) {
-      boxW = 300; boxH = 300; gap = 0; radius = 72; iconSize = 142; labelFontSize = 28;
-    } else if (count === 2) {
-      boxW = 260; boxH = 260; gap = 36; radius = 64; iconSize = 126; labelFontSize = 28;
-    } else if (count === 3) {
-      boxW = 220; boxH = 220; gap = 36; radius = 54; iconSize = 106; labelFontSize = 28;
-    } else if (count === 4) {
-      boxW = 190; boxH = 190; gap = 36; radius = 46; iconSize = 92; labelFontSize = 26;
-    } else if (count === 5) {
-      boxW = 156; boxH = 156; gap = 26; radius = 38; iconSize = 76; labelFontSize = 24;
+    if (
+      slideText.includes('blast radius') ||
+      slideText.includes('microsegment') ||
+      slideText.includes('isolation') ||
+      slideText.includes('isolate') ||
+      slideText.includes('perimeter') ||
+      slideText.includes('firewall') ||
+      slideText.includes('quarantine') ||
+      slideText.includes('sandbox')
+    ) {
+      textZoneStartY = await drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
+    } else if (
+      slideText.includes('stack') ||
+      slideText.includes('layer') ||
+      slideText.includes('pipeline') ||
+      slideText.includes('server-side') ||
+      slideText.includes('engine') ||
+      slideText.includes('tier') ||
+      slideText.includes('virtual mount') ||
+      slideText.includes('object store') ||
+      slideText.includes('hierarchy') ||
+      slideIndex === 4
+    ) {
+      textZoneStartY = await drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
+    } else if (iconCount === 1) {
+      textZoneStartY = await drawKeyTakeawayCard(ctx, slide, theme, options, 240);
+    } else {
+      textZoneStartY = await drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
     }
-
-    const totalRowWidth = count * boxW + (count - 1) * gap;
-    const startX = 540 - totalRowWidth / 2;
-    const topY = 290;
-
-    for (let i = 0; i < count; i++) {
-      const curX = startX + i * (boxW + gap);
-      drawRoundRect(ctx, curX, topY, boxW, boxH, radius, theme.accent);
-
-      const iconName = icons[i]?.icon || 'database';
-      const iconImg = await loadIconImage(iconName, theme.iconStroke);
-      drawTintedImage(
-        ctx,
-        iconImg,
-        curX + boxW / 2 - iconSize / 2,
-        topY + boxH / 2 - iconSize / 2,
-        iconSize,
-        iconSize,
-        theme.iconStroke
-      );
-
-      if (icons[i]?.label) {
-        ctx.save();
-        ctx.font = `500 ${labelFontSize}px "Cairo", "Plus Jakarta Sans", sans-serif`;
-        ctx.fillStyle = theme.microLabel;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(icons[i].label, curX + boxW / 2, topY + boxH + 42);
-        ctx.restore();
-      }
-    }
-
-    textZoneStartY = topY + boxH + 110;
   } else if (slide.type === 'number') {
     // Spec §9.4 Number Archetype: Big accent numeral (e.g. "01", "02") at y=330, text block at y=700
     const stepStr = slide.stepNumber || String(slideIndex + 1).padStart(2, '0');
@@ -1441,7 +2073,7 @@ export async function renderSlideToCanvas(
     }
 
     textZoneStartY = 745;
-  } else if (slide.type === 'cta') {
+  } else if (slide.type === 'cta' && slideIndex === totalSlides - 1) {
     // Archetype 8: Standardized Marrok Closer (Isometric Core, Domain Hook, Bilingual CTA Pill, Verified Card)
     const emblemX = 518;
     const emblemY = 440;
@@ -1709,7 +2341,7 @@ export async function renderSlideToCanvas(
   // 6. Text Zone Rendering (for hub, row, metric, code, and compare slides)
   // Strict Safe-Zone Rule: Center at x = 518 with maxWidth 850 (titles) and 820 (body)
   // to enforce right safe margin >= 135px (x <= 945) clearing TikTok native right-side action buttons
-  if (slide.type !== 'cta') {
+  if (slide.type !== 'cta' || slideIndex !== totalSlides - 1) {
     let currentY = textZoneStartY;
 
     // English Headline: 74px, line-height 86px, 800 weight, #FFFFFF

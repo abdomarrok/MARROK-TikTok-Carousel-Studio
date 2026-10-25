@@ -15,6 +15,7 @@ export interface SlideData {
   // Hub properties
   centerIcon?: string;
   satIcons?: string[];
+  satLabels?: string[]; // Technical labels for the 6 satellite nodes around the hub
   // Row properties
   icons?: IconLabelPair[];
   // Number Archetype properties (Spec §7 & §9.4: Big accent number step counter e.g. "01", "02")

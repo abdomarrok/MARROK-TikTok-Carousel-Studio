@@ -434,7 +434,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'hub',
         centerIcon: 'lock',
-        satIcons: ['shieldAlert', 'network', 'key', 'server', 'eyeRisk', 'terminal'],
+        satIcons: ['shieldAlert', 'network', 'key', 'server', 'activity', 'terminal'],
+        satLabels: ['mTLS / x509', 'Envoy Mesh', 'IAM Policy', 'Micro-Seg', 'Cert Rotation', 'Telemetry API'],
         enTitle: 'Zero-Trust, explained.',
         arTitle: 'شرح معمارية Zero-Trust',
         enBody: 'How cryptographic identity and least-privilege egress replace perimeter networks.',
@@ -443,8 +444,9 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'row',
         icons: [
-          { icon: 'network', label: 'Mutual TLS' },
-          { icon: 'key', label: 'x509 Certs' },
+          { icon: 'server', label: 'Client Node' },
+          { icon: 'shieldAlert', label: 'Envoy Proxy' },
+          { icon: 'lock', label: 'Isolated Pod' },
         ],
         enTitle: 'Mutual TLS encryption active.',
         arTitle: 'تشفير كامل عبر mTLS',
@@ -475,8 +477,9 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'row',
         icons: [
-          { icon: 'shieldAlert', label: 'Microsegment' },
-          { icon: 'lock', label: 'Egress Policy' },
+          { icon: 'shieldAlert', label: 'Breached Pod' },
+          { icon: 'lock', label: 'Protected Mesh' },
+          { icon: 'database', label: 'Air-Gapped DB' },
         ],
         enTitle: 'Microsegmentation limits blast radius.',
         arTitle: 'تقسيم الشبكة يحد الأضرار',
@@ -486,17 +489,21 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       {
         type: 'row',
         icons: [
-          { icon: 'alertCircle', label: 'The Catch' },
-          { icon: 'activity', label: 'Cert Rotation' },
+          { icon: 'network', label: 'Ingress Gateway' },
+          { icon: 'gitMerge', label: 'Envoy Mesh' },
+          { icon: 'database', label: 'Secure Storage' },
         ],
-        enTitle: 'The Catch: Certificate rotation.',
+        enTitle: 'The Catch: Pipeline and cert rotation.',
         arTitle: 'تحدي إدارة الشهادات الدورية',
         enBody: 'Short-lived certificates require automated control planes to prevent unexpected service outages.',
         arBody: 'الشهادات قصيرة الأجل تتطلب أتمتة كاملة لإدارتها تفادياً لانقطاع الخدمات المفاجئ.',
       },
       {
-        type: 'row',
-        icons: [{ icon: 'lightbulb', label: 'Security Rule' }],
+        type: 'metric',
+        metricValue: '100% mTLS',
+        metricLabel: 'ENCRYPTED ZERO-TRUST TRAFFIC',
+        metricDiff: '▼ 0 unauthenticated packets allowed',
+        metricIcon: 'shieldAlert',
         enTitle: 'Never trust, always verify.',
         arTitle: 'القاعدة الذهبية: لا تثق أبداً',
         enBody: 'Treat every network packet as if it originated from an untrusted public internet node.',
@@ -522,6 +529,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         type: 'hub',
         centerIcon: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/redis.svg',
         satIcons: ['database', 'zap', 'hardDrive', 'server', 'cpu', 'activity'],
+        satLabels: ['Shared Memory', 'Sub-ms Cache', 'Memory P99', 'Cluster Shards', 'Persistence', 'Replica Sync'],
         enTitle: 'Redis 8 gets faster.',
         arTitle: 'تسريع محرك Redis 8',
         enBody: 'How asynchronous I/O and query pipelining deliver sub-millisecond in-memory throughput.',
@@ -582,8 +590,11 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         arBody: 'الاستعلامات المتعددة عبر عقد مختلفة تتطلب توجيهاً إضافياً قد يقلل من الفائدة.',
       },
       {
-        type: 'row',
-        icons: [{ icon: 'lightbulb', label: 'Cache Rule' }],
+        type: 'metric',
+        metricValue: '< 64 KB',
+        metricLabel: 'OPTIMAL PAYLOAD THRESHOLD',
+        metricDiff: '▲ Sub-millisecond p99 guarantee',
+        metricIcon: 'gauge',
         enTitle: 'Keep payloads minimal and lean.',
         arTitle: 'احرص على تقليص أحجام البيانات',
         enBody: 'In-memory stores remain sub-millisecond only when value payloads stay under 64KB.',
@@ -609,6 +620,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         type: 'hub',
         centerIcon: 'gitMerge',
         satIcons: ['server', 'cpu', 'database', 'changesets', 'terminal', 'gauge'],
+        satLabels: ['Virtual FS', 'Server Merge', 'API VCS', 'Changesets', 'CI Runners', 'Telemetry'],
         enTitle: 'Beyond traditional Git.',
         arTitle: 'منظومة Scion لإدارة الشيفرات',
         enBody: 'Why AI agent concurrency broke standard Git and how Anthropic engineered Scion for monorepos.',
@@ -669,8 +681,11 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         arBody: 'الأنظمة المخصصة مثل Scion تحتاج لفرق دعم متفرغة؛ المستودعات الأصغر من 50GB تبقى أفضل مع Git.',
       },
       {
-        type: 'row',
-        icons: [{ icon: 'lightbulb', label: 'SRE Rule' }],
+        type: 'metric',
+        metricValue: '200x',
+        metricLabel: 'COMPUTE FOOTPRINT REDUCTION',
+        metricDiff: '▲ 25% of all CI computing freed',
+        metricIcon: 'cpu',
         enTitle: 'Decouple storage from compute.',
         arTitle: 'افصل التخزين عن المعالجة',
         enBody: 'Never force developer or agent machines to hold the full historical weight of the repository.',
@@ -757,8 +772,11 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         arBody: `التحسين العميق يزيد من تعقيد الشيفرة؛ لا تطبقه إلا إذا أثبتت القياسات أن بطء الاستجابة يؤثر فعلياً على النظام.`,
       },
       {
-        type: 'row',
-        icons: [{ icon: 'lightbulb', label: 'SRE Rule' }],
+        type: 'metric',
+        metricValue: 'p99 < 1ms',
+        metricLabel: 'TAIL LATENCY BENCHMARK',
+        metricDiff: '▲ 99.9% requests stay sub-millisecond',
+        metricIcon: 'gauge',
         enTitle: 'Profile p99 continuously.',
         arTitle: 'قاعدة مهندسي الاعتمادية SRE',
         enBody: `Never optimize based on averages. Track 99th percentile response times and memory allocations.`,
@@ -845,8 +863,11 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         arBody: `ترقيع الثغرات ليس كافياً بمفرده؛ بدون عزل بيئات التشغيل وتقييد الصلاحيات، يبقى خطر الاختراق الداخلي قائماً.`,
       },
       {
-        type: 'row',
-        icons: [{ icon: 'shieldAlert', label: 'AppSec Rule' }],
+        type: 'metric',
+        metricValue: '95%',
+        metricLabel: 'ATTACK SURFACE ELIMINATED',
+        metricDiff: '▲ Prioritizing top 5% reachable CVEs',
+        metricIcon: 'shieldAlert',
         enTitle: 'Fix reachable bugs first.',
         arTitle: 'قاعدة الأمان السيبراني الأساسية',
         enBody: `Fixing the 5% of reachable flaws provides 95% of real-world defensive protection for production stacks.`,
@@ -933,8 +954,11 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
         arBody: `الأنظمة الموزعة تستبدل بساطة الكود بتعقيد الشبكة والمراقبة؛ تأكد من جاهزية أدوات الرصد قبل فصل البيانات.`,
       },
       {
-        type: 'row',
-        icons: [{ icon: 'lightbulb', label: 'Core Rule' }],
+        type: 'metric',
+        metricValue: '10x',
+        metricLabel: 'RELIABILITY MULTIPLIER',
+        metricDiff: '▼ 90% reduced blast radius',
+        metricIcon: 'activity',
         enTitle: 'Ship smaller, verify faster.',
         arTitle: 'انشر تغييرات أصغر، وتحقق أسرع',
         enBody: `Smaller incremental changesets reduce blast radius and make troubleshooting instantaneous.`,
@@ -954,6 +978,14 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     ];
     slides = trimSlides(candidateSlides, targetSlideCount);
   }
+
+  // Strict Safety Invariant: Guarantee Slide 1 is hub, final slide is cta, and NO mid-deck slide has type 'cta'
+  slides = slides.map((s, idx) => {
+    if (idx === 0) return { ...s, type: 'hub' };
+    if (idx === slides.length - 1) return { ...s, type: 'cta' };
+    if (s.type === 'cta' || s.type === 'hub') return { ...s, type: 'row' };
+    return s;
+  });
 
   // 7. Generate Dual Captions with Extracted Specifics & Grounding Citations
   const domainTag = domainCategory.replace(/[^a-zA-Z0-9]/g, '');

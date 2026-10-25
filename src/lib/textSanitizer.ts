@@ -297,11 +297,13 @@ export function sanitizeSlide(
   slideIndex: number = 0,
   totalSlides: number = 8
 ): SlideData {
-  const isHook = slideIndex === 0 || slide.type === 'hub';
-  const isCta = slideIndex === totalSlides - 1 || slide.type === 'cta';
+  const isHook = slideIndex === 0;
+  const isCta = slideIndex === totalSlides - 1;
+  const safeType = slideIndex === 0 ? 'hub' : slideIndex === totalSlides - 1 ? 'cta' : (slide.type === 'cta' || slide.type === 'hub' ? 'row' : slide.type);
 
   return {
     ...slide,
+    type: safeType,
     enTitle: slide.enTitle
       ? enforceHeadlineSpecRule(slide.enTitle, { isHook, isCta })
       : slide.enTitle,
