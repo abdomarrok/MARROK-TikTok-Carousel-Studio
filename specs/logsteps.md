@@ -377,3 +377,24 @@ This document records the chronological development history, engineering decisio
   - Type-checked cleanly with zero errors (`npm run lint`).
   - Production build compiled successfully (`npm run build`).
   - Interactive browser testing executed via `browser_subagent`: verified Hub calibration geometry, CTA isometric emblem, and customizer toggle reactivity with saved visual artifacts.
+
+## Step 19: Full Canvas Integration of Authentic MARROK Vector Logo
+- **Context & Design Philosophy:**
+  - Integrated the authentic MARROK vector logo (`specs/marrok-logo-square-source.svg`) into the core 1080x1920 canvas export engine (`canvasExporter.ts`) rather than relying solely on the web app header.
+  - Ensured synchronous, bulletproof asset loading without network latency, image proxy dependencies, or blank-icon race conditions during export.
+- **Engineering Solutions Implemented:**
+  1. **Instant Vector Preloading & Synchronous SVG Decode (`icons.ts` + `canvasExporter.ts`):**
+     - Implemented `getMarrokLogoSvg()` in `src/lib/icons.ts` emitting the authentic MARROK SVG geometry with custom theme accenting and dark #0D0D0D badge background.
+     - Handled `'marrok'` and `'marroklogo'` in `getIconSvg()` and `getIconDataUrl()` via immediate `data:image/svg+xml;charset=utf-8,...` data URIs.
+     - Updated `loadIconImage()` in `canvasExporter.ts` with synchronous decode checks (`img.complete && img.naturalWidth > 0`) for data URLs and preloaded `marrokLogoImg` at the start of `renderSlideToCanvas`.
+  2. **Top Header Tier on All Slides (`y: 80 -> 220`):**
+     - Rendered a compact $34 \times 34\text{px}$ authentic MARROK vector badge at $(82, 110)$ with rounded corners, subtle theme glow, and dark backplate.
+     - Positioned the brand wordmark (`MARROK`) immediately to the right ($x = 130$) followed by the pulsing accent dot and category tag.
+  3. **Slide 8 (`cta`) Central Core Emblem:**
+     - Replaced the plain text `'M'` monogram inside the layered isometric diamond/cube at $(518, 440)$ with a $58 \times 58\text{px}$ dark OLED badge containing the authentic MARROK vector logo and glowing accent perimeter.
+  4. **Slide 8 Verified Attribution Card (`marrok.org`):**
+     - Rendered a miniature $42 \times 42\text{px}$ authentic MARROK logo badge alongside the verified shield badge inside the attribution card at $y = 1595 \to 1691$.
+- **Verification:**
+  - Type-checked cleanly with zero errors (`npm run lint`).
+  - Production build compiled successfully (`npm run build`).
+  - Visually verified in browser subagent on Slide 1 canvas header, Slide 8 CTA emblem, and the attribution card with zero rendering artifacts.

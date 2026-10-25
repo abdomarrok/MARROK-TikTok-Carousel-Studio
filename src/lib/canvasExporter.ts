@@ -157,6 +157,12 @@ function loadIconImage(iconName: string, strokeColor: string): Promise<HTMLImage
     };
 
     img.src = url;
+    if (img.complete && img.naturalWidth > 0 && !settled) {
+      settled = true;
+      clearTimeout(timer);
+      CANVAS_IMAGE_CACHE.set(url, img);
+      resolve(img);
+    }
   });
 }
 
@@ -336,6 +342,9 @@ export async function renderSlideToCanvas(
     terminalScanlines: visualOptions?.terminalScanlines ?? carousel.visualOptions?.terminalScanlines ?? customPalette?.terminalScanlines ?? true,
   };
 
+  // Preload authentic MARROK vector logo for header, CTA core emblem, and attribution card
+  const marrokLogoImg = await loadIconImage('marrok', theme.accent);
+
   // 1. Solid Base Background
   ctx.fillStyle = theme.baseBg;
   ctx.fillRect(0, 0, 1080, 1920);
@@ -418,21 +427,44 @@ export async function renderSlideToCanvas(
     ctx.restore();
   }
 
-  // 4. Header: Top-Left Brand Logo + Accent Dot
+  // 4. Header: Top-Left Authentic MARROK Vector Mark + Brand Wordmark + Pulsing Accent Dot
   ctx.save();
-  ctx.font = '800 40px "Plus Jakarta Sans", sans-serif';
+  const brandName = carousel.brand || 'MARROK';
+
+  // Crisp compact authentic MARROK vector logo badge (34x34px)
+  const logoBadgeSize = 34;
+  const logoBadgeX = 82;
+  const logoBadgeY = 110;
+
+  // Ambient badge glow matching studio header
+  ctx.save();
+  ctx.shadowColor = theme.accent;
+  ctx.shadowBlur = 8;
+  drawRoundRect(ctx, logoBadgeX, logoBadgeY, logoBadgeSize, logoBadgeSize, 8, '#0D0D0D', `${theme.accent}66`, 1.2);
+  ctx.restore();
+
+  // Render authentic SVG vector mark inside badge
+  safeDrawImage(ctx, marrokLogoImg, logoBadgeX + 2, logoBadgeY + 2, logoBadgeSize - 4, logoBadgeSize - 4);
+
+  // Brand Wordmark starting immediately to the right of the logo badge
+  const brandTextX = logoBadgeX + logoBadgeSize + 14;
+  ctx.font = '800 38px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  const brandName = carousel.brand || 'MARROK';
-  ctx.fillText(brandName, 82, 142);
+  ctx.fillText(brandName, brandTextX, 142);
 
-  // Accent Dot next to Brand wordmark
-  const logoWidth = ctx.measureText(brandName).width;
+  // Pulsing Accent Dot next to Brand wordmark
+  const brandWidth = ctx.measureText(brandName).width;
+  const dotX = brandTextX + brandWidth + 14;
   ctx.beginPath();
-  ctx.arc(82 + logoWidth + 14, 128, 8.5, 0, Math.PI * 2);
+  ctx.arc(dotX, 129, 7.5, 0, Math.PI * 2);
   ctx.fillStyle = theme.accent;
+  ctx.shadowColor = theme.accent;
+  ctx.shadowBlur = 8;
   ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
 
   // Top-Right Category Tag (aligned to right safe CAD boundary x = 945)
   ctx.font = '400 30px "Plus Jakarta Sans", sans-serif';
@@ -1532,22 +1564,20 @@ export async function renderSlideToCanvas(
     ctx.shadowBlur = 0;
     ctx.shadowColor = 'transparent';
 
-    // 3. Central Monogram Core Badge
-    const coreR = 25;
-    ctx.beginPath();
-    ctx.arc(emblemX, emblemY, coreR, 0, Math.PI * 2);
-    ctx.fillStyle = theme.accent;
-    ctx.shadowColor = theme.accent;
-    ctx.shadowBlur = 10;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.shadowColor = 'transparent';
+    // 3. Central Core: Authentic MARROK Vector Emblem
+    const coreSize = 58;
+    const coreX = emblemX - coreSize / 2;
+    const coreY = emblemY - coreSize / 2;
 
-    ctx.font = '900 24px "Plus Jakarta Sans", sans-serif';
-    ctx.fillStyle = '#081216';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('M', emblemX, emblemY + 1);
+    // Glowing core perimeter backplate
+    ctx.save();
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 14;
+    drawRoundRect(ctx, coreX, coreY, coreSize, coreSize, 14, '#081216', theme.accent, 2);
+    ctx.restore();
+
+    // Render authentic MARROK vector logo inside core badge
+    safeDrawImage(ctx, marrokLogoImg, coreX + 3, coreY + 3, coreSize - 6, coreSize - 6);
     ctx.restore();
 
     // 4. Brand Wordmark & Domain Hook Badge directly below emblem
@@ -1632,41 +1662,48 @@ export async function renderSlideToCanvas(
     ctx.restore();
 
     // Bilingual Source Attribution Card container (y = 1595 to 1705)
-    if (slide.enCredit || slide.arCredit) {
-      const cardW = 780;
-      const cardH = 96;
-      const cardX = 518 - cardW / 2;
-      const cardY = 1595;
-      drawRoundRect(ctx, cardX, cardY, cardW, cardH, 20, `${theme.surface}99`, theme.surfaceBorder, 1.5);
+    const cardW = 780;
+    const cardH = 96;
+    const cardX = 518 - cardW / 2;
+    const cardY = 1595;
+    drawRoundRect(ctx, cardX, cardY, cardW, cardH, 20, `${theme.surface}99`, theme.surfaceBorder, 1.5);
 
-      // Verified shield icon badge
-      const sBadgeSize = 44;
-      const sBadgeX = cardX + 24;
-      const sBadgeY = cardY + (cardH - sBadgeSize) / 2;
-      drawRoundRect(ctx, sBadgeX, sBadgeY, sBadgeSize, sBadgeSize, 12, `${theme.accent}20`, `${theme.accent}55`, 1);
-      const shieldImg = await loadIconImage('shieldAlert', theme.accent);
-      safeDrawImage(ctx, shieldImg, sBadgeX + 10, sBadgeY + 10, 24, 24);
+    // 1. Miniature authentic MARROK logo badge
+    const mBadgeSize = 42;
+    const mBadgeX = cardX + 22;
+    const mBadgeY = cardY + (cardH - mBadgeSize) / 2;
+    drawRoundRect(ctx, mBadgeX, mBadgeY, mBadgeSize, mBadgeSize, 10, '#0D0D0D', `${theme.accent}55`, 1.2);
+    safeDrawImage(ctx, marrokLogoImg, mBadgeX + 3, mBadgeY + 3, mBadgeSize - 6, mBadgeSize - 6);
 
-      if (slide.enCredit) {
-        ctx.save();
-        ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
-        ctx.fillStyle = theme.textMuted;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(slide.enCredit, sBadgeX + sBadgeSize + 18, cardY + 42);
-        ctx.restore();
-      }
-      if (slide.arCredit) {
-        ctx.save();
-        ctx.font = '500 22px "Cairo", sans-serif';
-        ctx.fillStyle = theme.textMuted;
-        ctx.textAlign = 'left';
-        ctx.direction = 'rtl';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(slide.arCredit, sBadgeX + sBadgeSize + 18, cardY + 76);
-        ctx.restore();
-      }
-    }
+    // 2. Verified shield icon badge alongside MARROK badge
+    const sBadgeSize = 42;
+    const sBadgeX = mBadgeX + mBadgeSize + 10;
+    const sBadgeY = cardY + (cardH - sBadgeSize) / 2;
+    drawRoundRect(ctx, sBadgeX, sBadgeY, sBadgeSize, sBadgeSize, 10, `${theme.accent}20`, `${theme.accent}65`, 1.2);
+    const shieldImg = await loadIconImage('shieldAlert', theme.accent);
+    safeDrawImage(ctx, shieldImg, sBadgeX + 9, sBadgeY + 9, 24, 24);
+
+    // 3. Attribution text tier
+    const textStartX = sBadgeX + sBadgeSize + 18;
+    const enCredit = slide.enCredit || `Verified Technical Analysis // ${carousel.brand || 'MARROK'}`;
+    const arCredit = slide.arCredit || `تحليل تقني موثق ومعتمد من منصة ${carousel.brand || 'ماروك'}`;
+
+    ctx.save();
+    ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = theme.textMuted;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(enCredit, textStartX, cardY + 42);
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = '500 22px "Cairo", sans-serif';
+    ctx.fillStyle = theme.textMuted;
+    ctx.textAlign = 'left';
+    ctx.direction = 'rtl';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(arCredit, textStartX, cardY + 76);
+    ctx.restore();
   }
 
   // 6. Text Zone Rendering (for hub, row, metric, code, and compare slides)

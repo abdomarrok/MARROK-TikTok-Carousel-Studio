@@ -337,7 +337,6 @@ export const ICONS_REGISTRY: Record<string, { label: string; svgInner: string }>
 
 // Curated map of top tech brand logos hosted on Simple Icons CDN
 export const KNOWN_TECH_LOGOS: Record<string, string> = {
-  marrok: '/marrok-logo.svg',
   docker: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/docker.svg',
   kubernetes: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg',
   k8s: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/kubernetes.svg',
@@ -393,7 +392,28 @@ export function getCustomIcon(id: string): string | undefined {
   return CUSTOM_ICONS_MAP[id];
 }
 
+/**
+ * Returns the authentic MARROK vector logo SVG with custom theme accent and rounded rectangle background.
+ * Matches specs/marrok-logo-square-source.svg exactly with razor-sharp white geometry and themed accent polygon.
+ */
+export function getMarrokLogoSvg(accentColor = '#364bde', options?: { bg?: string; rx?: number }): string {
+  const bg = options?.bg ?? '#0D0D0D';
+  const rx = options?.rx ?? 42;
+  const bgRect = bg !== 'transparent' ? `<rect x="250" y="260" width="260" height="260" rx="${rx}" fill="${bg}"/>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="250 260 260 260">
+    ${bgRect}
+    <path fill="#ffffff" d="M274.593 292.356c7.516 5.431 22.212 18.846 29.88 25.433l57.733 49.435a550 550 0 0 1 15.149-12.803l58.963.067c-24.81 22.418-50.647 43.634-75.56 66.436a4749 4749 0 0 1-50.139-42.56c-.49 31.044-.044 63.633-.034 94.782l.559.69c2.697.605 31.529.368 36.393.367l94.175-.029c-.007-10.958-.07-24.17.056-35.333.016-1.404 1.697-2.216 2.734-2.827 1.817 1.933.945 36.549.911 41.792l-137.518.095c-10.902-8.575-22.944-19.229-33.51-28.38.113-51.464-.857-105.95.208-157.165"/>
+    <path fill="#ffffff" d="M444.828 364.305c1.139 1.844.571 50.643.56 56.415-14.46 11.842-28.334 26.13-42.456 37.258-1.332-1.635-.761-50.857-.751-57.199 6.602-6.024 14.215-12.152 21.015-18.098 6.797-5.943 14.531-13.018 21.632-18.376"/>
+    <path fill="${accentColor || '#364bde'}" d="M444.698 298.519c1.651 2.305.913 33.331.893 38.505-13.853.389-29.377-.003-43.353-.082l-.6-.273-.018-.815c9.066-9.55 32.459-28.681 43.078-37.335"/>
+    <path fill="#ffffff" d="m262.154 289 2.641.632c1.169 1.916.549 37.2.541 41.855l.154 142.47c6.939.09 15.094-.806 21.911.376 1.926.334 2.769 1.824 3.711 3.441l-29.021.05.221-120.184c-.048-21.851-.844-47.135-.158-68.64m25.763.486c13.492-.132 148.331-.571 150.082.271l-.288 1.158c-3.695 2.973-17.296 2.033-22.397 2.047l-33.877.044c-28.986-.004-58.103.059-87.096-.034-3.672-.012-3.662-.558-6.424-3.486"/>
+  </svg>`.trim();
+}
+
 export function getIconSvg(iconName: string, strokeColor = '#13131E', strokeWidth = 4.2): string {
+  const lower = iconName.toLowerCase().trim();
+  if (lower === 'marrok' || lower === 'marroklogo') {
+    return getMarrokLogoSvg(strokeColor === '#13131E' ? '#364bde' : strokeColor);
+  }
   const icon = ICONS_REGISTRY[iconName] || ICONS_REGISTRY.gitMerge;
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">
@@ -403,6 +423,11 @@ export function getIconSvg(iconName: string, strokeColor = '#13131E', strokeWidt
 }
 
 export function getIconDataUrl(iconName: string, strokeColor = '#13131E', strokeWidth = 4.2): string {
+  const lower = iconName.toLowerCase().trim();
+  if (lower === 'marrok' || lower === 'marroklogo') {
+    const svg = getMarrokLogoSvg(strokeColor === '#13131E' ? '#364bde' : strokeColor);
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
   // Check if it's a registered custom icon data URL
   if (CUSTOM_ICONS_MAP[iconName]) {
     return CUSTOM_ICONS_MAP[iconName];
@@ -417,7 +442,6 @@ export function getIconDataUrl(iconName: string, strokeColor = '#13131E', stroke
     return `/api/proxy-image?url=${encodeURIComponent(iconName)}${colorParam}`;
   }
   // Check if iconName is a known tech logo
-  const lower = iconName.toLowerCase().trim();
   if (KNOWN_TECH_LOGOS[lower]) {
     const colorParam = strokeColor ? `&color=${encodeURIComponent(strokeColor)}` : '';
     return `/api/proxy-image?url=${encodeURIComponent(KNOWN_TECH_LOGOS[lower])}${colorParam}`;
