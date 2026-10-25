@@ -427,11 +427,13 @@ export async function renderSlideToCanvas(
     ctx.restore();
   }
 
-  // 4. Header: Top-Left Authentic MARROK Vector Mark + Brand Wordmark + Pulsing Accent Dot
+  // 4. Header: Top-Left Authentic MARROK Vector Mark (as "M") + "ARROK" + Pulsing Accent Dot
   ctx.save();
-  const brandName = carousel.brand || 'MARROK';
+  const rawBrand = carousel.brand || 'MARROK';
+  const isMarrokBrand = rawBrand.toUpperCase().trim() === 'MARROK';
+  const displayBrandText = isMarrokBrand ? 'ARROK' : rawBrand;
 
-  // Crisp compact authentic MARROK vector logo badge (34x34px)
+  // Crisp compact authentic MARROK vector logo badge (34x34px) functioning as initial "M"
   const logoBadgeSize = 34;
   const logoBadgeX = 82;
   const logoBadgeY = 110;
@@ -446,17 +448,17 @@ export async function renderSlideToCanvas(
   // Render authentic SVG vector mark inside badge
   safeDrawImage(ctx, marrokLogoImg, logoBadgeX + 2, logoBadgeY + 2, logoBadgeSize - 4, logoBadgeSize - 4);
 
-  // Brand Wordmark starting immediately to the right of the logo badge
-  const brandTextX = logoBadgeX + logoBadgeSize + 14;
+  // Brand Wordmark: tight kerning gap (9px when ARROK) so [Logo M] + "ARROK" forms "MARROK"
+  const brandTextX = logoBadgeX + logoBadgeSize + (isMarrokBrand ? 9 : 14);
   ctx.font = '800 38px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(brandName, brandTextX, 142);
+  ctx.fillText(displayBrandText, brandTextX, 142);
 
   // Pulsing Accent Dot next to Brand wordmark
-  const brandWidth = ctx.measureText(brandName).width;
-  const dotX = brandTextX + brandWidth + 14;
+  const brandWidth = ctx.measureText(displayBrandText).width;
+  const dotX = brandTextX + brandWidth + 12;
   ctx.beginPath();
   ctx.arc(dotX, 129, 7.5, 0, Math.PI * 2);
   ctx.fillStyle = theme.accent;
