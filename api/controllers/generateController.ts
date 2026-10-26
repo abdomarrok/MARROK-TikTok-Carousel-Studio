@@ -24,11 +24,19 @@ const CANDIDATE_GENERATION_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'
  * Autonomous Carousel Generation controller with Google Search Grounding and resilient local synthesis fallback.
  */
 export async function handleGenerateCarousel(req: Request, res: Response) {
-  const rawPrompt = (req.body.prompt || req.body.topic || req.body.notes || '') as string;
+  const rawPromptParts = [
+    typeof req.body.prompt === 'string' ? req.body.prompt.trim() : '',
+    typeof req.body.topic === 'string' ? req.body.topic.trim() : '',
+    typeof req.body.notes === 'string' ? req.body.notes.trim() : '',
+  ].filter(Boolean);
+
+  const uniqueParts = Array.from(new Set(rawPromptParts));
+  const combinedPrompt = uniqueParts.join('\n\n');
+
   const { inputMode, imageBase64, imageMimeType, categoryHint, imageName } = req.body;
   const customKey = (req.headers['x-gemini-key'] as string) || req.body?.apiKey;
 
-  if (!rawPrompt && !imageBase64) {
+  if (!combinedPrompt && !imageBase64) {
     return res.status(400).json({ error: 'Prompt or image is required' });
   }
 
@@ -36,7 +44,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
   const safeInputMode = typeof inputMode === 'string' && ALLOWED_INPUT_MODES.has(inputMode) ? inputMode : 'text';
   const safeCategoryHint = typeof categoryHint === 'string' ? categoryHint.slice(0, 100).replace(/[<>{}]/g, '') : 'auto';
   const safeMimeType = typeof imageMimeType === 'string' && ALLOWED_IMAGE_MIMES.has(imageMimeType) ? imageMimeType : 'image/jpeg';
-  const safePrompt = typeof rawPrompt === 'string' ? rawPrompt.slice(0, 50000) : '';
+  const safePrompt = combinedPrompt.slice(0, 50000);
   const safeImageName = typeof imageName === 'string' ? imageName.slice(0, 200) : '';
 
   try {

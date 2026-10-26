@@ -42,9 +42,9 @@ export function resolveDomainTheme(topicOrText: string): 'teal' | 'cyber' | 'vio
     return 'violet';
   }
 
-  // 3. Matrix Emerald: Linux Kernel, eBPF, Low-Level, Syscalls, Firmware
+  // 3. Matrix Emerald: Linux Kernel, eBPF, Low-Level, Syscalls, Firmware, Systems Runtimes (Rust, Go, C++, Zig, Actix, Gin)
   if (
-    /\b(kernel|ebpf|xdp|bpf|linux|syscall|syscalls|assembly|asm|low[- ]?level|firmware|memory safety|c\+\+|driver)\b/i.test(lower)
+    /\b(kernel|ebpf|xdp|bpf|linux|syscall|syscalls|assembly|asm|low[- ]?level|firmware|memory safety|c\+\+|driver|rust|golang?|actix|gin|zig|bun)\b/i.test(lower)
   ) {
     return 'emerald';
   }
@@ -68,6 +68,14 @@ export function resolveDomainTheme(topicOrText: string): 'teal' | 'cyber' | 'vio
 }
 
 export const DOMAIN_RULES: DomainRule[] = [
+  {
+    category: 'WEB FRAMEWORKS & RUNTIMES',
+    theme: 'emerald',
+    centerIcon: 'cpu',
+    satIcons: ['zap', 'gauge', 'server', 'database', 'activity', 'terminal'],
+    keywords: ['rust', 'go', 'golang', 'actix', 'actix-web', 'gin', 'fastapi', 'bun', 'node', 'nodejs', 'benchmark', 'throughput', 'req/s', 'latency', 'runtime'],
+    metricFallback: '129k req/s',
+  },
   {
     category: 'CYBERSECURITY & ZERO-TRUST MESH',
     theme: 'cyber',
@@ -186,7 +194,7 @@ export function extractDynamicIcons(lowerText: string, fallbackBase: string[]): 
       }
     }
     if (techKey === 'go') {
-      if (!/\bgo\b/i.test(lowerText) || /\b(google|golang|cargo|django)\b/i.test(lowerText)) {
+      if (!/\b(go|golang)\b/i.test(lowerText)) {
         continue;
       }
     }

@@ -19,20 +19,22 @@ import {
 import { enrichCarouselDiagrams } from './enrichment';
 import { balanceCarouselVisualPacing } from './pacing';
 import { buildCandidateSlides } from './templates';
+import { buildCustomSynthesizedSlides, isCustomUserPrompt } from './customSynthesizer';
 
 export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const rawText = (input.prompt || input.imageFileName || '').trim();
   const lowerText = rawText.toLowerCase();
 
   // 1. Scored Domain Detection via Config Rules (highest specificity wins)
-  let bestScore = -1;
+  let bestScore = 0;
   let matchedRule: DomainRule | undefined;
 
   for (const rule of DOMAIN_RULES) {
     let score = 0;
     for (const kw of rule.keywords) {
-      if (lowerText.includes(kw)) {
-        if (['zero-trust', 'zerotrust', 'mtls', 'scion', 'monorepo', 'redis', 'redis 8', 'valkey', 'ebpf', 'cve'].includes(kw)) {
+      const kwRegex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (kwRegex.test(lowerText)) {
+        if (['zero-trust', 'zerotrust', 'mtls', 'scion', 'monorepo', 'redis', 'redis 8', 'valkey', 'ebpf', 'cve', 'actix', 'gin', 'rust', 'go'].includes(kw)) {
           score += 10;
         } else {
           score += 2;
@@ -54,7 +56,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   }
 
   const autoTheme = resolveDomainTheme(rawText);
-  const activeRule = bestScore > 0 && matchedRule ? matchedRule : matchedRule || DEFAULT_RULE;
+  const activeRule = bestScore > 0 && matchedRule ? matchedRule : DEFAULT_RULE;
   const domainCategory = activeRule.category;
   const recommendedTheme = bestScore > 0 && matchedRule ? activeRule.theme : autoTheme;
 
@@ -82,14 +84,12 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     lowerText.includes('zerotrust') ||
     lowerText.includes('mtls') ||
     lowerText.includes('mutual-tls') ||
-    lowerText.includes('least-privilege') ||
-    domainCategory.includes('ZERO-TRUST');
+    lowerText.includes('least-privilege');
 
   const isRedis =
     lowerText.includes('redis') ||
     lowerText.includes('valkey') ||
-    lowerText.includes('memcached') ||
-    domainCategory.includes('IN-MEMORY CACHE');
+    lowerText.includes('memcached');
 
   const isScion =
     lowerText.includes('scion') ||
@@ -127,56 +127,39 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     targetSlideCount = 6;
   }
 
-  // 6. Generate Hook Variants (A/B testing) adhering strictly to 2-5 words ending in a period
-  const hookVariants: HookVariant[] = [
-    {
-      tag: 'Curiosity & Shift',
-      enTitle: isZeroTrust ? 'Zero-Trust, explained.' : isRedis ? 'Redis 8 gets faster.' : isScion ? 'Beyond traditional Git.' : `${headline}.`,
-      arTitle: isZeroTrust ? 'شرح معمارية Zero-Trust' : isRedis ? 'تسريع محرك Redis 8' : isScion ? 'منظومة Scion لإدارة الشيفرات' : `هندسة منظومة ${cleanTitle}`,
-      enBody: `How engineering constraints forced an architectural paradigm shift in ${domainCategory.toLowerCase()}.`,
-      arBody: `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`,
-      centerIcon,
-    },
-    {
-      tag: 'Hard Metrics & Scale',
-      enTitle: isZeroTrust ? 'mTLS encryption at scale.' : isRedis ? 'Redis 8 throughput record.' : 'Performance telemetry at scale.',
-      arTitle: isZeroTrust ? 'تأمين الشبكات عند التوسع' : isRedis ? 'رقم قياسي في سرعة المعالجة' : 'معايير الأداء عند أقصى ضغط',
-      enBody: `Key benchmarks (${metric1}) and lessons learned from high-throughput production.`,
-      arBody: `أهم معايير الأداء والدروس المستفادة (${arMetric1}) من تشغيل الأنظمة تحت ضغط هائل.`,
-      centerIcon: 'gauge',
-    },
-    {
-      tag: 'Problem & Solution',
-      enTitle: isZeroTrust ? 'Why perimeter firewalls failed.' : isRedis ? 'Eliminating memory bottlenecks.' : 'Overcoming legacy system limits.',
-      arTitle: isZeroTrust ? 'لماذا فشلت الجدران النارية التقليدية؟' : isRedis ? 'التخلص من اختناقات الذاكرة' : 'تجاوز حدود الأنظمة السابقة',
-      enBody: `Moving beyond legacy assumptions to build modern high-efficiency software.`,
-      arBody: `تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والأمان.`,
-      centerIcon: 'shieldAlert',
-    },
-  ];
+  // 6. Generate Rich, Multi-Archetype Slide Structure
+  const isCustom = isCustomUserPrompt(rawText);
+  let slides: SlideData[];
 
-  // 7. Generate Rich, Multi-Archetype Slide Structure
-  let slides: SlideData[] = buildCandidateSlides({
-    isZeroTrust,
-    isRedis,
-    isScion,
-    isBenchmark,
-    isSecurity,
-    isMigration,
-    headline,
-    cleanTitle,
-    domainCategory,
-    brand,
-    brandUrl,
-    centerIcon,
-    satIcons,
-    userPoint1,
-    userPoint2,
-    userPoint3,
-    metric1,
-    arMetric1,
-    targetSlideCount,
-  });
+  if (isCustom) {
+    slides = buildCustomSynthesizedSlides(rawText, {
+      brand,
+      brandUrl,
+      targetSlideCount,
+    });
+  } else {
+    slides = buildCandidateSlides({
+      isZeroTrust,
+      isRedis,
+      isScion,
+      isBenchmark,
+      isSecurity,
+      isMigration,
+      headline,
+      cleanTitle,
+      domainCategory,
+      brand,
+      brandUrl,
+      centerIcon,
+      satIcons,
+      userPoint1,
+      userPoint2,
+      userPoint3,
+      metric1,
+      arMetric1,
+      targetSlideCount,
+    });
+  }
 
   // Strict Safety Invariant: Guarantee Slide 1 is hub, final slide is cta, and NO mid-deck slide has type 'cta'
   slides = slides.map((s, idx) => {
@@ -189,6 +172,34 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   // Dynamic Diagram & Satellite Enrichment: Guarantee 100% topic relevance on every slide
   slides = enrichCarouselDiagrams(slides, rawText, domainCategory, brand);
   slides = balanceCarouselVisualPacing(slides);
+
+  // 7. Generate Hook Variants (A/B testing) adhering strictly to 2-5 words ending in a period
+  const hookVariants: HookVariant[] = [
+    {
+      tag: 'Curiosity & Shift',
+      enTitle: isCustom ? `${headline}` : isZeroTrust ? 'Zero-Trust, explained.' : isRedis ? 'Redis 8 gets faster.' : isScion ? 'Beyond traditional Git.' : `${headline}.`,
+      arTitle: isCustom ? (slides[0]?.arTitle || `هندسة ${cleanTitle}`) : isZeroTrust ? 'شرح معمارية Zero-Trust' : isRedis ? 'تسريع محرك Redis 8' : isScion ? 'منظومة Scion لإدارة الشيفرات' : `هندسة منظومة ${cleanTitle}`,
+      enBody: isCustom ? (slides[0]?.enBody || `How architectural redesign achieved ${metric1}.`) : `How engineering constraints forced an architectural paradigm shift in ${domainCategory.toLowerCase()}.`,
+      arBody: isCustom ? (slides[0]?.arBody || `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`) : `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`,
+      centerIcon: slides[0]?.centerIcon || centerIcon,
+    },
+    {
+      tag: 'Hard Metrics & Scale',
+      enTitle: isCustom ? `${cleanTitle} telemetry.` : isZeroTrust ? 'mTLS encryption at scale.' : isRedis ? 'Redis 8 throughput record.' : 'Performance telemetry at scale.',
+      arTitle: isCustom ? `أرقام أداء ${cleanTitle}` : isZeroTrust ? 'تأمين الشبكات عند التوسع' : isRedis ? 'رقم قياسي في سرعة المعالجة' : 'معايير الأداء عند أقصى ضغط',
+      enBody: `Key benchmarks (${metric1}) and lessons learned from high-throughput production.`,
+      arBody: `أهم معايير الأداء والدروس المستفادة (${arMetric1}) من تشغيل الأنظمة تحت ضغط هائل.`,
+      centerIcon: 'gauge',
+    },
+    {
+      tag: 'Problem & Solution',
+      enTitle: isCustom ? `Overcoming ${cleanTitle} limits.` : isZeroTrust ? 'Why perimeter firewalls failed.' : isRedis ? 'Eliminating memory bottlenecks.' : 'Overcoming legacy system limits.',
+      arTitle: isCustom ? `تجاوز اختناقات الأداء` : isZeroTrust ? 'لماذا فشلت الجدران النارية التقليدية؟' : isRedis ? 'التخلص من اختناقات الذاكرة' : 'تجاوز حدود الأنظمة السابقة',
+      enBody: `Moving beyond legacy assumptions to build modern high-efficiency software.`,
+      arBody: `تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والأمان.`,
+      centerIcon: 'shieldAlert',
+    },
+  ];
 
   // 8. Generate Dual Captions with Extracted Specifics & Grounding Citations
   const domainTag = domainCategory.replace(/[^a-zA-Z0-9]/g, '');

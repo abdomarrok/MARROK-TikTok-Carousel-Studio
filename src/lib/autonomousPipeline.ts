@@ -124,6 +124,9 @@ export async function runAutonomousPipeline(
       const data = await res.json();
       if (data?.slides && Array.isArray(data.slides) && data.slides.length >= 3) {
         rawCarousel = data as CarouselData;
+        if (data.sourceMeta?.isFallback || data.sourceMeta?.engine === 'offline-synthesizer' || res.headers.get('x-marrok-engine') === 'offline-synthesizer') {
+          onProgress?.('Offline NLP Engine Activated: Synthesizing custom slides from your pasted notes.');
+        }
       }
     }
   } catch (err) {
@@ -132,6 +135,7 @@ export async function runAutonomousPipeline(
 
   // Fallback to local synthesizer if API fails or returns invalid structure
   if (!rawCarousel) {
+    onProgress?.('Offline NLP Engine Activated: Synthesizing custom slides from your pasted notes.');
     rawCarousel = synthesizeCarousel({
       prompt: rawInput,
       categoryHint,

@@ -138,8 +138,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
       onUpdateCarousel(generated);
       setCurrentSlideIndex(0);
-      if (generated.sourceMeta?.isFallback) {
-        onShowToast('⚠️ Offline draft generated (API unavailable). Review text before exporting.');
+      if (generated.sourceMeta?.isFallback || generated.sourceMeta?.engine === 'offline-synthesizer') {
+        onShowToast('Offline NLP Engine Activated: Synthesizing custom slides from your pasted notes.');
       } else {
         onShowToast('✨ Autonomously generated and perfected 8-slide carousel!');
       }
@@ -402,13 +402,19 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             className="flex flex-col sm:flex-row gap-2.5"
           >
             <div className="relative flex-1 flex items-center gap-2">
-              <input
-                type="text"
+              <textarea
+                rows={1}
                 value={promptInput}
                 onChange={(e) => setPromptInput(e.target.value)}
-                placeholder="What are you explaining? (e.g. Distributed Consensus in Raft, SQLite in Wasm)..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleRunAutonomousPipeline();
+                  }
+                }}
+                placeholder="Paste YouTube summary, blog notes, or prompt (e.g. Rust vs Go performance)..."
                 disabled={isGenerating}
-                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner"
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner resize-none min-h-[46px] max-h-28 leading-relaxed"
               />
 
               <button

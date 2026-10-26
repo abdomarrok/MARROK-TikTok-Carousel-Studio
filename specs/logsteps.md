@@ -714,6 +714,54 @@ This document records the chronological development history, engineering decisio
     - Contact Sheet visual QA modal opened and rendered all 8 slide previews instantly with low memory usage.
     - ZIP export functionality tested and operational.
 
+---
+
+## Step 29: End-to-End Ingestion Fix & Dynamic Content-Aware Synthesis Engine
+
+- **Problem & Root Cause:**
+  - When users pasted custom text (YouTube summaries, blog notes, Rust vs Go benchmarks) into the studio, the system ignored the pasted content and fell back to a hardcoded Zero-Trust deck.
+  - **Root Cause 1 (`synthesizer.ts`)**: `bestScore = -1` caused domain rule 0 (`CYBERSECURITY & ZERO-TRUST MESH`) to match with score 0 when no keywords matched.
+  - **Root Cause 2 (`synthesizer.ts`)**: `isZeroTrust` checked `domainCategory.includes('ZERO-TRUST')`, forcing non-security topics into Zero-Trust.
+  - **Root Cause 3 (`templates.ts`)**: The fallback synthesizer lacked dynamic content extraction and only returned hardcoded static preset templates.
+  - **Root Cause 4 (`AutonomousStudio.tsx`)**: The studio command bar used a single-line `<input type="text">` which stripped newlines when pasting multi-line summaries.
+  - **Root Cause 5 (`generateController.ts`)**: When Gemini API quota was exceeded (429) or offline, the fallback ran silently without notifying the user that offline synthesis had activated.
+
+- **Engineering Solutions Implemented:**
+  1. **Dynamic Content-Aware Synthesizer (`src/lib/synthesis/customSynthesizer.ts`):**
+     - Built `isCustomUserPrompt()` to detect custom text, notes, benchmarks, or transcripts.
+     - Built `extractMetricsFromText()`: Extracts throughput (`129k req/s`, `78k req/s`), memory footprints (`13 MB`, `24 MB`), speedup multipliers (`1.66x`), and latency (`Zero GC pauses`, `1.2ms`).
+     - Built `extractComparisonEntities()`: Dissects comparison clauses (e.g. `Go Gin API` vs `Rust Actix-web`) without cross-contaminating metrics from parenthetical speedup clauses.
+     - Built `buildCustomSynthesizedSlides()`: Constructs a 100% custom 8-slide deck:
+       - **Slide 1 (Hub)**: Hook title (`Rust vs Go Web API.`), bilingual Arabic title, and 6 dynamic technical satellites with tech brand logos (`Rust`, `Go`, `129k req/s`, `13 MB RAM`, `Zero GC`, `1.66x Win`).
+       - **Slide 2 (Compare)**: Side-by-side comparison with extracted Left metrics (`78k req/s`, `24 MB RAM`, `1.2ms`) and Right metrics (`129k req/s`, `13 MB RAM`, `0 GC pauses`).
+       - **Slide 3 (Metric)**: Hero card with `129k req/s` peak throughput and `▲ 1.66x faster than baseline`.
+       - **Slide 4 (Code)**: Realistic syntax-highlighted route handler (`main.rs` in `RUST`).
+       - **Slide 5 (Stack)**: 3-tier runtime concurrency architecture.
+       - **Slide 6 (Topology)**: Non-blocking request epoll pipeline.
+       - **Slide 7 (Tradeoff)**: Development velocity and cognitive overhead analysis.
+       - **Slide 8 (CTA)**: Domain challenge question and MARROK benchmark attribution.
+  2. **Domain Matching & Theme Resolution (`src/lib/synthesis/domains.ts` & `synthesizer.ts`):**
+     - Initialized `bestScore = 0` and enforced regex word-boundary keyword matching.
+     - Added dedicated `WEB FRAMEWORKS & RUNTIMES` domain rule mapping to the `emerald` theme.
+     - Fixed Go tech logo keyword matching to test `\b(go|golang)\b` cleanly.
+     - Removed `domainCategory.includes('ZERO-TRUST')` from `isZeroTrust`.
+  3. **Full Prompt Preservation (`api/controllers/generateController.ts` & `autonomousPipeline.ts`):**
+     - De-duplicated and combined `req.body.prompt`, `req.body.topic`, and `req.body.notes` without truncation.
+     - Added `X-Marrok-Engine: offline-synthesizer` and `isFallback: true` metadata on fallback.
+  4. **Multi-Line Ingestion & Transparent Toast (`AutonomousStudio.tsx`):**
+     - Upgraded the command bar from `<input type="text">` to an auto-submitting `<textarea>` supporting multi-line paste with `Enter` key execution.
+     - Added transparent status toast: `"Offline NLP Engine Activated: Synthesizing custom slides from your pasted notes."` when fallback activates.
+
+- **Verification:**
+  - `npm run lint`: Passed with 0 TypeScript errors.
+  - `npm run build`: Passed production Vite bundling in 270ms.
+  - Test scripts (`scratch/test_ingestion.ts` & `scratch/test_offline_fallback.ts`): Verified both live and offline fallback flows produce 100% Rust vs Go topic slides with zero Zero-Trust copy.
+  - Browser Subagent E2E Verification (`http://localhost:3000`):
+    - Pasted the YouTube performance summary into the studio command bar.
+    - Verified generation produced the Rust vs Go deck with emerald theme.
+    - Inspected Contact Sheet modal previewing all 8 slides.
+
+
 
 
 
