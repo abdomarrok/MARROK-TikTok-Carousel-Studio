@@ -143,14 +143,17 @@ export async function drawHubSlide(
   const iconSize = 130;
   drawTintedImage(ctx, centerImg, cx - iconSize / 2, cy - iconSize / 2 - 14, iconSize, iconSize, theme.accent);
 
-  // Center Core Tag Pill at bottom of center box
-  drawRoundRect(ctx, cx - 85, centerBoxY + centerBoxH - 42, 170, 26, 8, `${theme.accent}20`, `${theme.accent}70`, 1.2);
+  // Center Core Tag Pill at bottom of center box (auto-sized to content)
+  const centerText = (slide.centerTag || 'SYSTEM CORE').toUpperCase();
   ctx.save();
   ctx.font = '700 12px "JetBrains Mono", monospace';
+  const tagMetrics = ctx.measureText(centerText);
+  const tagW = Math.max(150, Math.min(240, Math.round(tagMetrics.width + 28)));
+  drawRoundRect(ctx, cx - tagW / 2, centerBoxY + centerBoxH - 42, tagW, 26, 8, `${theme.accent}20`, `${theme.accent}70`, 1.2);
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('SYSTEM CORE', cx, centerBoxY + centerBoxH - 29);
+  ctx.fillText(centerText, cx, centerBoxY + centerBoxH - 29);
   ctx.restore();
 
   // Satellite Badges with crisp technical label pills and spoke flow indicators

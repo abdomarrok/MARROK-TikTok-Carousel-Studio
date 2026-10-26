@@ -917,10 +917,32 @@ This document records the chronological development history, engineering decisio
   3. **Pipeline Protection (`pacing.ts`, `enrichment.ts`, `archetypes.ts`):**
      - Relaxed rigid `length >= 6` / `length < 6` guards to `length >= 2` so custom node counts are preserved across re-renders and archetype switches.
 - **Verification:**
+## Step 36: Hub Hero Customization, Vector Icon Picker, & Direct Viewport Dragging
+- **Context & Objectives:**
+  - Build out complete graphical freedom for the Hub archetype and implement Phase 3 Direct Viewport Dragging:
+    1. Allow creators to pick custom vector icons for both the Central Hub Hero card and any Satellite node.
+    2. Allow custom tagging for the Central Hub pill (`centerTag`, e.g. "SYSTEM CORE", "CONTROL PLANE", "DATABASE ENGINE").
+    3. Allow direct click-and-drag graphical positioning on the viewport canvas so users can reposition any slide element directly in 1080x1920 logical space with live HUD coordinate feedback and arrow-key nudging.
+- **Engineering Solutions Implemented:**
+  1. **Dynamic Hub Central Pill & Schema (`src/types.ts` & `src/lib/canvas/archetypes/renderHub.ts`):**
+     - Extended `SlideData` with `centerTag?: string`.
+     - In `renderHub.ts`, rendered dynamic `centerText = (slide.centerTag || 'SYSTEM CORE').toUpperCase()` with automatic text metric measurement and responsive pill sizing ($150\text{px} \le \text{tagW} \le 240\text{px}$).
+  2. **Categorized Vector Icon Picker (`src/components/studio/IconPickerPopover.tsx`):**
+     - Built modal dialog featuring search query filter, category tabs (`All Icons`, `Compute & AI`, `Data & Storage`, `Security & Auth`, `Network & Flow`), and crisp vector SVG preview cards rendered directly from `ICONS_REGISTRY`.
+  3. **Central Hero & Satellite Icon Selectors (`src/components/studio/ArchetypeControls.tsx`):**
+     - Central Hub Hero Component card: Center Icon selector button with SVG preview and title, plus Center Hub Tag Pill input.
+     - Orbital Satellite Nodes: clickable SVG icon buttons on each node opening `IconPickerPopover` to customize `satIcons[idx]`.
+     - Added atomic state updater callbacks in `AutonomousStudio.tsx`: `handleUpdateSatIcon`, `handleUpdateCenterIcon`, `handleUpdateCenterTag`.
+  4. **Direct Viewport Dragging (Phase 3 of Graphical Control - `src/components/studio/ViewportCanvas.tsx`):**
+     - Integrated pointer event lifecycle (`onPointerDown`, `onPointerMove`, `onPointerUp`) with `setPointerCapture`.
+     - Calculated canvas viewport-to-logical ratio ($1080 / \text{width}$, $1920 / \text{height}$) to update `layoutOverrides[selectedElementId]` with exact pixel precision.
+     - Synchronized the bounding box overlay with the active element translation via CSS transforms: `translate((dx/1080)*100%, (dy/1920)*100%)`.
+     - Added draggable HUD coordinate badge displaying live delta (e.g., `+125x, +61y`), quick reset button (`RotateCcw`), and keyboard arrow-key nudging (2px / 10px with Shift).
+- **Verification:**
   - `npm run lint` (`tsc --noEmit`): Passed with 0 TypeScript errors.
-  - `npm test` (`vitest run`): 10 test suites and 33 unit tests passed.
-  - `npm run build` (`vite build`): Built cleanly in 233ms.
-  - Browser Subagent interactive test: Verified deleting node #6 (5/6), deleting node #5 (4/6), and adding back node #5 with instant canvas angle rebalancing.
+  - `npm test` (`vitest run`): 10 test suites, 33 unit tests passed.
+  - `npm run build` (`vite build`): Built production bundle in 227ms.
+  - Interactive Browser Subagent: Verified icon picker on center hero, selecting Database icon, adding satellite node (6/6), updating Node #1 icon to robot, and dragging the visual archetype card with live HUD offset updates.
 
 
 

@@ -23,8 +23,9 @@ export interface SlideData {
   type: SlideType;
   // Hub properties
   centerIcon?: string;
+  centerTag?: string; // Center pill label for the hub (e.g. 'SYSTEM CORE', 'ENVOY MESH')
   satIcons?: string[];
-  satLabels?: string[]; // Technical labels for the 6 satellite nodes around the hub
+  satLabels?: string[]; // Technical labels for the satellite nodes around the hub
   // Dynamic Labeled Technical Diagram properties (replaces static icon boxes)
   diagramVariant?: DiagramVariant;
   diagramNodes?: DiagramNode[]; // The 3 nodes, layers, or cells illustrating this specific slide

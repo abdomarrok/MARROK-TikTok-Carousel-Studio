@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { CarouselData, GraphicalElementId, ThemePalette } from '../../types.ts';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Move, RotateCcw } from 'lucide-react';
+import { CarouselData, GraphicalElementId, ElementLayoutOverride, ThemePalette } from '../../types.ts';
 import { renderSlideToCanvas } from '../../lib/canvasExporter.ts';
 
 interface ViewportCanvasProps {
@@ -14,6 +14,7 @@ interface ViewportCanvasProps {
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   selectedElementId?: GraphicalElementId | null;
   onSelectElement?: (id: GraphicalElementId) => void;
+  onUpdateLayoutOverride?: (id: GraphicalElementId, override: ElementLayoutOverride | null) => void;
 }
 
 const ELEMENT_BOUNDS: Record<
@@ -40,14 +41,24 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   canvasRef: externalCanvasRef,
   selectedElementId,
   onSelectElement,
+  onUpdateLayoutOverride,
 }) => {
   const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const activeCanvasRef = externalCanvasRef || internalCanvasRef;
+
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const initialOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
   const prevIndexRef = useRef(currentSlideIndex);
   const prevArchetypeRef = useRef(carousel.slides[currentSlideIndex]?.type);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renderSequenceRef = useRef(0);
+
+  const currentSlide = carousel.slides[currentSlideIndex];
+  const currentOverride = (selectedElementId && currentSlide?.layoutOverrides?.[selectedElementId]) || null;
+  const currentDx = currentOverride?.dx ?? 0;
+  const currentDy = currentOverride?.dy ?? 0;
 
   // Debounced canvas rendering:
   // Instant (0ms) on slide switch or archetype change,
@@ -137,40 +148,148 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     }
   };
 
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    e.stopPropagation();
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    initialOffsetRef.current = { dx: currentDx, dy: currentDy };
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !dragStartRef.current || !selectedElementId || !onUpdateLayoutOverride) return;
+    e.stopPropagation();
+    const rect = activeCanvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return;
+
+    const scaleX = 1080 / rect.width;
+    const scaleY = 1920 / rect.height;
+
+    const deltaX = Math.round((e.clientX - dragStartRef.current.x) * scaleX);
+    const deltaY = Math.round((e.clientY - dragStartRef.current.y) * scaleY);
+
+    const newDx = Math.max(-450, Math.min(450, initialOffsetRef.current.dx + deltaX));
+    const newDy = Math.max(-800, Math.min(800, initialOffsetRef.current.dy + deltaY));
+
+    onUpdateLayoutOverride(selectedElementId, {
+      ...(currentOverride || {}),
+      dx: newDx,
+      dy: newDy,
+    });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    e.stopPropagation();
+    setIsDragging(false);
+    dragStartRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    const step = e.shiftKey ? 10 : 2;
+    let nextDx = currentDx;
+    let nextDy = currentDy;
+    let handled = false;
+
+    if (e.key === 'ArrowLeft') {
+      nextDx = Math.max(-450, currentDx - step);
+      handled = true;
+    } else if (e.key === 'ArrowRight') {
+      nextDx = Math.min(450, currentDx + step);
+      handled = true;
+    } else if (e.key === 'ArrowUp') {
+      nextDy = Math.max(-800, currentDy - step);
+      handled = true;
+    } else if (e.key === 'ArrowDown') {
+      nextDy = Math.min(800, currentDy + step);
+      handled = true;
+    }
+
+    if (handled) {
+      e.preventDefault();
+      onUpdateLayoutOverride(selectedElementId, {
+        ...(currentOverride || {}),
+        dx: nextDx,
+        dy: nextDy,
+      });
+    }
+  };
+
   const activeBounds = selectedElementId ? ELEMENT_BOUNDS[selectedElementId] : null;
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(540px,calc(100vh-250px))] aspect-[9/16] shrink-0">
+    <div
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(540px,calc(100vh-250px))] aspect-[9/16] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none"
+    >
       <canvas
         ref={activeCanvasRef}
         onClick={handleCanvasClick}
         className="w-full h-full object-contain cursor-crosshair"
       />
 
-      {/* Selected Element Bounding Box (Direct Graphical Selection Feedback) */}
+      {/* Selected Element Bounding Box (Direct Graphical Selection & Drag Feedback) */}
       {activeBounds && (
         <div
-          className="absolute pointer-events-none transition-all duration-150 border-2 border-dashed rounded-lg animate-pulse"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          className={`absolute transition-shadow ${
+            isDragging
+              ? 'cursor-grabbing border-2 border-solid shadow-2xl'
+              : 'cursor-grab border-2 border-dashed'
+          } rounded-lg`}
           style={{
             top: activeBounds.top,
             left: activeBounds.left,
             width: activeBounds.width,
             height: activeBounds.height,
             borderColor: theme.accent,
-            backgroundColor: `${theme.accent}12`,
+            backgroundColor: isDragging ? `${theme.accent}25` : `${theme.accent}12`,
+            transform: `translate(${(currentDx / 1080) * 100}%, ${(currentDy / 1920) * 100}%)`,
+            touchAction: 'none',
           }}
+          title="Drag to reposition on canvas (or use keyboard arrow keys)"
         >
+          {/* Draggable HUD Header Pill */}
           <div
-            className="absolute -top-3 left-2 px-1.5 py-0.5 rounded text-[8px] font-mono uppercase tracking-wider text-black font-bold shadow-sm"
+            className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono uppercase tracking-wider text-black font-bold shadow-md whitespace-nowrap"
             style={{ backgroundColor: theme.accent }}
           >
-            {activeBounds.label}
+            <Move className="w-2.5 h-2.5 stroke-[3]" />
+            <span>{activeBounds.label}</span>
+            {(currentDx !== 0 || currentDy !== 0) && (
+              <span className="bg-black/20 text-black px-1 rounded text-[8px] font-bold">
+                {currentDx >= 0 ? `+${currentDx}` : currentDx}x, {currentDy >= 0 ? `+${currentDy}` : currentDy}y
+              </span>
+            )}
+            {(currentDx !== 0 || currentDy !== 0) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateLayoutOverride?.(selectedElementId!, null);
+                }}
+                className="hover:opacity-75 p-0.5 cursor-pointer"
+                title="Reset element translation"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+              </button>
+            )}
           </div>
+
           {/* Corner Resizing Pips */}
-          <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -bottom-1 -right-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -bottom-1 -right-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
         </div>
       )}
 

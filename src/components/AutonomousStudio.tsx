@@ -701,6 +701,25 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     handleUpdateCurrentSlide('satLabels', currentLabels);
   };
 
+  const handleUpdateSatIcon = (index: number, iconName: string) => {
+    const defaultIcons = ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
+    const currentIcons = currentSlide.satIcons && currentSlide.satIcons.length > 0
+      ? [...currentSlide.satIcons]
+      : defaultIcons;
+    currentIcons[index] = iconName;
+    handleUpdateCurrentSlide('satIcons', currentIcons);
+    onShowToast(`Updated node #${index + 1} icon to ${iconName}`);
+  };
+
+  const handleUpdateCenterIcon = (iconName: string) => {
+    handleUpdateCurrentSlide('centerIcon', iconName);
+    onShowToast(`Updated central hub icon to ${iconName}`);
+  };
+
+  const handleUpdateCenterTag = (tag: string) => {
+    handleUpdateCurrentSlide('centerTag', tag);
+  };
+
   const handleAddSatNode = () => {
     const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length > 0
       ? [...currentSlide.satLabels]
@@ -1220,6 +1239,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               setSelectedElementId(id);
               setIsInspectorOpen(true);
             }}
+            onUpdateLayoutOverride={handleUpdateElementLayoutOverride}
           />
 
           <SlideNavigator
@@ -1280,6 +1300,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               onSetSlideType={handleSetSlideType}
               onUpdateField={handleUpdateCurrentSlide}
               onUpdateSatLabel={handleUpdateSatLabel}
+              onUpdateSatIcon={handleUpdateSatIcon}
+              onUpdateCenterIcon={handleUpdateCenterIcon}
+              onUpdateCenterTag={handleUpdateCenterTag}
               onAddSatNode={handleAddSatNode}
               onDeleteSatNode={handleDeleteSatNode}
               onUpdateDiagramNode={handleUpdateDiagramNode}
