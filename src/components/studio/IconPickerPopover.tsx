@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, X, Check } from 'lucide-react';
 import { ICONS_REGISTRY } from '../../lib/icons.ts';
 import { ThemePalette } from '../../types.ts';
@@ -51,6 +51,17 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const currentCategoryIcons =
@@ -68,7 +79,10 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-md rounded-2xl border border-white/15 bg-slate-950 p-4 shadow-2xl space-y-3 animate-scale-up"
         onClick={(e) => e.stopPropagation()}
@@ -82,7 +96,8 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Close (Esc)"
           >
             <X className="w-4 h-4" />
           </button>
@@ -96,9 +111,19 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search icons (e.g., cpu, database, shield)..."
-            className="w-full bg-black/60 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-white/30"
+            className="w-full bg-black/60 border border-white/10 rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-white/30"
             autoFocus
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Category Tabs */}
@@ -171,8 +196,20 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
         </div>
 
         {filteredIcons.length === 0 && (
-          <div className="py-6 text-center text-xs text-slate-500">
-            No icons found matching &quot;{searchQuery}&quot;
+          <div className="py-6 text-center space-y-2">
+            <p className="text-xs text-slate-400">
+              No icons found matching &quot;{searchQuery}&quot;
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setActiveCategory('all');
+              }}
+              className="px-2.5 py-1 text-[11px] rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors cursor-pointer"
+            >
+              Clear filter
+            </button>
           </div>
         )}
       </div>

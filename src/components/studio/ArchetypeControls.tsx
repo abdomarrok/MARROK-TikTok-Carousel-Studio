@@ -152,9 +152,14 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
 
               {/* Center Tag / Pill Input */}
               <div>
-                <span className="text-[10px] text-slate-400 font-medium block mb-1 flex items-center gap-1">
-                  <Tag className="w-3 h-3 text-slate-400" />
-                  <span>Center Hub Tag Pill</span>
+                <span className="text-[10px] text-slate-400 font-medium block mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-3 h-3 text-slate-400" />
+                    <span>Center Tag Pill</span>
+                  </span>
+                  {!currentSlide.centerTag && (
+                    <span className="text-[9px] font-mono text-slate-500">Default: SYSTEM CORE</span>
+                  )}
                 </span>
                 <input
                   type="text"
@@ -163,8 +168,8 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                     if (onUpdateCenterTag) onUpdateCenterTag(e.target.value);
                     else onUpdateField('centerTag', e.target.value);
                   }}
-                  placeholder="e.g. SYSTEM CORE, ENVOY MESH"
-                  className="w-full bg-white/[0.03] border border-white/15 focus:border-white/40 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 font-mono focus:outline-none transition-all"
+                  placeholder="SYSTEM CORE (or custom label)"
+                  className="w-full bg-white/[0.03] border border-white/15 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none transition-all"
                 />
               </div>
             </div>

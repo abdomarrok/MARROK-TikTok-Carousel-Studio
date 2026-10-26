@@ -247,20 +247,25 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
               : 'cursor-grab border-2 border-dashed'
           } rounded-lg`}
           style={{
-            top: activeBounds.top,
-            left: activeBounds.left,
+            top: `calc(${activeBounds.top} + ${(currentDy / 1920) * 100}%)`,
+            left: `calc(${activeBounds.left} + ${(currentDx / 1080) * 100}%)`,
             width: activeBounds.width,
             height: activeBounds.height,
             borderColor: theme.accent,
             backgroundColor: isDragging ? `${theme.accent}25` : `${theme.accent}12`,
-            transform: `translate(${(currentDx / 1080) * 100}%, ${(currentDy / 1920) * 100}%)`,
+            transform: currentOverride?.scale && currentOverride.scale !== 1 ? `scale(${currentOverride.scale})` : undefined,
+            transformOrigin: 'center center',
             touchAction: 'none',
           }}
           title="Drag to reposition on canvas (or use keyboard arrow keys)"
         >
-          {/* Draggable HUD Header Pill */}
+          {/* Draggable HUD Header Pill - positioned safely inside for top-edge elements */}
           <div
-            className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono uppercase tracking-wider text-black font-bold shadow-md whitespace-nowrap"
+            className={`absolute flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono uppercase tracking-wider text-black font-bold shadow-md whitespace-nowrap z-20 ${
+              selectedElementId === 'headerBadge'
+                ? 'top-1.5 left-2'
+                : '-top-6 left-1/2 -translate-x-1/2'
+            }`}
             style={{ backgroundColor: theme.accent }}
           >
             <Move className="w-2.5 h-2.5 stroke-[3]" />
@@ -290,6 +295,18 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
           <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
           <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
           <div className="absolute -bottom-1 -right-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
+        </div>
+      )}
+
+      {/* Direct Dragging Selection Affordance Pill */}
+      {selectedElementId && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-0.5 text-[8.5px] font-mono text-slate-300 shadow-xl flex items-center gap-1.5 pointer-events-none whitespace-nowrap z-20">
+          <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: theme.accent }} />
+          <span>Drag to move</span>
+          <span className="text-slate-500">•</span>
+          <span>Arrows nudge</span>
+          <span className="text-slate-500">•</span>
+          <span>Shift=10px</span>
         </div>
       )}
 
