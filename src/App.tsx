@@ -51,6 +51,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [carousel]);
 
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [isThemeCustomizerOpen, setIsThemeCustomizerOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
@@ -78,6 +79,7 @@ export default function App() {
 
   const handleResetDraft = () => {
     setCarousel(DEFAULT_STARTER_DECK);
+    setActiveSlideIndex(0);
     localStorage.removeItem('marrok_deck_draft_v1');
     showToast('Reset to Scion Architecture starter deck');
   };
@@ -100,6 +102,8 @@ export default function App() {
         <AutonomousStudio
           carousel={carousel}
           theme={currentPalette}
+          activeSlideIndex={activeSlideIndex}
+          onSlideChange={setActiveSlideIndex}
           onUpdateCarousel={setCarousel}
           onSelectTheme={handleSelectPalette}
           onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
@@ -135,7 +139,9 @@ export default function App() {
         carousel={carousel}
         theme={currentPalette}
         onSelectSlide={(idx) => {
+          setActiveSlideIndex(idx);
           setIsContactSheetOpen(false);
+          showToast(`Jumped to Slide ${idx + 1}`);
         }}
         onShowToast={showToast}
       />

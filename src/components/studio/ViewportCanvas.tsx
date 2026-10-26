@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { CarouselData, ThemePalette } from '../../types.ts';
+import { CarouselData, GraphicalElementId, ThemePalette } from '../../types.ts';
 import { renderSlideToCanvas } from '../../lib/canvasExporter.ts';
 
 interface ViewportCanvasProps {
@@ -12,7 +12,23 @@ interface ViewportCanvasProps {
   onPreviousSlide: () => void;
   onNextSlide: () => void;
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  selectedElementId?: GraphicalElementId | null;
+  onSelectElement?: (id: GraphicalElementId) => void;
 }
+
+const ELEMENT_BOUNDS: Record<
+  GraphicalElementId,
+  { top: string; left: string; width: string; height: string; label: string }
+> = {
+  headerBadge: { top: '5.2%', left: '7.4%', width: '85.2%', height: '6.2%', label: 'Top MARROK Badge' },
+  graphicCard: { top: '12.5%', left: '7.4%', width: '85.2%', height: '28.1%', label: 'Visual Archetype Card' },
+  titleBlock: { top: '41.5%', left: '10.0%', width: '80.0%', height: '9.5%', label: 'English Headline' },
+  arabicTitleBlock: { top: '51.5%', left: '10.0%', width: '80.0%', height: '9.5%', label: 'Arabic Headline' },
+  bodyBlock: { top: '61.5%', left: '12.0%', width: '76.0%', height: '11.0%', label: 'English Body' },
+  arabicBodyBlock: { top: '73.0%', left: '12.0%', width: '76.0%', height: '11.0%', label: 'Arabic Body' },
+  ctaButton: { top: '48.0%', left: '15.0%', width: '70.0%', height: '6.5%', label: 'CTA Pill Button' },
+  attributionCard: { top: '56.0%', left: '15.0%', width: '70.0%', height: '5.0%', label: 'Attribution Card' },
+};
 
 export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   carousel,
@@ -22,6 +38,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   onPreviousSlide,
   onNextSlide,
   canvasRef: externalCanvasRef,
+  selectedElementId,
+  onSelectElement,
 }) => {
   const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const activeCanvasRef = externalCanvasRef || internalCanvasRef;
@@ -51,6 +69,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       const offscreen = document.createElement('canvas');
       try {
         await renderSlideToCanvas(carousel, currentSlideIndex, offscreen, theme);
+        // Render race protection: If another render started or component unmounted, discard
         if (!isMounted || renderSequence !== renderSequenceRef.current) return;
 
         const visibleCanvas = activeCanvasRef.current;
@@ -88,9 +107,72 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     };
   }, [carousel, currentSlideIndex, theme, activeCanvasRef]);
 
+  // Click-to-select hit testing in 1080x1920 canvas coordinates
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onSelectElement || !activeCanvasRef.current) return;
+    const rect = activeCanvasRef.current.getBoundingClientRect();
+    const clickYRatio = (e.clientY - rect.top) / rect.height;
+    const currentSlide = carousel.slides[currentSlideIndex];
+
+    if (currentSlide?.type === 'cta') {
+      if (clickYRatio < 0.12) onSelectElement('headerBadge');
+      else if (clickYRatio >= 0.12 && clickYRatio < 0.45) onSelectElement('titleBlock');
+      else if (clickYRatio >= 0.45 && clickYRatio < 0.60) onSelectElement('ctaButton');
+      else onSelectElement('bodyBlock');
+      return;
+    }
+
+    if (clickYRatio < 0.12) {
+      onSelectElement('headerBadge');
+    } else if (clickYRatio >= 0.12 && clickYRatio < 0.42) {
+      onSelectElement('graphicCard');
+    } else if (clickYRatio >= 0.42 && clickYRatio < 0.53) {
+      onSelectElement('titleBlock');
+    } else if (clickYRatio >= 0.53 && clickYRatio < 0.64) {
+      onSelectElement('arabicTitleBlock');
+    } else if (clickYRatio >= 0.64 && clickYRatio < 0.77) {
+      onSelectElement('bodyBlock');
+    } else if (clickYRatio >= 0.77 && clickYRatio < 0.90) {
+      onSelectElement('arabicBodyBlock');
+    }
+  };
+
+  const activeBounds = selectedElementId ? ELEMENT_BOUNDS[selectedElementId] : null;
+
   return (
     <div className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(540px,calc(100vh-250px))] aspect-[9/16] shrink-0">
-      <canvas ref={activeCanvasRef} className="w-full h-full object-contain" />
+      <canvas
+        ref={activeCanvasRef}
+        onClick={handleCanvasClick}
+        className="w-full h-full object-contain cursor-crosshair"
+      />
+
+      {/* Selected Element Bounding Box (Direct Graphical Selection Feedback) */}
+      {activeBounds && (
+        <div
+          className="absolute pointer-events-none transition-all duration-150 border-2 border-dashed rounded-lg animate-pulse"
+          style={{
+            top: activeBounds.top,
+            left: activeBounds.left,
+            width: activeBounds.width,
+            height: activeBounds.height,
+            borderColor: theme.accent,
+            backgroundColor: `${theme.accent}12`,
+          }}
+        >
+          <div
+            className="absolute -top-3 left-2 px-1.5 py-0.5 rounded text-[8px] font-mono uppercase tracking-wider text-black font-bold shadow-sm"
+            style={{ backgroundColor: theme.accent }}
+          >
+            {activeBounds.label}
+          </div>
+          {/* Corner Resizing Pips */}
+          <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -bottom-1 -right-1 w-2 h-2 rounded-full border border-black" style={{ backgroundColor: theme.accent }} />
+        </div>
+      )}
 
       {/* TikTok Feed Safe Zone Simulator Overlay */}
       {showSafeZones && (

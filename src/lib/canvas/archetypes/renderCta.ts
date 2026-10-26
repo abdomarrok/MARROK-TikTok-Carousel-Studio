@@ -190,54 +190,70 @@ export async function drawCtaSlide(
 
   const rawCtaEnTitle = (slide.enTitle || '').trim();
   if (rawCtaEnTitle) {
-    ctx.font = '800 56px "Plus Jakarta Sans", sans-serif';
+    const enFit = fitTextInBox(ctx, rawCtaEnTitle, 850, 56, '"Plus Jakarta Sans", sans-serif', '800', {
+      maxLines: 2,
+      minFontSize: 36,
+      lineHeightFactor: 1.2,
+    });
+    ctx.font = `800 ${enFit.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
-    const enCtaLines = wrapTextLines(ctx, rawCtaEnTitle, 850);
-    for (const line of enCtaLines) {
+    for (const line of enFit.lines) {
       ctx.fillText(line, 518, curY);
-      curY += 68;
+      curY += enFit.lineHeight;
     }
   }
 
   const rawCtaArTitle = (slide.arTitle || '').trim();
   if (rawCtaArTitle) {
     curY += 8;
-    ctx.font = '800 52px "Cairo", sans-serif';
+    const arFit = fitTextInBox(ctx, rawCtaArTitle, 850, 52, '"Cairo", sans-serif', '800', {
+      maxLines: 2,
+      minFontSize: 34,
+      lineHeightFactor: 1.35,
+    });
+    ctx.font = `800 ${arFit.fontSize}px "Cairo", sans-serif`;
     ctx.fillStyle = theme.accent;
     ctx.textAlign = 'center';
     ctx.direction = 'rtl';
-    const arCtaLines = wrapTextLines(ctx, rawCtaArTitle, 850);
-    for (const line of arCtaLines) {
+    for (const line of arFit.lines) {
       ctx.fillText(line, 518, curY);
-      curY += 72;
+      curY += arFit.lineHeight;
     }
   }
   ctx.restore();
 
   // 6. High-Contrast Bilingual CTA Pill Button (Tightly positioned directly below question)
-  const pillW = 656;
-  const pillH = 104;
-  const pillX = 518 - pillW / 2;
-  const pillY = Math.max(curY + 40, 920);
+  const ctaOverride = slide.layoutOverrides?.ctaButton;
+  const ctaDx = ctaOverride?.dx || 0;
+  const ctaDy = ctaOverride?.dy || 0;
+  const ctaScale = ctaOverride?.scale || 1;
+
+  const basePillW = 656;
+  const basePillH = 104;
+  const pillW = basePillW * ctaScale;
+  const pillH = basePillH * ctaScale;
+  const pillX = 518 - pillW / 2 + ctaDx;
+  // Strictly clamp pill and card so they never overflow TikTok footer safe ceiling (y <= 1710)
+  const pillY = Math.min(Math.max(curY + 36 + ctaDy, 920), 1360);
 
   ctx.save();
   ctx.shadowColor = theme.accent;
   ctx.shadowBlur = 14;
-  drawRoundRect(ctx, pillX, pillY, pillW, pillH, 52, theme.accent);
+  drawRoundRect(ctx, pillX, pillY, pillW, pillH, 52 * ctaScale, theme.accent);
   ctx.restore();
 
   ctx.save();
-  ctx.font = '800 38px "Cairo", "Plus Jakarta Sans", sans-serif';
+  ctx.font = `800 ${Math.round(38 * ctaScale)}px "Cairo", "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#081216';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 518, pillY + pillH / 2);
+  ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 518 + ctaDx, pillY + pillH / 2);
   ctx.restore();
 
   // 7. Verified marrok.org Attribution Card (Tightly grouped below CTA button)
   const displayUrl = carousel.brandUrl || slide.url || 'marrok.org';
-  const urlY = pillY + pillH + 52;
+  const urlY = pillY + pillH + 44;
 
   ctx.save();
   const fitUrl = fitTextInBox(ctx, displayUrl, 780, 32, '"JetBrains Mono", monospace', '600', {
@@ -254,7 +270,7 @@ export async function drawCtaSlide(
   const cardW = 780;
   const cardH = 92;
   const cardX = 518 - cardW / 2;
-  const cardY = urlY + 36;
+  const cardY = Math.min(urlY + 28, 1710 - cardH - 10);
   drawRoundRect(ctx, cardX, cardY, cardW, cardH, 20, `${theme.surface}99`, theme.surfaceBorder, 1.5);
 
   // 1. Miniature authentic MARROK logo badge

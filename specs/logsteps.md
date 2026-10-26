@@ -884,6 +884,23 @@ This document records the chronological development history, engineering decisio
     - Verified inline generation without any modal popup, updating the studio canvas directly.
     - Session recording saved: `test_smart_dock_1793008737730.webp`.
 
+## Step 34: P0 Security & Concurrency Remediation and Direct Graphical Control System
+- **Context & Objectives:**
+  - Execute Phase 1 Critical P0 Remediation:
+    1. Proxy SSRF Hardening (`api/controllers/proxyController.ts`): Block private/loopback/cloud metadata IP ranges, DNS rebinding checks, disable automatic redirects (manual hop validation), restrict content-types to valid images, cap responses at 5MB, sanitize SVGs against script/event-handler injection.
+    2. State Concurrency & Stale Closure Fixes (`AutonomousStudio.tsx`, `App.tsx`, `ViewportCanvas.tsx`, `SlideImageStudio.tsx`): Add AbortController + request ID tracking, functional state updaters (`prev => ...`), slide-bound AI images (`slideIndex` tracking), render race cancellation protection, and wire Contact Sheet thumbnail jump to active slide.
+    3. ZIP Export Memory & Mislabeling (`src/lib/canvas/exporter.ts`): Eliminate double-base64 buffer duplication (write directly from canvas `Blob`), remove duplicate root vs folder entries in JSZip, correct manifest labeling to `1080x1920 PNG (Safe-Zone Compliant)`.
+    4. Canvas Safe-Zone Hardening (`renderSlide.ts`, `textLayout.ts`, `renderCta.ts`): Hard max-line limits, real font-scaling down steps (to 0.55/minFontSize), and strict bounding box clipping so text never escapes TikTok's safe zones (`x <= 945`, `y <= 1710`).
+  - Execute Phase 2 Direct Graphical Control Architecture:
+    1. Layout Overrides Schema: Extended `SlideData` with `layoutOverrides?: Partial<Record<GraphicalElementId, ElementLayoutOverride>>` supporting `dx`, `dy`, `scale`, and `opacity`.
+    2. Layer & Element Inspector Panel: Implemented `src/components/studio/ElementInspector.tsx` with layer selection (`headerBadge`, `graphicCard`, `titleBlock`, `arabicTitleBlock`, `bodyBlock`, `arabicBodyBlock`, `ctaButton`, `attributionCard`), offset sliders/nudge buttons, scale multiplier, and one-click reset.
+    3. Interactive Viewport Hit-Testing: Implemented normalized canvas coordinate translation in `ViewportCanvas.tsx`, click-to-select element selection, and real-time bounding box overlay feedback with corner sizing pips.
+    4. Architectural Design Document: Authored comprehensive specification `specs/graphical_control.md`.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 TypeScript errors.
+  - `npm test` (`vitest run`): 10 test files passed, 33 tests passed (including new comprehensive SSRF test suite in `src/lib/network/proxySecurity.test.ts`).
+  - `npm run build` (`vite build`): Built production bundle cleanly in 434ms.
+
 
 
 

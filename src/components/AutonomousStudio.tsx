@@ -26,6 +26,8 @@ import {
   HookVariant,
   DiagramNode,
   DEFAULT_PALETTES,
+  GraphicalElementId,
+  ElementLayoutOverride,
 } from '../types.ts';
 import { downloadSingleSlidePng, copySlideToClipboard, downloadAllSlidesZip } from '../lib/canvasExporter.ts';
 import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline.ts';
@@ -40,11 +42,14 @@ import {
   InlineSlideEditor,
   ArchetypeControls,
   ExportBar,
+  ElementInspector,
 } from './studio/index.ts';
 
 interface AutonomousStudioProps {
   carousel: CarouselData;
   theme: ThemePalette;
+  activeSlideIndex?: number;
+  onSlideChange?: (index: number) => void;
   onUpdateCarousel: React.Dispatch<React.SetStateAction<CarouselData>>;
   onSelectTheme: (palette: ThemePalette) => void;
   onOpenThemeCustomizer: () => void;
@@ -144,6 +149,8 @@ function compressImageClientSide(file: File): Promise<{ base64: string; mimeType
 export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   carousel,
   theme,
+  activeSlideIndex,
+  onSlideChange,
   onUpdateCarousel,
   onSelectTheme,
   onOpenThemeCustomizer,
@@ -154,11 +161,34 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const [promptInput, setPromptInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [pipelineStatus, setPipelineStatus] = useState<string | null>(null);
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(activeSlideIndex ?? 0);
   const [showSafeZones, setShowSafeZones] = useState(false);
   const [copiedType, setCopiedType] = useState<'caption' | 'slide' | null>(null);
   const [isExportingZip, setIsExportingZip] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Direct Graphical Control & Hit-Testing States
+  const [selectedElementId, setSelectedElementId] = useState<GraphicalElementId | null>(null);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+
+  // Sync with external slide index changes (e.g. from ContactSheetModal thumbnail clicks)
+  useEffect(() => {
+    if (activeSlideIndex !== undefined && activeSlideIndex !== currentSlideIndex) {
+      const clamped = Math.max(0, Math.min(carousel.slides.length - 1, activeSlideIndex));
+      setCurrentSlideIndex(clamped);
+    }
+  }, [activeSlideIndex, carousel.slides.length]);
+
+  const changeSlide = (indexOrUpdater: number | ((prev: number) => number)) => {
+    setCurrentSlideIndex((prev) => {
+      const next = typeof indexOrUpdater === 'function' ? indexOrUpdater(prev) : indexOrUpdater;
+      const clamped = Math.max(0, Math.min(carousel.slides.length - 1, next));
+      if (clamped !== prev) {
+        onSlideChange?.(clamped);
+      }
+      return clamped;
+    });
+  };
 
   // Unified Smart Dock States
   const [isExpanded, setIsExpanded] = useState(false);
@@ -199,20 +229,60 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     };
   }, []);
 
-  // Keep the image studio bound to the slide it was opened from.
+  // Keep the image studio bound to a valid slide in range
   useEffect(() => {
     if (imageStudioTargetIndex !== null && imageStudioTargetIndex >= carousel.slides.length) {
       setImageStudioTargetIndex(null);
     }
   }, [carousel.slides.length, imageStudioTargetIndex]);
 
-  useEffect(() => {
-    setImageStudioTargetIndex((target) => (target !== null && target !== currentSlideIndex ? null : target));
-  }, [currentSlideIndex]);
-
   const applyDeckUpdate = (updater: (prev: CarouselData) => CarouselData) => {
     deckRevisionRef.current += 1;
     onUpdateCarousel(updater);
+  };
+
+  // Direct Graphical Layout Override Handlers
+  const handleUpdateElementLayoutOverride = (
+    elementId: GraphicalElementId,
+    override: ElementLayoutOverride | null
+  ) => {
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      if (targetIndex < 0 || !prev.slides[targetIndex]) return prev;
+      const current = prev.slides[targetIndex];
+      const existingOverrides = { ...(current.layoutOverrides || {}) };
+      if (
+        !override ||
+        ((override.dx === 0 || override.dx === undefined) &&
+          (override.dy === 0 || override.dy === undefined) &&
+          (override.scale === 1 || override.scale === undefined) &&
+          override.opacity === undefined)
+      ) {
+        delete existingOverrides[elementId];
+      } else {
+        existingOverrides[elementId] = override;
+      }
+      const newSlides = [...prev.slides];
+      newSlides[targetIndex] = {
+        ...current,
+        layoutOverrides: Object.keys(existingOverrides).length > 0 ? existingOverrides : undefined,
+      };
+      return { ...prev, slides: newSlides };
+    });
+  };
+
+  const handleResetSlideLayoutOverrides = () => {
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      if (targetIndex < 0 || !prev.slides[targetIndex]) return prev;
+      const newSlides = [...prev.slides];
+      newSlides[targetIndex] = {
+        ...newSlides[targetIndex],
+        layoutOverrides: undefined,
+      };
+      return { ...prev, slides: newSlides };
+    });
+    onShowToast('Reset all layout overrides on this slide');
   };
 
   // Keyboard navigation (Left / Right arrows)
@@ -222,9 +292,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         return;
       }
       if (e.key === 'ArrowLeft') {
-        setCurrentSlideIndex((prev) => Math.max(0, prev - 1));
+        changeSlide((prev) => Math.max(0, prev - 1));
       } else if (e.key === 'ArrowRight') {
-        setCurrentSlideIndex((prev) => Math.min(carousel.slides.length - 1, prev + 1));
+        changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -354,7 +424,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       }
 
       onUpdateCarousel(generated);
-      setCurrentSlideIndex(0);
+      changeSlide(0);
       if (generated.sourceMeta?.isFallback || generated.sourceMeta?.engine === 'offline-synthesizer') {
         onShowToast('Offline NLP Engine Activated: Synthesized custom slides from your notes.');
       } else {
@@ -392,7 +462,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         onSelectTheme(DEFAULT_PALETTES[processed.theme]);
       }
       onUpdateCarousel(processed);
-      setCurrentSlideIndex(0);
+      changeSlide(0);
       onShowToast(`⚡ Synthesized ${processed.slides.length}-slide carousel (Instant Offline Mode)`);
     } catch (err: unknown) {
       onShowToast(err instanceof Error ? err.message : 'Instant synthesis failed.');
@@ -475,60 +545,73 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       enBody: 'Direct architectural explanation of how the system executes under the hood.',
       arBody: 'شرح معماري مباشر لكيفية عمل النظام في الخلفية.',
     };
+    let targetIdx = 0;
     applyDeckUpdate((prev) => {
       const insertAt = Math.min(currentSlideIndex + 1, prev.slides.length);
+      targetIdx = insertAt;
       const newSlides = [...prev.slides];
       newSlides.splice(insertAt, 0, newSlide);
       return { ...prev, slides: newSlides };
     });
-    setCurrentSlideIndex(currentSlideIndex + 1);
-    onShowToast(`Added slide #${currentSlideIndex + 2}`);
+    changeSlide(targetIdx);
+    onShowToast(`Added slide #${targetIdx + 1}`);
   };
 
   const handleDuplicateSlide = () => {
-    const current = carousel.slides[currentSlideIndex];
-    if (!current) return;
-    const clone = JSON.parse(JSON.stringify(current));
+    let targetIdx = 0;
     applyDeckUpdate((prev) => {
-      const insertAt = Math.min(currentSlideIndex + 1, prev.slides.length);
+      const fromIdx = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const current = prev.slides[fromIdx];
+      if (!current) return prev;
+      const clone = JSON.parse(JSON.stringify(current));
+      const insertAt = fromIdx + 1;
+      targetIdx = insertAt;
       const newSlides = [...prev.slides];
       newSlides.splice(insertAt, 0, clone);
       return { ...prev, slides: newSlides };
     });
-    setCurrentSlideIndex(currentSlideIndex + 1);
-    onShowToast(`Duplicated slide #${currentSlideIndex + 1}`);
+    changeSlide(targetIdx);
+    onShowToast(`Duplicated slide #${targetIdx + 1}`);
   };
 
   const handleDeleteSlide = () => {
-    if (carousel.slides.length <= 3) {
-      onShowToast('Minimum 3 slides required in carousel');
-      return;
-    }
+    let deleted = false;
+    let newIdx = 0;
     applyDeckUpdate((prev) => {
       if (prev.slides.length <= 3) return prev;
+      deleted = true;
       const deleteAt = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const newSlides = prev.slides.filter((_, idx) => idx !== deleteAt);
+      newIdx = Math.max(0, Math.min(newSlides.length - 1, deleteAt - 1));
       return {
         ...prev,
-        slides: prev.slides.filter((_, idx) => idx !== deleteAt),
+        slides: newSlides,
       };
     });
-    setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1));
-    onShowToast(`Deleted slide #${currentSlideIndex + 1}`);
+    if (deleted) {
+      changeSlide(newIdx);
+      onShowToast(`Deleted slide #${currentSlideIndex + 1}`);
+    } else {
+      onShowToast('Minimum 3 slides required in carousel');
+    }
   };
 
   const handleMoveSlide = (direction: 'left' | 'right') => {
-    const targetIndex = direction === 'left' ? currentSlideIndex - 1 : currentSlideIndex + 1;
-    if (targetIndex < 0 || targetIndex >= carousel.slides.length) return;
+    let movedTarget = -1;
     applyDeckUpdate((prev) => {
       const fromIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const targetIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
       if (targetIndex < 0 || targetIndex >= prev.slides.length) return prev;
       const newSlides = [...prev.slides];
       const [removed] = newSlides.splice(fromIndex, 1);
       newSlides.splice(targetIndex, 0, removed);
+      movedTarget = targetIndex;
       return { ...prev, slides: newSlides };
     });
-    setCurrentSlideIndex(targetIndex);
-    onShowToast(`Moved slide to position #${targetIndex + 1}`);
+    if (movedTarget !== -1) {
+      changeSlide(movedTarget);
+      onShowToast(`Moved slide to position #${movedTarget + 1}`);
+    }
   };
 
   const handleApplyHookVariant = (variant: HookVariant) => {
@@ -1069,9 +1152,14 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             theme={theme}
             showSafeZones={showSafeZones}
             onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
-            onPreviousSlide={() => setCurrentSlideIndex((prev) => Math.max(0, prev - 1))}
-            onNextSlide={() => setCurrentSlideIndex((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
+            onPreviousSlide={() => changeSlide((prev) => Math.max(0, prev - 1))}
+            onNextSlide={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
             canvasRef={canvasRef}
+            selectedElementId={selectedElementId}
+            onSelectElement={(id) => {
+              setSelectedElementId(id);
+              setIsInspectorOpen(true);
+            }}
           />
 
           <SlideNavigator
@@ -1079,7 +1167,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             currentSlideIndex={currentSlideIndex}
             showSafeZones={showSafeZones}
             onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
-            onSelectSlide={(idx) => setCurrentSlideIndex(idx)}
+            onSelectSlide={(idx) => changeSlide(idx)}
             onAddSlide={handleAddSlide}
             onDuplicateSlide={handleDuplicateSlide}
             onDeleteSlide={handleDeleteSlide}
@@ -1144,17 +1232,27 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               }
             />
 
+            {/* Direct Graphical Control / Layer Inspector */}
+            <ElementInspector
+              slide={currentSlide}
+              theme={theme}
+              isOpen={isInspectorOpen}
+              onToggleOpen={() => setIsInspectorOpen(!isInspectorOpen)}
+              selectedElementId={selectedElementId}
+              onSelectElement={setSelectedElementId}
+              onUpdateOverride={handleUpdateElementLayoutOverride}
+              onResetOverrides={handleResetSlideLayoutOverrides}
+            />
+
             {imageStudioTargetIndex !== null &&
-              imageStudioTargetIndex === currentSlideIndex &&
               carousel.slides[imageStudioTargetIndex] && (
               <SlideImageStudio
+                slideIndex={imageStudioTargetIndex}
                 slide={carousel.slides[imageStudioTargetIndex]}
                 theme={theme}
-                onApplyImage={(imageUrl, prompt, model) => {
-                  const targetIndex = imageStudioTargetIndex;
-                  if (targetIndex === null) return;
+                onApplyImage={(targetIndex, imageUrl, prompt, model) => {
                   applyDeckUpdate((prev) => {
-                    if (targetIndex >= prev.slides.length) return prev;
+                    if (targetIndex < 0 || targetIndex >= prev.slides.length) return prev;
                     const newSlides = [...prev.slides];
                     newSlides[targetIndex] = sanitizeSlide(
                       {
@@ -1169,7 +1267,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                     return { ...prev, slides: newSlides };
                   });
                   setImageStudioTargetIndex(null);
-                  onShowToast('Applied AI diagram to slide');
+                  onShowToast(`Applied AI diagram to Slide ${targetIndex + 1}`);
                 }}
                 onClose={() => setImageStudioTargetIndex(null)}
                 onShowToast={onShowToast}

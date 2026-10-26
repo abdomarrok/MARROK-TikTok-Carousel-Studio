@@ -88,10 +88,34 @@ export async function renderSlideToCanvas(
   }
 
   // 4. Header: Top-Left Authentic MARROK Vector Badge + Brand Wordmark + Category Tag
-  drawHeader(ctx, carousel, theme, categoryTag);
+  const headerOverride = slide.layoutOverrides?.headerBadge;
+  if (headerOverride) {
+    ctx.save();
+    ctx.translate(headerOverride.dx || 0, headerOverride.dy || 0);
+    if (headerOverride.scale && headerOverride.scale !== 1) {
+      ctx.scale(headerOverride.scale, headerOverride.scale);
+    }
+    drawHeader(ctx, carousel, theme, categoryTag);
+    ctx.restore();
+  } else {
+    drawHeader(ctx, carousel, theme, categoryTag);
+  }
 
   // 5. Render Archetype Specific Graphics & Layouts
   let yGraphicEnd = 670;
+  const graphicOverride = slide.layoutOverrides?.graphicCard;
+  ctx.save();
+  if (graphicOverride) {
+    const cx = CANVAS_WIDTH / 2;
+    const cy = 460;
+    ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
+    const s = graphicOverride.scale ?? 1;
+    ctx.scale(s, s);
+    ctx.translate(-cx, -cy);
+    if (graphicOverride.opacity !== undefined) {
+      ctx.globalAlpha *= Math.max(0, Math.min(1, graphicOverride.opacity));
+    }
+  }
 
   if (slide.type === 'hub') {
     yGraphicEnd = await drawHubSlide(ctx, slide, theme, options);
@@ -110,6 +134,7 @@ export async function renderSlideToCanvas(
   } else if (slide.type === 'cta') {
     yGraphicEnd = await drawCtaSlide(ctx, slide, carousel, theme, options, themeMode);
   }
+  ctx.restore();
 
   // 6. Text Zone Rendering (for hub, row, metric, code, and compare slides)
   // Strict Safe-Zone Rule: Center at x = 518 with maxWidth 850 (titles) and 820 (body)
@@ -124,25 +149,25 @@ export async function renderSlideToCanvas(
     // Real font scaling + line caps (never line-height squashing).
     const availableHeight = SAFE_FOOTER_CEILING_Y - yGraphicEnd;
 
-    const buildTextLayout = (scale: number) => {
+    const buildTextLayout = (scale: number, bodyLinesCap: number = 4) => {
       const enTitle = fitTextInBox(ctx, rawEnTitle, SAFE_TEXT_WIDTH_TITLE, 74 * scale, '"Plus Jakarta Sans", sans-serif', '800', {
         maxLines: 2,
-        minFontSize: 50,
+        minFontSize: 44,
         lineHeightFactor: 1.19,
       });
       const arTitle = fitTextInBox(ctx, rawArTitle, SAFE_TEXT_WIDTH_TITLE, 70 * scale, '"Cairo", sans-serif', '800', {
         maxLines: 2,
-        minFontSize: 48,
+        minFontSize: 42,
         lineHeightFactor: 1.457,
       });
       const enBody = fitTextInBox(ctx, rawEnBody, SAFE_TEXT_WIDTH_BODY, 38 * scale, '"Plus Jakarta Sans", sans-serif', '400', {
-        maxLines: 4,
-        minFontSize: 26,
+        maxLines: bodyLinesCap,
+        minFontSize: 24,
         lineHeightFactor: 1.42,
       });
       const arBody = fitTextInBox(ctx, rawArBody, SAFE_TEXT_WIDTH_BODY, 38 * scale, '"Cairo", sans-serif', '400', {
-        maxLines: 4,
-        minFontSize: 26,
+        maxLines: bodyLinesCap,
+        minFontSize: 24,
         lineHeightFactor: 1.526,
       });
 
@@ -163,10 +188,19 @@ export async function renderSlideToCanvas(
     };
 
     let textScale = 1;
-    let layout = buildTextLayout(textScale);
-    while (layout.hTextTotal > availableHeight - 24 && textScale > 0.7) {
-      textScale = Math.max(0.7, textScale - 0.05);
-      layout = buildTextLayout(textScale);
+    let bodyCap = 4;
+    let layout = buildTextLayout(textScale, bodyCap);
+
+    // Phase A: Scale down font size smoothly
+    while (layout.hTextTotal > availableHeight - 24 && textScale > 0.6) {
+      textScale = Math.max(0.6, textScale - 0.05);
+      layout = buildTextLayout(textScale, bodyCap);
+    }
+
+    // Phase B: If still overflows tight graphic, progressively cap body lines
+    while (layout.hTextTotal > availableHeight - 20 && bodyCap > 2) {
+      bodyCap -= 1;
+      layout = buildTextLayout(textScale, bodyCap);
     }
 
     const { enTitle, arTitle, enBody, arBody, gapTitles, gapTitlesToBody, gapBodies } = layout;
@@ -180,8 +214,6 @@ export async function renderSlideToCanvas(
     // Upper bound: yGraphicEnd
     // Lower ceiling: 1710px (clearing the footer pagination dots at y=1826 with 116px padding)
     const remainingSpace = availableHeight - hTextTotal;
-    // Optical distribution: 38% top cushion, 62% bottom breathing room
-    // Clamped between 28px min and 135px max so content neither hugs the graphic nor floats awkwardly low
     const topCushion = Math.min(Math.max(remainingSpace * 0.38, 28), 135);
     let currentY = yGraphicEnd + topCushion;
 
@@ -197,14 +229,17 @@ export async function renderSlideToCanvas(
 
     // 6c. Render English Headline
     if (enTitleLines.length > 0) {
+      const titleOverride = slide.layoutOverrides?.titleBlock;
+      const tDx = titleOverride?.dx || 0;
+      const tDy = titleOverride?.dy || 0;
       ctx.save();
       ctx.font = `800 ${enTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textWhite;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       for (const line of enTitleLines) {
-        if (currentY > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
+        if (currentY + tDy + enTitle.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + tDx, currentY + tDy);
         currentY += enTitle.lineHeight;
       }
       ctx.restore();
@@ -213,6 +248,9 @@ export async function renderSlideToCanvas(
     // 6d. Render Arabic Headline with generous line-height
     if (arTitleLines.length > 0) {
       currentY += gapTitles;
+      const arTitleOverride = slide.layoutOverrides?.arabicTitleBlock;
+      const arTDx = arTitleOverride?.dx || 0;
+      const arTDy = arTitleOverride?.dy || 0;
       ctx.save();
       ctx.font = `800 ${arTitle.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.accent;
@@ -220,8 +258,8 @@ export async function renderSlideToCanvas(
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       for (const line of arTitleLines) {
-        if (currentY > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
+        if (currentY + arTDy + arTitle.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + arTDx, currentY + arTDy);
         currentY += arTitle.lineHeight;
       }
       ctx.restore();
@@ -230,6 +268,9 @@ export async function renderSlideToCanvas(
     // 6e. Render English Body Copy
     if (enBodyLines.length > 0) {
       currentY += gapTitlesToBody;
+      const bodyOverride = slide.layoutOverrides?.bodyBlock;
+      const bDx = bodyOverride?.dx || 0;
+      const bDy = bodyOverride?.dy || 0;
       ctx.save();
       ctx.font = `400 ${enBody.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textEnBody;
@@ -237,8 +278,8 @@ export async function renderSlideToCanvas(
       ctx.direction = 'ltr';
       ctx.textBaseline = 'alphabetic';
       for (const line of enBodyLines) {
-        if (currentY > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
+        if (currentY + bDy + enBody.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + bDx, currentY + bDy);
         currentY += enBody.lineHeight;
       }
       ctx.restore();
@@ -247,6 +288,9 @@ export async function renderSlideToCanvas(
     // 6f. Render Arabic Body Copy with generous line-height and strict right margin safe-zone
     if (arBodyLines.length > 0) {
       currentY += gapBodies;
+      const arBodyOverride = slide.layoutOverrides?.arabicBodyBlock;
+      const arBDx = arBodyOverride?.dx || 0;
+      const arBDy = arBodyOverride?.dy || 0;
       ctx.save();
       ctx.font = `400 ${arBody.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.textArBody;
@@ -254,8 +298,8 @@ export async function renderSlideToCanvas(
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       for (const line of arBodyLines) {
-        if (currentY > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
+        if (currentY + arBDy + arBody.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + arBDx, currentY + arBDy);
         currentY += arBody.lineHeight;
       }
       ctx.restore();

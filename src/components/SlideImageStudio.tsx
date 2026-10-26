@@ -24,9 +24,10 @@ import { createRequestDeadline } from '../lib/network/requestDeadline';
 const IMAGE_REQUEST_TIMEOUT_MS = 50000;
 
 interface SlideImageStudioProps {
+  slideIndex?: number;
   slide: SlideData;
   theme: ThemePalette;
-  onApplyImage: (imageUrl: string, prompt?: string, model?: string) => void;
+  onApplyImage: (targetIndex: number, imageUrl: string, prompt?: string, model?: string) => void;
   onClose?: () => void;
   onShowToast?: (msg: string) => void;
 }
@@ -61,12 +62,18 @@ export function buildThemeAwareDiagramPrompt(slide: SlideData, theme: ThemePalet
 }
 
 export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
+  slideIndex = 0,
   slide,
   theme,
   onApplyImage,
   onClose,
   onShowToast,
 }) => {
+  const boundSlideIndexRef = useRef(slideIndex);
+  useEffect(() => {
+    boundSlideIndexRef.current = slideIndex;
+  }, [slideIndex]);
+
   const [activeMode, setActiveMode] = useState<'generate' | 'edit'>(slide.imageUrl ? 'edit' : 'generate');
   const [prompt, setPrompt] = useState<string>(() => buildThemeAwareDiagramPrompt(slide, theme));
   const [selectedPreset, setSelectedPreset] = useState<StylePreset>('blueprint');
@@ -204,8 +211,8 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
 
   const handleApplyToSlide = () => {
     if (!generatedImageUrl) return;
-    onApplyImage(generatedImageUrl, prompt, usedModel);
-    onShowToast?.('Applied generated visual to current slide!');
+    onApplyImage(boundSlideIndexRef.current, generatedImageUrl, prompt, usedModel);
+    onShowToast?.(`Applied generated visual to slide #${boundSlideIndexRef.current + 1}!`);
     if (onClose) onClose();
   };
 

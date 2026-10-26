@@ -195,5 +195,13 @@ export function fitTextInBox(
       ? truncateTextToWidth(ctx, last, maxWidth, '…', true)
       : last;
   }
-  return { fontSize: minFontSize, lines: wrapped, lineHeight: minFontSize * lineHeightFactor };
+
+  // Hard safety: guarantee no individual line escapes maxWidth
+  for (let i = 0; i < wrapped.length; i++) {
+    if (ctx.measureText(wrapped[i]).width > maxWidth) {
+      wrapped[i] = truncateTextToWidth(ctx, wrapped[i], maxWidth, '…', true);
+    }
+  }
+
+  return { fontSize: minFontSize, lines: wrapped, lineHeight: Math.round(minFontSize * lineHeightFactor) };
 }

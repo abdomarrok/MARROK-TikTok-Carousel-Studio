@@ -107,7 +107,6 @@ export async function downloadAllSlidesZip(
   visualOptions?: VisualSystemOptions
 ): Promise<void> {
   const zip = new JSZip();
-  const folder = zip.folder(`MARROK_Carousel_${carousel.theme}`);
   const total = carousel.slides.length;
 
   for (let i = 0; i < total; i++) {
@@ -116,10 +115,10 @@ export async function downloadAllSlidesZip(
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const canvas = await renderSlideToCanvas(carousel, i, undefined, customPalette, visualOptions);
-    const dataUrl = canvas.toDataURL('image/png');
-    const base64 = dataUrl.split(',')[1];
-    folder?.file(`slide${i + 1}.png`, base64, { base64: true });
-    zip.file(`slide${i + 1}.png`, base64, { base64: true });
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (blob) {
+      zip.file(`slide${i + 1}.png`, blob);
+    }
   }
 
   // Spec §18 Complete Deliverables: Caption, Pinned First Comment, Short Caption, Metadata, and Claims Citations
@@ -134,7 +133,7 @@ export async function downloadAllSlidesZip(
       .join('\n');
     fullCaptionText += `\n\n═════════════════════════════════════\n🔍 Verified Claims & Citations:\n${factsBlock}`;
   }
-  folder?.file('caption.txt', fullCaptionText.replace(/\u00A0/g, ' '));
+  zip.file('caption.txt', fullCaptionText.replace(/\u00A0/g, ' '));
 
   // ── Metricool Publishing Bundle ──
   const mainCaption = carousel.captionVariants?.[0]?.caption || carousel.caption || '';
@@ -156,7 +155,6 @@ export async function downloadAllSlidesZip(
   }
 
   const cleanBilingualCaption = metricoolCaption.replace(/\u00A0/g, ' ').trim();
-  folder?.file('caption-bilingual.txt', cleanBilingualCaption);
   zip.file('caption-bilingual.txt', cleanBilingualCaption);
 
   // 2. Serialized CarouselData + active theme and visualOptions
@@ -171,10 +169,11 @@ export async function downloadAllSlidesZip(
     exportedAt: new Date().toISOString(),
     generator: 'MARROK TikTok Carousel Studio',
     targetPlatform: 'Metricool / TikTok 9:16',
-    format: '1080x1920',
+    format: '1080x1920 PNG (Safe-Zone Compliant)',
+    totalSlides: total,
+    slideFiles: Array.from({ length: total }, (_, i) => `slide${i + 1}.png`),
   };
   const manifestJson = JSON.stringify(carouselManifest, null, 2);
-  folder?.file('carousel-manifest.json', manifestJson);
   zip.file('carousel-manifest.json', manifestJson);
 
   // 3. Separate dedicated claims & citations verification file
@@ -205,14 +204,14 @@ ${(carousel.sourceMeta?.groundingQueries || []).map((q) => `• ${q}`).join('\n'
 AUTHORITATIVE SOURCES & DOCUMENTATION:
 ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.url}`).join('\n') || `• https://${carousel.brandUrl || 'marrok.org'}`}
 `;
-    folder?.file('claims_citations.txt', claimsReport.replace(/\u00A0/g, ' '));
+    zip.file('claims_citations.txt', claimsReport.replace(/\u00A0/g, ' '));
   }
 
   if (carousel.firstComment) {
-    folder?.file('first_comment.txt', carousel.firstComment.replace(/\u00A0/g, ' '));
+    zip.file('first_comment.txt', carousel.firstComment.replace(/\u00A0/g, ' '));
   }
   if (carousel.shortCaption) {
-    folder?.file('short_caption.txt', carousel.shortCaption.replace(/\u00A0/g, ' '));
+    zip.file('short_caption.txt', carousel.shortCaption.replace(/\u00A0/g, ' '));
   }
 
   // Structured Post Metadata JSON
@@ -234,8 +233,9 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
     screenHook: carousel.screenHook,
     captionVariants: carousel.captionVariants || [],
     hookVariants: carousel.hookVariants || [],
+    format: '1080x1920 PNG',
   };
-  folder?.file('post_metadata.json', JSON.stringify(metadata, null, 2));
+  zip.file('post_metadata.json', JSON.stringify(metadata, null, 2));
 
   // Quick Creator Publishing Guide
   const readme = `MARROK TIKTOK & METRICOOL PUBLISHING BUNDLE
@@ -261,7 +261,6 @@ HOW TO PUBLISH TO METRICOOL / TIKTOK:
 3. Open 'caption-bilingual.txt', copy all and paste into post caption.
 4. Schedule or publish immediately!
 `;
-  folder?.file('README.txt', readme);
   zip.file('README.txt', readme);
 
   const content = await zip.generateAsync({ type: 'blob' });

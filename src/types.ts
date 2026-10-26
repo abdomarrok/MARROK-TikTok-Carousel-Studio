@@ -61,11 +61,29 @@ export interface SlideData {
   arTitle?: string;
   enBody?: string;
   arBody?: string;
-  // CTA properties
   ctaText?: string;
   url?: string;
   enCredit?: string;
   arCredit?: string;
+  // Direct Graphical Control Overrides (Spec §21)
+  layoutOverrides?: Partial<Record<GraphicalElementId, ElementLayoutOverride>>;
+}
+
+export type GraphicalElementId =
+  | 'headerBadge'
+  | 'graphicCard'
+  | 'titleBlock'
+  | 'arabicTitleBlock'
+  | 'bodyBlock'
+  | 'arabicBodyBlock'
+  | 'ctaButton'
+  | 'attributionCard';
+
+export interface ElementLayoutOverride {
+  dx?: number;      // Horizontal offset in canvas pixels (-150 to +150)
+  dy?: number;      // Vertical offset in canvas pixels (-250 to +250)
+  scale?: number;   // Scale factor multiplier (0.7 to 1.3)
+  opacity?: number; // Opacity multiplier (0.1 to 1.0)
 }
 
 export interface HookVariant {
