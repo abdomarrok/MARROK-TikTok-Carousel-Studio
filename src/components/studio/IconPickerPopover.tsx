@@ -113,15 +113,18 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-white/15 bg-slate-950 p-4 shadow-2xl space-y-3 animate-scale-up"
+        className="w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] rounded-t-3xl sm:rounded-2xl border-t sm:border border-white/15 bg-slate-950 p-4 sm:p-5 shadow-2xl space-y-3 animate-scale-up flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile Drag Handle Bar */}
+        <div className="sm:hidden w-10 h-1 rounded-full bg-white/25 mx-auto -mt-1 mb-1 shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+        <div className="flex items-center justify-between pb-2 border-b border-white/10 shrink-0">
           <div>
             <h3 className="text-xs font-bold text-white uppercase tracking-wider">{title}</h3>
             <p className="text-[10px] text-slate-400">Crisp SVG glyphs & tech brand logos rendered directly on canvas</p>
@@ -129,7 +132,7 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer touch-manipulation"
             title="Close (Esc)"
           >
             <X className="w-4 h-4" />

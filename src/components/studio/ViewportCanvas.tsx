@@ -49,6 +49,18 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const initialOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const [mobileNudgeStep, setMobileNudgeStep] = useState<number>(5);
+
+  const handleNudge = (deltaX: number, deltaY: number) => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    const nextDx = Math.max(-450, Math.min(450, currentDx + deltaX));
+    const nextDy = Math.max(-800, Math.min(800, currentDy + deltaY));
+    onUpdateLayoutOverride(selectedElementId, {
+      ...(currentOverride || {}),
+      dx: nextDx,
+      dy: nextDy,
+    });
+  };
 
   const prevIndexRef = useRef(currentSlideIndex);
   const prevArchetypeRef = useRef(carousel.slides[currentSlideIndex]?.type);
@@ -298,9 +310,81 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
         </div>
       )}
 
-      {/* Direct Dragging Selection Affordance Pill */}
+      {/* Mobile Precision Nudge Bar (Visible when element selected on mobile screens) */}
       {selectedElementId && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-0.5 text-[8.5px] font-mono text-slate-300 shadow-xl flex items-center gap-1.5 pointer-events-none whitespace-nowrap z-20">
+        <div className="sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/90 backdrop-blur-md border border-white/25 rounded-2xl p-1 shadow-2xl z-30 touch-manipulation">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNudge(-mobileNudgeStep, 0);
+            }}
+            className="w-7 h-7 rounded-xl bg-white/10 active:bg-white/30 text-white font-bold flex items-center justify-center text-xs cursor-pointer"
+            title="Nudge Left"
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNudge(0, -mobileNudgeStep);
+            }}
+            className="w-7 h-7 rounded-xl bg-white/10 active:bg-white/30 text-white font-bold flex items-center justify-center text-xs cursor-pointer"
+            title="Nudge Up"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNudge(0, mobileNudgeStep);
+            }}
+            className="w-7 h-7 rounded-xl bg-white/10 active:bg-white/30 text-white font-bold flex items-center justify-center text-xs cursor-pointer"
+            title="Nudge Down"
+          >
+            ▼
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNudge(mobileNudgeStep, 0);
+            }}
+            className="w-7 h-7 rounded-xl bg-white/10 active:bg-white/30 text-white font-bold flex items-center justify-center text-xs cursor-pointer"
+            title="Nudge Right"
+          >
+            ▶
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMobileNudgeStep((s) => (s === 2 ? 10 : s === 10 ? 25 : 2));
+            }}
+            className="px-1.5 h-7 rounded-xl bg-white/15 active:bg-white/30 text-[9px] font-mono text-cyan-300 font-bold flex items-center justify-center cursor-pointer"
+            title="Toggle nudge step (2px / 10px / 25px)"
+          >
+            {mobileNudgeStep}px
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateLayoutOverride?.(selectedElementId!, null);
+            }}
+            className="w-7 h-7 rounded-xl bg-rose-500/20 active:bg-rose-500/40 text-rose-300 font-bold flex items-center justify-center text-xs cursor-pointer"
+            title="Reset position"
+          >
+            ↺
+          </button>
+        </div>
+      )}
+
+      {/* Desktop Direct Dragging Selection Affordance Pill */}
+      {selectedElementId && (
+        <div className="hidden sm:flex absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-0.5 text-[8.5px] font-mono text-slate-300 shadow-xl items-center gap-1.5 pointer-events-none whitespace-nowrap z-20">
           <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: theme.accent }} />
           <span>Drag to move</span>
           <span className="text-slate-500">•</span>

@@ -98,7 +98,7 @@ export default function App() {
       />
 
       {/* Primary Autonomous Studio Viewport */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-6">
         <AutonomousStudio
           carousel={carousel}
           theme={currentPalette}

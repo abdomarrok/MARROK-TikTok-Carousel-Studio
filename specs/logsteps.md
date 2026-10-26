@@ -1019,3 +1019,41 @@ This document records the chronological development history, engineering decisio
   - npm run lint (tsc --noEmit): 0 TypeScript errors.
   - npm test (vitest run): 11 test files, 41 unit tests passed.
   - npm run build (vite build): Built production bundle in 231ms.
+
+---
+
+## Step 40: Mobile Responsiveness, Segmented Studio Navigation & Touch Normalization
+- **Context & Problem Analysis:**
+  - Mobile screens (< 1024px) previously displayed a 2,619px vertical scroll stack requiring ~1,000px of scrolling between the canvas preview and editor controls.
+  - Header actions overflowed on mobile viewports (< 640px) or pushed critical tools off-screen.
+  - Fine graphical element adjustment via dragging on mobile suffered from thumb occlusion (fingers obscuring the element being adjusted).
+  - Popovers and modal dialogues on mobile often exceeded screen heights or felt clunky without mobile-native bottom sheet ergonomics.
+- **Engineering Solutions Implemented:**
+  1. **Touch Target Normalization & Header Consolidation (`src/components/Header.tsx`):**
+     - Touch targets normalized to >= 38px-44px with `touch-manipulation`.
+     - Preserved brand wordmark, theme quick-pill, and contact sheet on mobile.
+     - Added a dedicated mobile `MoreVertical` dropdown menu for screens < 640px containing Inspect Plan & Facts, Configure Gemini API Key, Auto-save status, and Reset Draft.
+  2. **Fluid Smart Dock (`src/components/AutonomousStudio.tsx`):**
+     - Made compact mode Expand/Attach toggle compact on mobile.
+     - Turned Quick Starter Suggestions into a fluid horizontal swipe track (`overflow-x-auto scrollbar-none whitespace-nowrap`).
+  3. **Mobile Segmented Mode Switcher (`src/components/AutonomousStudio.tsx`):**
+     - Added `mobileStudioTab` state (`'canvas' | 'text' | 'archetype'`).
+     - Added sticky top segmented switcher (`lg:hidden sticky top-14 z-30`):
+       - `[ 🖼️ Canvas ]`: 9:16 ViewportCanvas, SlideNavigator, ExportBar.
+       - `[ ✍️ Copy & Text ]`: InlineSlideEditor and TikTok Posting Copy.
+       - `[ 🎛️ Archetype ]`: ArchetypeControls and ElementInspector.
+     - Added floating Canvas Switcher Pill (`lg:hidden fixed bottom-16 right-4 z-40`) to return to Canvas with 1 tap.
+     - Preserved 100% side-by-side layout on desktop (`lg:flex` / `lg:block`).
+  4. **Touch-First Mobile Precision D-Pad Toolbar (`src/components/studio/ViewportCanvas.tsx`):**
+     - Directional D-Pad toolbar (`◀`, `▲`, `▼`, `▶`), step toggles (`2px / 10px / 25px`), and quick reset (`↺`) right beneath the canvas on `< sm` when an element is selected. Eliminates thumb occlusion during nudging.
+  5. **Native Mobile Bottom Sheets (`src/components/studio/IconPickerPopover.tsx` & `src/components/ThemeCustomizer.tsx`):**
+     - Transformed into ergonomic slide-up bottom sheets on mobile (`fixed inset-x-0 bottom-0 rounded-t-3xl max-h-[85vh]` with top drag handles).
+  6. **Sticky Mobile Thumb Action Bar (`src/components/AutonomousStudio.tsx` & `src/App.tsx`):**
+     - Sticky bottom bar on mobile (`lg:hidden fixed bottom-0 inset-x-0 z-30`): Previous slide, Slide counter / Contact sheet launcher, Next slide, and 1-tap Export Metricool ZIP.
+     - Added `pb-24 lg:pb-6` padding to `src/App.tsx` main container to prevent bottom bar overlap.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): 0 TypeScript errors.
+  - `npm test` (`vitest run`): 11 test files, 41 unit tests passed.
+  - `npm run build` (`vite build`): Built production bundle in 236ms.
+  - Visual verification with `browser_subagent` on 390x844 mobile viewport: header dropdown, segmented tab switcher, copy view, archetype view, bottom sheet, and sticky bar verified.
+

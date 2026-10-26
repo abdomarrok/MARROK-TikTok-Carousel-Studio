@@ -91,10 +91,13 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl max-h-[90vh] flex flex-col bg-[#0b1015] border border-[#1E2833] rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md sm:p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-xl max-h-[88vh] sm:max-h-[90vh] flex flex-col bg-[#0b1015] border-t sm:border border-[#1E2833] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden w-10 h-1 rounded-full bg-white/20 mx-auto mt-2.5 -mb-1 shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1E2833] bg-[#0e161c]">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-[#1E2833] bg-[#0e161c]">
           <div className="flex items-center gap-2.5">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center border shadow-inner"

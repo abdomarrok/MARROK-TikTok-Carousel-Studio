@@ -17,6 +17,11 @@ import {
   Trash2,
   SlidersHorizontal,
   Zap,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Sliders,
+  Type,
 } from 'lucide-react';
 import {
   CarouselData,
@@ -213,6 +218,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Mobile Studio Segmented Mode Switcher ('canvas' | 'text' | 'archetype')
+  const [mobileStudioTab, setMobileStudioTab] = useState<'canvas' | 'text' | 'archetype'>('canvas');
 
   // Async lifecycle guards: only the latest generation/image request may commit.
   const generationAbortRef = useRef<AbortController | null>(null);
@@ -958,18 +966,18 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsExpanded(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-3 rounded-xl border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-slate-200 hover:text-white transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-3 rounded-xl border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-slate-200 hover:text-white transition-all cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
                   title="Expand to Ingestion Mode (Attach Screenshots, YouTube notes, Blog)"
                 >
                   <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
-                  <span className="hidden md:inline">Expand / Attach</span>
+                  <span className="hidden sm:inline">Expand / Attach</span>
                 </button>
               </div>
 
               <button
                 type="submit"
                 disabled={isGenerating}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-lg cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[46px] rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-lg cursor-pointer disabled:opacity-50 whitespace-nowrap touch-manipulation"
                 style={{ backgroundColor: theme.accent }}
               >
                 {isGenerating ? (
@@ -987,16 +995,16 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             </form>
 
             {/* Quick Starter Suggestions */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] text-slate-500 font-medium">Try topic:</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+                <span className="text-[11px] text-slate-500 font-medium shrink-0">Try:</span>
                 {STARTER_TOPICS.map((topic) => (
                   <button
                     key={topic.name}
                     type="button"
                     onClick={() => handleTriggerStarterTopic(topic)}
                     disabled={isGenerating}
-                    className="px-2.5 py-1 rounded-lg text-xs bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-2.5 py-1 rounded-lg text-xs bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap shrink-0 touch-manipulation"
                     title={topic.desc}
                   >
                     <Sparkles className="w-3 h-3 text-cyan-400" />
@@ -1008,7 +1016,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               <button
                 type="button"
                 onClick={() => setIsExpanded(true)}
-                className="text-[11px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 transition-colors cursor-pointer"
+                className="text-[11px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 transition-colors cursor-pointer shrink-0 ml-auto sm:ml-0"
               >
                 <span>Expand Ingestion Studio</span>
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -1272,10 +1280,59 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         )}
       </div>
 
-      {/* 2. Main Studio Viewport: Canvas on Left + Direct Inline Edit on Right */}
+      {/* 2. Mobile Studio Segmented Mode Switcher (Visible only on < lg) */}
+      <div className="lg:hidden flex items-center p-1 bg-black/75 border border-white/15 rounded-2xl gap-1 mb-5 shadow-xl sticky top-14 z-30 backdrop-blur-xl">
+        <button
+          type="button"
+          onClick={() => setMobileStudioTab('canvas')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer touch-manipulation ${
+            mobileStudioTab === 'canvas'
+              ? 'bg-white/20 text-white shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+          style={mobileStudioTab === 'canvas' ? { color: theme.accent } : undefined}
+        >
+          <ImageIcon className="w-3.5 h-3.5" />
+          <span>Canvas</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileStudioTab('text')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer touch-manipulation ${
+            mobileStudioTab === 'text'
+              ? 'bg-white/20 text-white shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+          style={mobileStudioTab === 'text' ? { color: theme.accent } : undefined}
+        >
+          <Type className="w-3.5 h-3.5" />
+          <span>Copy & Text</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileStudioTab('archetype')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer touch-manipulation ${
+            mobileStudioTab === 'archetype'
+              ? 'bg-white/20 text-white shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+          style={mobileStudioTab === 'archetype' ? { color: theme.accent } : undefined}
+        >
+          <Sliders className="w-3.5 h-3.5" />
+          <span>Archetype</span>
+        </button>
+      </div>
+
+      {/* 3. Main Studio Viewport: Canvas on Left + Direct Inline Edit on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Viewport Canvas + Slide Navigator + Export Bar */}
-        <div className="lg:col-span-5 flex flex-col items-center lg:sticky lg:top-20 self-start z-10 space-y-3.5">
+        <div
+          className={`lg:col-span-5 flex-col items-center lg:sticky lg:top-20 self-start z-10 space-y-3.5 ${
+            mobileStudioTab === 'canvas' ? 'flex w-full' : 'hidden lg:flex'
+          }`}
+        >
           <ViewportCanvas
             carousel={carousel}
             currentSlideIndex={currentSlideIndex}
@@ -1333,53 +1390,65 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         </div>
 
         {/* Right Column: Direct Inline Text Editing & Expandable Advanced Customizer */}
-        <div className="lg:col-span-7 space-y-5">
-          <div className="bg-black/40 border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
-            <InlineSlideEditor
-              currentSlide={currentSlide}
-              currentSlideIndex={currentSlideIndex}
-              theme={theme}
-              isAdvancedCustomizerOpen={isAdvancedCustomizerOpen}
-              onToggleAdvancedCustomizer={() => setIsAdvancedCustomizerOpen(!isAdvancedCustomizerOpen)}
-              onUpdateField={handleUpdateCurrentSlide}
-            />
+        <div
+          className={`lg:col-span-7 space-y-5 ${
+            mobileStudioTab === 'canvas' ? 'hidden lg:block' : 'block'
+          }`}
+        >
+          <div className="bg-black/40 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+            {/* Inline Text Editor (Visible on desktop OR mobile 'text' tab) */}
+            <div className={mobileStudioTab === 'archetype' ? 'hidden lg:block' : 'block'}>
+              <InlineSlideEditor
+                currentSlide={currentSlide}
+                currentSlideIndex={currentSlideIndex}
+                theme={theme}
+                isAdvancedCustomizerOpen={isAdvancedCustomizerOpen}
+                onToggleAdvancedCustomizer={() => setIsAdvancedCustomizerOpen(!isAdvancedCustomizerOpen)}
+                onUpdateField={handleUpdateCurrentSlide}
+              />
+            </div>
 
-            <ArchetypeControls
-              currentSlide={currentSlide}
-              theme={theme}
-              isAdvancedCustomizerOpen={isAdvancedCustomizerOpen}
-              onSetSlideType={handleSetSlideType}
-              onUpdateField={handleUpdateCurrentSlide}
-              onUpdateSatLabel={handleUpdateSatLabel}
-              onUpdateSatIcon={handleUpdateSatIcon}
-              onUpdateCenterIcon={handleUpdateCenterIcon}
-              onUpdateCenterTag={handleUpdateCenterTag}
-              onAddSatNode={handleAddSatNode}
-              onDeleteSatNode={handleDeleteSatNode}
-              onUpdateDiagramNode={handleUpdateDiagramNode}
-              onUpdateDiagramEdge={handleUpdateDiagramEdge}
-              onOpenAiImageStudio={() => setImageStudioTargetIndex(currentSlideIndex)}
-              onOpenMediaSearch={() =>
-                setMediaModalTarget({
-                  field: 'imageUrl',
-                  title: 'Search Architecture Graphic',
-                  initialQuery: currentSlide.enTitle?.slice(0, 30) || '',
-                })
-              }
-            />
+            {/* Archetype Controls (Visible on desktop OR mobile 'archetype' tab) */}
+            <div className={mobileStudioTab === 'text' ? 'hidden lg:block' : 'block'}>
+              <ArchetypeControls
+                currentSlide={currentSlide}
+                theme={theme}
+                isAdvancedCustomizerOpen={isAdvancedCustomizerOpen}
+                onSetSlideType={handleSetSlideType}
+                onUpdateField={handleUpdateCurrentSlide}
+                onUpdateSatLabel={handleUpdateSatLabel}
+                onUpdateSatIcon={handleUpdateSatIcon}
+                onUpdateCenterIcon={handleUpdateCenterIcon}
+                onUpdateCenterTag={handleUpdateCenterTag}
+                onAddSatNode={handleAddSatNode}
+                onDeleteSatNode={handleDeleteSatNode}
+                onUpdateDiagramNode={handleUpdateDiagramNode}
+                onUpdateDiagramEdge={handleUpdateDiagramEdge}
+                onOpenAiImageStudio={() => setImageStudioTargetIndex(currentSlideIndex)}
+                onOpenMediaSearch={() =>
+                  setMediaModalTarget({
+                    field: 'imageUrl',
+                    title: 'Search Architecture Graphic',
+                    initialQuery: currentSlide.enTitle?.slice(0, 30) || '',
+                  })
+                }
+              />
+            </div>
 
-            {/* Direct Graphical Control / Layer Inspector */}
-            <ElementInspector
-              slide={currentSlide}
-              theme={theme}
-              isOpen={isInspectorOpen}
-              onToggleOpen={() => setIsInspectorOpen(!isInspectorOpen)}
-              selectedElementId={selectedElementId}
-              onSelectElement={setSelectedElementId}
-              onUpdateOverride={handleUpdateElementLayoutOverride}
-              onResetOverrides={handleResetSlideLayoutOverrides}
-              onApplyToAllSlides={handleApplyOverrideToAllSlides}
-            />
+            {/* Direct Graphical Control / Layer Inspector (Visible on desktop OR mobile 'archetype' tab) */}
+            <div className={mobileStudioTab === 'text' ? 'hidden lg:block' : 'block'}>
+              <ElementInspector
+                slide={currentSlide}
+                theme={theme}
+                isOpen={isInspectorOpen}
+                onToggleOpen={() => setIsInspectorOpen(!isInspectorOpen)}
+                selectedElementId={selectedElementId}
+                onSelectElement={setSelectedElementId}
+                onUpdateOverride={handleUpdateElementLayoutOverride}
+                onResetOverrides={handleResetSlideLayoutOverrides}
+                onApplyToAllSlides={handleApplyOverrideToAllSlides}
+              />
+            </div>
 
             {imageStudioTargetIndex !== null &&
               carousel.slides[imageStudioTargetIndex] && (
@@ -1412,8 +1481,12 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             )}
           </div>
 
-          {/* TikTok Posting Copy */}
-          <div className="bg-black/40 border border-white/10 rounded-2xl p-5 shadow-xl space-y-3.5">
+          {/* TikTok Posting Copy (Visible on desktop OR mobile 'text' tab) */}
+          <div
+            className={`bg-black/40 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3.5 ${
+              mobileStudioTab === 'archetype' ? 'hidden lg:block' : 'block'
+            }`}
+          >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-white uppercase tracking-wider">
                 TikTok Posting Copy
@@ -1433,6 +1506,72 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Floating Canvas Switcher Pill (Visible on mobile when in text or archetype mode) */}
+      <div className="lg:hidden fixed bottom-16 right-4 z-40">
+        {mobileStudioTab !== 'canvas' && (
+          <button
+            type="button"
+            onClick={() => setMobileStudioTab('canvas')}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900/95 border border-white/20 text-white text-xs font-bold shadow-2xl backdrop-blur-md active:scale-95 transition-all cursor-pointer"
+            style={{ borderColor: `${theme.accent}80` }}
+            title="Switch to Canvas View"
+          >
+            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: theme.accent }} />
+            <span>View Canvas</span>
+          </button>
+        )}
+      </div>
+
+      {/* Sticky Mobile Thumb Navigation Bar (Visible only on < lg) */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#080d11]/95 border-t border-white/10 px-3 py-2 backdrop-blur-md flex items-center justify-between gap-2 shadow-2xl">
+        <button
+          type="button"
+          onClick={() => changeSlide((prev) => Math.max(0, prev - 1))}
+          disabled={currentSlideIndex === 0}
+          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
+          title="Previous Slide"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenContactSheet}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 min-h-[38px] rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-slate-200 active:bg-white/10 cursor-pointer touch-manipulation"
+          title="Jump to Contact Sheet"
+        >
+          <span>Slide</span>
+          <span style={{ color: theme.accent }}>{currentSlideIndex + 1}</span>
+          <span className="text-slate-400">/ {carousel.slides.length}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
+          disabled={currentSlideIndex === carousel.slides.length - 1}
+          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
+          title="Next Slide"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleExportZip}
+          disabled={isExportingZip}
+          className="flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-xl font-bold text-xs text-slate-950 active:scale-95 transition-all shadow-md cursor-pointer shrink-0 touch-manipulation"
+          style={{ backgroundColor: theme.accent }}
+          title="Export Metricool ZIP"
+        >
+          {isExportingZip ? (
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+          )}
+          <span>Export</span>
+        </button>
       </div>
 
       {/* Media Search Modal */}
