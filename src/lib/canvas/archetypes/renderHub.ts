@@ -38,6 +38,11 @@ export async function drawHubSlide(
   const cy = 600;
   const r = 325;
 
+  // Determine active satellite nodes (supports dynamic add/delete from 1 to 6 nodes)
+  const rawLabels = slide.satLabels && slide.satLabels.length > 0 ? slide.satLabels : null;
+  const numNodes = rawLabels ? Math.min(6, Math.max(1, rawLabels.length)) : 6;
+  const satAngles = Array.from({ length: numNodes }, (_, i) => -90 + (360 / numNodes) * i);
+
   // 1. Outer orbital circle
   ctx.save();
   ctx.beginPath();
@@ -46,16 +51,14 @@ export async function drawHubSlide(
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  // 3 intersecting spoke lines through center at angles -90°, -30°, 30°
-  const spokeAngles = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6];
-  for (const angle of spokeAngles) {
-    const x1 = cx + r * Math.cos(angle);
-    const y1 = cy + r * Math.sin(angle);
-    const x2 = cx - r * Math.cos(angle);
-    const y2 = cy - r * Math.sin(angle);
+  // Spoke lines radiating through center directly to each active satellite position
+  for (const deg of satAngles) {
+    const rad = (deg * Math.PI) / 180;
+    const x = cx + r * Math.cos(rad);
+    const y = cy + r * Math.sin(rad);
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
     ctx.strokeStyle = theme.accent + '4D';
     ctx.lineWidth = 2.5;
     ctx.stroke();
@@ -150,15 +153,15 @@ export async function drawHubSlide(
   ctx.fillText('SYSTEM CORE', cx, centerBoxY + centerBoxH - 29);
   ctx.restore();
 
-  // 6 Satellite Badges with crisp technical label pills and spoke flow indicators
-  const satAngles = [-90, -30, 30, 90, 150, 210];
-  const satIcons = slide.satIcons || ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
-  const satLabels = slide.satLabels || [];
+  // Satellite Badges with crisp technical label pills and spoke flow indicators
+  const defaultIcons = ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
+  const satIcons = slide.satIcons && slide.satIcons.length > 0 ? slide.satIcons : defaultIcons;
+  const satLabels = rawLabels || ['SERVICE POD', 'STORAGE', 'TELEMETRY', 'IDENTITY', 'AI AGENT', 'VCS ENGINE'];
   const satW = 168;
   const satH = 120;
   const satIconSize = 50;
 
-  for (let i = 0; i < satAngles.length; i++) {
+  for (let i = 0; i < numNodes; i++) {
     try {
       const rad = (satAngles[i] * Math.PI) / 180;
       const sx = cx + r * Math.cos(rad);

@@ -7,6 +7,8 @@ import {
   Gauge,
   Columns,
   ArrowRight,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { SlideData, SlideType, ThemePalette, DiagramVariant, DiagramNode } from '../../types.ts';
 
@@ -17,6 +19,8 @@ interface ArchetypeControlsProps {
   onSetSlideType: (type: SlideType) => void;
   onUpdateField: (field: keyof SlideData, value: any) => void;
   onUpdateSatLabel: (index: number, value: string) => void;
+  onAddSatNode?: () => void;
+  onDeleteSatNode?: (index: number) => void;
   onUpdateDiagramNode: (nodeIndex: number, field: keyof DiagramNode, value: string) => void;
   onUpdateDiagramEdge: (edgeIndex: number, value: string) => void;
   onOpenAiImageStudio: () => void;
@@ -47,6 +51,8 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
   onSetSlideType,
   onUpdateField,
   onUpdateSatLabel,
+  onAddSatNode,
+  onDeleteSatNode,
   onUpdateDiagramNode,
   onUpdateDiagramEdge,
   onOpenAiImageStudio,
@@ -54,31 +60,71 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
 }) => {
   return (
     <div className="space-y-4">
-      {/* Slide 1 (Hub): 6 Compact Satellite Labels */}
+      {/* Slide 1 (Hub): Orbital Satellite Nodes Management */}
       {currentSlide.type === 'hub' && (
-        <div className="pt-3 border-t border-white/[0.08] space-y-2.5 animate-fade-in">
+        <div className="pt-3 border-t border-white/[0.08] space-y-3 animate-fade-in">
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-              <span>Orbital Satellite Labels (6 Component Nodes)</span>
-            </label>
-            <span className="text-[10px] text-slate-400 font-mono">Live on Canvas</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-500 font-bold">
-                  #{idx + 1}
+            <div>
+              <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                <span>
+                  Orbital Satellite Nodes (
+                  {currentSlide.satLabels ? currentSlide.satLabels.length : 6}/6)
                 </span>
-                <input
-                  type="text"
-                  value={currentSlide.satLabels?.[idx] ?? ''}
-                  onChange={(e) => onUpdateSatLabel(idx, e.target.value)}
-                  placeholder={`Node ${idx + 1}`}
-                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl pl-8 pr-2.5 py-1.5 text-xs text-white font-medium focus:outline-none transition-colors"
-                />
-              </div>
-            ))}
+              </label>
+              <p className="text-[10px] text-slate-400">
+                Dynamically spaced orbital nodes radiating from central hub
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onAddSatNode}
+                disabled={(currentSlide.satLabels ? currentSlide.satLabels.length : 6) >= 6}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-white/15 bg-white/[0.04] hover:bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all"
+                title="Add Orbital Node (Max 6)"
+              >
+                <Plus className="w-3 h-3" style={{ color: theme.accent }} />
+                <span>Add Node</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {(currentSlide.satLabels || ['SERVICE POD', 'STORAGE', 'TELEMETRY', 'IDENTITY', 'AI AGENT', 'VCS ENGINE']).map(
+              (label, idx, arr) => (
+                <div
+                  key={idx}
+                  className="group relative flex items-center bg-black/60 border border-white/15 focus-within:border-white/40 rounded-xl overflow-hidden pl-2.5 pr-1.5 py-1.5 transition-all"
+                >
+                  <span className="text-[10px] font-mono text-slate-500 font-bold shrink-0 mr-1.5">
+                    #{idx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => onUpdateSatLabel(idx, e.target.value)}
+                    placeholder={`Node ${idx + 1}`}
+                    className="w-full bg-transparent text-xs text-white font-medium focus:outline-none"
+                  />
+                  {arr.length > 2 && onDeleteSatNode && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteSatNode(idx)}
+                      className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-70 group-hover:opacity-100"
+                      title={`Delete Node #${idx + 1}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+            <span>Minimum 2 nodes • Maximum 6 nodes</span>
+            <span>Orbital layout auto-balances angles on canvas</span>
           </div>
         </div>
       )}

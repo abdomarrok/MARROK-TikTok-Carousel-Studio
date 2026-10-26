@@ -694,11 +694,71 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const currentSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
 
   const handleUpdateSatLabel = (index: number, value: string) => {
-    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length >= 6
+    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length > 0
       ? [...currentSlide.satLabels]
-      : ['Node 1', 'Node 2', 'Node 3', 'Node 4', 'Node 5', 'Node 6'];
+      : ['Service Pod', 'Storage', 'Telemetry', 'Identity', 'AI Agent', 'VCS Engine'];
     currentLabels[index] = value;
     handleUpdateCurrentSlide('satLabels', currentLabels);
+  };
+
+  const handleAddSatNode = () => {
+    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length > 0
+      ? [...currentSlide.satLabels]
+      : ['Service Pod', 'Storage', 'Telemetry', 'Identity', 'AI Agent', 'VCS Engine'];
+    if (currentLabels.length >= 6) {
+      onShowToast('Maximum 6 orbital nodes reached');
+      return;
+    }
+    const defaultAdditions = ['Gateway', 'Cache Layer', 'Event Stream', 'Policy Mesh', 'Telemetry', 'Core Engine'];
+    const newLabel = defaultAdditions[currentLabels.length] || `Node ${currentLabels.length + 1}`;
+    const newLabels = [...currentLabels, newLabel];
+
+    const currentIcons = currentSlide.satIcons && currentSlide.satIcons.length > 0
+      ? [...currentSlide.satIcons]
+      : ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
+    const iconPool = ['zap', 'hardDrive', 'lock', 'terminal', 'cloud', 'activity', 'cpu', 'box'];
+    const newIcons = [...currentIcons, iconPool[currentLabels.length % iconPool.length]];
+
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      if (targetIndex < 0 || !prev.slides[targetIndex]) return prev;
+      const newSlides = [...prev.slides];
+      newSlides[targetIndex] = {
+        ...newSlides[targetIndex],
+        satLabels: newLabels,
+        satIcons: newIcons,
+      };
+      return { ...prev, slides: newSlides };
+    });
+    onShowToast(`Added orbital node #${newLabels.length}`);
+  };
+
+  const handleDeleteSatNode = (indexToDelete: number) => {
+    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length > 0
+      ? [...currentSlide.satLabels]
+      : ['Service Pod', 'Storage', 'Telemetry', 'Identity', 'AI Agent', 'VCS Engine'];
+    if (currentLabels.length <= 2) {
+      onShowToast('Hub diagram requires at least 2 orbital nodes');
+      return;
+    }
+    const newLabels = currentLabels.filter((_, idx) => idx !== indexToDelete);
+    const currentIcons = currentSlide.satIcons && currentSlide.satIcons.length > 0
+      ? [...currentSlide.satIcons]
+      : ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
+    const newIcons = currentIcons.filter((_, idx) => idx !== indexToDelete);
+
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      if (targetIndex < 0 || !prev.slides[targetIndex]) return prev;
+      const newSlides = [...prev.slides];
+      newSlides[targetIndex] = {
+        ...newSlides[targetIndex],
+        satLabels: newLabels,
+        satIcons: newIcons,
+      };
+      return { ...prev, slides: newSlides };
+    });
+    onShowToast(`Deleted orbital node #${indexToDelete + 1}`);
   };
 
   const handleUpdateDiagramNode = (nodeIndex: number, field: keyof DiagramNode, value: string) => {
@@ -1220,6 +1280,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               onSetSlideType={handleSetSlideType}
               onUpdateField={handleUpdateCurrentSlide}
               onUpdateSatLabel={handleUpdateSatLabel}
+              onAddSatNode={handleAddSatNode}
+              onDeleteSatNode={handleDeleteSatNode}
               onUpdateDiagramNode={handleUpdateDiagramNode}
               onUpdateDiagramEdge={handleUpdateDiagramEdge}
               onOpenAiImageStudio={() => setImageStudioTargetIndex(currentSlideIndex)}

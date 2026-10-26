@@ -21,8 +21,8 @@ export function enrichCarouselDiagrams(
     // 1. Hub Slide (Slide 1)
     if (idx === 0 || slide.type === 'hub') {
       let satLabels = slide.satLabels;
-      // If already provided with 6 satellites from Gemini, keep them!
-      if (!satLabels || satLabels.length < 6) {
+      // If already provided with satellites, preserve them!
+      if (!satLabels || satLabels.length < 2) {
         const fallbackSet = [
           cleanTokens[0] ? cleanTokens[0].toUpperCase() : 'INGRESS',
           cleanTokens[1] ? cleanTokens[1].toUpperCase() : 'RUNTIME',

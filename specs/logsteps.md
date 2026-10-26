@@ -901,6 +901,27 @@ This document records the chronological development history, engineering decisio
   - `npm test` (`vitest run`): 10 test files passed, 33 tests passed (including new comprehensive SSRF test suite in `src/lib/network/proxySecurity.test.ts`).
   - `npm run build` (`vite build`): Built production bundle cleanly in 434ms.
 
+## Step 35: Dynamic Hub Satellite Node Count & Interactive Node Management
+- **Context & Objectives:**
+  - Previously, the Hub archetype (Slide 1) strictly mandated exactly 6 satellite nodes, rendering static spoke lines and padding labels with generic seeds even if a user only needed 3 or 4 components.
+  - Engineering Requirement: Enable creators to dynamically delete existing satellite nodes or add new ones (from 2 up to a maximum of 6), while automatically rebalancing the radial geometric angles on the canvas.
+- **Engineering Solutions Implemented:**
+  1. **Dynamic Orbital Geometry Engine (`src/lib/canvas/archetypes/renderHub.ts`):**
+     - Dynamically computes node count $N \in [2, 6]$ based on `slide.satLabels.length`.
+     - Calculates balanced radial angles via formula: $\theta_i = -90^\circ + \frac{360^\circ}{N} \cdot i$.
+     - Replaced static intersecting lines with direct radial spokes that connect the center hub $(cx, cy)$ straight to each active satellite badge $(sx, sy)$ with directional chevron flow arrows.
+  2. **Interactive Node Management in UI (`ArchetypeControls.tsx` & `AutonomousStudio.tsx`):**
+     - Added `Orbital Satellite Nodes (N/6)` header indicator with `+ Add Node` action (disabled when at 6).
+     - Added per-node `Trash2` deletion buttons (disabled/hidden when at minimum 2 nodes).
+     - Added atomic `handleAddSatNode` and `handleDeleteSatNode` state updaters synchronizing `satLabels` and `satIcons`.
+  3. **Pipeline Protection (`pacing.ts`, `enrichment.ts`, `archetypes.ts`):**
+     - Relaxed rigid `length >= 6` / `length < 6` guards to `length >= 2` so custom node counts are preserved across re-renders and archetype switches.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 TypeScript errors.
+  - `npm test` (`vitest run`): 10 test suites and 33 unit tests passed.
+  - `npm run build` (`vite build`): Built cleanly in 233ms.
+  - Browser Subagent interactive test: Verified deleting node #6 (5/6), deleting node #5 (4/6), and adding back node #5 with instant canvas angle rebalancing.
+
 
 
 

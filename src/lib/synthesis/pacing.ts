@@ -19,7 +19,7 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
   return slides.map((slide, idx) => {
     // Hub Slide (Slide 1)
     if (idx === 0 || slide.type === 'hub') {
-      const satLabels = slide.satLabels && slide.satLabels.length >= 6
+      const satLabels = slide.satLabels && slide.satLabels.length >= 2
         ? slide.satLabels
         : ['INGRESS', 'RUNTIME', 'EXECUTION', 'STORAGE', 'TELEMETRY', 'CORE API'];
       return {

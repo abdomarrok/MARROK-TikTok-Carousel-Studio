@@ -82,7 +82,7 @@ export function seedSlideArchetypeData(slide: SlideData, targetType: SlideType):
     }
 
     case 'hub': {
-      if (!updated.satLabels || updated.satLabels.length < 6) {
+      if (!updated.satLabels || updated.satLabels.length < 2) {
         const seeds: string[] = [];
         if (dNodes.length > 0) {
           dNodes.forEach((n) => {
