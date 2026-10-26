@@ -616,10 +616,17 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             <MultimodalInputPanel
               theme={theme}
               onApplyCarousel={(newCarousel) => {
+                if (newCarousel.theme && DEFAULT_PALETTES[newCarousel.theme]) {
+                  onSelectTheme(DEFAULT_PALETTES[newCarousel.theme]);
+                }
                 onUpdateCarousel(newCarousel);
                 setCurrentSlideIndex(0);
                 setIsIngestModalOpen(false);
-                onShowToast('✨ Generated carousel from ingested materials!');
+                if (newCarousel.sourceMeta?.isFallback) {
+                  onShowToast('Offline NLP Engine Activated: Synthesized custom slides.');
+                } else {
+                  onShowToast('✨ Generated 8-slide AI carousel from ingested materials!');
+                }
               }}
               onClose={() => setIsIngestModalOpen(false)}
             />

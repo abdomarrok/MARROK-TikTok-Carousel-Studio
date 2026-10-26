@@ -829,6 +829,36 @@ This document records the chronological development history, engineering decisio
   - Backend API test (`scratch/test_ai_gateway.ts`): Verified `POST /api/generate` returned `Engine: gemini-ai | Model: gemini-3.1-flash-lite | isFallback: false` in 7.4s with 8 slides.
   - Interactive Browser Subagent verified the studio generated an authentic AI carousel with 0 fallback warnings, natural Arabic translations, and all 8 slides displayed in the Contact Sheet.
 
+## Step 32: Unified Multimodal Ingestion Pipeline & Clean State Synchronization
+- **Context & Problem Statement:**
+  - The "Ingest Material" modal (`src/components/MultimodalInputPanel.tsx`) had diverged from the main command bar: it had legacy `setTimeout` closing delays (1200ms-1400ms), and in its catch block, it silently re-ran local `synthesizeCarousel` with heuristic enrichment rather than preserving authentic AI errors and feedback.
+  - When applying carousels from the modal in `AutonomousStudio.tsx`, the theme palette (`onSelectTheme`) was not updated, leaving the canvas styled with the previous carousel's color palette.
+- **Engineering Solutions Implemented:**
+  1. **Unified Pipeline Route (`src/components/MultimodalInputPanel.tsx`):**
+     - Directed all multimodal inputs (raw text, YouTube transcript, blog notes, image OCR) directly into `runAutonomousPipeline`.
+     - Replaced inconsistent status messages with clean, authoritative loading indicator: `Synthesizing AI Carousel from Ingested Material...`.
+     - Removed redundant local mock re-synthesis on pipeline completion so the user receives authentic AI generation results with zero mock fallback interference.
+  2. **Clean State Synchronization (`src/components/AutonomousStudio.tsx` & `MultimodalInputPanel.tsx`):**
+     - Modal closes immediately (`if (onClose) onClose()`) upon successful carousel generation, eliminating artificial `setTimeout` delays.
+     - `onApplyCarousel` callback in `AutonomousStudio.tsx` synchronizes:
+       - Active theme palette via `onSelectTheme(DEFAULT_PALETTES[newCarousel.theme])`.
+       - Carousel state via `onUpdateCarousel(newCarousel)`.
+       - Viewport slide index reset via `setCurrentSlideIndex(0)`.
+       - Dynamic informative toast confirming 8-slide AI carousel generation or offline fallback notification.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 TypeScript errors.
+  - `npm run build` (`vite build`): Passed with 0 errors in 3.52s.
+  - Live interactive browser subagent test on `http://localhost:3000/`:
+    - Opened `Ingest Material` modal.
+    - Pasted PostgreSQL Connection Pooling notes into `Blog / GitHub / Notes` tab.
+    - Clicked `Generate Carousel & Caption`.
+    - Observed loading status indicator: `Synthesizing AI Carousel from Ingested Material...`.
+    - Verified the modal automatically closed immediately upon completion.
+    - Verified studio viewport populated with the 8-slide PostgreSQL carousel.
+    - Opened Contact Sheet modal and verified full 8-slide deck.
+    - Session recording saved: `test_modal_ingestion_1793008083398.webp`.
+
+
 
 
 

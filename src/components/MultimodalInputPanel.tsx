@@ -155,16 +155,13 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
       });
       const processed = enrichAndPaceCarousel(generated, promptText);
       onApplyCarousel(processed);
-      setSuccessMsg(`Generated ${processed.slides.length}-slide carousel & bilingual caption (Instant Mode)!`);
-      if (onClose) {
-        setTimeout(() => onClose(), 1200);
-      }
+      if (onClose) onClose();
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Instant synthesis failed.');
     }
   };
 
-  // Submit to unified autonomous pipeline with progressive status and resilient fallback
+  // Submit to unified AI generation pipeline with instant state synchronization
   const handleGenerate = async () => {
     if (!promptText && !uploadedImageBase64) {
       setErrorMsg('Please provide some raw text, transcript, or upload a screenshot to analyze.');
@@ -174,11 +171,11 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
     setIsLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
-    setPipelinePhase(uploadedImageBase64 ? 'Processing image & synthesizing carousel...' : 'Synthesizing carousel & bilingual copy...');
+    setPipelinePhase('Synthesizing AI Carousel from Ingested Material...');
 
     try {
       const generatedData = await runAutonomousPipeline(promptText, {
-        onProgress: (status) => setPipelinePhase(status),
+        onProgress: (status) => setPipelinePhase(status || 'Synthesizing AI Carousel from Ingested Material...'),
         inputMode: activeTab,
         imageBase64: uploadedImageBase64,
         imageMimeType: uploadedImageMime,
@@ -187,32 +184,13 @@ export const MultimodalInputPanel: React.FC<MultimodalInputPanelProps> = ({
         generateDiagram: !uploadedImageBase64,
       });
 
+      // State synchronization: apply new carousel and close modal immediately
       onApplyCarousel(generatedData);
-      setSuccessMsg(`Generated ${generatedData.slides.length}-slide carousel & bilingual caption!`);
-      if (onClose) {
-        setTimeout(() => onClose(), 1200);
-      }
+      if (onClose) onClose();
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn('Autonomous pipeline generation encountered an error, falling back locally:', errMsg);
-
-      try {
-        const fallbackData = synthesizeCarousel({
-          prompt: promptText,
-          categoryHint,
-          inputMode: activeTab,
-          imageFileName: uploadedImageName,
-        });
-        const processed = enrichAndPaceCarousel(fallbackData, promptText);
-        onApplyCarousel(processed);
-        setSuccessMsg(`Generated ${processed.slides.length}-slide carousel & caption via MARROK Resilient Engine!`);
-        if (onClose) {
-          setTimeout(() => onClose(), 1400);
-        }
-      } catch (fallbackErr: unknown) {
-        const fbMessage = fallbackErr instanceof Error ? fallbackErr.message : errMsg;
-        setErrorMsg(fbMessage || 'Generation failed. Tap Instant Synthesize to generate immediately.');
-      }
+      console.warn('Autonomous pipeline generation encountered an error:', errMsg);
+      setErrorMsg(errMsg || 'Generation failed. Please retry or verify your input.');
     } finally {
       setIsLoading(false);
       setPipelinePhase('');
