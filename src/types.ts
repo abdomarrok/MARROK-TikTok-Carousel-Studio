@@ -107,6 +107,7 @@ export interface PostSourceMeta {
   isSearchGrounded?: boolean;
   isFallback?: boolean;
   engine?: 'gemini-ai' | 'offline-synthesizer';
+  model?: string;
   status?: 'verified_live' | 'unverified_draft';
   userReviewed?: boolean;
 }

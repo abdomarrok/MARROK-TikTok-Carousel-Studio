@@ -24,25 +24,26 @@ STAGE 3: PLATFORM RISK REVIEW (Spec §6)
 - Nominative tech logos only (Simple Icons / Lucide). No copyrighted characters or footage.
 
 STAGE 4: SMART CAROUSEL PLANNER (Spec §7 & §12.1)
-- Produce a tight 8 to 10 slide narrative arc:
-  * Slide 1: "hub" (The Hook) — central brand/tech icon + 6 orbital satellite icons, plus 6 topic-specific satLabels.
-  * Slide 2: The Stakes / Reason to Swipe — why this architecture broke the old way or matters now.
-  * Slides 3–5: The Mechanics / Implementation — step-by-step points using "number" (01, 02), "code" (terminal window), "metric" (benchmark card), or "row" (labeled architecture diagram).
-  * Slide 6 or 7: "The Catch / Before You Switch" or "The Debate" — crucial honest analysis (beta status, memory overhead, lock-in, tradeoffs). This builds massive credibility and comment engagement.
-  * Final Slide: "cta" — viewer domain challenge question, DM us prompt, and clear source credit.
+- Produce an 8-slide technical narrative arc directly from the provided source material:
+  * Slide 1: "hub" (The Hook) — central brand/tech icon + 6 orbital satellite icons, plus 6 topic-specific satLabels extracted from the text.
+  * Slide 2: "metric" (Stat Hero Card) — primary benchmark, speedup multiplier, or throughput metric from the text with metricValue, metricLabel, and metricDiff.
+  * Slide 3: "compare" (Side-by-Side Comparison) — direct contrast between baseline/legacy stack (compareLeftTitle, compareLeftBody) and modern/optimized stack (compareRightTitle, compareRightBody) with exact numbers.
+  * Slide 4: "code" (Terminal Window) — actual technical mechanism in code with codeFileName, codeLanguage, and realistic syntax codeSnippet.
+  * Slides 5–7: "row" (Technical Diagrams) — key architectural insights, memory footprints, and concurrency pipelines cycling through diagramVariant: 'topology', 'stack', 'isolation' (or 'takeaway').
+  * Slide 8: "cta" (Standardized MARROK Closer) — viewer domain challenge question, DM us prompt, and clear source credit.
 - DYNAMIC TOPIC-DRIVEN TECHNICAL DIAGRAMS:
-  * For Slide 1 (hub): MUST provide 6 crisp, short satLabels directly relevant to the topic (e.g. for Postgres: ["Replica DB", "Connection Pool", "WAL Logs", "Buffer Cache", "Vacuum Worker", "Query Planner"]; for Docker: ["Container Engine", "OverlayFS", "cgroups", "Bridge Net", "Image Registry", "Volume Storage"]).
+  * For Slide 1 (hub): MUST provide 6 crisp, short satLabels directly relevant to the topic (e.g. for Rust vs Go: ["Axum Framework", "net/http", "Memory Footprint", "Request Throughput", "Zero-Cost Abstraction", "Runtime Overhead"]).
   * For mechanism/architecture slides: MUST provide diagramVariant ('topology' | 'stack' | 'isolation' | 'takeaway'), diagramNodes (3 topic-specific component nodes with label, sublabel, status, icon), diagramEdges (2 connector labels e.g. ["10k Conns", "64 Pooled"]), and diagramFooter (telemetry line e.g. "POOL MODE: TRANSACTION • LATENCY: 0.8ms").
-  * NEVER output hardcoded or unrelated terms (e.g. never output "mTLS" or "Envoy" on a database or Docker slide).
-- Select the optimal theme from the 11 spec themes:
-  scion (AI + engineering), backend (infrastructure), pqc (cryptography), security_spec (defense/CVEs), node (Node/JS), ajax (AI news), concat (video/graphics), estonia (education/policy), artcraft (design tools), arch (architecture), zerobreach (digital security).
+  * NEVER output hardcoded or unrelated terms (e.g. never output "mTLS" or "Envoy" on a database or language benchmark slide).
+- Select the optimal theme from the spec themes:
+  backend (infrastructure/runtimes), scion (AI/VCS), pqc (cryptography), security_spec (defense/CVEs), node (JS/TypeScript), amber (databases/caching), emerald (systems/kernel/rust/go), cyber (threats/zero-trust), violet (AI/neural).
 
 STAGE 5: COPYWRITING & RTL LINT (Spec §8)
 - STRICT ENGLISH HEADLINE RULE:
   * English headlines must be EXACTLY 2 to 5 words and MUST end with a period ('.').
   * NEVER end a headline with a colon (':'), dash ('-'), or ellipsis ('...').
-  * NEVER copy the raw input or output rambling titles like 'Zero-Trust mesh architecture with mTLS:' or 'Redis 8 architectural leap: Next-Gen Shift.'.
-  * Clean, punchy examples: 'Zero-Trust, explained.', 'Redis 8 gets faster.', 'Beyond traditional Git.', 'Virtual tree checkouts.', 'Server-side merges.', 'The real catch.'
+  * NEVER copy raw section headers or output rambling titles like '## Test 1: Plain JSON Without Database:'.
+  * Clean, punchy examples: 'Rust vs Go performance.', 'Throughput benchmark results.', 'Memory footprint analysis.', 'Zero-cost abstractions.', 'The real catch.'
 - STRICT CHARACTER LIMITS:
   * English title: max 45 characters (max 50 on Slide 1 hook)
   * Arabic title: max 40 characters
@@ -52,14 +53,15 @@ STAGE 5: COPYWRITING & RTL LINT (Spec §8)
 - ZERO RAW MARKDOWN: NEVER output '#', '##', '*', '_', or backticks in slide titles or bodies.
 - ZERO LEADING/TRAILING DEFECT PUNCTUATION: Never output orphan dots like "Speedup .", double periods "..", or duplicate colons like ".:".
 - ARABIC INTEGRITY & BIDI:
-  * Write natural, authentic, context-specific technical Arabic tailored to the exact mechanism on each slide.
-  * NEVER reuse cookie-cutter template phrases like 'النقلة المعمارية لمنظومة X'. Every slide must have a unique, accurate translation.
-  * NEVER place colons next to Latin product names (e.g. NEVER output 'رحلة :Anthropic’s Scion' or 'Scion:'). Write 'الانتقال إلى بنية Scion' or 'نظام Scion'.
+  * Translate concepts into authentic, natural, professional technical Arabic (e.g. 'مقارنة أداء Rust و Go' or 'نتائج اختبار سرعة المعالجة').
+  * NEVER glue English words, sentences, or markdown titles into canned Arabic templates (e.g. NEVER output 'قفزة في أداء Which Is Faster?' or 'هندسة Test 1').
+  * Write natural Arabic that explains the exact technical mechanism on each slide.
+  * NEVER place colons next to Latin product names.
   * Slide graphic Arabic titles must NEVER end with a period or colon.
-  * Express units clearly in Arabic where appropriate (e.g. '510 جيجابايت' instead of '510 .GB').
+  * Express units clearly in Arabic where appropriate (e.g. '129 ألف طلب/ثانية' or '13 ميجابايت').
 - BRAND WORDMARK:
   * The watermark brand in the top left of the slide MUST ALWAYS strictly be 'MARROK'.
-  * NEVER change brand to company or product names (do NOT set brand to 'ANTHROPIC', 'REDIS', or 'DOCKER'). The subject belongs exclusively in category or titles.
+  * NEVER change brand to company or product names (do NOT set brand to 'ANTHROPIC', 'REDIS', or 'RUST'). The subject belongs exclusively in category or titles.
 - No emojis inside slides (Cairo font has none). Emojis belong in captions only.
 
 STAGE 6 & 7: CAPTIONS, FIRST COMMENT & SCHEDULING (Spec §8 & §14)

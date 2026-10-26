@@ -796,6 +796,39 @@ This document records the chronological development history, engineering decisio
   - Executed `scratch/test_api_generate.ts` against `/api/generate`: verified offline fallback output returned `X-Marrok-Engine: offline-synthesizer`, category `WEB FRAMEWORKS & RUNTIMES`, theme `emerald`, and 8 slides containing Rust vs Go metrics (`129k req/s`, `13 MB` vs `38-41 MB`).
   - Interactive Browser Subagent verified the 8-slide contact sheet modal on `http://localhost:3000`.
 
+---
+
+## Step 31: 100% AI-First Direct Ingestion Pipeline & Grounding Quota Fix
+- **Context & Problem Statement:**
+  - Pasted YouTube summaries and blog notes previously fell into offline regex fallbacks because `generateController.ts` ALWAYS attempted Google Search Grounding (`tools: [{ googleSearch: {} }]`), immediately exhausting Google Search quota and triggering HTTP 429.
+  - An 8000ms timeout was prematurely aborting Gemini before it could finish streaming the complete 8-slide JSON.
+  - Even when Gemini succeeded, `autonomousPipeline.ts` ran heuristic enrichment (`enrichAndPaceCarousel`) afterwards, overwriting authentic AI headlines, Arabic translations, and diagram nodes with procedural templates.
+- **Engineering Solutions Implemented:**
+  1. **Quota-Smart Grounding Tool Bypass (`api/controllers/generateController.ts`):**
+     - Added `isLongInput = safePrompt.length > 200`: When source material (YouTube transcript, blog post, code) is pasted, Google Search Grounding is **completely bypassed**, saving search quota and eliminating 429 errors.
+     - Direct LLM schema mode (`responseSchema: CAROUSEL_RESPONSE_SCHEMA`, `responseMimeType: 'application/json'`) executes immediately in ~7s.
+     - Grounding tool is reserved strictly for short topic prompts (`< 200` chars) where external factual retrieval is needed.
+  2. **Multi-Model Failover Cascade (`api/controllers/generateController.ts`):**
+     - Cascades across available models: `['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-3.1-flash-lite']`.
+     - Supports both custom API keys from UI (`x-gemini-key`, `x-gemini-api-key`, `body.apiKey`) and `.env` system keys, prioritizing custom keys and failing over across keys and models.
+     - Extended direct LLM timeout from 8,000ms to 15,000ms to prevent premature aborts during full-deck JSON generation.
+  3. **Authentic AI Output Protection (`src/lib/autonomousPipeline.ts`):**
+     - When Gemini succeeds (`!rawCarousel.sourceMeta?.isFallback`), bypassed `enrichAndPaceCarousel()`.
+     - Only applies lightweight markdown stripping (`sanitizeFullCarousel`), preserving 100% of the AI's authentic headlines, natural Arabic translations, satellite labels, and diagram nodes without heuristic overwrites.
+  4. **Upgraded Prompt for Direct Archetype Population (`api/prompts/systemPrompt.ts`):**
+     - Mandates that Gemini extracts all archetype fields directly from provided text:
+       - `hub`: 6 `satLabels` directly extracted from input + `satIcons`.
+       - `metric`: `metricValue`, `metricLabel`, `metricDiff`.
+       - `compare`: `compareLeftTitle`, `compareLeftBody`, `compareRightTitle`, `compareRightBody`.
+       - `code`: `codeFileName`, `codeLanguage`, `codeSnippet`.
+       - `row`: `diagramVariant`, 3 `diagramNodes` (`label`, `sublabel`, `status`, `icon`), `diagramEdges`, `diagramFooter`.
+     - Enforces authentic, idiomatic Arabic translation for all technical concepts without gluing English words into canned templates.
+- **Verification:**
+  - `npm run lint`: Passed with 0 TypeScript errors.
+  - `npm run build`: Passed in 218ms.
+  - Backend API test (`scratch/test_ai_gateway.ts`): Verified `POST /api/generate` returned `Engine: gemini-ai | Model: gemini-3.1-flash-lite | isFallback: false` in 7.4s with 8 slides.
+  - Interactive Browser Subagent verified the studio generated an authentic AI carousel with 0 fallback warnings, natural Arabic translations, and all 8 slides displayed in the Contact Sheet.
+
 
 
 

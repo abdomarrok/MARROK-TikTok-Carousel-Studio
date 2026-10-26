@@ -150,9 +150,17 @@ export async function runAutonomousPipeline(
     rawCarousel.theme = domainTheme;
   }
 
-  // Step 2 & 3: Auto-Sanitize, Fit Limits, Polish Headlines, Enrich & Pace
-  onProgress?.('Enforcing Spec §8 character limits, polishing headlines & pacing...');
-  let cleanCarousel = enrichAndPaceCarousel(rawCarousel, rawInput);
+  // Step 2 & 3: Protect Authentic AI Output vs Fallback Pipeline
+  let cleanCarousel: CarouselData;
+  if (!rawCarousel.sourceMeta?.isFallback) {
+    // 100% Authentic AI Output: Preserve the AI's exact headlines, natural Arabic translations, and diagram nodes!
+    // Only apply lightweight markdown stripping without altering copy or diagrams:
+    cleanCarousel = sanitizeFullCarousel(rawCarousel);
+  } else {
+    // Local Synthesis Fallback: Apply layout enrichment and visual pacing
+    onProgress?.('Enforcing Spec §8 character limits, polishing headlines & pacing...');
+    cleanCarousel = enrichAndPaceCarousel(rawCarousel, rawInput);
+  }
 
   // Step 4: Auto-Generate 9:16 Architecture Diagram for Key Mechanism Slide
   if (generateDiagram && cleanCarousel.slides.length >= 3) {
