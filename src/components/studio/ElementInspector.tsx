@@ -11,6 +11,7 @@ import {
   Type,
   Square,
   Sparkles,
+  Copy,
 } from 'lucide-react';
 import { GraphicalElementId, ElementLayoutOverride, SlideData, ThemePalette } from '../../types.ts';
 
@@ -23,6 +24,7 @@ interface ElementInspectorProps {
   onSelectElement: (id: GraphicalElementId | null) => void;
   onUpdateOverride: (id: GraphicalElementId, override: ElementLayoutOverride | null) => void;
   onResetOverrides: () => void;
+  onApplyToAllSlides?: (id: GraphicalElementId, override: ElementLayoutOverride | null) => void;
 }
 
 const ELEMENT_DEFINITIONS: {
@@ -50,6 +52,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   onSelectElement,
   onUpdateOverride,
   onResetOverrides,
+  onApplyToAllSlides,
 }) => {
   const activeElements = ELEMENT_DEFINITIONS.filter((elem) => {
     if ((elem.id === 'ctaButton' || elem.id === 'attributionCard') && slide.type !== 'cta') return false;
@@ -191,14 +194,28 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
                 </p>
               </div>
               {(dx !== 0 || dy !== 0 || scale !== 1) && (
-                <button
-                  type="button"
-                  onClick={handleResetCurrentElement}
-                  className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10"
-                >
-                  <RotateCcw className="w-2.5 h-2.5" />
-                  <span>Reset Element</span>
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {onApplyToAllSlides && (
+                    <button
+                      type="button"
+                      onClick={() => onApplyToAllSlides(activeElementId, currentOverride)}
+                      className="text-[10px] text-cyan-300 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 transition-colors cursor-pointer"
+                      title="Apply this exact layout offset to all slides in the deck"
+                    >
+                      <Copy className="w-2.5 h-2.5" />
+                      <span>Apply to All Slides</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleResetCurrentElement}
+                    className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 cursor-pointer"
+                    title="Reset element translation on this slide"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>Reset</span>
+                  </button>
+                </div>
               )}
             </div>
 

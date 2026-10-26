@@ -969,6 +969,23 @@ This document records the chronological development history, engineering decisio
   - `npm test` (`vitest run`): 10 test suites, 33 tests passed.
   - `npm run build` (`vite build`): Built production bundle in 256ms.
 
+## Step 38: Direct Clipboard Screenshot Ingestion (Ctrl+V) & Multi-Slide Layout Stamping
+- **Context & Objectives:**
+  - Frictionless Screenshot Ingestion: Allow creators to paste screenshots directly from the clipboard (`Win+Shift+S` or `Cmd+Shift+4` followed by `Ctrl+V`) without saving to disk or manually opening file dialogs.
+  - Multi-Slide Layout Stamping: Allow creators to stamp layout overrides (e.g. customized `headerBadge` position or scaled `graphicCard`) across all slides in the deck with 1 click.
+- **Engineering Solutions Implemented:**
+  1. **Direct Clipboard Screenshot Ingestion (`src/components/AutonomousStudio.tsx`):**
+     - Attached a global `paste` event listener detecting image clipboard items (`items[i].type.startsWith('image/')`).
+     - Extracts image file from clipboard via `getAsFile()`, compresses it client-side to 1280px, auto-expands the Smart Dock, switches to the upload tab, and displays toast notification.
+     - Preserves default text pasting into inputs and textareas without interference.
+  2. **Multi-Slide Layout Stamping ("Apply to All Slides" - `ElementInspector.tsx` & `AutonomousStudio.tsx`):**
+     - Extended `ElementInspector` with an "Apply to All Slides" button (`<Copy />`) next to the reset button when an element has active overrides.
+     - Implemented `handleApplyOverrideToAllSlides` functional state updater in `AutonomousStudio.tsx` that copies the active element's `dx`, `dy`, `scale` across all slides in the carousel.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): 0 TypeScript errors.
+  - `npm test` (`vitest run`): 10 test files, 33 unit tests passed.
+  - `npm run build` (`vite build`): Built production bundle in 231ms.
+
 
 
 

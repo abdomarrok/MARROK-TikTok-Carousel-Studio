@@ -285,6 +285,34 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     onShowToast('Reset all layout overrides on this slide');
   };
 
+  const handleApplyOverrideToAllSlides = (
+    elementId: GraphicalElementId,
+    override: ElementLayoutOverride | null
+  ) => {
+    applyDeckUpdate((prev) => {
+      const newSlides = prev.slides.map((s) => {
+        const existingOverrides = { ...(s.layoutOverrides || {}) };
+        if (
+          !override ||
+          ((override.dx === 0 || override.dx === undefined) &&
+            (override.dy === 0 || override.dy === undefined) &&
+            (override.scale === 1 || override.scale === undefined) &&
+            override.opacity === undefined)
+        ) {
+          delete existingOverrides[elementId];
+        } else {
+          existingOverrides[elementId] = { ...override };
+        }
+        return {
+          ...s,
+          layoutOverrides: Object.keys(existingOverrides).length > 0 ? existingOverrides : undefined,
+        };
+      });
+      return { ...prev, slides: newSlides };
+    });
+    onShowToast(`Applied ${elementId} layout to all ${carousel.slides.length} slides`);
+  };
+
   // Keyboard navigation (Left / Right arrows)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -364,6 +392,29 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       console.warn('Could not load demo image:', err);
     }
   };
+
+  // Global Clipboard Screenshot Ingestion (Ctrl+V anywhere in app)
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleImageFile(file);
+            onShowToast('📋 Screenshot attached directly from clipboard!');
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, []);
 
   const handleClearDock = () => {
     setPromptInput('');
@@ -1327,6 +1378,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               onSelectElement={setSelectedElementId}
               onUpdateOverride={handleUpdateElementLayoutOverride}
               onResetOverrides={handleResetSlideLayoutOverrides}
+              onApplyToAllSlides={handleApplyOverrideToAllSlides}
             />
 
             {imageStudioTargetIndex !== null &&
