@@ -15,6 +15,7 @@ import {
 import { SlideData, SlideType, ThemePalette, DiagramVariant, DiagramNode } from '../../types.ts';
 import { ICONS_REGISTRY } from '../../lib/icons.ts';
 import { IconPickerPopover } from './IconPickerPopover.tsx';
+import { IconThumbnail, getIconDisplayName } from './IconThumbnail.tsx';
 
 interface ArchetypeControlsProps {
   currentSlide: SlideData;
@@ -86,7 +87,7 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
     : defaultSatIcons;
 
   const centerIconName = currentSlide.centerIcon || 'gitMerge';
-  const centerIconData = ICONS_REGISTRY[centerIconName] || ICONS_REGISTRY.gitMerge;
+  const centerIconDisplayName = getIconDisplayName(centerIconName);
 
   return (
     <div className="space-y-4">
@@ -129,21 +130,11 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                       backgroundColor: `${theme.accent}15`,
                     }}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 64 64"
-                      fill="none"
-                      stroke={theme.accent}
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="w-5 h-5"
-                      dangerouslySetInnerHTML={{ __html: centerIconData.svgInner }}
-                    />
+                    <IconThumbnail icon={centerIconName} theme={theme} className="w-5 h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold text-white truncate">
-                      {centerIconData.label}
+                      {centerIconDisplayName}
                     </div>
                     <div className="text-[10px] text-slate-400">Click to change icon</div>
                   </div>
@@ -208,7 +199,7 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
               {(currentSlide.satLabels || ['SERVICE POD', 'STORAGE', 'TELEMETRY', 'IDENTITY', 'AI AGENT', 'VCS ENGINE']).map(
                 (label, idx, arr) => {
                   const nodeIconKey = satIcons[idx % satIcons.length] || 'gitMerge';
-                  const nodeIconData = ICONS_REGISTRY[nodeIconKey] || ICONS_REGISTRY.gitMerge;
+                  const nodeIconLabel = getIconDisplayName(nodeIconKey);
 
                   return (
                     <div
@@ -239,19 +230,9 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                           borderColor: `${theme.accent}30`,
                           backgroundColor: `${theme.accent}10`,
                         }}
-                        title={`Change icon for Node #${idx + 1} (${nodeIconData.label})`}
+                        title={`Change icon for Node #${idx + 1} (${nodeIconLabel})`}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 64 64"
-                          fill="none"
-                          stroke={theme.accent}
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="w-4 h-4"
-                          dangerouslySetInnerHTML={{ __html: nodeIconData.svgInner }}
-                        />
+                        <IconThumbnail icon={nodeIconKey} theme={theme} className="w-4 h-4" />
                       </button>
 
                       <span className="text-[10px] font-mono text-slate-500 font-bold shrink-0">
@@ -341,7 +322,7 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                 ];
                 const node = currentSlide.diagramNodes?.[nIdx] || defaultNodes[nIdx];
                 const nodeIconKey = node.icon || defaultNodes[nIdx].icon || 'server';
-                const nodeIconData = ICONS_REGISTRY[nodeIconKey] || ICONS_REGISTRY.server;
+                const nodeIconLabel = getIconDisplayName(nodeIconKey);
 
                 return (
                   <div key={nIdx} className="bg-black/50 border border-white/10 rounded-xl p-2.5 space-y-2">
@@ -362,19 +343,9 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                             borderColor: `${theme.accent}30`,
                             backgroundColor: `${theme.accent}10`,
                           }}
-                          title={`Change icon for Node #${nIdx + 1} (${nodeIconData.label})`}
+                          title={`Change icon for Node #${nIdx + 1} (${nodeIconLabel})`}
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 64 64"
-                            fill="none"
-                            stroke={theme.accent}
-                            strokeWidth="4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="w-3.5 h-3.5"
-                            dangerouslySetInnerHTML={{ __html: nodeIconData.svgInner }}
-                          />
+                          <IconThumbnail icon={nodeIconKey} theme={theme} className="w-3.5 h-3.5" />
                         </button>
                         <span className="text-[10px] font-bold font-mono text-slate-400">
                           Node #{nIdx + 1}

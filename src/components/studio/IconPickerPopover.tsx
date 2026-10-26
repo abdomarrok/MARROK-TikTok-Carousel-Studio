@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, Check } from 'lucide-react';
-import { ICONS_REGISTRY } from '../../lib/icons.ts';
+import { Search, X, Check, Globe } from 'lucide-react';
+import { ICONS_REGISTRY, TECH_ICONS_LIST, KNOWN_TECH_LOGOS } from '../../lib/icons.ts';
 import { ThemePalette } from '../../types.ts';
+import { IconThumbnail, getIconDisplayName } from './IconThumbnail.tsx';
 
 interface IconPickerPopoverProps {
   isOpen: boolean;
@@ -16,17 +17,31 @@ const CATEGORIES: { id: string; label: string; icons: string[] }[] = [
   {
     id: 'all',
     label: 'All Icons',
-    icons: Object.keys(ICONS_REGISTRY),
+    icons: [
+      ...Object.keys(ICONS_REGISTRY),
+      ...TECH_ICONS_LIST.map((t) => t.name),
+    ],
+  },
+  {
+    id: 'brands',
+    label: 'Tech Brands',
+    icons: TECH_ICONS_LIST.map((t) => t.name),
   },
   {
     id: 'compute',
     label: 'Compute & AI',
-    icons: ['cpu', 'robot', 'brain', 'server', 'terminal', 'codeFile', 'binary'],
+    icons: [
+      'cpu', 'robot', 'brain', 'server', 'terminal', 'codeFile', 'binary',
+      'python', 'go', 'rust', 'cplusplus', 'anthropic', 'openai',
+    ],
   },
   {
     id: 'data',
     label: 'Data & Storage',
-    icons: ['database', 'hardDrive', 'box', 'cloud', 'changesets', 'calculator'],
+    icons: [
+      'database', 'hardDrive', 'box', 'cloud', 'changesets', 'calculator',
+      'postgresql', 'redis', 'mysql', 'mongodb', 'clickhouse', 'sqlite', 'supabase', 'apachekafka',
+    ],
   },
   {
     id: 'security',
@@ -35,10 +50,24 @@ const CATEGORIES: { id: string; label: string; icons: string[] }[] = [
   },
   {
     id: 'network',
-    label: 'Network & Flow',
-    icons: ['network', 'gitMerge', 'gitBranch', 'zap', 'gauge', 'activity', 'layers'],
+    label: 'DevOps & Network',
+    icons: [
+      'network', 'gitMerge', 'gitBranch', 'zap', 'gauge', 'activity', 'layers',
+      'docker', 'kubernetes', 'nginx', 'cloudflare', 'graphql', 'terraform', 'ansible', 'git', 'github', 'gitlab',
+    ],
   },
 ];
+
+function isIconSelected(selected: string | undefined, iconKey: string): boolean {
+  if (!selected) return false;
+  const s = selected.toLowerCase().trim();
+  const k = iconKey.toLowerCase().trim();
+  if (s === k) return true;
+  if (KNOWN_TECH_LOGOS[k] && s === KNOWN_TECH_LOGOS[k].toLowerCase()) return true;
+  if (KNOWN_TECH_LOGOS[s] && k === KNOWN_TECH_LOGOS[s].toLowerCase()) return true;
+  if (s.includes('/') && (s.endsWith(`/${k}.svg`) || s.includes(`/${k}.svg`))) return true;
+  return false;
+}
 
 export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
   isOpen,
@@ -46,10 +75,11 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
   onSelectIcon,
   onClose,
   theme,
-  title = 'Select Vector Icon',
+  title = 'Select Icon',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [customUrl, setCustomUrl] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -65,16 +95,19 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
   if (!isOpen) return null;
 
   const currentCategoryIcons =
-    CATEGORIES.find((c) => c.id === activeCategory)?.icons || Object.keys(ICONS_REGISTRY);
+    CATEGORIES.find((c) => c.id === activeCategory)?.icons || CATEGORIES[0].icons;
 
   const filteredIcons = currentCategoryIcons.filter((iconKey) => {
-    const iconData = ICONS_REGISTRY[iconKey];
-    if (!iconData) return false;
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
+    const displayName = getIconDisplayName(iconKey).toLowerCase();
+    const key = iconKey.toLowerCase();
+    const tech = TECH_ICONS_LIST.find((t) => t.name === key || t.aliases?.includes(key));
+    const aliases = tech?.aliases?.join(' ').toLowerCase() || '';
     return (
-      iconKey.toLowerCase().includes(q) ||
-      iconData.label.toLowerCase().includes(q)
+      key.includes(q) ||
+      displayName.includes(q) ||
+      aliases.includes(q)
     );
   });
 
@@ -84,14 +117,14 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-white/15 bg-slate-950 p-4 shadow-2xl space-y-3 animate-scale-up"
+        className="w-full max-w-lg rounded-2xl border border-white/15 bg-slate-950 p-4 shadow-2xl space-y-3 animate-scale-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-2 border-b border-white/10">
           <div>
             <h3 className="text-xs font-bold text-white uppercase tracking-wider">{title}</h3>
-            <p className="text-[10px] text-slate-400">Crisp SVG glyph rendered directly on canvas</p>
+            <p className="text-[10px] text-slate-400">Crisp SVG glyphs & tech brand logos rendered directly on canvas</p>
           </div>
           <button
             type="button"
@@ -110,7 +143,7 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search icons (e.g., cpu, database, shield)..."
+            placeholder="Search icons or brands (e.g. postgres, k8s, cpu, redis)..."
             className="w-full bg-black/60 border border-white/10 rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-white/30"
             autoFocus
           />
@@ -133,7 +166,7 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
               key={cat.id}
               type="button"
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-2 py-1 rounded-lg whitespace-nowrap transition-colors ${
+              className={`px-2 py-1 rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                 activeCategory === cat.id
                   ? 'bg-white/20 text-white font-bold'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -145,11 +178,10 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
         </div>
 
         {/* Icon Grid */}
-        <div className="grid grid-cols-4 gap-2 max-h-60 overflow-y-auto pr-1">
+        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-64 overflow-y-auto pr-1">
           {filteredIcons.map((iconKey) => {
-            const iconData = ICONS_REGISTRY[iconKey];
-            if (!iconData) return null;
-            const isSelected = selectedIcon === iconKey;
+            const isSelected = isIconSelected(selectedIcon, iconKey);
+            const displayName = getIconDisplayName(iconKey);
 
             return (
               <button
@@ -159,28 +191,18 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
                   onSelectIcon(iconKey);
                   onClose();
                 }}
-                className={`p-2 rounded-xl border flex flex-col items-center gap-1.5 transition-all text-center ${
+                className={`p-2 rounded-xl border flex flex-col items-center gap-1.5 transition-all text-center cursor-pointer ${
                   isSelected
                     ? 'border-white/50 bg-white/10 shadow-sm'
-                    : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/20'
+                    : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.08] hover:border-white/20'
                 }`}
-                title={iconData.label}
+                title={displayName}
               >
                 <div className="w-8 h-8 flex items-center justify-center relative">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 64 64"
-                    fill="none"
-                    stroke={isSelected ? theme.accent : '#94A3B8'}
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="w-6 h-6"
-                    dangerouslySetInnerHTML={{ __html: iconData.svgInner }}
-                  />
+                  <IconThumbnail icon={iconKey} theme={theme} className="w-6 h-6" />
                   {isSelected && (
                     <div
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-slate-950"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-slate-950 shadow-sm"
                       style={{ backgroundColor: theme.accent }}
                     >
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -188,7 +210,7 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
                   )}
                 </div>
                 <span className="text-[10px] text-slate-300 font-medium truncate w-full">
-                  {iconData.label}
+                  {displayName}
                 </span>
               </button>
             );
@@ -212,6 +234,37 @@ export const IconPickerPopover: React.FC<IconPickerPopoverProps> = ({
             </button>
           </div>
         )}
+
+        {/* Custom Icon URL Input Bar */}
+        <div className="pt-2 border-t border-white/10 flex items-center gap-2">
+          <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <input
+            type="text"
+            placeholder="Or enter custom icon / logo URL..."
+            value={customUrl}
+            onChange={(e) => setCustomUrl(e.target.value)}
+            className="flex-1 bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-white/30"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && customUrl.trim()) {
+                onSelectIcon(customUrl.trim());
+                onClose();
+              }
+            }}
+          />
+          <button
+            type="button"
+            disabled={!customUrl.trim()}
+            onClick={() => {
+              if (customUrl.trim()) {
+                onSelectIcon(customUrl.trim());
+                onClose();
+              }
+            }}
+            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-white font-medium disabled:opacity-40 cursor-pointer transition-colors"
+          >
+            Apply
+          </button>
+        </div>
       </div>
     </div>
   );

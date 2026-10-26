@@ -992,3 +992,30 @@ This document records the chronological development history, engineering decisio
 
 
 
+
+## Step 39: Resolution of Icon Discrepancy Between Node Editor and Canvas Post
+- **Context & Problem Analysis:**
+  - In the user screenshot, the Slide 1 canvas card rendered the PostgreSQL elephant brand logo in the center and in satellite nodes, while the Node Editor control panel displayed "Git Merge" with the Git Merge vector glyph.
+  - Root Cause:
+    1. currentSlide.centerIcon (and satIcons[0]) was populated with a brand logo URL or tech brand key ('postgresql').
+    2. In ArchetypeControls.tsx, icon lookups evaluated ICONS_REGISTRY[centerIconName] || ICONS_REGISTRY.gitMerge. Because tech brands and URLs are not registry keys, the lookup returned undefined and fell back to ICONS_REGISTRY.gitMerge, rendering the Git Merge SVG and label.
+    3. Meanwhile, the HTML5 canvas renderer (renderHub.ts) called loadIconImage(), which resolved remote Simple Icons CDN URLs and drew the tinted PostgreSQL elephant logo.
+    4. Furthermore, IconPickerPopover.tsx only showed vector registry keys and lacked tech brands catalog (TECH_ICONS_LIST), preventing creators from picking curated database, devops, and cloud brand logos.
+- **Engineering Solutions Implemented:**
+  1. **Dual-Renderer Icon Thumbnail & Name Resolver (IconThumbnail.tsx):**
+     - Implemented getIconDisplayName(iconName): Resolves human-friendly display titles across local ICONS_REGISTRY vector icons, curated TECH_ICONS_LIST brands (PostgreSQL, Redis, Docker, Kubernetes, etc.), aliases (postgres, k8s, aws, kafka), and direct web/CDN URLs (stripping query parameters and .svg extensions).
+     - Implemented <IconThumbnail />: Dual-rendering component that renders SVG vectors for registry glyphs and <img src={getIconDataUrl(icon, theme?.accent)} /> for remote logos/brands, mirroring the canvas projection 1:1 with resilient theme fallback.
+  2. **Unified Node Editor Previews (ArchetypeControls.tsx):**
+     - Replaced hardcoded ICONS_REGISTRY lookups on the Central Hub Hero card, Orbital Satellite nodes, and Mechanism schematic nodes with <IconThumbnail /> and getIconDisplayName().
+     - The Central Hero Icon button and satellite node buttons now display the exact same icon graphic and label as rendered on the post canvas (e.g. PostgreSQL elephant logo and "PostgreSQL" title).
+  3. **Comprehensive Tech Brand Support in Icon Picker (IconPickerPopover.tsx):**
+     - Added curated TECH_ICONS_LIST brands to All Icons category and added a dedicated Tech Brands tab.
+     - Enriched category lists (Compute & AI, Data & Storage, DevOps & Network) with relevant tech brands.
+     - Enhanced search filter to match against icon keys, display names, and brand aliases (e.g., searching "postgres" or "k8s" instantly finds the logo).
+     - Added a custom icon/logo URL input bar at the bottom for arbitrary SVG/PNG URLs.
+  4. **Regression Testing Suite (src/components/studio/IconThumbnail.test.tsx):**
+     - Added 8 unit tests covering registry icons, tech brand names, brand aliases, CDN URLs with query parameters, custom strings, SVG rendering, and proxy image URLs.
+- **Verification:**
+  - npm run lint (tsc --noEmit): 0 TypeScript errors.
+  - npm test (vitest run): 11 test files, 41 unit tests passed.
+  - npm run build (vite build): Built production bundle in 231ms.
