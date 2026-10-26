@@ -61,13 +61,14 @@ The system is engineered for zero-latency mobile workflows, high availability du
 
 ## 2. System Layers
 
-### 2.1 Client Ingestion Layer (`src/components/MultimodalInputPanel.tsx`)
-- **Phone Screenshot Compression:** Native phone camera photos or screenshots can exceed 15–20MB. An embedded HTML5 canvas downscales images to a maximum dimension of 1280px at 0.82 JPEG quality before transmission. This reduces network payload size to ~120KB, eliminating mobile LTE upload timeouts.
+### 2.1 Unified Client Ingestion Layer (`src/components/AutonomousStudio.tsx`)
+- **Unified Inline Smart Dock:** Replaces detached modal dialogs with a responsive, expandable Smart Dock embedded directly in the studio. Supports instant single-line topics, multi-line blog/code notes, YouTube transcripts, and drag-and-drop screenshot attachments with zero modal popup friction.
+- **Client Screenshot Compression:** Downscales large screenshots to a maximum dimension of 1280px at 0.82 JPEG quality using an HTML5 canvas before transmission (`compressImageClientSide`). This keeps payloads under ~150KB for fast, timeout-free OCR analysis.
 - **Input Modes:**
-  - `screenshot`: Architecture diagrams, terminal logs, CVE reports, UI mockups.
-  - `transcript`: YouTube video summaries, keynote transcripts, podcast notes.
-  - `notes`: Raw engineering bullet points, RFCs, GitHub README snippets.
-- **Fail-Safe Watchdog:** A 10-second `AbortController` guards client requests. If network degradation occurs, the client automatically executes local synthesis, guaranteeing the user never sees an unhandled `Failed to fetch`.
+  - `upload`: Architecture diagrams, terminal logs, CVE reports, UI mockups.
+  - `youtube`: YouTube video summaries, keynote transcripts, podcast notes.
+  - `text`: Raw engineering bullet points, RFCs, GitHub README snippets.
+- **Fail-Safe Watchdog & Instant Mode:** Direct execution via `runAutonomousPipeline()` with inline `Instant Synthesize` fallback (0ms latency, zero network dependence).
 
 ### 2.2 Backend Gateway & AI Pipeline (`server.ts`)
 - **Runtime:** Node.js Express server mounting Vite middleware in development and serving static production builds in deployment.

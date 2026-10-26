@@ -858,6 +858,33 @@ This document records the chronological development history, engineering decisio
     - Opened Contact Sheet modal and verified full 8-slide deck.
     - Session recording saved: `test_modal_ingestion_1793008083398.webp`.
 
+## Step 33: Unified Inline Smart Dock & Modal Decommissioning
+- **Context & Problem Statement:**
+  - Having a separate "Ingest Material" modal dialog created unnecessary UI fragmentation, extra clicks, and state synchronization friction.
+  - The top input bar was rigid and single-line, unable to adapt gracefully when users wanted to paste multi-line notes or drop screenshots.
+- **Engineering Solutions Implemented:**
+  1. **Unified Inline Smart Dock (`src/components/AutonomousStudio.tsx`):**
+     - Replaced the top input bar and modal with a responsive, expandable **Smart Dock**:
+       - **Compact Mode (Default)**: Single-line topic bar with starter topic pills (`Scion Architecture`, `Val Town MicroVMs`, `Zero-Trust Mesh`, `Redis 8 Engine`), quick "Expand / Attach" button, and prominent "Generate Carousel" action.
+       - **Expanded / Ingestion Mode**: Auto-expands when pasting text $> 200$ chars, clicking "Expand / Attach", or dropping an image. Includes tabs for `Notes / Blog / Code`, `YouTube Summary`, and `Screenshot / Image OCR`.
+       - **Inline Attachment & OCR Dropzone**: Integrated drag-and-drop zone with client-side image downscaling (`compressImageClientSide`, max 1280px JPEG), sample slide chips, and image preview card.
+       - **Live Telemetry & Grounding Awareness**: Live character counter dynamically displays whether the generation runs in Direct AI Schema Mode (bypassing search grounding for prompts $> 200$ chars) or Real-Time Grounding Mode.
+       - **Instant Synthesize**: Inline 0ms offline test mode accessible directly from the expanded dock.
+  2. **Decommissioning `MultimodalInputPanel.tsx`:**
+     - Removed `src/components/MultimodalInputPanel.tsx` from the codebase.
+     - Removed all modal state (`isIngestModalOpen`) and popup JSX overlays.
+     - Unified generation pipeline directly inside `AutonomousStudio.tsx` via `runAutonomousPipeline()`.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 TypeScript errors.
+  - `npm run build` (`vite build`): Built production bundle cleanly in 233ms.
+  - Browser Subagent interactive test:
+    - Tested Compact Mode, Expand/Attach toggle, and tabs (`Screenshot / Image OCR`, `Notes / Blog / Code`).
+    - Verified sample slide attachment (*Anthropic Scion Hub Slide*).
+    - Verified typing multi-line notes, live character counter, and compact collapse.
+    - Verified inline generation without any modal popup, updating the studio canvas directly.
+    - Session recording saved: `test_smart_dock_1793008737730.webp`.
+
+
 
 
 
