@@ -45,12 +45,16 @@ Creators provide a single input (topic prompt, engineering summary, architecture
 - **Prompt-Based Image Editing:** Pass an existing slide diagram with natural language revision directives (e.g. "Highlight the distributed cache in amber", "Invert background to dark blueprint").
 
 ### 🎛️ Minimalist Studio with Progressive Disclosure (`AutonomousStudio.tsx`)
-- **Single-Bar Command Center:** Top prompt bar with live progress stages and an integrated **"Ingest Material"** modal button for screenshots, code files, and web links.
+- **Unified Inline Smart Dock:** Auto-expanding command center supporting instant text prompts, multi-line notes, code files, web links, and YouTube transcripts without clumsy modal popups.
+- **Direct Clipboard Screenshot Ingestion (Ctrl+V):** Paste screenshots directly from the clipboard (`Win+Shift+S` or `Cmd+Shift+4` followed by `Ctrl+V`) with automated client-side 1280px compression.
+- **Direct Viewport Dragging & Precision Graphical Control:** Click and drag any slide layer directly on the 1080×1920 canvas viewport with live HUD coordinate delta feedback (`+125x, +61y`), keyboard arrow-key micro-nudging (2px / 10px with Shift), and one-click "Apply to All Slides" multi-slide layout stamping.
 - **Direct Inline Text Editing:** Click directly on English headlines, Arabic text, or body mechanism copy in the live preview to edit instantly without clumsy forms.
 - **Sleek Slide Management Bar:** Rapid Add (`+`), Duplicate, Delete (safely guarded $\ge 3$ slides), Reorder (Move Left / Right), and Slide 1 Hook Variant selector (Curiosity, Metric, Contrast).
 - **Expandable Advanced Customizer Drawer:** Power features are cleanly tucked into a collapsible side drawer:
+  - *Dynamic Hub Archetype:* Interactive node management with dynamic orbital node counts ($N \in [2, 6]$), auto-balanced radial spoke geometry, custom Center Hero icon picker, and Center Tag pill.
+  - *Unified Dual-Renderer Icon System:* 1:1 canvas-to-editor parity rendering both vector glyphs and 40+ curated tech brand logos (PostgreSQL, Redis, Kubernetes, Docker, Go, Rust, AWS) with alias search and custom URL input.
   - *Instant Archetype Switcher & Auto-Seeding:* 1-click toggle between `Hub`, `Mechanism`, `Diagram / AI`, `Code Diff`, `Metric`, `Compare`, and `CTA`. Missing fields (`codeSnippet`, `metricValue`, comparison columns, `satLabels`) are automatically synthesized on the spot from slide content and rendered live on canvas.
-  - *Diagram Layout Switcher & Live Node Editor:* 1-click layout toggle (`Topology Flow`, `Layered Stack`, `Isolation Grid`, `Key Takeaway`), 3 live component nodes with unclipped 2-line auto-wrapping (16px $\to$ 12px), protocol connectors, and telemetry line.
+  - *Diagram Layout Switcher & Live Node Editor:* 1-click layout toggle (`Topology Flow`, `Layered Stack`, `Isolation Grid`, `Key Takeaway`), 3 live component nodes with vector icons, protocol connectors, and telemetry line.
   - *Code Archetype:* Language selector, terminal dot styles, line numbers, and diff syntax (`+`, `-`, `$`).
   - *Metric Archetype:* Giant contrast value, category label, sparkline acceleration curve, and delta pill.
   - *Compare Archetype:* Legacy vs Modern bullet points and advantage tags.
@@ -58,7 +62,7 @@ Creators provide a single input (topic prompt, engineering summary, architecture
 - **Sticky 1080×1920 Preview with HUD Simulator:** Pinned 9:16 canvas preview with 1-click TikTok In-App Safe Zone HUD overlay simulator (toggle with key **`T`**).
 
 ### 🎨 The MARROK 8-Archetype Visual System
-1. **The Hook (`hub`):** Central pulsing hub icon connected to 6 orbiting satellites (`satLabels`) via radial vectors.
+1. **The Hook (`hub`):** Central customizable hero icon and tag pill connected to 2–6 orbiting satellites (`satLabels`) via dynamic radial vectors.
 2. **Technical Diagram (`row`):** 4 bespoke technical schematics (`topology`, `stack`, `isolation`, `takeaway`) with connected nodes, connectors, and telemetry bars.
 3. **Step Number Counter (`number`):** Giant 220px accent numeral counter with optional micro-badge label for procedural workflows.
 4. **Metric Hero Card (`metric`):** Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, sparkline curve, and delta pill.

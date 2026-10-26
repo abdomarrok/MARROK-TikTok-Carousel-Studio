@@ -188,11 +188,20 @@ A dedicated collapsible inspector panel is mounted in the right column of `Auton
 
 ---
 
-## 8. Roadmap & Future Enhancements
+## 8. Implementation Status & Roadmap
 
+### 8.1 Completed Milestones (Phases 1, 2, & 3 Active)
 1. **Direct Viewport Dragging (Phase 3)**:
-   Pointer event listeners (`onPointerDown`, `onPointerMove`, `onPointerUp`) allowing direct drag-to-translate directly on the viewport canvas.
-2. **Magnetic Alignment Guides**:
-   Canvas center guidelines and safe-zone boundary snapping when dragging within 10px of standard positions.
+   Pointer event listeners (`onPointerDown`, `onPointerMove`, `onPointerUp`) with `setPointerCapture` enabling direct drag-and-drop translation on the 1080×1920 canvas viewport with locked bounding box synchronization.
+2. **Precision HUD Badge & Keyboard Micro-Nudging**:
+   Draggable live HUD coordinate badge (e.g. `+125x, +61y`), quick reset button, and keyboard arrow-key nudging (2px default, 10px with Shift).
 3. **Multi-Slide Layout Stamping**:
-   "Apply this element offset to all slides" action for consistent branding adjustments across 8-slide decks.
+   "Apply to All Slides" action in `ElementInspector` for copying element offsets across all slides in the deck with a single click.
+4. **Direct Clipboard Screenshot Ingestion**:
+   Global clipboard event listener (`Ctrl+V`) that extracts image data directly, compresses it client-side to 1280px, and auto-populates the ingestion dock.
+
+### 8.2 Future Enhancements
+1. **Magnetic Alignment Guides**:
+   Canvas center guidelines and safe-zone boundary snapping when dragging within 10px of standard positions.
+2. **Rotational & Skew Transformations**:
+   Optional angular rotation controls for isometric diagram accent cards.
