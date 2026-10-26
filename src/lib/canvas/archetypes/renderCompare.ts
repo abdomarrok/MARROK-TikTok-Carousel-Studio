@@ -56,28 +56,31 @@ export async function drawCompareSlide(
   ctx.fillText(fitLeftTitle.lines[0] || `BEFORE · ${leftTitle}`.toUpperCase(), leftX + 72, cardY + 47);
   ctx.restore();
 
-  // Left Body Lines with crisp red ✖ bullets and self-healing auto-fit
+  // Left Body Lines with crisp red ✖ bullets, 20px bold typography, and full card height distribution
   const leftText = slide.compareLeftBody || '• Full repository clone\n• High disk footprint\n• Stalls CI pipelines';
-  const leftLines = leftText.split('\n').slice(0, 5);
+  const leftLines = leftText.split('\n').filter((l) => l.trim().length > 0).slice(0, 5);
   ctx.save();
   ctx.textBaseline = 'alphabetic';
-  let lY = cardY + 120;
+  const leftStep = leftLines.length > 1
+    ? Math.min(Math.floor((cardH - 165) / (leftLines.length - 1)), 82)
+    : 70;
+  let lY = cardY + 125;
   for (const rawLine of leftLines) {
     const cleanLine = rawLine.replace(/^[•\-\*✖\s]+/, '').trim();
     ctx.fillStyle = '#F87171';
     ctx.font = '700 22px "JetBrains Mono", monospace';
     ctx.fillText('✖', leftX + 28, lY);
 
-    const fitLine = fitTextInBox(ctx, cleanLine, cardW - 75, 22, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 13, maxLines: 2 });
-    ctx.fillStyle = '#CDD5D9';
-    ctx.font = `400 ${fitLine.fontSize}px "Plus Jakarta Sans", sans-serif`;
+    const fitLine = fitTextInBox(ctx, cleanLine, cardW - 75, 20, '"Plus Jakarta Sans", sans-serif', '600', { minFontSize: 16, maxLines: 2 });
+    ctx.fillStyle = '#F1F5F9';
+    ctx.font = `600 ${fitLine.fontSize}px "Plus Jakarta Sans", sans-serif`;
     if (fitLine.lines.length <= 1) {
       ctx.fillText(fitLine.lines[0] || cleanLine, leftX + 58, lY);
-      lY += 48;
+      lY += leftStep;
     } else {
-      ctx.fillText(fitLine.lines[0], leftX + 58, lY - 8);
-      ctx.fillText(fitLine.lines[1], leftX + 58, lY - 8 + fitLine.lineHeight);
-      lY += fitLine.lineHeight + 36;
+      ctx.fillText(fitLine.lines[0], leftX + 58, lY - 6);
+      ctx.fillText(fitLine.lines[1], leftX + 58, lY - 6 + fitLine.lineHeight);
+      lY += Math.max(leftStep, fitLine.lineHeight + 36);
     }
   }
   ctx.restore();
@@ -118,28 +121,31 @@ export async function drawCompareSlide(
   ctx.fillText(fitRightTitle.lines[0] || `AFTER · ${rightTitle}`.toUpperCase(), rightX + 72, cardY + 47);
   ctx.restore();
 
-  // Right Body Lines with crisp green ✔ bullets and self-healing auto-fit
+  // Right Body Lines with crisp green ✔ bullets, 20px bold typography, and full card height distribution
   const rightText = slide.compareRightBody || '• Virtualized file system\n• Instant sparse checkout\n• Zero local developer wait';
-  const rightLines = rightText.split('\n').slice(0, 5);
+  const rightLines = rightText.split('\n').filter((l) => l.trim().length > 0).slice(0, 5);
   ctx.save();
   ctx.textBaseline = 'alphabetic';
-  let rY = cardY + 120;
+  const rightStep = rightLines.length > 1
+    ? Math.min(Math.floor((cardH - 165) / (rightLines.length - 1)), 82)
+    : 70;
+  let rY = cardY + 125;
   for (const rawLine of rightLines) {
     const cleanLine = rawLine.replace(/^[•\-\*✔\s]+/, '').trim();
     ctx.fillStyle = '#34D399';
     ctx.font = '700 22px "JetBrains Mono", monospace';
     ctx.fillText('✔', rightX + 28, rY);
 
-    const fitLine = fitTextInBox(ctx, cleanLine, cardW - 75, 22, '"Plus Jakarta Sans", sans-serif', '400', { minFontSize: 13, maxLines: 2 });
+    const fitLine = fitTextInBox(ctx, cleanLine, cardW - 75, 20, '"Plus Jakarta Sans", sans-serif', '600', { minFontSize: 16, maxLines: 2 });
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = `400 ${fitLine.fontSize}px "Plus Jakarta Sans", sans-serif`;
+    ctx.font = `600 ${fitLine.fontSize}px "Plus Jakarta Sans", sans-serif`;
     if (fitLine.lines.length <= 1) {
       ctx.fillText(fitLine.lines[0] || cleanLine, rightX + 58, rY);
-      rY += 48;
+      rY += rightStep;
     } else {
-      ctx.fillText(fitLine.lines[0], rightX + 58, rY - 8);
-      ctx.fillText(fitLine.lines[1], rightX + 58, rY - 8 + fitLine.lineHeight);
-      rY += fitLine.lineHeight + 36;
+      ctx.fillText(fitLine.lines[0], rightX + 58, rY - 6);
+      ctx.fillText(fitLine.lines[1], rightX + 58, rY - 6 + fitLine.lineHeight);
+      rY += Math.max(rightStep, fitLine.lineHeight + 36);
     }
   }
   ctx.restore();

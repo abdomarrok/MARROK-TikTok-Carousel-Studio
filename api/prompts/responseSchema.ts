@@ -268,7 +268,7 @@ export const CAROUSEL_RESPONSE_SCHEMA = {
             description: 'Arabic source attribution footer for cta slide',
           },
         },
-        required: ['type'],
+        required: ['type', 'enTitle', 'arTitle', 'enBody', 'arBody'],
       },
     },
   },

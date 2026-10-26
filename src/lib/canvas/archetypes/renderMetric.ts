@@ -176,8 +176,10 @@ export async function drawMetricSlide(
 
   // 7. Paired Delta Pill (▲ Emerald / ▼ Crimson / Accent)
   const diffText = slide.metricDiff || '▲ Measurable architectural speedup';
-  const isPositive = /[▲+]|faster|speedup|drop|gain|reduction|boost/i.test(diffText);
-  const isNegative = /[▼-]|latency spike|bottleneck|regression|exploit/i.test(diffText) && !isPositive;
+  const isPositive =
+    /[▲+]|faster|speedup|drop|gain|reduction|reduced|boost|zero|0\s*(unauthenticated|vulnerabilit|breach|downtime|unauthorized|exploit|error|packet|leak|fail)|mitigat|eliminat|filter|secur|protect|sub-m/i.test(diffText);
+  const isNegative =
+    (/[▼-]|latency spike|bottleneck|regression|exploit/i.test(diffText) && !isPositive);
 
   const deltaAccent = isPositive ? '#10B981' : isNegative ? '#F43F5E' : theme.accent;
   const deltaBg = isPositive ? 'rgba(16, 185, 129, 0.14)' : isNegative ? 'rgba(244, 63, 94, 0.14)' : `${theme.accent}20`;

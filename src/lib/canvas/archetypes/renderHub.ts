@@ -154,9 +154,9 @@ export async function drawHubSlide(
   const satAngles = [-90, -30, 30, 90, 150, 210];
   const satIcons = slide.satIcons || ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
   const satLabels = slide.satLabels || [];
-  const satW = 138;
-  const satH = 104;
-  const satIconSize = 48;
+  const satW = 168;
+  const satH = 120;
+  const satIconSize = 50;
 
   for (let i = 0; i < satAngles.length; i++) {
     try {
@@ -204,7 +204,7 @@ export async function drawHubSlide(
       ctx.restore();
 
       // Dark Glassmorphic Satellite Box
-      drawRoundRect(ctx, sx - satW / 2, sy - satH / 2, satW, satH, 20, '#091319', `${theme.accent}80`, 2);
+      drawRoundRect(ctx, sx - satW / 2, sy - satH / 2, satW, satH, 22, '#091319', `${theme.accent}80`, 2);
 
       // CAD Corner marks on satellite
       ctx.save();
@@ -226,19 +226,19 @@ export async function drawHubSlide(
       // Satellite Icon
       const sIconName = satIcons[i % satIcons.length] || 'gitMerge';
       const sImg = await loadIconImage(sIconName, theme.accent);
-      drawTintedImage(ctx, sImg, sx - satIconSize / 2, sy - satH / 2 + 12, satIconSize, satIconSize, theme.accent);
+      drawTintedImage(ctx, sImg, sx - satIconSize / 2, sy - satH / 2 + 14, satIconSize, satIconSize, theme.accent);
 
-      // Crisp Technical Label Pill
+      // Crisp Technical Label Pill (18px-20px bold font, high contrast on mobile)
       const labelText = satLabels[i] || DEFAULT_ICON_LABELS[sIconName] || sIconName.toUpperCase();
-      const pillW = Math.min(satW - 14, 126);
-      const pillH = 24;
+      const pillW = 154;
+      const pillH = 34;
       const pillX = sx - pillW / 2;
-      const pillY = sy + satH / 2 - 32;
+      const pillY = sy + satH / 2 - 42;
 
-      drawRoundRect(ctx, pillX, pillY, pillW, pillH, 6, '#060a0d', `${theme.accent}90`, 1.2);
+      drawRoundRect(ctx, pillX, pillY, pillW, pillH, 8, '#060a0d', `${theme.accent}90`, 1.5);
       ctx.save();
-      const fitSat = fitTextInBox(ctx, labelText, pillW - 10, 12, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
-      ctx.font = `700 ${fitSat.fontSize}px "JetBrains Mono", monospace`;
+      const fitSat = fitTextInBox(ctx, labelText, pillW - 12, 18, '"Plus Jakarta Sans", "JetBrains Mono", sans-serif', '800', { minFontSize: 14 });
+      ctx.font = `800 ${fitSat.fontSize}px "Plus Jakarta Sans", "JetBrains Mono", sans-serif`;
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

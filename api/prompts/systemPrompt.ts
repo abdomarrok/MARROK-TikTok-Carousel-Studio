@@ -48,6 +48,7 @@ STAGE 5: COPYWRITING & RTL LINT (Spec §8)
   * Arabic title: max 40 characters
   * English body: max 140 characters
   * Arabic body: max 150 characters
+- MANDATORY BILINGUAL FIELDS: EVERY single slide MUST include non-empty 'enTitle', 'arTitle', 'enBody', and 'arBody'. Never leave arTitle, enBody, or arBody blank.
 - ZERO RAW MARKDOWN: NEVER output '#', '##', '*', '_', or backticks in slide titles or bodies.
 - ZERO LEADING/TRAILING DEFECT PUNCTUATION: Never output orphan dots like "Speedup .", double periods "..", or duplicate colons like ".:".
 - ARABIC INTEGRITY & BIDI:

@@ -94,51 +94,46 @@ export async function drawMultiNodeTopologyFlow(
     drawRoundRect(ctx, n.x, nodeY, nodeW, nodeH, 18, '#0b1319', `${theme.accent}65`, 1.8);
 
     // Inner icon badge
-    drawRoundRect(ctx, n.x + 18, nodeY + 18, 42, 42, 12, `${theme.accent}20`, `${theme.accent}70`, 1.2);
+    drawRoundRect(ctx, n.x + 18, nodeY + 18, 46, 46, 12, `${theme.accent}20`, `${theme.accent}70`, 1.2);
     const nImg = await loadIconImage(n.icon, theme.accent);
-    safeDrawImage(ctx, nImg, n.x + 27, nodeY + 27, 24, 24);
+    safeDrawImage(ctx, nImg, n.x + 27, nodeY + 27, 28, 28);
 
     // Role Micro-Badge
     ctx.save();
-    ctx.font = '700 12px "JetBrains Mono", monospace';
+    ctx.font = '700 13px "JetBrains Mono", monospace';
     ctx.fillStyle = theme.microLabel;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(n.role, n.x + 68, nodeY + 36);
+    ctx.fillText(n.role, n.x + 72, nodeY + 38);
 
-    // Sub-title with auto-fit
-    const fitSub = fitTextInBox(ctx, n.sub, nodeW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
-    ctx.font = `500 ${fitSub.fontSize}px "JetBrains Mono", monospace`;
-    ctx.fillStyle = theme.textMuted;
-    ctx.fillText(fitSub.lines[0] || n.sub, n.x + 68, nodeY + 52);
-
-    // Primary Title with self-healing 1-or-2 line auto-fit (16px down to 12px)
-    const fitTitle = fitTextInBox(ctx, n.title, nodeW - 36, 16, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 12, maxLines: 2 });
+    // Primary Title with self-healing 1-or-2 line auto-fit (22px down to 16px)
+    const fitTitle = fitTextInBox(ctx, n.title, nodeW - 32, 22, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 16, maxLines: 2 });
     ctx.font = `800 ${fitTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     if (fitTitle.lines.length <= 1) {
-      ctx.fillText(fitTitle.lines[0] || n.title, n.x + 18, nodeY + 110);
+      ctx.fillText(fitTitle.lines[0] || n.title, n.x + 18, nodeY + 102);
     } else {
-      ctx.fillText(fitTitle.lines[0], n.x + 18, nodeY + 98);
-      ctx.fillText(fitTitle.lines[1], n.x + 18, nodeY + 98 + fitTitle.lineHeight);
+      ctx.fillText(fitTitle.lines[0], n.x + 18, nodeY + 92);
+      ctx.fillText(fitTitle.lines[1], n.x + 18, nodeY + 92 + fitTitle.lineHeight);
     }
 
-    // Detail spec lines
-    ctx.font = '500 13px "JetBrains Mono", monospace';
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText(`• ${fitSub.lines[0] || n.sub}`, n.x + 18, nodeY + 145);
-    ctx.fillText(`• ${n.role} Active`, n.x + 18, nodeY + 168);
+    // High-Contrast Sublabel (15px-16px in #E2E8F0)
+    const fitSub = fitTextInBox(ctx, n.sub, nodeW - 32, 15, '"Plus Jakarta Sans", "JetBrains Mono", sans-serif', '600', { minFontSize: 13, maxLines: 2 });
+    ctx.font = `600 ${fitSub.fontSize}px "Plus Jakarta Sans", "JetBrains Mono", sans-serif`;
+    ctx.fillStyle = '#E2E8F0';
+    const subY = fitTitle.lines.length <= 1 ? nodeY + 134 : nodeY + 144;
+    ctx.fillText(fitSub.lines[0] || n.sub, n.x + 18, subY);
 
     // Bottom Status Pill
-    const pillW = 100;
-    const pillH = 24;
-    drawRoundRect(ctx, n.x + 18, nodeY + nodeH - 34, pillW, pillH, 8, `${n.statusColor}20`, `${n.statusColor}60`, 1);
-    const fitStatus = fitTextInBox(ctx, `[ ${n.status} ]`, pillW - 8, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+    const pillW = 108;
+    const pillH = 28;
+    drawRoundRect(ctx, n.x + 18, nodeY + nodeH - 38, pillW, pillH, 8, `${n.statusColor}20`, `${n.statusColor}60`, 1);
+    const fitStatus = fitTextInBox(ctx, `[ ${n.status} ]`, pillW - 8, 12, '"JetBrains Mono", monospace', '700', { minFontSize: 9.5 });
     ctx.font = `700 ${fitStatus.fontSize}px "JetBrains Mono", monospace`;
     ctx.fillStyle = n.statusColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(fitStatus.lines[0] || `[ ${n.status} ]`, n.x + 18 + pillW / 2, nodeY + nodeH - 22);
+    ctx.fillText(fitStatus.lines[0] || `[ ${n.status} ]`, n.x + 18 + pillW / 2, nodeY + nodeH - 24);
     ctx.restore();
   }
 
@@ -283,45 +278,42 @@ export async function drawBlastRadiusIsolationGrid(
 
   // Cell 1: Restricted Workload (Crimson)
   drawRoundRect(ctx, cx1, cellY, cellW, cellH, 18, 'rgba(244, 63, 94, 0.08)', 'rgba(244, 63, 94, 0.65)', 2);
-  drawRoundRect(ctx, cx1 + 18, cellY + 18, 42, 42, 12, 'rgba(244, 63, 94, 0.20)', 'rgba(244, 63, 94, 0.70)', 1.2);
+  drawRoundRect(ctx, cx1 + 18, cellY + 18, 46, 46, 12, 'rgba(244, 63, 94, 0.20)', 'rgba(244, 63, 94, 0.70)', 1.2);
   const alertImg = await loadIconImage(c1Icon, '#F43F5E');
-  safeDrawImage(ctx, alertImg, cx1 + 27, cellY + 27, 24, 24);
+  safeDrawImage(ctx, alertImg, cx1 + 27, cellY + 27, 28, 28);
 
   ctx.save();
-  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.font = '700 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#FDA4AF';
   ctx.textAlign = 'left';
-  ctx.fillText(c1Role, cx1 + 68, cellY + 36);
+  ctx.fillText(c1Role, cx1 + 72, cellY + 38);
 
-  const fitC1Sub = fitTextInBox(ctx, c1Sub, cellW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
-  ctx.font = `500 ${fitC1Sub.fontSize}px "JetBrains Mono", monospace`;
-  ctx.fillStyle = '#F87171';
-  ctx.fillText(fitC1Sub.lines[0] || c1Sub, cx1 + 68, cellY + 52);
-
-  // Self-healing title: auto steps down font or wraps to 2 lines (16px down to 12px)
-  const fitC1Title = fitTextInBox(ctx, c1Title, cellW - 36, 16, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 12, maxLines: 2 });
+  // Self-healing title: 22px bold down to 16px
+  const fitC1Title = fitTextInBox(ctx, c1Title, cellW - 32, 22, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 16, maxLines: 2 });
   ctx.font = `800 ${fitC1Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
   if (fitC1Title.lines.length <= 1) {
-    ctx.fillText(fitC1Title.lines[0] || c1Title, cx1 + 18, cellY + 110);
+    ctx.fillText(fitC1Title.lines[0] || c1Title, cx1 + 18, cellY + 102);
   } else {
-    ctx.fillText(fitC1Title.lines[0], cx1 + 18, cellY + 98);
-    ctx.fillText(fitC1Title.lines[1], cx1 + 18, cellY + 98 + fitC1Title.lineHeight);
+    ctx.fillText(fitC1Title.lines[0], cx1 + 18, cellY + 92);
+    ctx.fillText(fitC1Title.lines[1], cx1 + 18, cellY + 92 + fitC1Title.lineHeight);
   }
 
-  ctx.font = '500 13px "JetBrains Mono", monospace';
-  ctx.fillStyle = '#CBD5E1';
-  ctx.fillText(`• ${fitC1Sub.lines[0] || c1Sub}`, cx1 + 18, cellY + 145);
-  ctx.fillText('• Boundary Enforced', cx1 + 18, cellY + 168);
+  // High-Contrast Sublabel (15px-16px in #E2E8F0)
+  const fitC1Sub = fitTextInBox(ctx, c1Sub, cellW - 32, 15, '"Plus Jakarta Sans", "JetBrains Mono", sans-serif', '600', { minFontSize: 13, maxLines: 2 });
+  ctx.font = `600 ${fitC1Sub.fontSize}px "Plus Jakarta Sans", "JetBrains Mono", sans-serif`;
+  ctx.fillStyle = '#E2E8F0';
+  const c1SubY = fitC1Title.lines.length <= 1 ? cellY + 134 : cellY + 144;
+  ctx.fillText(fitC1Sub.lines[0] || c1Sub, cx1 + 18, c1SubY);
 
   const pillW1 = 110;
-  drawRoundRect(ctx, cx1 + 18, cellY + cellH - 34, pillW1, 24, 8, 'rgba(244, 63, 94, 0.25)', 'rgba(244, 63, 94, 0.75)', 1);
-  const fitC1Status = fitTextInBox(ctx, `[ ${c1Status} ]`, pillW1 - 10, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+  drawRoundRect(ctx, cx1 + 18, cellY + cellH - 38, pillW1, 28, 8, 'rgba(244, 63, 94, 0.25)', 'rgba(244, 63, 94, 0.75)', 1);
+  const fitC1Status = fitTextInBox(ctx, `[ ${c1Status} ]`, pillW1 - 10, 12, '"JetBrains Mono", monospace', '700', { minFontSize: 9.5 });
   ctx.font = `700 ${fitC1Status.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#FDA4AF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(fitC1Status.lines[0] || `[ ${c1Status} ]`, cx1 + 18 + pillW1 / 2, cellY + cellH - 22);
+  ctx.fillText(fitC1Status.lines[0] || `[ ${c1Status} ]`, cx1 + 18 + pillW1 / 2, cellY + cellH - 24);
   ctx.restore();
 
   // Vertical Air-Gap Firewall Barrier between Cell 1 and Cell 2
@@ -335,8 +327,8 @@ export async function drawBlastRadiusIsolationGrid(
   ctx.stroke();
   ctx.setLineDash([]);
 
-  drawRoundRect(ctx, cx1 + cellW + gap / 2 - 28, cellY + cellH / 2 - 14, 56, 28, 6, '#060a0d', 'rgba(244, 63, 94, 0.70)', 1);
-  const fitBarrier = fitTextInBox(ctx, barrierTag, 50, 10, '"JetBrains Mono", monospace', '700', { minFontSize: 8 });
+  drawRoundRect(ctx, cx1 + cellW + gap / 2 - 28, cellY + cellH / 2 - 15, 56, 30, 8, '#060a0d', 'rgba(244, 63, 94, 0.70)', 1.2);
+  const fitBarrier = fitTextInBox(ctx, barrierTag, 50, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
   ctx.font = `700 ${fitBarrier.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#F43F5E';
   ctx.textAlign = 'center';
@@ -346,88 +338,83 @@ export async function drawBlastRadiusIsolationGrid(
 
   // Cell 2: Isolated Service Pod (Accent)
   drawRoundRect(ctx, cx2, cellY, cellW, cellH, 18, '#0b1319', `${theme.accent}65`, 1.8);
-  drawRoundRect(ctx, cx2 + 18, cellY + 18, 42, 42, 12, `${theme.accent}20`, `${theme.accent}70`, 1.2);
+  drawRoundRect(ctx, cx2 + 18, cellY + 18, 46, 46, 12, `${theme.accent}20`, `${theme.accent}70`, 1.2);
   const lockImg = await loadIconImage(c2Icon, theme.accent);
-  safeDrawImage(ctx, lockImg, cx2 + 27, cellY + 27, 24, 24);
+  safeDrawImage(ctx, lockImg, cx2 + 27, cellY + 27, 28, 28);
 
   ctx.save();
-  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.font = '700 13px "JetBrains Mono", monospace';
   ctx.fillStyle = theme.microLabel;
   ctx.textAlign = 'left';
-  ctx.fillText(c2Role, cx2 + 68, cellY + 36);
+  ctx.fillText(c2Role, cx2 + 72, cellY + 38);
 
-  const fitC2Sub = fitTextInBox(ctx, c2Sub, cellW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
-  ctx.font = `500 ${fitC2Sub.fontSize}px "JetBrains Mono", monospace`;
-  ctx.fillStyle = theme.textMuted;
-  ctx.fillText(fitC2Sub.lines[0] || c2Sub, cx2 + 68, cellY + 52);
-
-  // Self-healing title (16px down to 12px)
-  const fitC2Title = fitTextInBox(ctx, c2Title, cellW - 36, 16, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 12, maxLines: 2 });
+  // Self-healing title: 22px bold down to 16px
+  const fitC2Title = fitTextInBox(ctx, c2Title, cellW - 32, 22, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 16, maxLines: 2 });
   ctx.font = `800 ${fitC2Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
   if (fitC2Title.lines.length <= 1) {
-    ctx.fillText(fitC2Title.lines[0] || c2Title, cx2 + 18, cellY + 110);
+    ctx.fillText(fitC2Title.lines[0] || c2Title, cx2 + 18, cellY + 102);
   } else {
-    ctx.fillText(fitC2Title.lines[0], cx2 + 18, cellY + 98);
-    ctx.fillText(fitC2Title.lines[1], cx2 + 18, cellY + 98 + fitC2Title.lineHeight);
+    ctx.fillText(fitC2Title.lines[0], cx2 + 18, cellY + 92);
+    ctx.fillText(fitC2Title.lines[1], cx2 + 18, cellY + 92 + fitC2Title.lineHeight);
   }
 
-  ctx.font = '500 13px "JetBrains Mono", monospace';
-  ctx.fillStyle = '#94A3B8';
-  ctx.fillText(`• ${fitC2Sub.lines[0] || c2Sub}`, cx2 + 18, cellY + 145);
-  ctx.fillText('• 0 Implicit Drift', cx2 + 18, cellY + 168);
+  // High-Contrast Sublabel (15px-16px in #E2E8F0)
+  const fitC2Sub = fitTextInBox(ctx, c2Sub, cellW - 32, 15, '"Plus Jakarta Sans", "JetBrains Mono", sans-serif', '600', { minFontSize: 13, maxLines: 2 });
+  ctx.font = `600 ${fitC2Sub.fontSize}px "Plus Jakarta Sans", "JetBrains Mono", sans-serif`;
+  ctx.fillStyle = '#E2E8F0';
+  const c2SubY = fitC2Title.lines.length <= 1 ? cellY + 134 : cellY + 144;
+  ctx.fillText(fitC2Sub.lines[0] || c2Sub, cx2 + 18, c2SubY);
 
-  const pillW2 = 100;
-  drawRoundRect(ctx, cx2 + 18, cellY + cellH - 34, pillW2, 24, 8, `${theme.accent}20`, `${theme.accent}60`, 1);
-  const fitC2Status = fitTextInBox(ctx, `[ ${c2Status} ]`, pillW2 - 10, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+  const pillW2 = 108;
+  drawRoundRect(ctx, cx2 + 18, cellY + cellH - 38, pillW2, 28, 8, `${theme.accent}20`, `${theme.accent}60`, 1);
+  const fitC2Status = fitTextInBox(ctx, `[ ${c2Status} ]`, pillW2 - 10, 12, '"JetBrains Mono", monospace', '700', { minFontSize: 9.5 });
   ctx.font = `700 ${fitC2Status.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(fitC2Status.lines[0] || `[ ${c2Status} ]`, cx2 + 18 + pillW2 / 2, cellY + cellH - 22);
+  ctx.fillText(fitC2Status.lines[0] || `[ ${c2Status} ]`, cx2 + 18 + pillW2 / 2, cellY + cellH - 24);
   ctx.restore();
 
   // Cell 3: Production Vault / Storage (Emerald)
   drawRoundRect(ctx, cx3, cellY, cellW, cellH, 18, '#0b1319', 'rgba(16, 185, 129, 0.65)', 1.8);
-  drawRoundRect(ctx, cx3 + 18, cellY + 18, 42, 42, 12, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.70)', 1.2);
+  drawRoundRect(ctx, cx3 + 18, cellY + 18, 46, 46, 12, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.70)', 1.2);
   const dbImg = await loadIconImage(c3Icon, '#10B981');
-  safeDrawImage(ctx, dbImg, cx3 + 27, cellY + 27, 24, 24);
+  safeDrawImage(ctx, dbImg, cx3 + 27, cellY + 27, 28, 28);
 
   ctx.save();
-  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.font = '700 13px "JetBrains Mono", monospace';
   ctx.fillStyle = '#6EE7B7';
   ctx.textAlign = 'left';
-  ctx.fillText(c3Role, cx3 + 68, cellY + 36);
+  ctx.fillText(c3Role, cx3 + 72, cellY + 38);
 
-  const fitC3Sub = fitTextInBox(ctx, c3Sub, cellW - 75, 12, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
-  ctx.font = `500 ${fitC3Sub.fontSize}px "JetBrains Mono", monospace`;
-  ctx.fillStyle = '#10B981';
-  ctx.fillText(fitC3Sub.lines[0] || c3Sub, cx3 + 68, cellY + 52);
-
-  // Self-healing title
-  const fitC3Title = fitTextInBox(ctx, c3Title, cellW - 36, 19, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13, maxLines: 2 });
+  // Self-healing title: 22px bold down to 16px
+  const fitC3Title = fitTextInBox(ctx, c3Title, cellW - 32, 22, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 16, maxLines: 2 });
   ctx.font = `800 ${fitC3Title.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
   if (fitC3Title.lines.length <= 1) {
-    ctx.fillText(fitC3Title.lines[0] || c3Title, cx3 + 18, cellY + 115);
+    ctx.fillText(fitC3Title.lines[0] || c3Title, cx3 + 18, cellY + 102);
   } else {
-    ctx.fillText(fitC3Title.lines[0], cx3 + 18, cellY + 104);
-    ctx.fillText(fitC3Title.lines[1], cx3 + 18, cellY + 104 + fitC3Title.lineHeight);
+    ctx.fillText(fitC3Title.lines[0], cx3 + 18, cellY + 92);
+    ctx.fillText(fitC3Title.lines[1], cx3 + 18, cellY + 92 + fitC3Title.lineHeight);
   }
 
-  ctx.font = '500 13px "JetBrains Mono", monospace';
-  ctx.fillStyle = '#94A3B8';
-  ctx.fillText(`• ${fitC3Sub.lines[0] || c3Sub}`, cx3 + 18, cellY + 145);
-  ctx.fillText('• State Verified', cx3 + 18, cellY + 168);
+  // High-Contrast Sublabel (15px-16px in #E2E8F0)
+  const fitC3Sub = fitTextInBox(ctx, c3Sub, cellW - 32, 15, '"Plus Jakarta Sans", "JetBrains Mono", sans-serif', '600', { minFontSize: 13, maxLines: 2 });
+  ctx.font = `600 ${fitC3Sub.fontSize}px "Plus Jakarta Sans", "JetBrains Mono", sans-serif`;
+  ctx.fillStyle = '#E2E8F0';
+  const c3SubY = fitC3Title.lines.length <= 1 ? cellY + 134 : cellY + 144;
+  ctx.fillText(fitC3Sub.lines[0] || c3Sub, cx3 + 18, c3SubY);
 
-  const pillW3 = 100;
-  drawRoundRect(ctx, cx3 + 18, cellY + cellH - 34, pillW3, 24, 8, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.60)', 1);
-  const fitC3Status = fitTextInBox(ctx, `[ ${c3Status} ]`, pillW3 - 10, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+  const pillW3 = 108;
+  drawRoundRect(ctx, cx3 + 18, cellY + cellH - 38, pillW3, 28, 8, 'rgba(16, 185, 129, 0.20)', 'rgba(16, 185, 129, 0.60)', 1);
+  const fitC3Status = fitTextInBox(ctx, `[ ${c3Status} ]`, pillW3 - 10, 12, '"JetBrains Mono", monospace', '700', { minFontSize: 9.5 });
   ctx.font = `700 ${fitC3Status.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#10B981';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(fitC3Status.lines[0] || `[ ${c3Status} ]`, cx3 + 18 + pillW3 / 2, cellY + cellH - 22);
+  ctx.fillText(fitC3Status.lines[0] || `[ ${c3Status} ]`, cx3 + 18 + pillW3 / 2, cellY + cellH - 24);
+  ctx.restore();
   ctx.restore();
 
   // Bottom Benchmark Banner
@@ -484,10 +471,10 @@ export async function drawLayeredArchitectureStack(
 
   // 3 Stacked Horizontal Tier Cards
   const tierW = cardW - 64;
-  const tierH = 82;
+  const tierH = 92;
   const tierX = cardX + 32;
-  const gap = 16;
-  const startTierY = topY + 74;
+  const gap = 14;
+  const startTierY = topY + 70;
 
   const dNodes = slide.diagramNodes || [];
   const raw1 = dNodes[0];
@@ -528,42 +515,42 @@ export async function drawLayeredArchitectureStack(
     drawRoundRect(ctx, tierX, t.y, 6, tierH, 3, theme.accent);
 
     // Icon badge
-    drawRoundRect(ctx, tierX + 18, t.y + 18, 44, 44, 10, `${theme.accent}20`, `${theme.accent}65`, 1);
+    drawRoundRect(ctx, tierX + 18, t.y + 18, 48, 48, 12, `${theme.accent}20`, `${theme.accent}65`, 1.2);
     const tImg = await loadIconImage(t.icon, theme.accent);
-    safeDrawImage(ctx, tImg, tierX + 27, t.y + 27, 26, 26);
+    safeDrawImage(ctx, tImg, tierX + 28, t.y + 28, 28, 28);
 
     // Typography
     ctx.save();
-    ctx.font = '700 12px "JetBrains Mono", monospace';
+    ctx.font = '700 13px "JetBrains Mono", monospace';
     ctx.fillStyle = theme.accent;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(t.layer, tierX + 76, t.y + 35);
+    ctx.fillText(t.layer, tierX + 80, t.y + 36);
 
     // Right status pill
-    const pW = 120;
-    drawRoundRect(ctx, tierX + tierW - pW - 18, t.y + 26, pW, 28, 8, `${theme.accent}20`, `${theme.accent}65`, 1);
-    const fitPill = fitTextInBox(ctx, t.pill, pW - 12, 11, '"JetBrains Mono", monospace', '700', { minFontSize: 8.5 });
+    const pW = 124;
+    drawRoundRect(ctx, tierX + tierW - pW - 18, t.y + 26, pW, 30, 8, `${theme.accent}20`, `${theme.accent}65`, 1.2);
+    const fitPill = fitTextInBox(ctx, t.pill, pW - 12, 12, '"JetBrains Mono", monospace', '700', { minFontSize: 9.5 });
     ctx.font = `700 ${fitPill.fontSize}px "JetBrains Mono", monospace`;
     ctx.fillStyle = theme.accent;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(fitPill.lines[0] || t.pill, tierX + tierW - pW / 2 - 18, t.y + 40);
+    ctx.fillText(fitPill.lines[0] || t.pill, tierX + tierW - pW / 2 - 18, t.y + 41);
 
-    // Tier Title (auto fits in available horizontal width)
-    const maxTitleW = tierW - 155 - pW - 24;
-    const fitTitle = fitTextInBox(ctx, t.title, maxTitleW, 17, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 11 });
+    // Tier Title: 21px bold (auto fits down to 15px)
+    const maxTitleW = tierW - 165 - pW - 24;
+    const fitTitle = fitTextInBox(ctx, t.title, maxTitleW, 21, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 15 });
     ctx.font = `800 ${fitTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(fitTitle.lines[0] || t.title, tierX + 155, t.y + 35);
+    ctx.fillText(fitTitle.lines[0] || t.title, tierX + 165, t.y + 36);
 
-    // Tier Sublabel (auto fits across lower width)
-    const fitSub = fitTextInBox(ctx, t.sub, tierW - 95, 13, '"JetBrains Mono", monospace', '500', { minFontSize: 9.5 });
-    ctx.font = `500 ${fitSub.fontSize}px "JetBrains Mono", monospace`;
-    ctx.fillStyle = '#94A3B8';
-    ctx.fillText(fitSub.lines[0] || t.sub, tierX + 76, t.y + 60);
+    // Tier Sublabel: 15px high contrast in #E2E8F0
+    const fitSub = fitTextInBox(ctx, t.sub, tierW - 100, 15, '"Plus Jakarta Sans", "JetBrains Mono", sans-serif', '600', { minFontSize: 13 });
+    ctx.font = `600 ${fitSub.fontSize}px "Plus Jakarta Sans", "JetBrains Mono", sans-serif`;
+    ctx.fillStyle = '#E2E8F0';
+    ctx.fillText(fitSub.lines[0] || t.sub, tierX + 80, t.y + 66);
     ctx.restore();
   }
 
