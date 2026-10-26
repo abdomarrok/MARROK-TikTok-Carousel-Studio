@@ -122,7 +122,7 @@ export function buildUserCarouselPrompt(options: {
   safeCategoryHint?: string;
   safeInputMode?: string;
 }): string {
-  let userPromptText = `Generate a dynamic MARROK 5-to-9 slide TikTok carousel, 3 Hook Variants for Slide 1, and 2 Caption Variants from this input.\n`;
+  let userPromptText = `Generate a standard 8-slide MARROK TikTok technical carousel (Spec §7 narrative arc), 3 Hook Variants for Slide 1, and 2 Caption Variants from this input.\n`;
 
   if (options.safeCategoryHint && options.safeCategoryHint !== 'auto') {
     userPromptText += `Preferred Domain Category: ${options.safeCategoryHint}\n`;
@@ -135,14 +135,13 @@ export function buildUserCarouselPrompt(options: {
   }
 
   userPromptText += `\nFollow the MARROK copywriting formula strictly:
-- Dynamically determine slide count (5 to 9 slides): 5 slides for quick tips or single takeaways, 6-7 for technical case studies, 8-9 for deep whitepapers.
-- Slide 1 must be Archetype "hub" with centerIcon, 6 topic-specific satIcons, AND satLabels (6 short technical component names directly from this topic).
-- Provide hookVariants with 3 alternatives for Slide 1 (Curiosity, Hard Metrics, Problem/Contrast).
-- Mid-deck slides must blend varied visual archetypes:
-  - "metric" (Stat Hero Card with huge metricValue, metricLabel, metricDiff, and metricIcon) for benchmarks/throughput wins.
-  - "code" (Terminal Window with codeFileName, codeLanguage, and syntax codeSnippet) for CLI commands, configs, or exploit proofs.
-  - "compare" (Side-by-side comparison with compareLeftTitle, compareLeftBody, compareRightTitle, compareRightBody) for Old Way vs Modern Stack.
-  - "row" (1 to 3 icons with micro-labels) for technical mechanisms.
+- Build an 8-slide technical narrative arc:
+  * Slide 1: Archetype "hub" with centerIcon, 6 topic-specific satIcons, AND satLabels (6 short technical component names directly from this topic).
+  * Slide 2: Archetype "metric" (Stat Hero Card with huge metricValue, metricLabel, metricDiff, and metricIcon) for benchmarks/throughput wins.
+  * Slide 3: Archetype "compare" (Side-by-side comparison with compareLeftTitle, compareLeftBody, compareRightTitle, compareRightBody) for Old Way vs Modern Stack.
+  * Slide 4: Archetype "code" (Terminal Window with codeFileName, codeLanguage, and syntax codeSnippet) for CLI commands, configs, or code.
+  * Slides 5–7: Key architectural insights, memory footprints, and technical mechanisms ("row" diagrams: stack, topology, isolation).
+  * Slide 8: Archetype "cta" with creator/brand watermark, domain question hook, DM us CTA, and bilingual attribution.
 - CRITICAL GRAPHIC REQUIREMENT: Every mechanism slide ("row", etc.) MUST include:
   * diagramVariant: 'topology' | 'stack' | 'isolation' | 'takeaway'
   * diagramNodes: exactly 3 components specific to THIS slide and topic (label, sublabel, status, icon). E.g. for Postgres: ["Client App", "PgBouncer", "Primary DB"]; for Docker: ["Docker Client", "containerd", "Host Kernel"]. NEVER output mTLS or Envoy unless topic is explicitly Zero-Trust security!

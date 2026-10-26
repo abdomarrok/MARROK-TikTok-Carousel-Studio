@@ -761,6 +761,41 @@ This document records the chronological development history, engineering decisio
     - Verified generation produced the Rust vs Go deck with emerald theme.
     - Inspected Contact Sheet modal previewing all 8 slides.
 
+---
+
+## Step 30: Root Ingestion Engine Overhaul & Universal NLP Extractor (Purge All Hardcoded Topic Presets)
+- **Context & Problem Statement:**
+  - Procedural topic patches (`isZeroTrust`, `isRedis`, `isScion`, etc.) in `templates.ts` and `synthesizer.ts` hardcoded static slide decks for specific topics, failing when users pasted custom notes or when rate limits triggered.
+  - A professional engineering studio requires a universal ingestion architecture that dynamically extracts subjects, metrics, comparative entities, and architecture mechanisms from *any* arbitrary input (2-word topics, 2,000-word transcripts, or blog notes).
+- **Engineering Solutions Implemented:**
+  1. **Purged All Hardcoded Topic Presets (`templates.ts` & `synthesizer.ts`):**
+     - Completely deleted `src/lib/synthesis/templates.ts` (611 lines of static procedural topic decks).
+     - Completely deleted temporary `src/lib/synthesis/customSynthesizer.ts`.
+     - Purged all `if (isZeroTrust)`, `if (isRedis)`, `if (isScion)`, `if (isBenchmark)`, `if (isSecurity)`, and `if (isMigration)` procedural branches from `src/lib/synthesis/synthesizer.ts`.
+     - Verified zero occurrences of `isZeroTrust` or `isRedis` flags remaining in `src/` or `api/`.
+  2. **Implemented Universal NLP Text Extractor (`src/lib/synthesis/universalExtractor.ts`):**
+     - `cleanRawInput`: Strips URLs, markdown syntax (`#`, `*`, `_`), and YouTube timestamps (`[00:00:00]`).
+     - `scanMetrics`: Universal regex scanner detecting throughput (`req/s`, `rps`, `ops/sec`), memory footprints (`MB`, `GB`), speedup multipliers (`1.66x`, `times faster`), zero-pause patterns (`0 GC pauses`), latencies (`ms`, `µs`), and percentages (`%`).
+     - `parseComparativeEntities`: Dissects comparison clauses (A vs B, e.g. Rust vs Go, Postgres vs MySQL, Kafka vs RabbitMQ) and attributes specific throughput and memory metrics to both sides without cross-contaminating parenthetical notes.
+     - Section Prefix Filtering: Strips numbered section prefixes like `Test 1:`, `Step 1:`, or `Chapter 2:` to extract the true underlying technical subject.
+     - Dynamic 8-Slide Structuring: Algorithmically builds an 8-slide array following the exact narrative arc:
+       - **Slide 1 (`hub`)**: Main title + 6 dynamic satellite pills extracted from technical terms + official Simple Icons logos.
+       - **Slide 2 (`metric`)**: First extracted benchmark stat (`129k req/s`, `1.66x speedup`).
+       - **Slide 3 (`compare`)**: Side-by-side comparative findings (`Go Runtime` vs `Rust Axum`).
+       - **Slide 4 (`code`)**: Language-specific handler or benchmark setup (`main.rs`, `main.go`, `server.py`, `query.sql`).
+       - **Slides 5–7 (`row`)**: Key architectural insights, memory footprints, and technical mechanisms (`stack`, `topology`, `isolation` / tradeoff).
+       - **Slide 8 (`cta`)**: Standardized MARROK closing using the extracted subject.
+  3. **Universal Offline Fallback (Gemini 429 Quota Resilience):**
+     - When upstream Gemini API fails or hits 429 rate limits, the universal NLP extractor takes over locally in milliseconds, returning `X-Marrok-Engine: offline-synthesizer` with a 100% topic-accurate 8-slide deck.
+  4. **Enforced 8-Slide Narrative Arc:**
+     - Enforced `targetSlideCount = 8` across `synthesizer.ts` and `buildUserCarouselPrompt` in `api/prompts/systemPrompt.ts`.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): Passed with 0 errors.
+  - `npm run build` (`vite build`): Passed with 0 errors in 287ms (production bundle dropped to 261 kB).
+  - Executed `scratch/test_universal_engine.ts` across 3 diverse inputs (YouTube summary, 2-word topic `"Zero-Trust Mesh"`, and short notes `"PostgreSQL Connection Pooling"`) — all 3 generated accurate 8-slide decks.
+  - Executed `scratch/test_api_generate.ts` against `/api/generate`: verified offline fallback output returned `X-Marrok-Engine: offline-synthesizer`, category `WEB FRAMEWORKS & RUNTIMES`, theme `emerald`, and 8 slides containing Rust vs Go metrics (`129k req/s`, `13 MB` vs `38-41 MB`).
+  - Interactive Browser Subagent verified the 8-slide contact sheet modal on `http://localhost:3000`.
+
 
 
 

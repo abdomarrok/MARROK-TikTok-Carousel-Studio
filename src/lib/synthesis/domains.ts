@@ -5,6 +5,7 @@ export interface SynthesisInput {
   imageFileName?: string;
   categoryHint?: string;
   inputMode?: string;
+  targetSlideCount?: number;
 }
 
 export interface DomainRule {

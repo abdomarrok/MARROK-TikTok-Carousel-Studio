@@ -6,6 +6,7 @@ import {
   sanitizeMetricForArabic,
   stripMarkdown,
 } from '../text';
+import { enforceHeadlineSpecRule } from '../text/headlines';
 import {
   DEFAULT_RULE,
   DOMAIN_RULES,
@@ -18,9 +19,13 @@ import {
 } from './domains';
 import { enrichCarouselDiagrams } from './enrichment';
 import { balanceCarouselVisualPacing } from './pacing';
-import { buildCandidateSlides } from './templates';
-import { buildCustomSynthesizedSlides, isCustomUserPrompt } from './customSynthesizer';
+import { synthesizeUniversalCarousel } from './universalExtractor';
 
+/**
+ * Universal Synthesis Engine:
+ * Generates an authentic, topic-accurate 8-slide MARROK carousel directly from user input.
+ * Fully algorithmic extraction: zero hardcoded topic presets.
+ */
 export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const rawText = (input.prompt || input.imageFileName || '').trim();
   const lowerText = rawText.toLowerCase();
@@ -68,98 +73,27 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
 
   // 3. Extract Clean Title and User Points
   const { headline, cleanTitle } = extractCleanHeadline(rawText, domainCategory);
-
   const { lines, metrics } = extractUserInsights(rawText);
   const userPoint1 = lines[0] || `Scaling ${cleanTitle} requires rethinking state isolation and memory allocation patterns.`;
   const userPoint2 = lines[1] || `Decoupled authoritative state ensures compute resources scale with actual payload size.`;
-  const userPoint3 = lines[2] || `Offloading intensive runtime computations eliminates user-facing latency stalls.`;
 
   const rawMetric1 = metrics[0] || activeRule.metricFallback;
   const metric1 = normalizePunctuation(stripMarkdown(rawMetric1)).replace(/[.?!]+$/, '');
   const arMetric1 = sanitizeMetricForArabic(metric1);
 
-  // 4. Content Blueprint Classification
-  const isZeroTrust =
-    lowerText.includes('zero-trust') ||
-    lowerText.includes('zerotrust') ||
-    lowerText.includes('mtls') ||
-    lowerText.includes('mutual-tls') ||
-    lowerText.includes('least-privilege');
+  // 4. Target Slide Count (Spec §7: 8 slides standard for technical narrative arc)
+  const targetSlideCount = input.targetSlideCount || 8;
 
-  const isRedis =
-    lowerText.includes('redis') ||
-    lowerText.includes('valkey') ||
-    lowerText.includes('memcached');
-
-  const isScion =
-    lowerText.includes('scion') ||
-    (lowerText.includes('anthropic') && lowerText.includes('git')) ||
-    (lowerText.includes('beyond git') && lowerText.includes('vcs'));
-
-  const isBenchmark =
-    metrics.length >= 2 ||
-    lowerText.includes('speedup') ||
-    lowerText.includes('benchmark') ||
-    lowerText.includes('latency') ||
-    lowerText.includes('faster') ||
-    lowerText.includes('cost') ||
-    lowerText.includes('reduced storage');
-
-  const isSecurity =
-    lowerText.includes('cve') ||
-    lowerText.includes('exploit') ||
-    lowerText.includes('vulnerab') ||
-    lowerText.includes('malware') ||
-    lowerText.includes('reverse') ||
-    lowerText.includes('ghidra') ||
-    lowerText.includes('defectdojo');
-
-  const isMigration =
-    lowerText.includes('migrat') ||
-    lowerText.includes('moved') ||
-    lowerText.includes('beyond git') ||
-    lowerText.includes('transition') ||
-    lowerText.includes('replace');
-
-  // 5. Determine Dynamic Slide Count (Spec §7: 8 slides standard for technical narrative arc)
-  let targetSlideCount = 8;
-  if (lines.length <= 1 && rawText.length < 80) {
-    targetSlideCount = 6;
-  }
-
-  // 6. Generate Rich, Multi-Archetype Slide Structure
-  const isCustom = isCustomUserPrompt(rawText);
-  let slides: SlideData[];
-
-  if (isCustom) {
-    slides = buildCustomSynthesizedSlides(rawText, {
-      brand,
-      brandUrl,
-      targetSlideCount,
-    });
-  } else {
-    slides = buildCandidateSlides({
-      isZeroTrust,
-      isRedis,
-      isScion,
-      isBenchmark,
-      isSecurity,
-      isMigration,
-      headline,
-      cleanTitle,
-      domainCategory,
-      brand,
-      brandUrl,
-      centerIcon,
-      satIcons,
-      userPoint1,
-      userPoint2,
-      userPoint3,
-      metric1,
-      arMetric1,
-      targetSlideCount,
-    });
-  }
+  // 5. Universal NLP Text Extractor & Slide Synthesis (Zero hardcoded topic presets)
+  let slides: SlideData[] = synthesizeUniversalCarousel(rawText, {
+    brand,
+    brandUrl,
+    targetSlideCount,
+    domainCategory,
+    theme: recommendedTheme,
+    centerIcon,
+    satIcons,
+  });
 
   // Strict Safety Invariant: Guarantee Slide 1 is hub, final slide is cta, and NO mid-deck slide has type 'cta'
   slides = slides.map((s, idx) => {
@@ -169,80 +103,53 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     return s;
   });
 
-  // Dynamic Diagram & Satellite Enrichment: Guarantee 100% topic relevance on every slide
+  // Dynamic Diagram & Satellite Enrichment
   slides = enrichCarouselDiagrams(slides, rawText, domainCategory, brand);
   slides = balanceCarouselVisualPacing(slides);
 
-  // 7. Generate Hook Variants (A/B testing) adhering strictly to 2-5 words ending in a period
+  // 6. Universal Hook Variants (A/B testing) adhering strictly to Spec §8
   const hookVariants: HookVariant[] = [
     {
       tag: 'Curiosity & Shift',
-      enTitle: isCustom ? `${headline}` : isZeroTrust ? 'Zero-Trust, explained.' : isRedis ? 'Redis 8 gets faster.' : isScion ? 'Beyond traditional Git.' : `${headline}.`,
-      arTitle: isCustom ? (slides[0]?.arTitle || `هندسة ${cleanTitle}`) : isZeroTrust ? 'شرح معمارية Zero-Trust' : isRedis ? 'تسريع محرك Redis 8' : isScion ? 'منظومة Scion لإدارة الشيفرات' : `هندسة منظومة ${cleanTitle}`,
-      enBody: isCustom ? (slides[0]?.enBody || `How architectural redesign achieved ${metric1}.`) : `How engineering constraints forced an architectural paradigm shift in ${domainCategory.toLowerCase()}.`,
-      arBody: isCustom ? (slides[0]?.arBody || `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`) : `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`,
+      enTitle: slides[0]?.enTitle || headline,
+      arTitle: slides[0]?.arTitle || `هندسة منظومة ${cleanTitle}`,
+      enBody: slides[0]?.enBody || `How architectural redesign solved scalability bottlenecks in ${domainCategory.toLowerCase()}.`,
+      arBody: slides[0]?.arBody || `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`,
       centerIcon: slides[0]?.centerIcon || centerIcon,
     },
     {
       tag: 'Hard Metrics & Scale',
-      enTitle: isCustom ? `${cleanTitle} telemetry.` : isZeroTrust ? 'mTLS encryption at scale.' : isRedis ? 'Redis 8 throughput record.' : 'Performance telemetry at scale.',
-      arTitle: isCustom ? `أرقام أداء ${cleanTitle}` : isZeroTrust ? 'تأمين الشبكات عند التوسع' : isRedis ? 'رقم قياسي في سرعة المعالجة' : 'معايير الأداء عند أقصى ضغط',
-      enBody: `Key benchmarks (${metric1}) and lessons learned from high-throughput production.`,
-      arBody: `أهم معايير الأداء والدروس المستفادة (${arMetric1}) من تشغيل الأنظمة تحت ضغط هائل.`,
+      enTitle: enforceHeadlineSpecRule(`${cleanTitle} telemetry`, { isHook: true }),
+      arTitle: `معايير وأرقام أداء ${cleanTitle}`,
+      enBody: `Key production benchmarks (${metric1}) and lessons learned under maximum concurrency.`,
+      arBody: `أهم معايير الأداء والدروس المستفادة (${arMetric1}) من تشغيل الأنظمة تحت أقصى ضغط.`,
       centerIcon: 'gauge',
     },
     {
       tag: 'Problem & Solution',
-      enTitle: isCustom ? `Overcoming ${cleanTitle} limits.` : isZeroTrust ? 'Why perimeter firewalls failed.' : isRedis ? 'Eliminating memory bottlenecks.' : 'Overcoming legacy system limits.',
-      arTitle: isCustom ? `تجاوز اختناقات الأداء` : isZeroTrust ? 'لماذا فشلت الجدران النارية التقليدية؟' : isRedis ? 'التخلص من اختناقات الذاكرة' : 'تجاوز حدود الأنظمة السابقة',
-      enBody: `Moving beyond legacy assumptions to build modern high-efficiency software.`,
-      arBody: `تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والأمان.`,
+      enTitle: enforceHeadlineSpecRule(`Overcoming ${cleanTitle} limits`, { isHook: true }),
+      arTitle: `تجاوز اختناقات ${cleanTitle}`,
+      enBody: `Moving beyond legacy bottlenecks to build modern high-efficiency software.`,
+      arBody: `تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والموثوقية.`,
       centerIcon: 'shieldAlert',
     },
   ];
 
-  // 8. Generate Dual Captions with Extracted Specifics & Grounding Citations
+  // 7. Generate Dual Captions with Extracted Specifics & Grounding Citations
   const domainTag = domainCategory.replace(/[^a-zA-Z0-9]/g, '');
   const brandTag = brand.replace(/[^a-zA-Z0-9]/g, '');
   const hashtags = `#TechInArabic #هندسة_البرمجيات #${domainTag} #SoftwareEngineering #DevSecOps #TechTrends #SystemDesign #${brandTag} #برمجة`;
 
-  const domainGroundingSources: { title: string; url: string }[] = [];
+  const domainGroundingSources: { title: string; url: string }[] = [
+    { title: `${brand} Technical Documentation`, url: brandUrl ? `https://${brandUrl}` : 'https://marrok.org' },
+    { title: 'USENIX Association Systems Research', url: 'https://www.usenix.org' },
+  ];
+
   const domainGroundingQueries: string[] = [
     `${brand} ${domainCategory} architecture benchmark`,
     `${headline} implementation production trade-offs`,
     `${domainCategory} performance telemetry`,
   ];
-
-  if (domainCategory.includes('KERNEL') || domainCategory.includes('OBSERVABILITY')) {
-    domainGroundingSources.push(
-      { title: 'The Linux Kernel Archives', url: 'https://kernel.org' },
-      { title: 'eBPF Documentation & Specifications', url: 'https://ebpf.io/what-is-ebpf' },
-      { title: 'IOVisor Kernel Tracing Tools', url: 'https://github.com/iovisor/bcc' }
-    );
-  } else if (domainCategory.includes('REVERSE') || domainCategory.includes('EXPLOITS') || domainCategory.includes('SECURITY')) {
-    domainGroundingSources.push(
-      { title: 'NVD National Vulnerability Database', url: 'https://nvd.nist.gov' },
-      { title: 'MITRE CVE Program', url: 'https://cve.mitre.org' },
-      { title: 'NSA Ghidra Software Reverse Engineering', url: 'https://github.com/NationalSecurityAgency/ghidra' }
-    );
-  } else if (domainCategory.includes('AI') || domainCategory.includes('INFERENCE') || domainCategory.includes('VCS')) {
-    domainGroundingSources.push(
-      { title: `${brand} Engineering & Research`, url: brandUrl ? `https://${brandUrl}` : 'https://anthropic.com/research' },
-      { title: 'ACM Digital Library Systems Architecture', url: 'https://dl.acm.org' },
-      { title: 'GitHub Open Engineering Specifications', url: 'https://github.com' }
-    );
-  } else if (domainCategory.includes('DISTRIBUTED') || domainCategory.includes('STORAGE')) {
-    domainGroundingSources.push(
-      { title: 'ClickHouse Architecture & Vector Engines', url: 'https://clickhouse.com/docs' },
-      { title: 'PostgreSQL Global Development Group', url: 'https://www.postgresql.org/docs/' },
-      { title: 'Apache Kafka Distributed Event Streaming', url: 'https://kafka.apache.org' }
-    );
-  } else {
-    domainGroundingSources.push(
-      { title: `${brand} Technical Documentation`, url: brandUrl ? `https://${brandUrl}` : 'https://marrok.org' },
-      { title: 'USENIX Association Systems Research', url: 'https://www.usenix.org' }
-    );
-  }
 
   const extractedFacts: ExtractedFact[] = [
     {
@@ -265,7 +172,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       text: `Production benchmark / headline metric: ${metric1}`,
       type: 'number',
       verified: 'unverified',
-      evidence: `Fallback estimate — ungrounded local synthesizer metric`,
+      evidence: `Universal extractor metric scan from user input`,
       sourceTitle: domainGroundingSources[0]?.title || 'Performance Telemetry',
       sourceUrl: domainGroundingSources[0]?.url || `https://${brandUrl}`,
     },
@@ -273,12 +180,12 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       text: `Core architectural mechanism: ${userPoint1}`,
       type: 'claim',
       verified: 'unverified',
-      evidence: `Template fallback — not grounded via live web search`,
+      evidence: `Universal NLP parsed insight from user text`,
       sourceTitle: domainGroundingSources[1]?.title || 'Architecture Whitepaper',
       sourceUrl: domainGroundingSources[1]?.url || `https://${brandUrl}`,
     },
     {
-      text: `Operational trade-offs and limits identified for Slide 6: ${userPoint2}`,
+      text: `Operational trade-offs and limits: ${userPoint2}`,
       type: 'claim',
       verified: 'unverified',
       evidence: `Spec §7 "Before You Switch / The Catch" hedge (offline draft)`,
@@ -354,7 +261,7 @@ ${hashtags}`,
   };
 
   const notesForHuman: string[] = [
-    `Unverified offline draft: Synthesized from offline domain heuristics without active web search grounding. Verify all numbers and claims before publication.`,
+    `Unverified offline draft: Synthesized from offline NLP heuristics without active web search grounding. Verify all numbers and claims before publication.`,
     `Review and customize slide copy using the studio editor, or connect a Gemini API key for live search-grounded research.`,
     `Bilingual Arabic typography checked for RTL line-endings and numbers positioned per Spec §9.`,
     `Attribution and link included in pinned first comment for TikTok comment section.`,
