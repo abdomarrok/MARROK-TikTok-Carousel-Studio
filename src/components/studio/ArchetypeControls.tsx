@@ -335,17 +335,51 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {Array.from({ length: 3 }).map((_, nIdx) => {
                 const defaultNodes = [
-                  { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE' },
-                  { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED' },
-                  { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED' },
+                  { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE', icon: 'server' },
+                  { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED', icon: 'cpu' },
+                  { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED', icon: 'database' },
                 ];
                 const node = currentSlide.diagramNodes?.[nIdx] || defaultNodes[nIdx];
+                const nodeIconKey = node.icon || defaultNodes[nIdx].icon || 'server';
+                const nodeIconData = ICONS_REGISTRY[nodeIconKey] || ICONS_REGISTRY.server;
+
                 return (
-                  <div key={nIdx} className="bg-black/50 border border-white/10 rounded-xl p-2.5 space-y-1.5">
+                  <div key={nIdx} className="bg-black/50 border border-white/10 rounded-xl p-2.5 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold font-mono text-slate-400">
-                        Node #{nIdx + 1}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIconPickerState({
+                              isOpen: true,
+                              title: `Select Node #${nIdx + 1} Icon`,
+                              currentIcon: nodeIconKey,
+                              onSelect: (icon) => onUpdateDiagramNode(nIdx, 'icon', icon),
+                            })
+                          }
+                          className="w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 transition-transform hover:scale-110 cursor-pointer"
+                          style={{
+                            borderColor: `${theme.accent}30`,
+                            backgroundColor: `${theme.accent}10`,
+                          }}
+                          title={`Change icon for Node #${nIdx + 1} (${nodeIconData.label})`}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 64 64"
+                            fill="none"
+                            stroke={theme.accent}
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-3.5 h-3.5"
+                            dangerouslySetInnerHTML={{ __html: nodeIconData.svgInner }}
+                          />
+                        </button>
+                        <span className="text-[10px] font-bold font-mono text-slate-400">
+                          Node #{nIdx + 1}
+                        </span>
+                      </div>
                       <input
                         type="text"
                         value={node.status || ''}

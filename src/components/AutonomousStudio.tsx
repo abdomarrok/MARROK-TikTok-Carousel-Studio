@@ -782,9 +782,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   const handleUpdateDiagramNode = (nodeIndex: number, field: keyof DiagramNode, value: string) => {
     const defaultNodes: DiagramNode[] = [
-      { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE' },
-      { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED' },
-      { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED' },
+      { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE', icon: 'server' },
+      { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED', icon: 'cpu' },
+      { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED', icon: 'database' },
     ];
     const existing = currentSlide.diagramNodes && currentSlide.diagramNodes.length >= 3
       ? currentSlide.diagramNodes.map((n) => ({ ...n }))

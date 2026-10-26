@@ -944,6 +944,31 @@ This document records the chronological development history, engineering decisio
   - `npm run build` (`vite build`): Built production bundle in 227ms.
   - Interactive Browser Subagent: Verified icon picker on center hero, selecting Database icon, adding satellite node (6/6), updating Node #1 icon to robot, and dragging the visual archetype card with live HUD offset updates.
 
+## Step 37: Mechanism Schematic Node Vector Icons & Studio UX Polishing
+- **Context & Objectives:**
+  - Address direct user feedback on studio UX and expand vector icon customization to Mechanism (Row) archetype slides.
+  - Eliminate bounding box translation drift, avoid top-edge HUD clipping on canvas, and add backdrop dismiss + Escape key support to the icon picker.
+- **Engineering Solutions Implemented:**
+  1. **Mechanism Schematic Node Icons (`src/components/studio/ArchetypeControls.tsx`):**
+     - Added clickable vector SVG preview buttons next to Node #1, #2, and #3 in the Mechanism schematic editor.
+     - Wired buttons to `IconPickerPopover` to update `node.icon` via `onUpdateDiagramNode(nIdx, 'icon', iconName)`.
+     - Seeded `defaultNodes` with domain icons (`server`, `cpu`, `database`) in `AutonomousStudio.tsx`.
+     - Verified rendering across all 3 diagram layouts (`drawMultiNodeTopologyFlow`, `drawBlastRadiusIsolationGrid`, and `drawLayeredArchitectureStack`).
+  2. **Bounding Box Coordinate Lock (`src/components/studio/ViewportCanvas.tsx`):**
+     - Fixed mathematical coordinate drift by replacing element-relative CSS percentage transforms with locked parent-container offsets: `top: calc(${activeBounds.top} + ${(currentDy / 1920) * 100}%)` and `left: calc(${activeBounds.left} + ${(currentDx / 1080) * 100}%)`.
+     - Bounding box and canvas graphic now move in 100% pixel-perfect synchronization during direct dragging.
+  3. **Canvas Selection Affordance & Anti-Clipping:**
+     - Added a floating selection affordance pill at the bottom of the canvas: `Drag to move • Arrows nudge • Shift=10px`.
+     - Repositioned the HUD coordinate badge safely inside for top-edge elements (`headerBadge`) to avoid `overflow-hidden` clipping.
+  4. **Icon Picker Modal UX (`src/components/studio/IconPickerPopover.tsx`):**
+     - Added backdrop dismiss (`onClick={onClose}`).
+     - Added keyboard `Escape` key event listener.
+     - Added 1-click `Clear search` button in the search field and in the empty state.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): 0 TypeScript errors.
+  - `npm test` (`vitest run`): 10 test suites, 33 tests passed.
+  - `npm run build` (`vite build`): Built production bundle in 256ms.
+
 
 
 
