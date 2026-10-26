@@ -1,5 +1,5 @@
 import { CarouselData, SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts';
-import { wrapTextLines } from '../textLayout.ts';
+import { fitTextInBox, wrapTextLines } from '../textLayout.ts';
 import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
 import { drawMarrokVectorBadge } from '../../icons.ts';
@@ -155,26 +155,33 @@ export async function drawCtaSlide(
   // 4. Brand Wordmark & Domain Hook Badge directly below emblem
   ctx.save();
   const ctaBrand = carousel.brand || 'MARROK';
-  ctx.font = '800 52px "Plus Jakarta Sans", sans-serif';
+  const fitBrand = fitTextInBox(ctx, ctaBrand, 850, 52, '"Plus Jakarta Sans", sans-serif', '800', {
+    minFontSize: 28,
+  });
+  ctx.font = `800 ${fitBrand.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(ctaBrand, 518, 560);
+  ctx.fillText(fitBrand.lines[0] || ctaBrand, 518, 560);
 
   // Accent Divider Line: 90x5 pill
   drawRoundRect(ctx, 518 - 45, 578, 90, 5, 2.5, theme.accent);
 
   // Micro Domain Category Badge
   const ctaCategory = (carousel.category || 'SOFTWARE ARCHITECTURE').toUpperCase();
-  ctx.font = '700 15px "Plus Jakarta Sans", monospace';
-  const catMetrics = ctx.measureText(ctaCategory);
+  const fitCategory = fitTextInBox(ctx, ctaCategory, 568, 15, '"Plus Jakarta Sans", monospace', '700', {
+    minFontSize: 10,
+  });
+  ctx.font = `700 ${fitCategory.fontSize}px "Plus Jakarta Sans", monospace`;
+  const categoryLabel = fitCategory.lines[0] || ctaCategory;
+  const catMetrics = ctx.measureText(categoryLabel);
   const catBadgeW = Math.min(catMetrics.width + 32, 600);
   const catBadgeH = 30;
   drawRoundRect(ctx, 518 - catBadgeW / 2, 602, catBadgeW, catBadgeH, 8, `${theme.accent}14`, `${theme.accent}45`, 1);
   ctx.fillStyle = theme.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(ctaCategory, 518, 602 + catBadgeH / 2);
+  ctx.fillText(categoryLabel, 518, 602 + catBadgeH / 2);
   ctx.restore();
 
   // 5. Domain Question Hook (Pure Read-Only Projection of slide state)
@@ -233,11 +240,14 @@ export async function drawCtaSlide(
   const urlY = pillY + pillH + 52;
 
   ctx.save();
-  ctx.font = '600 32px "JetBrains Mono", monospace';
+  const fitUrl = fitTextInBox(ctx, displayUrl, 780, 32, '"JetBrains Mono", monospace', '600', {
+    minFontSize: 18,
+  });
+  ctx.font = `600 ${fitUrl.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#E2E8EC';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(displayUrl, 518, urlY);
+  ctx.fillText(fitUrl.lines[0] || displayUrl, 518, urlY);
   ctx.restore();
 
   // Bilingual Source Attribution Card container
@@ -267,21 +277,29 @@ export async function drawCtaSlide(
   const enCredit = slide.enCredit || `Verified Technical Analysis // ${carousel.brand || 'MARROK'}`;
   const arCredit = slide.arCredit || `تحليل تقني موثق ومعتمد من منصة ${carousel.brand || 'ماروك'}`;
 
+  const creditMaxWidth = cardX + cardW - textStartX - 22;
+
   ctx.save();
-  ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
+  const fitEnCredit = fitTextInBox(ctx, enCredit, creditMaxWidth, 22, '"Plus Jakarta Sans", sans-serif', '500', {
+    minFontSize: 11,
+  });
+  ctx.font = `500 ${fitEnCredit.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = theme.textMuted;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(enCredit, textStartX, cardY + 40);
+  ctx.fillText(fitEnCredit.lines[0] || enCredit, textStartX, cardY + 40);
   ctx.restore();
 
   ctx.save();
-  ctx.font = '500 22px "Cairo", sans-serif';
+  const fitArCredit = fitTextInBox(ctx, arCredit, creditMaxWidth, 22, '"Cairo", sans-serif', '500', {
+    minFontSize: 11,
+  });
+  ctx.font = `500 ${fitArCredit.fontSize}px "Cairo", sans-serif`;
   ctx.fillStyle = theme.textMuted;
   ctx.textAlign = 'left';
   ctx.direction = 'rtl';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(arCredit, textStartX, cardY + 74);
+  ctx.fillText(fitArCredit.lines[0] || arCredit, textStartX, cardY + 74);
   ctx.restore();
 
   return cardY + cardH;

@@ -1,6 +1,8 @@
 import { SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts';
 import { loadIconImage, drawTintedImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
+import { fitTextInBox } from '../textLayout.ts';
+import { SAFE_CONTENT_CENTER_X, SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT } from '../constants.ts';
 
 /**
  * Archetype 3: Metric Card (Benchmark, Speedup, Resource ROI)
@@ -12,9 +14,9 @@ export async function drawMetricSlide(
   theme: ThemePalette,
   options: VisualSystemOptions
 ): Promise<number> {
-  const cardX = 100;
+  const cardX = SAFE_MARGIN_LEFT;
   const cardY = 240;
-  const cardW = 880;
+  const cardW = SAFE_CONTENT_WIDTH;
   const cardH = 430;
   const radius = 32;
 
@@ -58,27 +60,46 @@ export async function drawMetricSlide(
   drawTintedImage(ctx, iconImg, iconBadgeX + 10, iconBadgeY + 10, 28, 28, theme.accent);
 
   const metricLabel = (slide.metricLabel || 'KEY PERFORMANCE METRIC').toUpperCase();
+  const metricLabelX = iconBadgeX + iconBadgeSize + 16;
   ctx.save();
-  ctx.font = '700 20px "Plus Jakarta Sans", monospace';
+  const fitMetricLabel = fitTextInBox(
+    ctx,
+    metricLabel,
+    cardX + cardW - metricLabelX - 32,
+    20,
+    '"Plus Jakarta Sans", monospace',
+    '700',
+    { minFontSize: 12 }
+  );
+  ctx.font = `700 ${fitMetricLabel.fontSize}px "Plus Jakarta Sans", monospace`;
   ctx.fillStyle = theme.microLabel;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.letterSpacing = '1px';
-  ctx.fillText(metricLabel, iconBadgeX + iconBadgeSize + 16, iconBadgeY + iconBadgeSize / 2);
+  ctx.fillText(fitMetricLabel.lines[0] || metricLabel, metricLabelX, iconBadgeY + iconBadgeSize / 2);
   ctx.restore();
 
   // 5. Giant Hero Metric Value with restrained glow
   const metricVal = slide.metricValue || '10x';
   ctx.save();
   const valFontSize = metricVal.length > 8 ? 86 : metricVal.length > 5 ? 104 : 124;
-  ctx.font = `900 ${valFontSize}px "Plus Jakarta Sans", sans-serif`;
+  const fitMetricVal = fitTextInBox(
+    ctx,
+    metricVal,
+    cardW - 100,
+    valFontSize,
+    '"Plus Jakarta Sans", sans-serif',
+    '900',
+    { minFontSize: 64 }
+  );
+  ctx.font = `900 ${fitMetricVal.fontSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = theme.textWhite;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.shadowColor = `${theme.accent}50`;
   ctx.shadowBlur = 12;
   const heroY = cardY + 175;
-  ctx.fillText(metricVal, 540, heroY);
+  ctx.fillText(fitMetricVal.lines[0] || metricVal, SAFE_CONTENT_CENTER_X, heroY);
   ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
   ctx.restore();
@@ -186,18 +207,28 @@ export async function drawMetricSlide(
   const deltaBorder = isPositive ? 'rgba(16, 185, 129, 0.50)' : isNegative ? 'rgba(244, 63, 94, 0.50)' : `${theme.accent}60`;
 
   ctx.save();
-  ctx.font = '700 23px "Plus Jakarta Sans", monospace';
-  const diffMetrics = ctx.measureText(diffText);
+  const fitDiff = fitTextInBox(
+    ctx,
+    diffText,
+    712,
+    23,
+    '"Plus Jakarta Sans", monospace',
+    '700',
+    { minFontSize: 14 }
+  );
+  ctx.font = `700 ${fitDiff.fontSize}px "Plus Jakarta Sans", monospace`;
+  const diffLabel = fitDiff.lines[0] || diffText;
+  const diffMetrics = ctx.measureText(diffLabel);
   const pillW = Math.min(diffMetrics.width + 48, 760);
   const pillH = 46;
-  const pillX = 540 - pillW / 2;
+  const pillX = SAFE_CONTENT_CENTER_X - pillW / 2;
   const pillY = cardY + cardH - 62;
   drawRoundRect(ctx, pillX, pillY, pillW, pillH, 23, deltaBg, deltaBorder, 1.5);
 
   ctx.fillStyle = deltaAccent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(diffText, 540, pillY + pillH / 2);
+  ctx.fillText(diffLabel, SAFE_CONTENT_CENTER_X, pillY + pillH / 2);
   ctx.restore();
 
   return 670;

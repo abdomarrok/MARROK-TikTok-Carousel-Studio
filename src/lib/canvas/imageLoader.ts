@@ -1,7 +1,77 @@
 import { getIconDataUrl, getIconSvg } from '../icons.ts';
 
-// In-memory image cache for fast re-renders without repeated network round-trips
+// Bounded LRU image cache for fast re-renders without unbounded memory growth.
 export const CANVAS_IMAGE_CACHE = new Map<string, HTMLImageElement>();
+
+const MAX_CACHE_ENTRIES = 80;
+const MAX_CACHE_BYTES = 64 * 1024 * 1024;
+let cacheBytes = 0;
+
+const inFlightIconLoads = new Map<string, Promise<HTMLImageElement>>();
+const inFlightWebLoads = new Map<string, Promise<HTMLImageElement>>();
+
+function estimateImageBytes(img: HTMLImageElement): number {
+  return Math.max(0, img.naturalWidth * img.naturalHeight * 4);
+}
+
+function removeCachedImage(key: string) {
+  const existing = CANVAS_IMAGE_CACHE.get(key);
+  if (!existing) return;
+  cacheBytes = Math.max(0, cacheBytes - estimateImageBytes(existing));
+  CANVAS_IMAGE_CACHE.delete(key);
+}
+
+function getCachedImage(key: string): HTMLImageElement | null {
+  const cached = CANVAS_IMAGE_CACHE.get(key);
+  if (!cached) return null;
+  if (!cached.complete || cached.naturalWidth === 0 || cached.naturalHeight === 0) {
+    removeCachedImage(key);
+    return null;
+  }
+  // Refresh LRU position.
+  CANVAS_IMAGE_CACHE.delete(key);
+  CANVAS_IMAGE_CACHE.set(key, cached);
+  return cached;
+}
+
+function setCachedImage(key: string, img: HTMLImageElement) {
+  if (!img.complete || img.naturalWidth === 0 || img.naturalHeight === 0) return;
+  const bytes = estimateImageBytes(img);
+  if (bytes > MAX_CACHE_BYTES) return;
+
+  removeCachedImage(key);
+  CANVAS_IMAGE_CACHE.set(key, img);
+  cacheBytes += bytes;
+
+  while (CANVAS_IMAGE_CACHE.size > MAX_CACHE_ENTRIES || cacheBytes > MAX_CACHE_BYTES) {
+    const oldestKey = CANVAS_IMAGE_CACHE.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    removeCachedImage(oldestKey);
+  }
+}
+
+function dedupeLoad(
+  map: Map<string, Promise<HTMLImageElement>>,
+  key: string,
+  loader: () => Promise<HTMLImageElement>
+): Promise<HTMLImageElement> {
+  const existing = map.get(key);
+  if (existing) return existing;
+
+  const promise = loader();
+  map.set(key, promise);
+  void promise.finally(() => {
+    if (map.get(key) === promise) map.delete(key);
+  });
+  return promise;
+}
+
+export function resetCanvasImageCache() {
+  CANVAS_IMAGE_CACHE.clear();
+  inFlightIconLoads.clear();
+  inFlightWebLoads.clear();
+  cacheBytes = 0;
+}
 
 /**
  * Creates a guaranteed valid fallback SVG image so canvas operations never crash
@@ -22,57 +92,53 @@ export function createFallbackIcon(strokeColor: string): Promise<HTMLImageElemen
  */
 export function loadIconImage(iconName: string, strokeColor: string): Promise<HTMLImageElement> {
   const url = getIconDataUrl(iconName, strokeColor);
-  if (CANVAS_IMAGE_CACHE.has(url)) {
-    const cached = CANVAS_IMAGE_CACHE.get(url)!;
-    if (cached.complete && cached.naturalWidth > 0) {
-      return Promise.resolve(cached);
-    }
-  }
+  const cached = getCachedImage(url);
+  if (cached) return Promise.resolve(cached);
 
-  return new Promise((resolve) => {
+  return dedupeLoad(inFlightIconLoads, url, () => new Promise((resolve) => {
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const img = new Image();
     // Only set crossOrigin for remote http(s) URLs, never for data: or blob:
     if (!url.startsWith('data:') && !url.startsWith('blob:')) {
       img.crossOrigin = 'anonymous';
     }
 
+    const finish = (result: HTMLImageElement, cache: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (cache) setCachedImage(url, result);
+      resolve(result);
+    };
+
     // Safety timeout: never block canvas render for more than 1000ms
-    const timer = setTimeout(async () => {
+    timer = setTimeout(async () => {
       if (settled) return;
       settled = true;
       console.warn(`Timeout loading icon/image: ${iconName}, falling back to SVG`);
       const fb = await createFallbackIcon(strokeColor);
-      CANVAS_IMAGE_CACHE.set(url, fb);
+      setCachedImage(url, fb);
       resolve(fb);
     }, 1000);
 
-    img.onload = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      CANVAS_IMAGE_CACHE.set(url, img);
-      resolve(img);
-    };
+    img.onload = () => finish(img, true);
 
     img.onerror = async () => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       console.warn(`Failed to load icon/image: ${iconName}, falling back to SVG`);
       const fb = await createFallbackIcon(strokeColor);
-      CANVAS_IMAGE_CACHE.set(url, fb);
+      setCachedImage(url, fb);
       resolve(fb);
     };
 
     img.src = url;
-    if (img.complete && img.naturalWidth > 0 && !settled) {
-      settled = true;
-      clearTimeout(timer);
-      CANVAS_IMAGE_CACHE.set(url, img);
-      resolve(img);
+    if (img.complete && img.naturalWidth > 0) {
+      finish(img, true);
     }
-  });
+  }));
 }
 
 /**
@@ -86,32 +152,44 @@ export function loadWebImage(imageUrl: string, color?: string): Promise<HTMLImag
     safeUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}${colorParam}`;
   }
 
-  if (CANVAS_IMAGE_CACHE.has(safeUrl)) {
-    return Promise.resolve(CANVAS_IMAGE_CACHE.get(safeUrl)!);
-  }
+  const cached = getCachedImage(safeUrl);
+  if (cached) return Promise.resolve(cached);
 
-  return new Promise((resolve) => {
+  return dedupeLoad(inFlightWebLoads, safeUrl, () => new Promise((resolve) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const img = new Image();
     if (!safeUrl.startsWith('data:') && !safeUrl.startsWith('blob:')) {
       img.crossOrigin = 'anonymous';
     }
 
-    const timer = setTimeout(() => {
+    const finish = (cache: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (cache && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setCachedImage(safeUrl, img);
+      }
+      resolve(img);
+    };
+
+    timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      console.warn(`Timeout loading web image: ${imageUrl}`);
       resolve(img);
     }, 1500);
 
-    img.onload = () => {
-      clearTimeout(timer);
-      CANVAS_IMAGE_CACHE.set(safeUrl, img);
-      resolve(img);
-    };
+    img.onload = () => finish(true);
     img.onerror = () => {
-      clearTimeout(timer);
       console.warn(`Failed to load web image: ${imageUrl}`);
-      resolve(img);
+      finish(false);
     };
     img.src = safeUrl;
-  });
+    if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      finish(true);
+    }
+  }));
 }
 
 /**

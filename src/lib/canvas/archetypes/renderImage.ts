@@ -1,6 +1,8 @@
 import { SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts';
 import { loadWebImage, loadIconImage, safeDrawImage, drawTintedImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
+import { fitTextInBox } from '../textLayout.ts';
+import { SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT } from '../constants.ts';
 
 /**
  * Archetype 6: Image / Web Visual Card (Architecture Diagram, Hero Illustration, or Web Photo)
@@ -12,9 +14,9 @@ export async function drawImageSlide(
   theme: ThemePalette,
   _options: VisualSystemOptions
 ): Promise<number> {
-  const cardX = 100;
+  const cardX = SAFE_MARGIN_LEFT;
   const cardY = 240;
-  const cardW = 880;
+  const cardW = SAFE_CONTENT_WIDTH;
   const cardH = 430;
   const radius = 32;
 
@@ -141,11 +143,21 @@ export async function drawImageSlide(
   } else {
     ctx.save();
     const pIcon = await loadIconImage('codeFile', theme.accent);
-    safeDrawImage(ctx, pIcon, 540 - 36, cardY + 140, 72, 72);
-    ctx.font = '600 24px "Plus Jakarta Sans", sans-serif';
+    const centerX = cardX + cardW / 2;
+    safeDrawImage(ctx, pIcon, centerX - 36, cardY + 140, 72, 72);
+    const placeholder = fitTextInBox(
+      ctx,
+      'Select or search an image from the web in the Slide Editor',
+      cardW - 80,
+      24,
+      '"Plus Jakarta Sans", sans-serif',
+      '600',
+      { minFontSize: 14 }
+    );
+    ctx.font = `600 ${placeholder.fontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.fillStyle = theme.textMuted;
     ctx.textAlign = 'center';
-    ctx.fillText('Select or search an image from the web in the Slide Editor', 540, cardY + 260);
+    ctx.fillText(placeholder.lines[0] || 'Select or search an image from the web in the Slide Editor', centerX, cardY + 260);
     ctx.restore();
   }
   ctx.restore(); // End clipping
@@ -164,9 +176,19 @@ export async function drawImageSlide(
   if (slide.imageCaption) {
     ctx.save();
     const badgeText = slide.imageCaption.toUpperCase();
-    ctx.font = '700 20px "Plus Jakarta Sans", monospace';
-    const bMetrics = ctx.measureText(badgeText);
-    const bW = Math.min(bMetrics.width + 36, 760);
+    const maxBadgeW = Math.min(760, cardW - 48);
+    const fitCaption = fitTextInBox(
+      ctx,
+      badgeText,
+      maxBadgeW - 36,
+      20,
+      '"Plus Jakarta Sans", monospace',
+      '700',
+      { minFontSize: 12 }
+    );
+    ctx.font = `700 ${fitCaption.fontSize}px "Plus Jakarta Sans", monospace`;
+    const captionText = fitCaption.lines[0] || badgeText;
+    const bW = Math.min(ctx.measureText(captionText).width + 36, maxBadgeW);
     const bH = 40;
     const bX = cardX + 24;
     const bY = cardY + cardH - 54;
@@ -175,7 +197,7 @@ export async function drawImageSlide(
     ctx.fillStyle = theme.accent;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(badgeText, bX + 18, bY + bH / 2);
+    ctx.fillText(captionText, bX + 18, bY + bH / 2);
     ctx.restore();
   }
 

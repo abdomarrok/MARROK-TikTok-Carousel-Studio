@@ -2,6 +2,7 @@ import { SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts'
 import { fitTextInBox } from '../textLayout.ts';
 import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
+import { SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT } from '../constants.ts';
 
 /**
  * Visual Variant 1: Multi-Node Architecture Topology Flow
@@ -15,8 +16,8 @@ export async function drawMultiNodeTopologyFlow(
   _options: VisualSystemOptions,
   topY: number = 240
 ): Promise<number> {
-  const cardX = 100;
-  const cardW = 880;
+  const cardX = SAFE_MARGIN_LEFT;
+  const cardW = SAFE_CONTENT_WIDTH;
   const cardH = 430;
   const radius = 28;
 
@@ -216,8 +217,8 @@ export async function drawBlastRadiusIsolationGrid(
   _options: VisualSystemOptions,
   topY: number = 240
 ): Promise<number> {
-  const cardX = 100;
-  const cardW = 880;
+  const cardX = SAFE_MARGIN_LEFT;
+  const cardW = SAFE_CONTENT_WIDTH;
   const cardH = 430;
   const radius = 28;
 
@@ -444,8 +445,8 @@ export async function drawLayeredArchitectureStack(
   _options: VisualSystemOptions,
   topY: number = 240
 ): Promise<number> {
-  const cardX = 100;
-  const cardW = 880;
+  const cardX = SAFE_MARGIN_LEFT;
+  const cardW = SAFE_CONTENT_WIDTH;
   const cardH = 430;
   const radius = 28;
 
@@ -581,8 +582,8 @@ export async function drawKeyTakeawayCard(
   _options: VisualSystemOptions,
   topY: number = 240
 ): Promise<number> {
-  const cardX = 100;
-  const cardW = 880;
+  const cardX = SAFE_MARGIN_LEFT;
+  const cardW = SAFE_CONTENT_WIDTH;
   const cardH = 430;
   const radius = 28;
 

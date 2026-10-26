@@ -32,6 +32,150 @@ export interface ExtractedEntities {
   rightLogo?: string;
 }
 
+const GO_LANGUAGE_PATTERN =
+  /\b(?:golang|gin|goroutine(?:s)?|go\s+(?:runtime|server|http|lang(?:uage)?|channels?|scheduler|gc|garbage\s+collector|modules?|1\.\d+))\b|\bgo\b(?=\s*(?:vs\.?|versus|performance|benchmark|web\s*api|api\b))/i;
+
+const COMPARISON_SEPARATOR =
+  /\s+(?:vs\.?|versus|compared\s+(?:to|with)|against|faster\s+than|slower\s+than|better\s+than)\s+/i;
+
+const ENTITY_STOP_WORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'from',
+  'that',
+  'this',
+  'using',
+  'under',
+  'over',
+  'into',
+  'than',
+  'benchmark',
+  'benchmarks',
+  'performance',
+  'throughput',
+  'latency',
+  'comparison',
+  'results',
+  'report',
+  'system',
+  'systems',
+  'architecture',
+]);
+
+export function mentionsGoLanguage(text: string): boolean {
+  return GO_LANGUAGE_PATTERN.test(text);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeComparisonName(candidate: string): string {
+  let name = candidate.trim();
+  if (!name) return '';
+
+  const colonIndex = name.indexOf(':');
+  if (colonIndex >= 0) {
+    const beforeColon = name.slice(0, colonIndex).trim();
+    const afterColon = name.slice(colonIndex + 1).trim();
+    name = /^(?:benchmark(?:ing)?|comparison|results?|test(?:ing)?|throughput|performance|metrics?)\b/i.test(
+      beforeColon
+    )
+      ? afterColon
+      : beforeColon;
+  }
+
+  name = name
+    .replace(/^(?:comparing|comparison\s+of|benchmark(?:ing)?\s+of|performance\s+of|test(?:ing)?\s+of)\s+/i, '')
+    .replace(/^(?:the|a|an)\s+/i, '')
+    .replace(/[\u2013\u2014]/g, '-')
+    .trim();
+
+  const cleanedWords = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((word) => {
+      const bare = word.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, '');
+      if (!bare) return false;
+      if (/^(?:faster|slower|better|worse|achieves?|achieved|hit|hits|reached|reaches|than)$/i.test(bare)) {
+        return false;
+      }
+      return !(/\d/.test(bare) && /(?:x|%|ms|us|µs|s|kb|mb|gb|tb|k|m|b)$/i.test(bare));
+    });
+
+  name = cleanedWords.join(' ');
+  name = name.split(/\s+(?:with|using|at|under|when|while|whereas|on|for)\s+/i)[0];
+  name = name.replace(/^[\s,;:./-]+|[\s,;:./-]+$/g, '').trim();
+
+  const words = name.split(/\s+/).filter(Boolean);
+  while (
+    words.length > 0 &&
+    /^(?:benchmarks?|benchmarking|performance|throughput|latency|comparison|results?|report|testing|tests?)$/i.test(
+      words[words.length - 1]
+    )
+  ) {
+    words.pop();
+  }
+  if (words.length > 6) words.length = 6;
+  return words.join(' ');
+}
+
+function tokenizeEntity(name: string): string[] {
+  return name
+    .toLowerCase()
+    .split(/[^a-z0-9.+#]+/)
+    .map((token) => token.replace(/^[.+#]+|[.+#]+$/g, ''))
+    .filter((token) => token.length >= 2 && !ENTITY_STOP_WORDS.has(token));
+}
+
+function entityMentionedInClause(name: string, clause: string): boolean {
+  const tokens = tokenizeEntity(name);
+  const clauseTokens = tokenizeEntity(clause);
+  if (tokens.length === 0 || clauseTokens.length === 0) return false;
+
+  return tokens.some((token) =>
+    clauseTokens.some(
+      (clauseToken) =>
+        clauseToken === token ||
+        (token.length >= 5 &&
+          clauseToken.length >= 5 &&
+          (clauseToken.startsWith(token) || token.startsWith(clauseToken)))
+    )
+  );
+}
+
+function canonicalizeEntity(name: string, rawText: string): string {
+  const lower = name.toLowerCase();
+
+  if (/\b(?:rust|actix|axum)\b/i.test(lower)) {
+    return /actix/i.test(rawText) ? 'Rust Actix-web' : /axum/i.test(rawText) ? 'Rust Axum' : 'Rust Engine';
+  }
+  if (mentionsGoLanguage(lower) || /\bgin\b/i.test(lower)) {
+    return /\bgin\b/i.test(rawText) ? 'Go Gin API' : 'Go Runtime';
+  }
+  if (/\bpostgres(?:ql)?\b/i.test(lower)) return 'PostgreSQL';
+  if (/\bmysql\b/i.test(lower)) return 'MySQL Stack';
+  if (/\bkafka\b/i.test(lower)) return 'Apache Kafka';
+  if (/\brabbitmq\b/i.test(lower)) return 'RabbitMQ Queue';
+  if (/\bvalkey\b/i.test(lower)) return 'Valkey';
+  if (/\bredis\b/i.test(lower)) return 'Redis';
+  if (/\bmemcached\b/i.test(lower)) return 'Memcached';
+  if (/\bpython|fastapi|django\b/i.test(lower)) return 'Python Stack';
+  if (/\bnode(?:js)?\b/i.test(lower)) return 'Node.js Runtime';
+  if (/\bbun\b/i.test(lower)) return 'Bun Runtime';
+
+  return name;
+}
+
+function formatMetricBullet(metric: ExtractedMetric): string {
+  if (metric.type === 'throughput') return `• ${metric.value} throughput`;
+  if (metric.type === 'memory') return `• ${metric.value} memory footprint`;
+  if (metric.type === 'latency') return `• ${metric.value} latency`;
+  return `• ${metric.value}`;
+}
+
 export function trimSlides(candidates: SlideData[], count: number): SlideData[] {
   if (candidates.length <= count) return candidates;
   const first = candidates[0];
@@ -50,8 +194,15 @@ export function resolveTechLogo(name: string): string | undefined {
   if (KNOWN_TECH_LOGOS[lower]) {
     return KNOWN_TECH_LOGOS[lower];
   }
+
+  const words = name.toLowerCase().split(/[^a-z0-9.+#]+/).filter(Boolean);
+  for (const word of words) {
+    const direct = KNOWN_TECH_LOGOS[word.replace(/[.+#]/g, '')];
+    if (direct) return direct;
+  }
+
   for (const [k, url] of Object.entries(KNOWN_TECH_LOGOS)) {
-    if (lower === k || (k.length >= 3 && lower.includes(k))) {
+    if (lower === k || (k.length >= 4 && lower.includes(k))) {
       return url;
     }
   }
@@ -71,7 +222,7 @@ export function cleanRawInput(raw: string): { cleaned: string; lines: string[]; 
 
   const lines = cleaned
     .split(/[\r\n]+/)
-    .map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim())
+    .map((l) => l.replace(/^\s*(?:[-*•]+|\d{1,3}[.)])\s+/, '').trim())
     .filter((l) => l.length > 5);
 
   const paragraphs = cleaned
@@ -168,45 +319,64 @@ export function scanMetrics(text: string): ExtractedMetric[] {
  * Dissects comparison clauses (A vs B, Modern vs Legacy) and attributes facts/metrics to both sides.
  */
 export function parseComparativeEntities(rawText: string, metrics: ExtractedMetric[]): ExtractedEntities {
-  const vsMatch = rawText.match(/([a-zA-Z0-9_ -]{2,35})\s+(?:vs\.?|versus|compared\s+to|against)\s+([a-zA-Z0-9_ -]{2,35})/i);
+  const sentences = rawText
+    .replace(/https?:\/\/\S+/g, '')
+    .split(/[\r\n]+|(?<=[a-zA-Z0-9)\]])\.\s+/g)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
 
   let leftName = '';
   let rightName = '';
+  const leftSegments: string[] = [];
+  const rightSegments: string[] = [];
 
-  if (vsMatch) {
-    const t1 = vsMatch[1].trim().replace(/^(?:comparing|benchmark\s+of|performance\s+of)\s+/i, '');
-    const t2 = vsMatch[2].trim().split(/[:,\n.]/)[0].trim();
-
-    // If text mentions Rust and Go, assign baseline (Go) to left, challenger/faster (Rust) to right
-    if (/\brust\b/i.test(t1) && /\bgo\b/i.test(t2)) {
-      leftName = /gin/i.test(rawText) ? 'Go Gin API' : 'Go Runtime';
-      rightName = /actix/i.test(rawText) ? 'Rust Actix-web' : /axum/i.test(rawText) ? 'Rust Axum' : 'Rust Engine';
-    } else if (/\bgo\b/i.test(t1) && /\brust\b/i.test(t2)) {
-      leftName = /gin/i.test(rawText) ? 'Go Gin API' : 'Go Runtime';
-      rightName = /actix/i.test(rawText) ? 'Rust Actix-web' : /axum/i.test(rawText) ? 'Rust Axum' : 'Rust Engine';
-    } else {
-      leftName = t1;
-      rightName = t2;
+  for (const sentence of sentences) {
+    const comparedLead = sentence.match(/^compared\s+(?:to|with)\s+(.+?)(?:,|;|:)\s*(.+)$/i);
+    if (comparedLead?.[1] && comparedLead[2]) {
+      const leftCandidate = normalizeComparisonName(comparedLead[1]);
+      const rightCandidate = normalizeComparisonName(comparedLead[2]);
+      if (!leftName && leftCandidate) leftName = leftCandidate;
+      if (!rightName && rightCandidate) rightName = rightCandidate;
+      leftSegments.push(comparedLead[1]);
+      rightSegments.push(comparedLead[2]);
+      continue;
     }
-  } else {
-    // Check known tech pairs
-    if (/\b(rust|actix|axum)\b/i.test(rawText) && /\b(go|gin|golang)\b/i.test(rawText)) {
+
+    const parts = sentence.split(COMPARISON_SEPARATOR);
+    if (parts.length >= 2) {
+      const leftPart = parts[0];
+      const rightPart = parts.slice(1).join(' ');
+      const leftCandidate = normalizeComparisonName(leftPart);
+      const rightCandidate = normalizeComparisonName(rightPart);
+
+      if (!leftName && leftCandidate) leftName = leftCandidate;
+      if (!rightName && rightCandidate) rightName = rightCandidate;
+      if (!leftPart.includes(':')) leftSegments.push(leftPart);
+      if (!rightPart.includes(':')) rightSegments.push(rightPart);
+    }
+  }
+
+  if (!leftName || !rightName) {
+    if (/\b(?:rust|actix|axum)\b/i.test(rawText) && mentionsGoLanguage(rawText)) {
       leftName = /gin/i.test(rawText) ? 'Go Gin API' : 'Go Runtime';
-      rightName = /actix/i.test(rawText) ? 'Rust Actix-web' : /axum/i.test(rawText) ? 'Rust Axum' : 'Rust Engine';
-    } else if (/\bpostgres\b/i.test(rawText) && /\bmysql\b/i.test(rawText)) {
+      rightName = /\bactix\b/i.test(rawText) ? 'Rust Actix-web' : /\baxum\b/i.test(rawText) ? 'Rust Axum' : 'Rust Engine';
+    } else if (/\bpostgres(?:ql)?\b/i.test(rawText) && /\bmysql\b/i.test(rawText)) {
       leftName = 'MySQL Stack';
       rightName = 'PostgreSQL';
     } else if (/\bkafka\b/i.test(rawText) && /\brabbitmq\b/i.test(rawText)) {
       leftName = 'RabbitMQ Queue';
       rightName = 'Apache Kafka';
-    } else if (/\b(redis|valkey)\b/i.test(rawText) && /\bmemcached\b/i.test(rawText)) {
+    } else if (/\b(?:redis|valkey)\b/i.test(rawText) && /\bmemcached\b/i.test(rawText)) {
       leftName = 'Memcached';
-      rightName = 'Redis / Valkey';
+      rightName = /\bvalkey\b/i.test(rawText) ? 'Valkey' : 'Redis';
     }
   }
 
   const isComparative = Boolean(leftName && rightName);
-  if (!isComparative) {
+  if (isComparative) {
+    leftName = canonicalizeEntity(leftName, rawText);
+    rightName = canonicalizeEntity(rightName, rawText);
+  } else {
     // Single system optimization: Modern vs Legacy baseline
     leftName = 'Legacy Architecture';
     rightName = 'Modern System Design';
@@ -214,47 +384,52 @@ export function parseComparativeEntities(rawText: string, metrics: ExtractedMetr
 
   const leftBullets: string[] = [];
   const rightBullets: string[] = [];
+  const pushMetric = (target: string[], metric: ExtractedMetric) => {
+    if (target.length >= 3) return;
+    const bullet = formatMetricBullet(metric);
+    if (!target.includes(bullet)) target.push(bullet);
+  };
 
-  // Split into independent clauses without breaking decimals
-  const rawSegments: string[] = [];
-  const sentences = rawText
-    .replace(/https?:\/\/\S+/g, '')
-    .split(/[\r\n]+|(?<=[a-zA-Z0-9)\]])\.\s+/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  for (const sentence of sentences) {
-    if (/\b(?:vs\.?|versus)\b/i.test(sentence) && !sentence.includes(':')) {
-      const parts = sentence.split(/\b(?:vs\.?|versus)\b/i);
-      rawSegments.push(...parts.map((p) => p.trim()).filter(Boolean));
-    } else if (sentence.includes(':')) {
-      const afterColon = sentence.split(':')[1]?.trim();
-      if (afterColon) {
-        rawSegments.push(...afterColon.split(/[(),;]+|\bwhile\b|\bwhereas\b/i).map((s) => s.trim()).filter(Boolean));
-      }
-    } else {
-      rawSegments.push(...sentence.split(/[(),;]+|\bwhile\b|\bwhereas\b/i).map((s) => s.trim()).filter(Boolean));
-    }
+  for (const segment of leftSegments) {
+    for (const metric of scanMetrics(segment)) pushMetric(leftBullets, metric);
+  }
+  for (const segment of rightSegments) {
+    for (const metric of scanMetrics(segment)) pushMetric(rightBullets, metric);
   }
 
-  for (const clause of rawSegments) {
-    const isLeft = /\b(go|gin|golang|python|fastapi|node|mysql|rabbitmq|baseline|legacy|standard)\b/i.test(clause);
-    const isRight = /\b(rust|actix|axum|bun|postgres|kafka|optimized|challenger|fast)\b/i.test(clause);
+  for (const sentence of sentences) {
+    const colonIndex = sentence.indexOf(':');
+    if (colonIndex >= 0) {
+      const heading = sentence.slice(0, colonIndex);
+      const headingIsLeft = entityMentionedInClause(leftName, heading);
+      const headingIsRight = entityMentionedInClause(rightName, heading);
+      const headingSide = headingIsLeft !== headingIsRight ? (headingIsLeft ? leftBullets : rightBullets) : null;
 
-    const metricsInClause = scanMetrics(clause);
-    if (metricsInClause.length > 0) {
-      for (const m of metricsInClause) {
-        if (m.type === 'throughput') {
-          if (isRight && !isLeft && rightBullets.length < 3) rightBullets.push(`• ${m.value} throughput`);
-          else if (isLeft && !isRight && leftBullets.length < 3) leftBullets.push(`• ${m.value} throughput`);
-        } else if (m.type === 'memory') {
-          if (isRight && !isLeft && rightBullets.length < 3) rightBullets.push(`• ${m.value} memory footprint`);
-          else if (isLeft && !isRight && leftBullets.length < 3) leftBullets.push(`• ${m.value} memory footprint`);
-        } else if (m.type === 'latency') {
-          const formatted = /pause|overhead|latency/i.test(m.value) ? m.value : `${m.value} latency`;
-          if (isRight && !isLeft && rightBullets.length < 3) rightBullets.push(`• ${formatted}`);
-          else if (isLeft && !isRight && leftBullets.length < 3) leftBullets.push(`• ${formatted}`);
-        }
+      const bodyClauses = sentence
+        .slice(colonIndex + 1)
+        .split(/[(),;]+|\bwhile\b|\bwhereas\b/i)
+        .map((clause) => clause.trim())
+        .filter(Boolean);
+
+      for (const clause of bodyClauses) {
+        const isLeft = entityMentionedInClause(leftName, clause);
+        const isRight = entityMentionedInClause(rightName, clause);
+        const target = isLeft !== isRight ? (isLeft ? leftBullets : rightBullets) : headingSide;
+        if (!target) continue;
+        for (const metric of scanMetrics(clause)) pushMetric(target, metric);
+      }
+      continue;
+    }
+
+    const clauses = sentence.split(/[(),;]+|\bwhile\b|\bwhereas\b/i).map((clause) => clause.trim());
+    for (const clause of clauses) {
+      if (!clause) continue;
+      const isLeft = entityMentionedInClause(leftName, clause);
+      const isRight = entityMentionedInClause(rightName, clause);
+      if (isLeft === isRight) continue;
+
+      for (const metric of scanMetrics(clause)) {
+        pushMetric(isLeft ? leftBullets : rightBullets, metric);
       }
     }
   }
@@ -268,8 +443,8 @@ export function parseComparativeEntities(rawText: string, metrics: ExtractedMetr
   if (rightBullets.length === 0) {
     const topMetric = metrics[0]?.value || 'Measurable throughput win';
     rightBullets.push(`• ${topMetric}`);
-    rightBullets.push('• Zero-cost abstractions');
-    rightBullets.push('• Minimal resource consumption');
+    rightBullets.push('• Optimized execution path');
+    rightBullets.push('• Lower resource consumption');
   }
 
   return {
@@ -377,7 +552,7 @@ export function synthesizeUniversalCarousel(rawInput: string, options: Universal
 
   // 7. Extract Code Snippet & Language
   const isRust = /\b(rust|actix|axum|cargo)\b/i.test(cleaned);
-  const isGo = /\b(go|golang|gin|goroutine)\b/i.test(cleaned);
+  const isGo = mentionsGoLanguage(cleaned);
   const isPython = /\b(python|fastapi|django)\b/i.test(cleaned);
   const isSql = /\b(sql|postgres|mysql|query|select|table)\b/i.test(cleaned);
 

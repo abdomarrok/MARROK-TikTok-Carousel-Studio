@@ -13,6 +13,8 @@ import {
   buildUserCarouselPrompt,
 } from '../prompts/systemPrompt.ts';
 import { CAROUSEL_RESPONSE_SCHEMA } from '../prompts/responseSchema.ts';
+import { parseCarouselData } from '../../src/lib/validation/carousel.ts';
+import { parseImageDataUrl, parseRawBase64Image } from '../../src/lib/validation/image.ts';
 
 type GeminiPart =
   | { text: string }
@@ -61,6 +63,23 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
   const safePrompt = combinedPrompt.slice(0, 50000);
   const safeImageName = typeof imageName === 'string' ? imageName.slice(0, 200) : '';
 
+  let imagePayload: { mimeType: string; base64: string } | null = null;
+  if (typeof imageBase64 === 'string' && imageBase64.length > 0) {
+    if (/^data:/i.test(imageBase64)) {
+      const parsedDataUrl = parseImageDataUrl(imageBase64);
+      if (!parsedDataUrl) {
+        return res.status(400).json({ error: 'Uploaded image data URL is invalid or too large.' });
+      }
+      imagePayload = { mimeType: parsedDataUrl.mimeType, base64: parsedDataUrl.base64 };
+    } else {
+      const parsedBase64 = parseRawBase64Image(imageBase64, safeMimeType);
+      if (!parsedBase64) {
+        return res.status(400).json({ error: 'Uploaded image payload is invalid or too large.' });
+      }
+      imagePayload = parsedBase64;
+    }
+  }
+
   // Source Material Check: Pasted notes, transcripts, or code (>200 chars) already contain the ground truth
   const isLongInput = safePrompt.length > 200;
 
@@ -68,12 +87,11 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     const parts: GeminiPart[] = [];
 
     // If an image was uploaded, attach it as inlineData
-    if (typeof imageBase64 === 'string' && imageBase64.length > 0) {
-      const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
+    if (imagePayload) {
       parts.push({
         inlineData: {
-          mimeType: safeMimeType,
-          data: cleanBase64,
+          mimeType: imagePayload.mimeType,
+          data: imagePayload.base64,
         },
       });
     }
@@ -105,33 +123,30 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
       for (const model of CANDIDATE_GENERATION_MODELS) {
         // Attempt A: Google Search Grounding ONLY for short inputs (< 200 chars)
         if (!isLongInput) {
+          const searchController = new AbortController();
+          const searchTimer = setTimeout(() => searchController.abort(), 12000);
           try {
             console.log(`[AI-Gateway] Trying grounded model ${model} (${isCustom ? 'custom key' : 'system key'})...`);
-            const searchTimeout = new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error(`Timeout: ${model} search threshold exceeded`)), 12000)
-            );
 
-            const response = await Promise.race([
-              activeAi.models.generateContent({
-                model,
-                contents: { parts },
-                config: {
-                  systemInstruction: MARROK_SYSTEM_PROMPT,
-                  temperature: 0.2,
-                  tools: [{ googleSearch: {} }],
-                  responseMimeType: 'application/json',
-                  responseSchema: CAROUSEL_RESPONSE_SCHEMA,
-                },
-              }),
-              searchTimeout,
-            ]);
+            const response = await activeAi.models.generateContent({
+              model,
+              contents: { parts },
+              config: {
+                systemInstruction: MARROK_SYSTEM_PROMPT,
+                temperature: 0.2,
+                tools: [{ googleSearch: {} }],
+                responseMimeType: 'application/json',
+                responseSchema: CAROUSEL_RESPONSE_SCHEMA,
+                abortSignal: searchController.signal,
+              },
+            });
 
             const rawText = response.text;
             if (rawText) {
               const cleanText = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-              jsonResult = JSON.parse(cleanText) as CarouselData;
+              const parsed = parseCarouselData(JSON.parse(cleanText), { minSlides: 3, requireSlideContent: true });
 
-              if (jsonResult) {
+              if (parsed) {
                 const groundingMeta = response.candidates?.[0]?.groundingMetadata;
                 const searchQueries: string[] = (groundingMeta?.webSearchQueries as string[]) || [];
                 const groundingChunks = (groundingMeta?.groundingChunks as Array<{ web?: { uri?: string; title?: string } }>) || [];
@@ -148,10 +163,11 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
                   }
                 }
 
-                if (!jsonResult.sourceMeta) jsonResult.sourceMeta = {};
-                jsonResult.sourceMeta.isSearchGrounded = webSources.length > 0 || searchQueries.length > 0;
-                if (searchQueries.length > 0) jsonResult.sourceMeta.groundingQueries = searchQueries;
-                if (webSources.length > 0) jsonResult.sourceMeta.groundingSources = webSources;
+                parsed.sourceMeta = parsed.sourceMeta || {};
+                parsed.sourceMeta.isSearchGrounded = webSources.length > 0 || searchQueries.length > 0;
+                if (searchQueries.length > 0) parsed.sourceMeta.groundingQueries = searchQueries;
+                if (webSources.length > 0) parsed.sourceMeta.groundingSources = webSources;
+                jsonResult = parsed;
                 successfulModel = model;
                 break keyLoop;
               }
@@ -159,43 +175,46 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
           } catch (groundingErr: unknown) {
             const errMsg = groundingErr instanceof Error ? groundingErr.message : String(groundingErr);
             console.warn(`[AI-Gateway] Grounding failed on ${model}: ${sanitizeLogText(errMsg, key).slice(0, 100)}. Falling back to direct LLM...`);
+          } finally {
+            clearTimeout(searchTimer);
           }
         }
 
         // Attempt B: Direct LLM Schema Generation (Zero Search Quota Wasted)
+        const directController = new AbortController();
+        const directTimer = setTimeout(() => directController.abort(), 15000);
         try {
           console.log(`[AI-Gateway] Calling direct LLM schema mode: ${model} (${isCustom ? 'custom key' : 'system key'})...`);
-          const directTimeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`Timeout: ${model} direct threshold exceeded`)), 15000)
-          );
 
-          const directResponse = await Promise.race([
-            activeAi.models.generateContent({
-              model,
-              contents: { parts },
-              config: {
-                systemInstruction: MARROK_SYSTEM_PROMPT,
-                temperature: 0.2,
-                responseMimeType: 'application/json',
-                responseSchema: CAROUSEL_RESPONSE_SCHEMA,
-              },
-            }),
-            directTimeout,
-          ]);
+          const directResponse = await activeAi.models.generateContent({
+            model,
+            contents: { parts },
+            config: {
+              systemInstruction: MARROK_SYSTEM_PROMPT,
+              temperature: 0.2,
+              responseMimeType: 'application/json',
+              responseSchema: CAROUSEL_RESPONSE_SCHEMA,
+              abortSignal: directController.signal,
+            },
+          });
 
           const directText = directResponse.text;
           if (directText) {
             const cleanText = directText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-            jsonResult = JSON.parse(cleanText) as CarouselData;
-            if (jsonResult && Array.isArray(jsonResult.slides) && jsonResult.slides.length > 0) {
+            const parsed = parseCarouselData(JSON.parse(cleanText), { minSlides: 3, requireSlideContent: true });
+            if (parsed) {
+              jsonResult = parsed;
               successfulModel = model;
               console.log(`[AI-Gateway] Successfully generated 100% authentic carousel with model ${model} (direct LLM mode)`);
               break keyLoop;
             }
+            console.warn(`[AI-Gateway] Model ${model} returned an invalid carousel payload. Cascading to next candidate...`);
           }
         } catch (directErr: unknown) {
           const directMsg = directErr instanceof Error ? directErr.message : String(directErr);
           console.warn(`[AI-Gateway] Model ${model} failed (${sanitizeLogText(directMsg, key).slice(0, 100)}). Cascading to next candidate...`);
+        } finally {
+          clearTimeout(directTimer);
         }
       }
     }

@@ -246,7 +246,7 @@ export function extractDynamicIcons(lowerText: string, fallbackBase: string[]): 
 export function extractUserInsights(rawText: string): { lines: string[]; metrics: string[] } {
   const lines = rawText
     .split(/[\r\n]+/)
-    .map((l) => l.replace(/^[-*•\d.)\s]+/, '').trim())
+    .map((l) => l.replace(/^\s*(?:[-*•]+|\d{1,3}[.)])\s+/, '').trim())
     .filter((l) => l.length > 15 && !l.startsWith('http'));
 
   // Extract explicit metrics (e.g. 50x, 25%, 100GB, 25M, 30ms, $50k)

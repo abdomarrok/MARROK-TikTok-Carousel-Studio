@@ -29,6 +29,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   const prevIndexRef = useRef(currentSlideIndex);
   const prevArchetypeRef = useRef(carousel.slides[currentSlideIndex]?.type);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const renderSequenceRef = useRef(0);
 
   // Debounced canvas rendering:
   // Instant (0ms) on slide switch or archetype change,
@@ -43,12 +44,27 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     prevIndexRef.current = currentSlideIndex;
     prevArchetypeRef.current = currentSlide.type;
 
+    const renderSequence = ++renderSequenceRef.current;
+
     const executeRender = async () => {
       if (!isMounted || !activeCanvasRef.current) return;
+      const offscreen = document.createElement('canvas');
       try {
-        await renderSlideToCanvas(carousel, currentSlideIndex, activeCanvasRef.current, theme);
+        await renderSlideToCanvas(carousel, currentSlideIndex, offscreen, theme);
+        if (!isMounted || renderSequence !== renderSequenceRef.current) return;
+
+        const visibleCanvas = activeCanvasRef.current;
+        if (!visibleCanvas) return;
+        if (visibleCanvas.width !== offscreen.width) visibleCanvas.width = offscreen.width;
+        if (visibleCanvas.height !== offscreen.height) visibleCanvas.height = offscreen.height;
+        const ctx = visibleCanvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, visibleCanvas.width, visibleCanvas.height);
+        ctx.drawImage(offscreen, 0, 0);
       } catch (err) {
-        console.error('ViewportCanvas render error:', err);
+        if (isMounted && renderSequence === renderSequenceRef.current) {
+          console.error('ViewportCanvas render error:', err);
+        }
       }
     };
 

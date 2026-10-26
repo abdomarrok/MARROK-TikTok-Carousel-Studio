@@ -8,6 +8,7 @@ import { PlanInspectorModal } from './components/PlanInspectorModal';
 import { CarouselData, DEFAULT_PALETTES, ThemePalette } from './types';
 import { DEFAULT_STARTER_DECK } from './lib/presets';
 import { sanitizeFullCarousel } from './lib/textSanitizer';
+import { parseCarouselData } from './lib/validation/carousel';
 
 export default function App() {
   // Local Draft Persistence (Hydrate from browser localStorage if available)
@@ -15,8 +16,8 @@ export default function App() {
     try {
       const saved = localStorage.getItem('marrok_deck_draft_v1');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.slides && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
+        const parsed = parseCarouselData(JSON.parse(saved), { minSlides: 3 });
+        if (parsed) {
           return sanitizeFullCarousel(parsed);
         }
       }

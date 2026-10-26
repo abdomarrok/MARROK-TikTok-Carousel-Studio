@@ -1,5 +1,7 @@
 import { SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts';
 import { drawRoundRect } from '../background.ts';
+import { fitTextInBox, truncateTextToWidth } from '../textLayout.ts';
+import { SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT } from '../constants.ts';
 
 /**
  * Archetype 4: Precision Silicon & Terminal Window
@@ -11,9 +13,9 @@ export async function drawCodeSlide(
   theme: ThemePalette,
   options: VisualSystemOptions
 ): Promise<number> {
-  const winX = 100;
+  const winX = SAFE_MARGIN_LEFT;
   const winY = 240;
-  const winW = 880;
+  const winW = SAFE_CONTENT_WIDTH;
   const winH = 430;
   const winRadius = 28;
 
@@ -83,15 +85,8 @@ export async function drawCodeSlide(
   ctx.fillStyle = '#27C93F';
   ctx.fill();
 
-  // Breadcrumb / File Name
-  const fileName = slide.codeFileName || (slide.codeLanguage ? `source.${slide.codeLanguage}` : 'terminal.sh');
-  ctx.font = '500 20px "JetBrains Mono", monospace';
-  ctx.fillStyle = '#8B9DA8';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(fileName, winX + winW / 2, dotY);
-
   // Top-Right Syntax Language Badge (BASH, RUST, TS, SQL, YAML)
+  const fileName = slide.codeFileName || (slide.codeLanguage ? `source.${slide.codeLanguage}` : 'terminal.sh');
   let lang = (slide.codeLanguage || '').toUpperCase();
   if (!lang) {
     if (fileName.endsWith('.sh') || fileName.includes('terminal')) lang = 'BASH';
@@ -116,6 +111,29 @@ export async function drawCodeSlide(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(lang, badgeX + badgeW / 2, dotY);
+
+  // Breadcrumb / File Name, constrained between traffic dots and language badge
+  const fileNameLeft = winX + 96;
+  const fileNameRight = badgeX - 12;
+  const fileNameMaxWidth = Math.max(80, fileNameRight - fileNameLeft);
+  const fittedFileName = fitTextInBox(
+    ctx,
+    fileName,
+    fileNameMaxWidth,
+    20,
+    '"JetBrains Mono", monospace',
+    '500',
+    { minFontSize: 12 }
+  );
+  ctx.font = `500 ${fittedFileName.fontSize}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = '#8B9DA8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(
+    fittedFileName.lines[0] || fileName,
+    fileNameLeft + fileNameMaxWidth / 2,
+    dotY
+  );
 
   // Left Gutter for line numbers
   const gutterW = 64;
@@ -181,7 +199,9 @@ export async function drawCodeSlide(
       ctx.fillStyle = '#E2E8EC';
     }
 
-    ctx.fillText(line, winX + gutterW + 20, lineBaselineY);
+    const codeMaxWidth = winW - gutterW - 40;
+    const fittedLine = truncateTextToWidth(ctx, line, codeMaxWidth);
+    ctx.fillText(fittedLine, winX + gutterW + 20, lineBaselineY);
     lineBaselineY += lineSpacing;
   }
 

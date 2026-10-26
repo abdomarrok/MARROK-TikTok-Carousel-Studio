@@ -104,6 +104,40 @@ export function wrapTextLines(
 }
 
 /**
+ * Unicode-safe truncation with an ellipsis using binary search over code points.
+ * Assumes the correct ctx.font is already active.
+ */
+export function truncateTextToWidth(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  ellipsis = '…',
+  forceEllipsis = false
+): string {
+  if (!text) return '';
+  if (!forceEllipsis && ctx.measureText(text).width <= maxWidth) return text;
+
+  const chars = Array.from(text);
+  const ellipsisWidth = ctx.measureText(ellipsis).width;
+  if (ellipsisWidth > maxWidth) return '';
+
+  let low = 0;
+  let high = chars.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    const candidate = chars.slice(0, mid).join('').trimEnd() + ellipsis;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  const prefix = chars.slice(0, low).join('').trimEnd();
+  return prefix ? `${prefix}${ellipsis}` : ellipsis;
+}
+
+/**
  * Self-healing typography helper:
  * Measures text width and dynamically scales font size down (to minFontSize) or smart-wraps to maxLines,
  * ensuring pills, badges, node cards, and comparison columns never clip or overflow.
@@ -137,13 +171,7 @@ export function fitTextInBox(
 
     // If still overflows at minFontSize, truncate with ellipsis
     ctx.font = `${fontWeight} ${minFontSize}px ${fontFamily}`;
-    let truncated = cleanText;
-    if (ellipsis) {
-      while (truncated.length > 1 && ctx.measureText(truncated + '…').width > maxWidth) {
-        truncated = truncated.slice(0, -1);
-      }
-      truncated += '…';
-    }
+    const truncated = ellipsis ? truncateTextToWidth(ctx, cleanText, maxWidth) : cleanText;
     return { fontSize: minFontSize, lines: [truncated], lineHeight: minFontSize * lineHeightFactor };
   }
 
@@ -159,13 +187,13 @@ export function fitTextInBox(
 
   // Truncate to maxLines with ellipsis on final line
   ctx.font = `${fontWeight} ${minFontSize}px ${fontFamily}`;
-  const wrapped = wrapTextLines(ctx, cleanText, maxWidth).slice(0, maxLines);
+  const allLines = wrapTextLines(ctx, cleanText, maxWidth);
+  const wrapped = allLines.slice(0, maxLines);
   if (wrapped.length === maxLines && ellipsis) {
-    let last = wrapped[maxLines - 1];
-    while (last.length > 1 && ctx.measureText(last + '…').width > maxWidth) {
-      last = last.slice(0, -1);
-    }
-    wrapped[maxLines - 1] = last + '…';
+    const last = wrapped[maxLines - 1];
+    wrapped[maxLines - 1] = allLines.length > maxLines
+      ? truncateTextToWidth(ctx, last, maxWidth, '…', true)
+      : last;
   }
   return { fontSize: minFontSize, lines: wrapped, lineHeight: minFontSize * lineHeightFactor };
 }

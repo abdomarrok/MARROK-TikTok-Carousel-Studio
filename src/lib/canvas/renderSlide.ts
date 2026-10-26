@@ -3,12 +3,14 @@ import { seedSlideArchetypeData } from '../synthesis/archetypes.ts';
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
+  SAFE_MARGIN_LEFT,
+  SAFE_MARGIN_RIGHT,
   SAFE_TEXT_CENTER_X,
   SAFE_TEXT_WIDTH_TITLE,
   SAFE_TEXT_WIDTH_BODY,
   SAFE_FOOTER_CEILING_Y,
 } from './constants.ts';
-import { wrapTextLines } from './textLayout.ts';
+import { fitTextInBox } from './textLayout.ts';
 import {
   drawBaseBackground,
   drawRadialGlow,
@@ -115,99 +117,95 @@ export async function renderSlideToCanvas(
   // Rendering is a pure read-only projection: NO regex re-sanitization passes in the draw loop!
   if (slide.type !== 'cta') {
     const rawEnTitle = (slide.enTitle || '').trim();
-    let enTitleLines: string[] = [];
-    if (rawEnTitle) {
-      ctx.save();
-      ctx.font = '800 74px "Plus Jakarta Sans", sans-serif';
-      enTitleLines = wrapTextLines(ctx, rawEnTitle, SAFE_TEXT_WIDTH_TITLE);
-      ctx.restore();
-    }
-
     const rawArTitle = (slide.arTitle || '').trim();
-    let arTitleLines: string[] = [];
-    if (rawArTitle) {
-      ctx.save();
-      ctx.font = '800 70px "Cairo", sans-serif';
-      arTitleLines = wrapTextLines(ctx, rawArTitle, SAFE_TEXT_WIDTH_TITLE);
-      ctx.restore();
-    }
-
     const rawEnBody = (slide.enBody || '').trim();
-    let enBodyLines: string[] = [];
-    if (rawEnBody) {
-      ctx.save();
-      ctx.font = '400 38px "Plus Jakarta Sans", sans-serif';
-      enBodyLines = wrapTextLines(ctx, rawEnBody, SAFE_TEXT_WIDTH_BODY);
-      ctx.restore();
-    }
-
     const rawArBody = (slide.arBody || '').trim();
-    let arBodyLines: string[] = [];
-    if (rawArBody) {
-      ctx.save();
-      ctx.font = '400 38px "Cairo", sans-serif';
-      arBodyLines = wrapTextLines(ctx, rawArBody, SAFE_TEXT_WIDTH_BODY);
-      ctx.restore();
+
+    // Real font scaling + line caps (never line-height squashing).
+    const availableHeight = SAFE_FOOTER_CEILING_Y - yGraphicEnd;
+
+    const buildTextLayout = (scale: number) => {
+      const enTitle = fitTextInBox(ctx, rawEnTitle, SAFE_TEXT_WIDTH_TITLE, 74 * scale, '"Plus Jakarta Sans", sans-serif', '800', {
+        maxLines: 2,
+        minFontSize: 50,
+        lineHeightFactor: 1.19,
+      });
+      const arTitle = fitTextInBox(ctx, rawArTitle, SAFE_TEXT_WIDTH_TITLE, 70 * scale, '"Cairo", sans-serif', '800', {
+        maxLines: 2,
+        minFontSize: 48,
+        lineHeightFactor: 1.457,
+      });
+      const enBody = fitTextInBox(ctx, rawEnBody, SAFE_TEXT_WIDTH_BODY, 38 * scale, '"Plus Jakarta Sans", sans-serif', '400', {
+        maxLines: 4,
+        minFontSize: 26,
+        lineHeightFactor: 1.42,
+      });
+      const arBody = fitTextInBox(ctx, rawArBody, SAFE_TEXT_WIDTH_BODY, 38 * scale, '"Cairo", sans-serif', '400', {
+        maxLines: 4,
+        minFontSize: 26,
+        lineHeightFactor: 1.526,
+      });
+
+      const gapTitles = (enTitle.lines.length > 0 && arTitle.lines.length > 0) ? 16 : 0;
+      const gapTitlesToBody = ((enTitle.lines.length > 0 || arTitle.lines.length > 0) && (enBody.lines.length > 0 || arBody.lines.length > 0)) ? 36 : 0;
+      const gapBodies = (enBody.lines.length > 0 && arBody.lines.length > 0) ? 20 : 0;
+
+      const hTextTotal =
+        (enTitle.lines.length * enTitle.lineHeight) +
+        gapTitles +
+        (arTitle.lines.length * arTitle.lineHeight) +
+        gapTitlesToBody +
+        (enBody.lines.length * enBody.lineHeight) +
+        gapBodies +
+        (arBody.lines.length * arBody.lineHeight);
+
+      return { enTitle, arTitle, enBody, arBody, gapTitles, gapTitlesToBody, gapBodies, hTextTotal };
+    };
+
+    let textScale = 1;
+    let layout = buildTextLayout(textScale);
+    while (layout.hTextTotal > availableHeight - 24 && textScale > 0.7) {
+      textScale = Math.max(0.7, textScale - 0.05);
+      layout = buildTextLayout(textScale);
     }
 
-    // Baseline Line-Heights:
-    // English Headline: 74px font => 88px line-height (1.19x)
-    // Arabic Headline: 70px font => 102px line-height (generous 1.457x for ascenders/descenders/diacritics)
-    // English Body: 38px font => 54px line-height (1.42x)
-    // Arabic Body: 38px font => 58px line-height (generous 1.526x for Arabic baseline balance)
-    let enTitleLH = 88;
-    let arTitleLH = 102;
-    let enBodyLH = 54;
-    let arBodyLH = 58;
-
-    let gapTitles = (enTitleLines.length > 0 && arTitleLines.length > 0) ? 16 : 0;
-    let gapTitlesToBody = ((enTitleLines.length > 0 || arTitleLines.length > 0) && (enBodyLines.length > 0 || arBodyLines.length > 0)) ? 36 : 0;
-    let gapBodies = (enBodyLines.length > 0 && arBodyLines.length > 0) ? 20 : 0;
-
-    let hTextTotal =
-      (enTitleLines.length * enTitleLH) +
-      gapTitles +
-      (arTitleLines.length * arTitleLH) +
-      gapTitlesToBody +
-      (enBodyLines.length * enBodyLH) +
-      gapBodies +
-      (arBodyLines.length * arBodyLH);
+    const { enTitle, arTitle, enBody, arBody, gapTitles, gapTitlesToBody, gapBodies } = layout;
+    const enTitleLines = enTitle.lines;
+    const arTitleLines = arTitle.lines;
+    const enBodyLines = enBody.lines;
+    const arBodyLines = arBody.lines;
+    const hTextTotal = layout.hTextTotal;
 
     // 6b. Dynamic Vertical Optical Centering:
     // Upper bound: yGraphicEnd
     // Lower ceiling: 1710px (clearing the footer pagination dots at y=1826 with 116px padding)
-    const availableHeight = SAFE_FOOTER_CEILING_Y - yGraphicEnd;
-
-    // Self-healing vertical compression if text is exceptionally long
-    let scale = 1.0;
-    if (hTextTotal > availableHeight - 30) {
-      scale = Math.max((availableHeight - 30) / hTextTotal, 0.82);
-      enTitleLH = Math.round(enTitleLH * scale);
-      arTitleLH = Math.round(arTitleLH * scale);
-      enBodyLH = Math.round(enBodyLH * scale);
-      arBodyLH = Math.round(arBodyLH * scale);
-      gapTitles = Math.round(gapTitles * scale);
-      gapTitlesToBody = Math.round(gapTitlesToBody * scale);
-      gapBodies = Math.round(gapBodies * scale);
-      hTextTotal = Math.round(hTextTotal * scale);
-    }
-
     const remainingSpace = availableHeight - hTextTotal;
     // Optical distribution: 38% top cushion, 62% bottom breathing room
     // Clamped between 28px min and 135px max so content neither hugs the graphic nor floats awkwardly low
     const topCushion = Math.min(Math.max(remainingSpace * 0.38, 28), 135);
     let currentY = yGraphicEnd + topCushion;
 
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(
+      SAFE_MARGIN_LEFT,
+      yGraphicEnd,
+      SAFE_MARGIN_RIGHT - SAFE_MARGIN_LEFT,
+      Math.max(0, SAFE_FOOTER_CEILING_Y - yGraphicEnd)
+    );
+    ctx.clip();
+
     // 6c. Render English Headline
     if (enTitleLines.length > 0) {
       ctx.save();
-      ctx.font = '800 74px "Plus Jakarta Sans", sans-serif';
+      ctx.font = `800 ${enTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textWhite;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       for (const line of enTitleLines) {
+        if (currentY > SAFE_FOOTER_CEILING_Y) break;
         ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
-        currentY += enTitleLH;
+        currentY += enTitle.lineHeight;
       }
       ctx.restore();
     }
@@ -216,14 +214,15 @@ export async function renderSlideToCanvas(
     if (arTitleLines.length > 0) {
       currentY += gapTitles;
       ctx.save();
-      ctx.font = '800 70px "Cairo", sans-serif';
+      ctx.font = `800 ${arTitle.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.accent;
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       for (const line of arTitleLines) {
+        if (currentY > SAFE_FOOTER_CEILING_Y) break;
         ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
-        currentY += arTitleLH;
+        currentY += arTitle.lineHeight;
       }
       ctx.restore();
     }
@@ -232,14 +231,15 @@ export async function renderSlideToCanvas(
     if (enBodyLines.length > 0) {
       currentY += gapTitlesToBody;
       ctx.save();
-      ctx.font = '400 38px "Plus Jakarta Sans", sans-serif';
+      ctx.font = `400 ${enBody.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textEnBody;
       ctx.textAlign = 'center';
       ctx.direction = 'ltr';
       ctx.textBaseline = 'alphabetic';
       for (const line of enBodyLines) {
+        if (currentY > SAFE_FOOTER_CEILING_Y) break;
         ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
-        currentY += enBodyLH;
+        currentY += enBody.lineHeight;
       }
       ctx.restore();
     }
@@ -248,17 +248,20 @@ export async function renderSlideToCanvas(
     if (arBodyLines.length > 0) {
       currentY += gapBodies;
       ctx.save();
-      ctx.font = '400 38px "Cairo", sans-serif';
+      ctx.font = `400 ${arBody.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.textArBody;
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       for (const line of arBodyLines) {
+        if (currentY > SAFE_FOOTER_CEILING_Y) break;
         ctx.fillText(line, SAFE_TEXT_CENTER_X, currentY);
-        currentY += arBodyLH;
+        currentY += arBody.lineHeight;
       }
       ctx.restore();
     }
+
+    ctx.restore();
   }
 
   // 7. Pagination Footer (Present on EVERY slide at y = 1826, centered at x = 518)

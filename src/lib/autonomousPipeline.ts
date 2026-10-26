@@ -9,6 +9,12 @@ import {
   enrichCarouselDiagrams,
   balanceCarouselVisualPacing,
 } from './synthesis';
+import { parseCarouselData } from './validation/carousel';
+import { parseImageDataUrl } from './validation/image';
+import { createRequestDeadline } from './network/requestDeadline';
+
+const GENERATION_REQUEST_TIMEOUT_MS = 90000;
+const IMAGE_REQUEST_TIMEOUT_MS = 50000;
 
 export interface AutonomousPipelineOptions {
   onProgress?: (status: string) => void;
@@ -19,6 +25,13 @@ export interface AutonomousPipelineOptions {
   imageMimeType?: string;
   imageName?: string;
   categoryHint?: string;
+  signal?: AbortSignal;
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new DOMException('Operation aborted', 'AbortError');
+  }
 }
 
 /**
@@ -92,9 +105,11 @@ export async function runAutonomousPipeline(
     imageMimeType,
     imageName,
     categoryHint,
+    signal,
   } = options;
 
   // Step 1: Synthesize Content & Bilingual Structure
+  throwIfAborted(signal);
   onProgress?.('Synthesizing 8-slide architecture carousel...');
   let rawCarousel: CarouselData | null = null;
 
@@ -104,10 +119,12 @@ export async function runAutonomousPipeline(
     requestHeaders['x-gemini-key'] = customKey;
   }
 
+  const generationDeadline = createRequestDeadline(signal, GENERATION_REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: requestHeaders,
+      signal: generationDeadline.signal,
       body: JSON.stringify({
         prompt: rawInput,
         topic: rawInput,
@@ -122,16 +139,26 @@ export async function runAutonomousPipeline(
 
     if (res.ok) {
       const data = await res.json();
-      if (data?.slides && Array.isArray(data.slides) && data.slides.length >= 3) {
-        rawCarousel = data as CarouselData;
-        if (data.sourceMeta?.isFallback || data.sourceMeta?.engine === 'offline-synthesizer' || res.headers.get('x-marrok-engine') === 'offline-synthesizer') {
+      const parsed = parseCarouselData(data, { minSlides: 3, requireSlideContent: true });
+      if (parsed) {
+        rawCarousel = parsed;
+        if (
+          parsed.sourceMeta?.isFallback ||
+          parsed.sourceMeta?.engine === 'offline-synthesizer' ||
+          res.headers.get('x-marrok-engine') === 'offline-synthesizer'
+        ) {
           onProgress?.('Offline NLP Engine Activated: Synthesizing custom slides from your pasted notes.');
         }
       }
     }
   } catch (err) {
+    if (signal?.aborted) throw err;
     console.warn('API generation failed, falling back to local synthesizer:', err);
+  } finally {
+    generationDeadline.cleanup();
   }
+
+  throwIfAborted(signal);
 
   // Fallback to local synthesizer if API fails or returns invalid structure
   if (!rawCarousel) {
@@ -162,6 +189,8 @@ export async function runAutonomousPipeline(
     cleanCarousel = enrichAndPaceCarousel(rawCarousel, rawInput);
   }
 
+  throwIfAborted(signal);
+
   // Step 4: Auto-Generate 9:16 Architecture Diagram for Key Mechanism Slide
   if (generateDiagram && cleanCarousel.slides.length >= 3) {
     // Choose slide 2 or 3 (core technical mechanism)
@@ -170,12 +199,14 @@ export async function runAutonomousPipeline(
 
     if (targetSlide && (!targetSlide.imageUrl || targetSlide.type !== 'image')) {
       onProgress?.('Generating native 9:16 architecture diagram with gemini-nano-banana-2.1...');
+      const imageDeadline = createRequestDeadline(signal, IMAGE_REQUEST_TIMEOUT_MS);
       try {
         const diagramPrompt = `Architectural system diagram for ${targetSlide.enTitle || 'distributed systems'}: ${targetSlide.enBody?.slice(0, 120) || ''}. Isometric vector blueprint, high contrast, glowing neon accents, deep carbon background.`;
 
         const imgRes = await fetch('/api/generate-image', {
           method: 'POST',
           headers: requestHeaders,
+          signal: imageDeadline.signal,
           body: JSON.stringify({
             prompt: diagramPrompt,
             aspectRatio: '9:16',
@@ -185,11 +216,12 @@ export async function runAutonomousPipeline(
 
         if (imgRes.ok) {
           const imgData = await imgRes.json();
-          if (imgData.imageUrl) {
+          const parsedImage = parseImageDataUrl(imgData?.imageUrl);
+          if (parsedImage) {
             cleanCarousel.slides[targetIdx] = {
               ...targetSlide,
               type: 'image',
-              imageUrl: imgData.imageUrl,
+              imageUrl: parsedImage.dataUrl,
               imagePrompt: diagramPrompt,
               imageModel: imgData.model || 'gemini-nano-banana-2.1',
               imageFilter: 'hud',
@@ -199,10 +231,15 @@ export async function runAutonomousPipeline(
           }
         }
       } catch (err) {
+        if (signal?.aborted) throw err;
         console.warn('Autonomous image generation encountered an error (continuing with icon layout):', err);
+      } finally {
+        imageDeadline.cleanup();
       }
     }
   }
+
+  throwIfAborted(signal);
 
   // Step 5: Final Quality Verification Scan
   onProgress?.('Running final QA compliance verification...');
@@ -211,6 +248,7 @@ export async function runAutonomousPipeline(
     cleanCarousel = sanitizeFullCarousel(cleanCarousel);
   }
 
+  throwIfAborted(signal);
   onProgress?.('Ready!');
   return cleanCarousel;
 }

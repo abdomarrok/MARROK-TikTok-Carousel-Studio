@@ -140,10 +140,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const brandTag = brand.replace(/[^a-zA-Z0-9]/g, '');
   const hashtags = `#TechInArabic #هندسة_البرمجيات #${domainTag} #SoftwareEngineering #DevSecOps #TechTrends #SystemDesign #${brandTag} #برمجة`;
 
-  const domainGroundingSources: { title: string; url: string }[] = [
-    { title: `${brand} Technical Documentation`, url: brandUrl ? `https://${brandUrl}` : 'https://marrok.org' },
-    { title: 'USENIX Association Systems Research', url: 'https://www.usenix.org' },
-  ];
+  const domainGroundingSources: { title: string; url: string }[] = [];
 
   const domainGroundingQueries: string[] = [
     `${brand} ${domainCategory} architecture benchmark`,
@@ -157,40 +154,30 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       type: 'claim',
       verified: 'unverified',
       evidence: `Synthesizer domain heuristics (unverified offline draft)`,
-      sourceTitle: domainGroundingSources[0]?.title || `${brand} Engineering`,
-      sourceUrl: domainGroundingSources[0]?.url || `https://${brandUrl}`,
     },
     {
-      text: `Primary engineering source / brand: ${brand}`,
+      text: `Brand attribution: ${brand}`,
       type: 'name',
       verified: 'unverified',
-      evidence: `Identified from technical publication reference (${brandUrl})`,
-      sourceTitle: `${brand} Official Portal`,
-      sourceUrl: brandUrl ? `https://${brandUrl}` : 'https://marrok.org',
+      evidence: `Brand wordmark configured in the studio; not an external source`,
     },
     {
       text: `Production benchmark / headline metric: ${metric1}`,
       type: 'number',
       verified: 'unverified',
       evidence: `Universal extractor metric scan from user input`,
-      sourceTitle: domainGroundingSources[0]?.title || 'Performance Telemetry',
-      sourceUrl: domainGroundingSources[0]?.url || `https://${brandUrl}`,
     },
     {
       text: `Core architectural mechanism: ${userPoint1}`,
       type: 'claim',
       verified: 'unverified',
       evidence: `Universal NLP parsed insight from user text`,
-      sourceTitle: domainGroundingSources[1]?.title || 'Architecture Whitepaper',
-      sourceUrl: domainGroundingSources[1]?.url || `https://${brandUrl}`,
     },
     {
       text: `Operational trade-offs and limits: ${userPoint2}`,
       type: 'claim',
       verified: 'unverified',
       evidence: `Spec §7 "Before You Switch / The Catch" hedge (offline draft)`,
-      sourceTitle: domainGroundingSources[0]?.title || 'Systems Report',
-      sourceUrl: domainGroundingSources[0]?.url || `https://${brandUrl}`,
     },
   ];
 
@@ -211,12 +198,12 @@ Why traditional architectures stall at scale and how modern systems solve the bo
 
 ⚠️ Citations & Draft Facts (Offline Synthesizer Estimate):
 • Unverified offline draft — creator review required before publishing
-• Source: ${domainGroundingSources[0]?.title || brand} (${domainGroundingSources[0]?.url || brandUrl})
+• No external source cited — add your primary source link before publishing
 
 👇 هل واجهتم هذه المشكلة في بيئات الإنتاج عندكم؟ شاركونا تجربتكم في التعليقات!
 What's your take on this architecture? Share below!
 
-🎥 مرجع التحليل والتوثيق / Reference: ${brandUrl ? `https://${brandUrl}` : 'https://marrok.org'}
+🎥 العلامة التجارية / Brand: ${brandUrl ? `https://${brandUrl}` : 'https://marrok.org'}
 
 ${hashtags}`;
 
@@ -241,7 +228,7 @@ ${hashtags}`,
     },
   ];
 
-  const firstComment = `🔗 Primary source documentation & reference post: https://${brandUrl}\n\nWhat are your thoughts on this architecture? Share your take below 👇`;
+  const firstComment = `🔗 Add your primary source link here before publishing.\n\nWhat are your thoughts on this architecture? Share your take below 👇`;
   const shortCaption = `${slide1ArHeader} ⚡\n${slide1EnHeader} — Swipe through the breakdown 👉`;
   const screenHook = `${slide1EnHeader} in 60s`;
 
@@ -264,7 +251,7 @@ ${hashtags}`,
     `Unverified offline draft: Synthesized from offline NLP heuristics without active web search grounding. Verify all numbers and claims before publication.`,
     `Review and customize slide copy using the studio editor, or connect a Gemini API key for live search-grounded research.`,
     `Bilingual Arabic typography checked for RTL line-endings and numbers positioned per Spec §9.`,
-    `Attribution and link included in pinned first comment for TikTok comment section.`,
+    `Add a verified primary source link before publishing; the offline draft does not fabricate citations.`,
   ];
 
   const scheduleSlot = '18:00–21:00 ME / 16:00–19:00 UTC (Peak developer engagement)';

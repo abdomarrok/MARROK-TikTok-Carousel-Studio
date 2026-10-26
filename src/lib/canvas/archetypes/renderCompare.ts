@@ -2,6 +2,7 @@ import { SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts'
 import { fitTextInBox } from '../textLayout.ts';
 import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
+import { SAFE_CONTENT_CENTER_X, SAFE_MARGIN_LEFT, SAFE_MARGIN_RIGHT } from '../constants.ts';
 
 /**
  * Archetype 5: Side-by-Side Comparison (Legacy vs Modern)
@@ -15,9 +16,9 @@ export async function drawCompareSlide(
 ): Promise<number> {
   const cardY = 240;
   const cardH = 430;
-  const cardW = 420;
-  const leftX = 100;
-  const rightX = 560;
+  const cardW = 395;
+  const leftX = SAFE_MARGIN_LEFT;
+  const rightX = SAFE_MARGIN_RIGHT - cardW;
   const radius = 28;
 
   // 1. Left Card: The Legacy / Bottleneck (Crimson 10% contrast tint)
@@ -150,8 +151,8 @@ export async function drawCompareSlide(
   }
   ctx.restore();
 
-  // 3. Centered 48px Circular "VS" Badge at x = 540
-  const vsX = 540;
+  // 3. Centered 48px Circular "VS" Badge at x = 517.5
+  const vsX = SAFE_CONTENT_CENTER_X;
   const vsY = cardY + cardH / 2;
   const vsRadius = 24;
 

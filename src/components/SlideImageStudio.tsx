@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   Wand2,
@@ -18,6 +18,10 @@ import {
   Zap,
 } from 'lucide-react';
 import { SlideData, ThemePalette } from '../types';
+import { parseImageDataUrl } from '../lib/validation/image';
+import { createRequestDeadline } from '../lib/network/requestDeadline';
+
+const IMAGE_REQUEST_TIMEOUT_MS = 50000;
 
 interface SlideImageStudioProps {
   slide: SlideData;
@@ -71,6 +75,15 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [usedModel, setUsedModel] = useState<string>('gemini-nano-banana-2.1');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const requestAbortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      requestAbortRef.current?.abort();
+      requestAbortRef.current = null;
+    };
+  }, []);
 
   // Synchronize auto-prompt if slide changes and user hasn't typed custom prompt
   useEffect(() => {
@@ -97,6 +110,19 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
       return;
     }
 
+    const sourceImage =
+      activeMode === 'edit' && slide.imageUrl ? parseImageDataUrl(slide.imageUrl) : null;
+    if (activeMode === 'edit' && slide.imageUrl && !sourceImage) {
+      setErrorMsg('Image editing requires an embedded PNG, JPEG, WEBP, or GIF within the size limit.');
+      return;
+    }
+
+    requestAbortRef.current?.abort();
+    const controller = new AbortController();
+    requestAbortRef.current = controller;
+    const requestId = ++requestIdRef.current;
+    const deadline = createRequestDeadline(controller.signal, IMAGE_REQUEST_TIMEOUT_MS);
+
     setIsGenerating(true);
     setErrorMsg(null);
 
@@ -117,15 +143,16 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
         themeSurface: theme.surface,
       };
 
-      // If in edit mode and an existing image is present, pass it as base image
-      if (activeMode === 'edit' && slide.imageUrl) {
-        payload.baseImageBase64 = slide.imageUrl;
-        payload.baseImageMimeType = slide.imageUrl.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
+      // If in edit mode and a valid embedded image is present, pass it as the edit source
+      if (sourceImage) {
+        payload.baseImageBase64 = sourceImage.dataUrl;
+        payload.baseImageMimeType = sourceImage.mimeType;
       }
 
       const res = await fetch('/api/generate-image', {
         method: 'POST',
         headers: requestHeaders,
+        signal: deadline.signal,
         body: JSON.stringify(payload),
       });
 
@@ -141,18 +168,27 @@ export const SlideImageStudio: React.FC<SlideImageStudioProps> = ({
       }
 
       const data = await res.json();
-      if (data.imageUrl) {
-        setGeneratedImageUrl(data.imageUrl);
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
+
+      const parsedImage = parseImageDataUrl(data.imageUrl);
+      if (parsedImage) {
+        setGeneratedImageUrl(parsedImage.dataUrl);
         setUsedModel(data.model || 'gemini-nano-banana-2.1');
         onShowToast?.(`Successfully generated image with ${data.model || 'gemini-nano-banana-2.1'}!`);
       } else {
-        throw new Error('No image returned from server.');
+        throw new Error('No valid image returned from server.');
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      if (controller.signal.aborted || requestId !== requestIdRef.current) return;
+      const timedOut =
+        deadline.signal.reason instanceof DOMException && deadline.signal.reason.name === 'TimeoutError';
+      const msg = timedOut ? 'Image generation timed out. Please try again.' : err instanceof Error ? err.message : String(err);
       setErrorMsg(msg);
     } finally {
-      setIsGenerating(false);
+      deadline.cleanup();
+      if (requestId === requestIdRef.current) {
+        setIsGenerating(false);
+      }
     }
   };
 
