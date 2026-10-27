@@ -139,6 +139,8 @@ export function buildUserCarouselPrompt(options: {
   rawPrompt?: string;
   safeCategoryHint?: string;
   safeInputMode?: string;
+  hasImage?: boolean;
+  imageName?: string;
 }): string {
   let userPromptText = `Generate a publication-ready 8-slide MARROK TikTok technical carousel, 3 Hook Variants for Slide 1, and 2 Caption Variants from this input.\n`;
 
@@ -150,6 +152,18 @@ export function buildUserCarouselPrompt(options: {
   }
   if (options.rawPrompt) {
     userPromptText += `Raw Content / Topic / Transcript:\n"""\n${options.rawPrompt}\n"""\n`;
+  }
+
+  if (options.hasImage) {
+    userPromptText += `\nMULTIMODAL IMAGE INPUT ANALYSIS:
+- An image (screenshot, architecture diagram, flowchart, code snippet, or slide) is attached.
+- Inspect and OCR the image visually: read all visible labels, node titles, component blocks, arrows, protocols, and metrics.
+- Formulate the topic and narrative directly from the technical concepts displayed in the image.
+- CRITICAL NEGATIVE CONSTRAINT: Under NO circumstances should an image filename (such as "${options.imageName || '20760.png'}") or file extension (.png, .jpg, .webp) ever be used as a slide title, headline, or topic. Extract and name the authentic technical subject depicted in the image.
+`;
+    if (!options.rawPrompt) {
+      userPromptText += `- Since no text prompt was provided, derive the full 8-slide narrative, step-by-step mechanisms, and bilingual copy entirely from the system architecture shown in the image.\n`;
+    }
   }
 
   userPromptText += `\nInstructions for a coherent, sensible technical carousel:

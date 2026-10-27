@@ -81,6 +81,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
   }
 
   // Source Material Check: Pasted notes, transcripts, or code (>200 chars) already contain the ground truth
+  const hasImage = Boolean(imagePayload);
   const isLongInput = safePrompt.length > 200;
 
   try {
@@ -101,6 +102,8 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
       rawPrompt: safePrompt,
       safeCategoryHint,
       safeInputMode,
+      hasImage,
+      imageName: safeImageName,
     });
     parts.push({ text: userPromptText });
 
@@ -121,8 +124,9 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
       const activeAi = new GoogleGenAI({ apiKey: key });
 
       for (const model of CANDIDATE_GENERATION_MODELS) {
-        // Attempt A: Google Search Grounding ONLY for short inputs (< 200 chars)
-        if (!isLongInput) {
+        // Attempt A: Google Search Grounding ONLY for short text inputs (< 200 chars) WITHOUT images
+        // (Google Search tool cannot be combined with multimodal media payloads in Gemini)
+        if (!isLongInput && !hasImage) {
           const searchController = new AbortController();
           const searchTimer = setTimeout(() => searchController.abort(), 12000);
           try {

@@ -323,6 +323,18 @@ const KNOWN_BOILERPLATE_PATTERNS: { pattern: RegExp; description: string }[] = [
     pattern: /A breakdown of technical mechanisms, benchmarks, and production architecture/i,
     description: 'Boilerplate body text',
   },
+  {
+    pattern: /\b\d+(?:png|jpg|jpeg|webp|svg)\b/i,
+    description: 'Raw file name or extension in copy (e.g. "20760png")',
+  },
+  {
+    pattern: /\.(?:png|jpe?g|webp|svg|gif)\b/i,
+    description: 'Raw image file extension in slide text (e.g. ".png")',
+  },
+  {
+    pattern: /\b(?:IMG|DSC|PXL|Screenshot|Screen\s*Shot)[-_ \d]+\b/i,
+    description: 'Auto-generated camera or screenshot filename in copy',
+  },
 ];
 
 /** Check that slide does not contain unedited generic boilerplate phrases */

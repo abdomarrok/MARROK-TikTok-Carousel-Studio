@@ -1,5 +1,5 @@
 import { DiagramNode, SlideData } from '../../types';
-import { autoFitTextToLimits, enforceHeadlineSpecRule, extractCleanSubject } from '../text/headlines';
+import { autoFitTextToLimits, enforceHeadlineSpecRule, extractCleanSubject, isNonSemanticFileName } from '../text/headlines';
 import { normalizePunctuation, stripMarkdown } from '../text/markdown';
 import { sanitizeArabicSlideText } from '../text/arabicBiDi';
 import { KNOWN_TECH_LOGOS } from '../techLogos';
@@ -214,6 +214,9 @@ export function resolveTechLogo(name: string): string | undefined {
  * Normalizes and strips URLs, Markdown symbols, and timestamps (e.g. YouTube [00:00:00]).
  */
 export function cleanRawInput(raw: string): { cleaned: string; lines: string[]; paragraphs: string[] } {
+  if (isNonSemanticFileName(raw)) {
+    return { cleaned: '', lines: [], paragraphs: [] };
+  }
   const withoutUrls = (raw || '').replace(/https?:\/\/\S+/gi, '').trim();
   // Strip single timestamps (0:00) and timestamp ranges (0:00-1:23 or 21:44-24:34)
   const withoutTimestamps = withoutUrls.replace(
@@ -507,6 +510,11 @@ export function synthesizeUniversalCarousel(rawInput: string, options: Universal
         coreSubject = parts[0].trim().length >= 4 ? parts[0].trim() : parts[1]?.trim() || parts[0].trim();
       }
     }
+  }
+
+  // Ensure coreSubject is not a non-semantic filename or extension
+  if (!coreSubject || isNonSemanticFileName(coreSubject)) {
+    coreSubject = domainCategory || 'System Architecture';
   }
 
   // 4. Topic & Domain Classification
@@ -1877,8 +1885,9 @@ function buildComparativeStory(
  * General Systems Architecture Story: Fallback for arbitrary topics with clear, professional narrative.
  */
 function buildGeneralSystemsStory(subject: string, opts: StoryOptions): SlideData[] {
-  const { cleanSubject, arSubject } = extractCleanSubject(subject);
-  const enHook = enforceHeadlineSpecRule(subject, { isHook: true, fallbackSubject: 'Architecture' });
+  const safeSubject = !subject || isNonSemanticFileName(subject) ? opts.domainCategory || 'System Architecture' : subject;
+  const { cleanSubject, arSubject } = extractCleanSubject(safeSubject);
+  const enHook = enforceHeadlineSpecRule(safeSubject, { isHook: true, fallbackSubject: 'Architecture' });
 
   return [
     {

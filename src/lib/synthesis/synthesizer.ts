@@ -1,6 +1,8 @@
 import { CaptionVariant, CarouselData, ExtractedFact, HookVariant, PostSourceMeta, SlideData } from '../../types';
 import {
   extractCleanHeadline,
+  extractTopicFromFileName,
+  isNonSemanticFileName,
   normalizePunctuation,
   sanitizeFullCarousel,
   sanitizeMetricForArabic,
@@ -27,7 +29,24 @@ import { synthesizeUniversalCarousel } from './universalExtractor';
  * Fully algorithmic extraction: zero hardcoded topic presets.
  */
 export function synthesizeCarousel(input: SynthesisInput): CarouselData {
-  const rawText = (input.prompt || input.imageFileName || '').trim();
+  let rawText = (input.prompt || '').trim();
+  if (!rawText && input.imageFileName) {
+    const semanticTopic = extractTopicFromFileName(input.imageFileName);
+    if (semanticTopic) {
+      rawText = semanticTopic;
+    }
+  }
+
+  // If input is still empty or a non-semantic filename, fall back to domain hint or system architecture
+  if (!rawText || isNonSemanticFileName(rawText)) {
+    if (input.categoryHint && input.categoryHint !== 'auto') {
+      const hintMatch = DOMAIN_RULES.find((r) => r.category.includes(input.categoryHint!));
+      rawText = hintMatch?.category || input.categoryHint;
+    } else {
+      rawText = 'System Architecture & Engineering';
+    }
+  }
+
   const lowerText = rawText.toLowerCase();
 
   // 1. Scored Domain Detection via Config Rules (highest specificity wins)
