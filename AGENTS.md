@@ -30,7 +30,7 @@
 
 ## Content / export conventions
 - Slide types: `hub`, `row`, `number`, `metric`, `code`, `compare`, `image`, `cta`. Keep bilingual `en*`/`ar*` fields populated. QA limits are in `src/lib/qaChecks.ts` (`enTitle` 45, `arTitle` 40, `enBody` 140, `arBody` 150). Mobile typography floor $\ge 26\text{px}$ is enforced in `renderSlide.ts`.
-- Export via `src/lib/canvas/exporter.ts`: single PNG, clipboard, and a ZIP Metricool bundle (`slide1.png`..., `caption-bilingual.txt`, `caption.txt`, `first_comment.txt`, `short_caption.txt`, `carousel-manifest.json`, `post_metadata.json`, `claims_citations.txt`, `README.txt`). A creator/channel attribution field is required before export. Batch/contact-sheet loops yield with `setTimeout(0)`.
+- Export via `src/lib/canvas/exporter.ts`: single PNG, clipboard, and a ZIP Metricool bundle (`slide1.png`..., `caption-bilingual.txt`, `caption.txt`, `first_comment.txt`, `short_caption.txt`, `carousel-manifest.json`, `post_metadata.json`, `claims_citations.txt`, `README.txt`). Creator/channel attribution and QA checks are advisory warnings and never block export (defaults to MARROK). Batch/contact-sheet loops yield with `setTimeout(0)`.
 - `ContactSheetModal` previews at 270x480; the downloaded contact sheet is JPG Q95.
 - Vite: `DISABLE_HMR=true` disables HMR and file watching (intentional for agent/edit environments). CORS is `*`; JSON body limit is `50mb`.
 - TS: `moduleResolution: bundler`, `allowImportingTsExtensions`, `noEmit`, `jsx: react-jsx`. `.npmrc` sets `legacy-peer-deps=true`; `bun.lock` exists but scripts/README use npm.

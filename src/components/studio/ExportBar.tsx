@@ -41,8 +41,7 @@ export const ExportBar: React.FC<ExportBarProps> = ({
   onOpenContactSheet,
 }) => {
   const creatorCredit = (carousel.sourceMeta?.creator || carousel.sourceMeta?.channel || '').trim();
-  const hasCreatorCredit = creatorCredit.length > 0 && creatorCredit.toLowerCase() !== 'marrok';
-  const isExportBlocked = (isOfflineDraft && !isReviewed) || !qaReport.canExport || !hasCreatorCredit;
+  const hasCreatorCredit = creatorCredit.length > 0;
 
   return (
     <div className="space-y-4">
@@ -84,8 +83,8 @@ export const ExportBar: React.FC<ExportBarProps> = ({
                   {isReviewed
                     ? qaReport.canExport
                       ? 'QA Passed · Ready'
-                      : `Blocked: ${qaReport.failCount} QA Issue(s)`
-                    : 'Export Locked'}
+                      : `Advisory: ${qaReport.failCount} QA Warning(s)`
+                    : 'Unreviewed Draft (Warning)'}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
@@ -121,21 +120,21 @@ export const ExportBar: React.FC<ExportBarProps> = ({
         </div>
       )}
 
-      {/* Creator / Channel Attribution Card (Required for Slide 8 citation & manifest) */}
+      {/* Creator / Channel Attribution Card */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
         <div className="flex-1 w-full">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="text-[11px] font-bold font-jakarta uppercase tracking-wider text-slate-300">
-              Creator / Channel Attribution <span className="text-cyan-400 font-bold">*</span>
+              Creator / Channel Attribution
             </span>
             <span
               className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
                 hasCreatorCredit
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                  : 'bg-slate-700/40 text-slate-400 border border-slate-700/50'
               }`}
             >
-              {hasCreatorCredit ? '✓ Credited on Slide 8' : 'Required before export'}
+              {hasCreatorCredit ? '✓ Credited on Slide 8' : 'Optional (Defaults to MARROK)'}
             </span>
           </div>
           <input
@@ -143,7 +142,7 @@ export const ExportBar: React.FC<ExportBarProps> = ({
             type="text"
             value={carousel.sourceMeta?.creator || carousel.sourceMeta?.channel || ''}
             onChange={(e) => onUpdateCreator?.(e.target.value)}
-            placeholder="Creator or Channel Name (e.g. ByteByteGo, Hussein Nasser, ArjanCodes, Stanford CS)"
+            placeholder="Creator or Channel Name (e.g. MARROK, ByteByteGo, Hussein Nasser)"
             className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none transition-all font-mono"
           />
         </div>
@@ -155,13 +154,8 @@ export const ExportBar: React.FC<ExportBarProps> = ({
           <button
             type="button"
             onClick={onDownloadSingleSlide}
-            disabled={isOfflineDraft && !isReviewed}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-              isOfflineDraft && !isReviewed
-                ? 'border-white/5 bg-white/[0.02] text-slate-500 cursor-not-allowed'
-                : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 cursor-pointer'
-            }`}
-            title={isOfflineDraft && !isReviewed ? 'Download locked: Review draft first' : `Download Slide ${currentSlideIndex + 1} JPG`}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-semibold transition-all cursor-pointer"
+            title={`Download Slide ${currentSlideIndex + 1} JPG`}
           >
             <Download className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-[11px]">JPG</span>
@@ -170,13 +164,8 @@ export const ExportBar: React.FC<ExportBarProps> = ({
           <button
             type="button"
             onClick={onCopySlide}
-            disabled={isOfflineDraft && !isReviewed}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-              isOfflineDraft && !isReviewed
-                ? 'border-white/5 bg-white/[0.02] text-slate-500 cursor-not-allowed'
-                : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 cursor-pointer'
-            }`}
-            title={isOfflineDraft && !isReviewed ? 'Copy locked: Review draft first' : 'Copy Slide to Clipboard'}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-semibold transition-all cursor-pointer"
+            title="Copy Slide to Clipboard"
           >
             {copiedType === 'slide' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
             <span className="text-[11px]">Copy</span>
@@ -199,19 +188,11 @@ export const ExportBar: React.FC<ExportBarProps> = ({
         <button
           type="button"
           onClick={onExportZip}
-          disabled={isExportingZip || isExportBlocked}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold text-xs tracking-wider transition-all shadow-lg whitespace-nowrap ${
-            isExportBlocked
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-not-allowed'
-              : 'bg-teal-400 hover:bg-teal-300 text-slate-950 cursor-pointer disabled:opacity-50'
-          }`}
+          disabled={isExportingZip}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold text-xs tracking-wider transition-all shadow-lg whitespace-nowrap bg-teal-400 hover:bg-teal-300 text-slate-950 cursor-pointer disabled:opacity-50"
           title={
-            isOfflineDraft && !isReviewed
-              ? 'Export locked: Confirm "I reviewed this draft" in banner first.'
-              : !hasCreatorCredit
-              ? 'Export locked: Enter creator or channel name above.'
-              : !qaReport.canExport
-              ? `Export blocked: ${qaReport.failCount} QA issue(s) detected.`
+            !qaReport.canExport
+              ? `Export all 1080×1920 slides as ZIP (${qaReport.failCount} QA warnings)`
               : 'Export all 1080×1920 slides as ZIP'
           }
         >
@@ -220,25 +201,15 @@ export const ExportBar: React.FC<ExportBarProps> = ({
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               <span className="text-[11px]">{exportProgress ? `${exportProgress.current}/${exportProgress.total}` : 'Exporting...'}</span>
             </>
-          ) : isOfflineDraft && !isReviewed ? (
-            <>
-              <span className="text-xs">🔒</span>
-              <span className="text-[11px]">Draft Locked</span>
-            </>
-          ) : !hasCreatorCredit ? (
-            <>
-              <span className="text-xs">⚠️</span>
-              <span className="text-[11px]">Creator Required</span>
-            </>
-          ) : !qaReport.canExport ? (
-            <>
-              <span className="text-xs">⚠️</span>
-              <span className="text-[11px]">QA Issues ({qaReport.failCount})</span>
-            </>
           ) : (
             <>
               <Download className="w-3.5 h-3.5" />
               <span className="text-[11px]">Export ZIP</span>
+              {!qaReport.canExport && (
+                <span className="text-[10px] bg-slate-950/20 px-1 rounded font-bold text-amber-900" title={`${qaReport.failCount} QA warnings`}>
+                  ⚠️ {qaReport.failCount}
+                </span>
+              )}
             </>
           )}
         </button>

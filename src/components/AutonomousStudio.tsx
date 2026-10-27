@@ -697,12 +697,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   // 1-Click Export ZIP
   const handleExportZip = async () => {
     if (isOfflineDraft && !isReviewed) {
-      onShowToast('⚠️ Export locked: Click "✓ I reviewed this draft" in the banner above first.');
-      return;
-    }
-    if (!qaReport.canExport) {
-      onShowToast(`⚠️ Export blocked: ${qaReport.failCount} QA issue(s) detected.`);
-      return;
+      onShowToast('⚠️ Exporting unreviewed offline draft...');
+    } else if (!qaReport.canExport) {
+      onShowToast(`⚠️ Exporting with ${qaReport.failCount} QA advisory warning(s)...`);
     }
     setIsExportingZip(true);
     setExportProgress({ current: 0, total: carousel.slides.length });
@@ -722,10 +719,6 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   // Copy Single Slide
   const handleCopySlide = async () => {
-    if (isOfflineDraft && !isReviewed) {
-      onShowToast('⚠️ Copy locked: Please confirm "I reviewed this draft" first.');
-      return;
-    }
     try {
       await copySlideToClipboard(carousel, currentSlideIndex, theme);
       setCopiedType('slide');
