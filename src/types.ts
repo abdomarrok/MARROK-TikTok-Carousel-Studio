@@ -127,6 +127,7 @@ export interface GroundingSource {
 
 export interface PostSourceMeta {
   type?: 'article' | 'screenshot' | 'youtube' | 'notes';
+  inputMode?: string;
   title?: string;
   creator?: string;
   channel?: string;
@@ -136,7 +137,7 @@ export interface PostSourceMeta {
   groundingSources?: GroundingSource[];
   isSearchGrounded?: boolean;
   isFallback?: boolean;
-  engine?: 'gemini-ai' | 'offline-synthesizer';
+  engine?: 'grounded' | 'ungrounded' | 'offline' | 'gemini-ai' | 'offline-synthesizer';
   model?: string;
   status?: 'verified_live' | 'unverified_draft';
   userReviewed?: boolean;
@@ -148,6 +149,7 @@ export interface CarouselData {
   category: string;
   brand?: string;    // Brand wordmark / watermark (defaults to 'MARROK' or creator handle)
   brandUrl?: string; // Website URL or handle (defaults to 'marrok.org')
+  channel?: string;  // Creator / channel attribution handle
   caption: string;
   firstComment?: string; // Spec §8 & §18: Pinned first comment with reference links
   shortCaption?: string; // Spec §8: 2-line short caption variant

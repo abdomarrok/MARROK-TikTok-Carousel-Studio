@@ -115,9 +115,9 @@ export async function downloadAllSlidesZip(
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const canvas = await renderSlideToCanvas(carousel, i, undefined, customPalette, visualOptions);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
     if (blob) {
-      zip.file(`slide${i + 1}.png`, blob);
+      zip.file(`slide${i + 1}.jpg`, blob);
     }
   }
 
@@ -169,9 +169,9 @@ export async function downloadAllSlidesZip(
     exportedAt: new Date().toISOString(),
     generator: 'MARROK TikTok Carousel Studio',
     targetPlatform: 'Metricool / TikTok 9:16',
-    format: '1080x1920 PNG (Safe-Zone Compliant)',
+    format: '1080x1920 JPG (Safe-Zone Compliant)',
     totalSlides: total,
-    slideFiles: Array.from({ length: total }, (_, i) => `slide${i + 1}.png`),
+    slideFiles: Array.from({ length: total }, (_, i) => `slide${i + 1}.jpg`),
   };
   const manifestJson = JSON.stringify(carouselManifest, null, 2);
   zip.file('carousel-manifest.json', manifestJson);
@@ -233,7 +233,7 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
     screenHook: carousel.screenHook,
     captionVariants: carousel.captionVariants || [],
     hookVariants: carousel.hookVariants || [],
-    format: '1080x1920 PNG',
+    format: '1080x1920 JPG',
   };
   zip.file('post_metadata.json', JSON.stringify(metadata, null, 2));
 
@@ -246,7 +246,7 @@ Search Grounded: ${carousel.sourceMeta?.isSearchGrounded ? 'YES (Google Search)'
 Created: ${new Date().toLocaleString()}
 
 FILES IN THIS METRICOOL PACKAGE:
-- slide1.png to slide${total}.png (1080x1920 9:16 high-res PNGs, Safe-Zone compliant)
+- slide1.jpg to slide${total}.jpg (1080x1920 9:16 high-res JPGs, Safe-Zone compliant)
 - caption-bilingual.txt (Metricool ready bilingual copy with hook, CTA, and hashtags)
 - carousel-manifest.json (Complete serialized CarouselData schema for archiving and re-import)
 - caption.txt (Bilingual TikTok post caption with hashtags and verification block)
@@ -257,7 +257,7 @@ FILES IN THIS METRICOOL PACKAGE:
 
 HOW TO PUBLISH TO METRICOOL / TIKTOK:
 1. Open Metricool -> New Post -> Select TikTok / Instagram.
-2. Drag and drop slide1.png through slide${total}.png.
+2. Drag and drop slide1.jpg through slide${total}.jpg.
 3. Open 'caption-bilingual.txt', copy all and paste into post caption.
 4. Schedule or publish immediately!
 `;

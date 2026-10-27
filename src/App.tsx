@@ -42,7 +42,7 @@ export default function App() {
     DEFAULT_PALETTES[initialPaletteKey] || DEFAULT_PALETTES.teal
   );
 
-  // Auto-Save Draft to LocalStorage whenever carousel changes
+  // Auto-Save Draft to LocalStorage whenever carousel changes (with QuotaExceededError fallback)
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -51,7 +51,23 @@ export default function App() {
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         setLastSavedTime(timeStr);
       } catch (err) {
-        console.warn('Failed to auto-save draft:', err);
+        // If quota is exceeded due to large base64 images, strip inline data URLs and retry
+        try {
+          const lightweightDraft: CarouselData = {
+            ...carousel,
+            slides: carousel.slides.map((s) =>
+              s.imageUrl && s.imageUrl.startsWith('data:') && s.imageUrl.length > 50_000
+                ? { ...s, imageUrl: undefined }
+                : s
+            ),
+          };
+          localStorage.setItem('marrok_deck_draft_v1', JSON.stringify(lightweightDraft));
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setLastSavedTime(timeStr);
+        } catch (retryErr) {
+          console.warn('Failed to auto-save draft (quota exceeded):', err, retryErr);
+        }
       }
     }, 600);
 

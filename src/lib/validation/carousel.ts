@@ -14,7 +14,17 @@ import type {
 } from '../../types.ts';
 
 const SLIDE_TYPES: SlideType[] = ['hub', 'row', 'number', 'metric', 'code', 'compare', 'image', 'cta'];
-const DIAGRAM_VARIANTS: DiagramVariant[] = ['topology', 'stack', 'isolation', 'takeaway'];
+const DIAGRAM_VARIANTS: DiagramVariant[] = [
+  'topology',
+  'stack',
+  'isolation',
+  'takeaway',
+  'scatter',
+  'graph',
+  'clusters',
+  'split',
+  'features',
+];
 const IMAGE_FITS: Array<NonNullable<SlideData['imageFit']>> = ['contain', 'cover'];
 const IMAGE_FILTERS: Array<NonNullable<SlideData['imageFilter']>> = ['hud', 'invert', 'tint', 'clean'];
 const FACT_TYPES: ExtractedFact['type'][] = ['number', 'date', 'name', 'quote', 'claim'];
@@ -114,6 +124,7 @@ function parseSlide(
 
   const stringFields: Array<[keyof SlideData, string, number]> = [
     ['centerIcon', 'centerIcon', 500],
+    ['centerTag', 'centerTag', 80],
     ['diagramFooter', 'diagramFooter', 240],
     ['stepNumber', 'stepNumber', 16],
     ['stepLabel', 'stepLabel', 40],
@@ -205,11 +216,18 @@ function parseSourceMeta(value: unknown): PostSourceMeta | undefined {
 
   const meta: PostSourceMeta = {};
   const type = readEnum(value.type, ['article', 'screenshot', 'youtube', 'notes'] as const);
-  const engine = readEnum(value.engine, ['gemini-ai', 'offline-synthesizer'] as const);
+  const engine = readEnum(value.engine, [
+    'grounded',
+    'ungrounded',
+    'offline',
+    'gemini-ai',
+    'offline-synthesizer',
+  ] as const);
   const status = readEnum(value.status, ['verified_live', 'unverified_draft'] as const);
 
   const title = readString(value, 'title', 500);
   const creator = readString(value, 'creator', 200);
+  const channel = readString(value, 'channel', 200);
   const url = readString(value, 'url', 1000);
   const published = readString(value, 'published', 100);
   const model = readString(value, 'model', 120);
@@ -222,6 +240,7 @@ function parseSourceMeta(value: unknown): PostSourceMeta | undefined {
   if (type) meta.type = type;
   if (title) meta.title = title;
   if (creator) meta.creator = creator;
+  if (channel) meta.channel = channel;
   if (url) meta.url = url;
   if (published) meta.published = published;
   if (groundingQueries) meta.groundingQueries = groundingQueries;

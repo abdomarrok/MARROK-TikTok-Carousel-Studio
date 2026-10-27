@@ -141,11 +141,23 @@ export async function runAutonomousPipeline(
       const data = await res.json();
       const parsed = parseCarouselData(data, { minSlides: 3, requireSlideContent: true });
       if (parsed) {
+        const headerEngine = res.headers.get('x-marrok-engine') as
+          | 'grounded'
+          | 'ungrounded'
+          | 'offline'
+          | 'gemini-ai'
+          | 'offline-synthesizer'
+          | null;
+        if (parsed.sourceMeta && headerEngine && !parsed.sourceMeta.engine) {
+          parsed.sourceMeta.engine = headerEngine;
+        }
         rawCarousel = parsed;
         if (
           parsed.sourceMeta?.isFallback ||
+          parsed.sourceMeta?.engine === 'offline' ||
           parsed.sourceMeta?.engine === 'offline-synthesizer' ||
-          res.headers.get('x-marrok-engine') === 'offline-synthesizer'
+          headerEngine === 'offline' ||
+          headerEngine === 'offline-synthesizer'
         ) {
           onProgress?.('Offline NLP Engine Activated: Synthesizing custom slides from your pasted notes.');
         }
@@ -169,6 +181,9 @@ export async function runAutonomousPipeline(
       inputMode,
       imageFileName: imageName,
     });
+    if (rawCarousel.sourceMeta) {
+      rawCarousel.sourceMeta.userReviewed = false;
+    }
   }
 
   // Domain-Aware Theme Routing: match input topic to best visual theme

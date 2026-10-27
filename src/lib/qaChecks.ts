@@ -699,9 +699,29 @@ function checkArabicSafeZone(slide: SlideData, idx: number): QACheckResult[] {
         break;
       }
     }
+    // Check for explicit vertical offset pushing text below y=1760 safe zone
+    const arDy = slide.layoutOverrides?.arabicBodyBlock?.dy ?? 0;
+    const enDy = slide.layoutOverrides?.bodyBlock?.dy ?? 0;
+    if (arDy > 120 || enDy > 160) {
+      results.push({
+        id: `vertical-overflow-${idx}`,
+        severity: 'fail',
+        slideIndex: idx,
+        field: 'layoutOverrides',
+        message: `Slide ${idx + 1} vertical offset pushes text below the y=1760 TikTok bottom safe zone.`,
+        value: Math.max(arDy, enDy),
+        limit: 'y ≤ 1760',
+      });
+    }
   }
 
   return results;
+}
+
+export interface QACheckOptions {
+  exportFormat?: 'jpg' | 'jpeg' | 'png';
+  width?: number;
+  height?: number;
 }
 
 // ─── Main QA Runner ─────────────────────────────────────────────────
@@ -709,9 +729,32 @@ function checkArabicSafeZone(slide: SlideData, idx: number): QACheckResult[] {
 /**
  * Run all QA checks on a carousel deck. Returns a full report.
  */
-export function runQAChecks(carousel: CarouselData): QAReport {
+export function runQAChecks(carousel: CarouselData, options: QACheckOptions = {}): QAReport {
   const results: QACheckResult[] = [];
   const { slides } = carousel;
+
+  // Export format & dimension gate (TikTok requires 1080x1920 JPG, never PNG)
+  if (options.exportFormat === 'png') {
+    results.push({
+      id: 'export-format-png',
+      severity: 'fail',
+      message: 'PNG export is disallowed for TikTok carousels. Slides must export as 1080x1920 JPG.',
+      value: 'png',
+      limit: 'jpg',
+    });
+  }
+  if (
+    (options.width !== undefined && options.width !== 1080) ||
+    (options.height !== undefined && options.height !== 1920)
+  ) {
+    results.push({
+      id: 'export-dimensions',
+      severity: 'fail',
+      message: `Invalid export dimensions (${options.width}x${options.height}). Slides must be 1080x1920 (9:16).`,
+      value: `${options.width}x${options.height}`,
+      limit: '1080x1920',
+    });
+  }
 
   // Deck-level checks
   results.push(checkSlideCount(slides));
@@ -720,12 +763,15 @@ export function runQAChecks(carousel: CarouselData): QAReport {
   results.push(...checkFirstFrame(slides));
   results.push(...checkDuplicateBodyText(slides));
 
-  // Check if deck is an offline fallback draft
-  if (carousel.sourceMeta?.isFallback && !carousel.sourceMeta?.userReviewed) {
+  // Check if deck is an unreviewed draft (either offline fallback or ungrounded draft)
+  if (
+    (carousel.sourceMeta?.isFallback || carousel.sourceMeta?.status === 'unverified_draft') &&
+    !carousel.sourceMeta?.userReviewed
+  ) {
     results.push({
       id: 'fallback-draft-blocker',
       severity: 'fail',
-      message: 'Unverified offline draft detected. Review slide copy and click "I reviewed this" before export.',
+      message: 'Unverified draft detected. Review slide copy and click "I reviewed this" before export.',
       field: 'sourceMeta.userReviewed',
     });
   }

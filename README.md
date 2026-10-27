@@ -30,9 +30,9 @@ Creators provide a single input (topic prompt, engineering summary, architecture
 - **Arabic RTL Line-Height & Margin Polish:** Generous line-heights (1.45x–1.55x) prevent ascender/descender clashes with English text, strictly maintaining the right safe margin ($x \le 945$).
 - **Markdown & Syntax Stripping:** Eliminates noisy bolding markers (`**`), header symbols (`#`), and stray ellipsis dots that clutter high-impact mobile slides.
 - **Arabic BiDi Punctuation Linting:** Automatically detects Latin words in Arabic lines and places punctuation on the correct side, eliminating punctuation jump artifacts.
-- **Spec §8 Limit Fitting:** Autonomously guarantees headlines stay $\le 45$ characters and body text stays $\le 110$ characters.
+- **Spec §8 Limit Fitting:** Single source of truth (`CHAR_LIMITS` in `src/lib/qaChecks.ts`) guarantees English headlines stay $\le 45$ chars (`arTitle` $\le 40$) and English body text stays $\le 140$ chars (`arBody` $\le 150$).
 - **Auto Architecture Diagram Generation:** Detects technical mechanism slides and generates vertical 9:16 schematics automatically.
-- **Silent QA Verification:** Runs pre-publish quality checks (`qaChecks.ts`) and auto-corrects soft violations before display.
+- **Pre-Publish QA & Platform Safety Gate:** Runs both structural QA checks (`src/lib/qaChecks.ts`) and platform safety/originality checks (`src/lib/riskChecks.ts`).
 
 ### 🛡️ Slide Layout Awareness & Anti-Collision Engine (`src/lib/canvas/layoutAwareness.ts`)
 MARROK guarantees that slide elements never collide or overlay each other across all 8 slide archetypes:
@@ -43,93 +43,58 @@ MARROK guarantees that slide elements never collide or overlay each other across
 - **Footer Ceiling Compression Pass:** Automatically compresses and shifts text stacks if long copy or user offsets approach the TikTok pagination dots at $y = 1710\text{px}$.
 
 ### 🖼️ AI Architecture Diagram Studio (`gemini-nano-banana-2.1`)
-- **Native 9:16 Vertical Diagrams:** Powered by `POST /api/generate-image` utilizing `gemini-nano-banana-2.1` with `{ aspectRatio: '9:16', imageSize: '1K' }` to generate high-resolution vertical visuals that match TikTok feed geometry.
+- **Native 9:16 Vertical Diagrams:** Powered by `POST /api/generate-image` utilizing configurable Gemini image models (`GEMINI_IMAGE_MODELS`, default `gemini-nano-banana-2.1,gemini-3.1-flash-lite-image`) with `{ aspectRatio: '9:16', imageSize: '1K' }`.
 - **Zero-Config 1-Click Theme Schematic:** Automatically derives the technical diagram prompt from the slide's `enTitle`, `diagramNodes`, and deck's exact hex colors (`theme.accent`, `theme.baseBg`, `theme.surface`), producing a matching dark OLED schematic with 1 click.
-- **Engineering Style Presets:** 1-click generation presets tailored for developers:
-  - *System Blueprint:* Dark cyan circuit schematics and topology paths.
-  - *Terminal Core:* Monospace CLI telemetry matrix with memory buffer traces.
-  - *Services Flow:* Distributed microservice boundaries and API queues.
-  - *Security Boundary:* Zero-trust firewall perimeters and threat vectors.
-- **Prompt-Based Image Editing:** Pass an existing slide diagram with natural language revision directives (e.g. "Highlight the distributed cache in amber", "Invert background to dark blueprint").
-
-### 🎛️ Minimalist Studio with Progressive Disclosure (`AutonomousStudio.tsx`)
-- **Unified Inline Smart Dock:** Auto-expanding command center supporting instant text prompts, multi-line notes, code files, web links, and YouTube transcripts without clumsy modal popups.
-- **Direct Clipboard Screenshot Ingestion (Ctrl+V):** Paste screenshots directly from the clipboard (`Win+Shift+S` or `Cmd+Shift+4` followed by `Ctrl+V`) with automated client-side 1280px compression.
-- **Direct Viewport Dragging & Precision Graphical Control:** Click and drag any slide layer directly on the 1080×1920 canvas viewport with collision-clamped boundary awareness, live HUD coordinate delta feedback (`+125x, +61y`), keyboard arrow-key micro-nudging (2px / 10px with Shift), and one-click "Apply to All Slides" multi-slide layout stamping.
-- **Direct Inline Text Editing:** Click directly on English headlines, Arabic text, or body mechanism copy in the live preview to edit instantly without clumsy forms.
-- **Sleek Slide Management Bar:** Rapid Add (`+`), Duplicate, Delete (safely guarded $\ge 3$ slides), Reorder (Move Left / Right), and Slide 1 Hook Variant selector (Curiosity, Metric, Contrast).
-- **Expandable Advanced Customizer Drawer:** Power features are cleanly tucked into a collapsible side drawer:
-  - *Dynamic Hub Archetype:* Interactive node management with dynamic orbital node counts ($N \in [2, 6]$), auto-balanced radial spoke geometry, custom Center Hero icon picker, and Center Tag pill.
-  - *Unified Dual-Renderer Icon System:* 1:1 canvas-to-editor parity rendering both vector glyphs and 40+ curated tech brand logos (PostgreSQL, Redis, Kubernetes, Docker, Go, Rust, AWS) with alias search and custom URL input.
-  - *Instant Archetype Switcher & Auto-Seeding:* 1-click toggle between `Hub`, `Mechanism`, `Diagram / AI`, `Code Diff`, `Metric`, `Compare`, and `CTA`. Missing fields (`codeSnippet`, `metricValue`, comparison columns, `satLabels`) are automatically synthesized on the spot from slide content and rendered live on canvas.
-  - *Diagram Layout Switcher & Live Node Editor:* 1-click layout toggle (`Topology Flow`, `Layered Stack`, `Isolation Grid`, `Key Takeaway`), 3 live component nodes with vector icons, protocol connectors, and telemetry line.
-  - *Code Archetype:* Language selector, terminal dot styles, line numbers, and diff syntax (`+`, `-`, `$`).
-  - *Metric Archetype:* Giant contrast value, category label, sparkline acceleration curve, and delta pill.
-  - *Compare Archetype:* Legacy vs Modern bullet points and advantage tags.
-  - *AI Diagram Studio & Web Logos:* Real-time prompt generation, style presets, 1-click diagram creation, and 40+ developer brand SVGs (Docker, Redis, K8s, Linux).
-- **Sticky 1080×1920 Preview with HUD Simulator:** Pinned 9:16 canvas preview with 1-click TikTok In-App Safe Zone HUD overlay simulator (toggle with key **`T`**).
+- **Prompt-Based Image Editing:** Pass an existing slide diagram with natural language revision directives (validated under Vercel's 4.5 MB payload cap).
 
 ### 🎨 The MARROK 8-Archetype Visual System
 1. **The Hook (`hub`):** Central customizable hero icon and tag pill connected to 2–6 orbiting satellites (`satLabels`) via dynamic radial vectors.
-2. **Technical Diagram (`row`):** 4 bespoke technical schematics (`topology`, `stack`, `isolation`, `takeaway`) with connected nodes, connectors, and telemetry bars.
+2. **Technical Diagram (`row`):** 9 technical schematic variants (`topology`, `stack`, `isolation`, `takeaway`, `scatter`, `graph`, `clusters`, `split`, `features`) with connected nodes, connectors, and telemetry bars.
 3. **Step Number Counter (`number`):** Giant 220px accent numeral counter with optional micro-badge label for procedural workflows.
 4. **Metric Hero Card (`metric`):** Giant high-contrast metric value (e.g. `200x`, `0ms`, `99.9%`), category label, sparkline curve, and delta pill.
 5. **Code / Terminal Window (`code`):** Monospace terminal window with macOS dots, line numbers, CRT scanlines, and diff syntax (`$`, `+`, `-`, `✔`).
 6. **Comparison Split (`compare`):** Side-by-side legacy vs modern cards with problem/solution bullet points and circular `VS` badge.
 7. **Image Visual Card (`image`):** Elevated technical diagram or visual asset container with `contain` or `cover` fit, caption badge, and blueprint grid.
-8. **Final CTA (`cta`):** Geometric branding emblem, domain question, CTA pill, and verified source attribution credit.
+8. **Final CTA (`cta`):** Geometric branding emblem, domain question, CTA pill, and required creator/source attribution credit.
 
-### 📦 Complete Deliverables & Metricool Publishing Bundle
+### 📦 Complete Deliverables & Metricool Publishing Bundle (100% JPG)
 1-click export packages everything needed to publish immediately on mobile or via social schedulers (Metricool, Buffer):
-- `slide1.png` through `slide8.png` (Lossless 1080×1920 9:16 high-res PNGs, Safe-Zone compliant at root and folder level)
-- `caption-bilingual.txt` & `caption.txt` (Ready-to-paste Metricool copy with screen hooks, English + Arabic captions, and engineering hashtags)
+- `slide1.jpg` through `slideN.jpg` (1080×1920 9:16 high-res JPG Q95 slides — never PNG, strictly TikTok & Safe-Zone compliant)
+- `caption-bilingual.txt` & `caption.txt` (Ready-to-paste Metricool copy with screen hooks, English + Arabic captions, and topic-derived hashtags)
 - `first_comment.txt` (Pinned first comment to drive engagement, discussion points, and source links)
-- `carousel-manifest.json` (Full serialized `CarouselData` for deck archival and instant re-import)
+- `carousel-manifest.json` & `post_metadata.json` (Full serialized `CarouselData` and grounding provenance for deck archival)
+- `claims_citations.txt` (Audit log of claims mapped strictly via Google Search `groundingSupports`)
 - `short_caption.txt` (Clean 2-line version for TikTok quick post)
 - `README.txt` (Creator publishing guide with step-by-step mobile & Metricool instructions)
 
-### 🛡️ Pre-Publish QA Gate & Visual Contact Sheet
-- **Advisory QA Linter (`src/lib/qaChecks.ts`):** Evaluates headline character limits, body length, placeholder tokens (`Lorem ipsum`, `00%`), and Arabic punctuation jump bugs. Flags advisory warnings in the export drawer without blocking creator exports.
-- **Creator Attribution Default:** Attribution fields default gracefully to `MARROK` so publishing is never blocked by empty creator inputs.
-- **Contact Sheet Generator:** Renders all deck slides tiled in a high-resolution master grid for instant visual inspection before posting.
+### 🛡️ Security, Grounding Provenance & Pre-Publish Safety Gate
+- **Authentic Grounding Provenance:** Decks are marked `verified_live` (`Grounded`) **only** when Google Search grounding returns actual web sources. Ungrounded LLM outputs are marked `unverified_draft` (`Ungrounded AI`) with `userReviewed = false`, and offline fallback decks are marked `Offline Synthesizer`. Only an explicit human click on **"I reviewed this draft"** sets `userReviewed = true`.
+- **Platform Risk & QA Gate (`src/lib/riskChecks.ts` & `src/lib/qaChecks.ts`):** Evaluates Originality, Copyrighted IP/Audio, First-Frame Cover Quality, Unverified Numeric Claims, and Slide Repetition (`PASS` / `WARN` / `BLOCK`), plus placeholder text, Arabic line-ending punctuation, and $y \le 1760$ safe-zone clearance. Blocks export on `BLOCK` / `FAIL` unless explicitly overridden.
+- **Brand Logos & Wikimedia Attribution:** Official brand logos (`src/lib/techLogos.ts`) preserve their official colors on neutral tiles by default (SVG recoloring via `/api/proxy-image?color=` is strictly opt-in). When importing diagrams or media from Wikimedia Commons via the Media Search tool, include the author/license attribution in the Creator/Channel Credit field rendered on the CTA slide and in `claims_citations.txt`.
 
 ---
 
-## 📂 Project Architecture & Specifications
+## 📂 Documentation Index
 
-For comprehensive documentation, see the [`specs/`](specs/) directory:
-
-- 📐 [**`specs/architecture.md`**](specs/architecture.md) — System topology, client ingestion pipeline, backend proxy, AI orchestration, and canvas rasterization.
-- 📜 [**`specs/logsteps.md`**](specs/logsteps.md) — Chronological engineering milestones, user feedback cycles, and root-cause analysis of mobile fetch latency.
-- 🎨 [**`specs/archetypes-and-design-system.md`**](specs/archetypes-and-design-system.md) — Color tokens, typography, TikTok 9:16 safe zones, and archetype ASCII schematics.
-- 🔌 [**`specs/api-and-schemas.md`**](specs/api-and-schemas.md) — REST endpoint contracts (`/api/generate`, `/api/proxy-image`, `/api/search-media`), JSON schemas, and TypeScript interfaces.
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend:** React 19, TypeScript, Tailwind CSS v4, Motion, Lucide Icons, JSZip.
-- **Backend:** Node.js, Express, `@google/genai` TypeScript SDK.
-- **Styling & Fonts:** Plus Jakarta Sans (English display), Cairo (Arabic typography), JetBrains Mono (metrics & code).
-- **Bundler & Tooling:** Vite 8, tsx.
+- 📋 [**`docs/AUDIT.md`**](docs/AUDIT.md) — Phase 0 Staff Engineering Audit, data flow trace, and risk register.
+- 🏗️ [**`docs/ARCHITECTURE.md`**](docs/ARCHITECTURE.md) — System architecture diagram, module boundaries, and pipeline contracts.
+- 🧭 [**`docs/ADR/`**](docs/ADR/) — Architecture Decision Records (Server-Side Gemini Gateway, Deterministic Canvas Export).
+- 🔒 [**`SECURITY.md`**](SECURITY.md) — SSRF defenses, SVG sanitization, rate limiting, and secret management.
+- 🤝 [**`CONTRIBUTING.md`**](CONTRIBUTING.md) — Development workflow, testing rules, and PR checklist.
+- 📝 [**`CHANGELOG.md`**](CHANGELOG.md) — Production handoff changelog and behavior changes.
 
 ---
 
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
-- Node.js 20+ installed
-- npm or bun package manager
+- Node.js `>= 20.0.0` (see `.nvmrc`)
+- `npm` (single lockfile: `package-lock.json`)
 - (Optional) Google Gemini API Key (app includes a zero-latency deterministic synthesizer fallback that operates without an API key)
 
 ### 2. Installation
 ```bash
-# Clone the repository
-git clone https://github.com/marrokmar/marrok-tiktok-studio.git
-cd marrok-tiktok-studio
-
-# Install dependencies
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### 3. Environment Variables
@@ -137,10 +102,15 @@ Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Set your `GEMINI_API_KEY`:
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GEMINI_API_KEY` | Optional* | `""` | Server-side Gemini API key (*offline fallback used if omitted and no client key sent) |
+| `GEMINI_GENERATION_MODELS` | Optional | `gemini-2.5-flash,...` | Comma-separated model cascade for `/api/generate` and `/api/refine-slide` |
+| `GEMINI_IMAGE_MODELS` | Optional | `gemini-nano-banana-2.1,...` | Comma-separated model cascade for `/api/generate-image` |
+| `ALLOWED_ORIGIN` | Optional | `*` | CORS `Access-Control-Allow-Origin` header value |
+| `API_SHARED_SECRET` | Optional | `""` | Shared secret (`x-api-secret`) required when relying on server `GEMINI_API_KEY` |
+| `RATE_LIMIT_RPM` | Optional | `30` | Per-IP requests per minute limit on AI endpoints |
 
 ### 4. Run Development Server
 ```bash
@@ -155,31 +125,28 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | Command | Action |
 |---|---|
 | `npm run dev` | Starts Express backend and Vite development server on port 3000 |
+| `npm run typecheck` | Runs TypeScript compiler validation (`tsc --noEmit`) |
+| `npm run lint` | Alias for `tsc --noEmit` |
+| `npm test` | Runs Vitest unit & integration test suite |
 | `npm run build` | Compiles production bundle with Vite into `/dist` |
-| `npm run lint` | Runs TypeScript type checking (`tsc --noEmit`) |
-| `npm run start` | Launches production server with compiled assets |
-| `npm run clean` | Cleans build artifacts and caches |
+| `npm run start` | Launches server (`NODE_ENV=production npm run start` serves `/dist`) |
+| `npm run clean` | Cleans build artifacts |
 
 ---
 
-## 📱 TikTok Safe Zones Reference
+## ☁️ Deployment (Vercel) & Troubleshooting
 
-When previewing or downloading 1080×1920 slides, content is automatically positioned within TikTok's mobile UI safe area:
-
-```
-0px ──────────────────────────────────────── 1080px
- │  [ Top 180px Safe Margin: Search & Sound ]  │
-180px ─────────────────────────────────────────│
- │                                            │
- │      840px × 1420px Content Bounding Box   │
- │                                            │
-1600px ────────────────────────────────────────│
- │  [ Bottom 320px Safe Margin: Caption/Bio ] │
-1920px ────────────────────────────────────────┘
-```
+1. **Vercel Configuration (`vercel.json`):**
+   - `api/index.ts` is configured with `"maxDuration": 60` and `"memory": 1024`.
+   - All `/api/*` routes rewrite to `/api/index`, which restores the original path from `x-matched-path` / `x-forwarded-uri`.
+2. **Troubleshooting:**
+   - **`413 Payload Too Large` on Image Edit:** Vercel serverless functions cap request bodies at ~4.5 MB. The client automatically compresses uploaded screenshots to 1280px JPEG, and `/api/generate-image` rejects base64 payloads exceeding 3.8M chars with a clear message.
+   - **Arabic Font Rendering in Export:** Ensure the browser has loaded Google Fonts (`Cairo` and `Plus Jakarta Sans`) before exporting offline. The canvas renderer uses `direction = 'rtl'` and explicit `Cairo` font stacks.
+   - **LocalStorage Quota Exceeded:** `src/App.tsx` automatically catches `QuotaExceededError` and strips oversized inline `data:image/` strings from the saved draft so text edits are never lost.
 
 ---
 
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for details.
+

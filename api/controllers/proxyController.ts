@@ -2,17 +2,26 @@ import type { Request, Response } from 'express';
 import dns from 'node:dns';
 import net from 'node:net';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB cap
+export const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB cap per Phase 1 security spec
 
-const ALLOWED_CONTENT_TYPES = [
+export const ALLOWED_CONTENT_TYPES = [
   'image/png',
   'image/jpeg',
   'image/webp',
-  'image/svg+xml',
   'image/gif',
-  'image/x-icon',
-  'image/vnd.microsoft.icon',
-];
+  'image/svg+xml',
+] as const;
+
+export const ALLOWED_SEARCH_IMAGE_HOSTS = new Set([
+  'cdn.jsdelivr.net',
+  'raw.githubusercontent.com',
+  'avatars.githubusercontent.com',
+  'github.githubassets.com',
+  'upload.wikimedia.org',
+  'commons.wikimedia.org',
+  'images.unsplash.com',
+  'unpkg.com',
+]);
 
 /**
  * Checks whether an IP belongs to private, loopback, link-local, or cloud metadata ranges.
@@ -71,11 +80,42 @@ export function isBlockedHostname(hostname: string): boolean {
   ) {
     return true;
   }
-  // Decimal integer or hex IP bypasses (e.g., 2130706433 or 0x7f000001)
+  // Decimal integer, octal, or hex IP bypasses (e.g., 2130706433 or 0x7f000001)
   if (/^\d+$/.test(lower) || /^0x[0-9a-f]+$/i.test(lower)) {
     return true;
   }
   return false;
+}
+
+/**
+ * Validates that a URL string uses https:// and does not target a blocked or private host.
+ */
+export function isAllowedProxyUrl(rawUrl: string, requireSearchAllowlist = false): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:') return false;
+    if (isBlockedHostname(parsed.hostname)) return false;
+    if (net.isIP(parsed.hostname) && isPrivateOrLoopbackIp(parsed.hostname)) return false;
+    if (requireSearchAllowlist && !ALLOWED_SEARCH_IMAGE_HOSTS.has(parsed.hostname.toLowerCase())) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sanitizes raw SVG markup by stripping scripts, foreignObject, embedded objects, event handlers, and javascript: URIs.
+ */
+export function sanitizeSvgContent(svgText: string): string {
+  return svgText
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<foreignObject\b[^<]*(?:(?!<\/foreignObject>)<[^<]*)*<\/foreignObject>/gi, '')
+    .replace(/<(?:iframe|object|embed)\b[^>]*>.*?<\/(?:iframe|object|embed)>/gis, '')
+    .replace(/<(?:iframe|object|embed)\b[^>]*\/?>/gi, '')
+    .replace(/\bon\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+    .replace(/(?:href|xlink:href)\s*=\s*["']\s*javascript:[^"']*["']/gi, '');
 }
 
 /**
@@ -101,14 +141,22 @@ export async function resolveAndValidateHost(hostname: string): Promise<boolean>
 }
 
 /**
- * Safely fetches an image following controlled redirects and rejecting private destinations.
+ * Safely fetches an image over HTTPS following controlled redirects and rejecting private destinations at every hop.
  */
-async function fetchSafeImage(initialUrl: string, maxHops = 3): Promise<globalThis.Response> {
+async function fetchSafeImage(
+  initialUrl: string,
+  requireSearchAllowlist = false,
+  maxHops = 3
+): Promise<globalThis.Response> {
   let currentUrl = initialUrl;
   for (let hop = 0; hop <= maxHops; hop++) {
     const parsed = new URL(currentUrl);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error('Only http and https protocols are allowed');
+    if (parsed.protocol !== 'https:') {
+      throw new Error('Only https protocol is allowed');
+    }
+
+    if (requireSearchAllowlist && !ALLOWED_SEARCH_IMAGE_HOSTS.has(parsed.hostname.toLowerCase())) {
+      throw new Error(`Host "${parsed.hostname}" is not in the search media allowlist.`);
     }
 
     const isSafe = await resolveAndValidateHost(parsed.hostname);
@@ -118,10 +166,10 @@ async function fetchSafeImage(initialUrl: string, maxHops = 3): Promise<globalTh
 
     const response = await fetch(currentUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MARROK-TikTok-Studio/2.0',
-        Accept: 'image/png,image/jpeg,image/webp,image/svg+xml,image/*;q=0.8',
+        'User-Agent': 'MARROK-TikTok-Studio/2.0',
+        Accept: 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml',
       },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(6000),
       redirect: 'manual',
     });
 
@@ -140,101 +188,86 @@ async function fetchSafeImage(initialUrl: string, maxHops = 3): Promise<globalTh
 }
 
 /**
- * CORS-safe image proxy with strict SSRF protection, size caps, and dynamic SVG recoloring.
+ * CORS-safe image proxy with strict HTTPS + SSRF protection, 2MB size cap, CSP sandbox headers, and SVG sanitization.
  */
 export async function handleProxyImage(req: Request, res: Response) {
   const targetUrl = req.query.url as string;
   const requestedColor = (req.query.color as string) || '';
+  const requireSearchAllowlist = req.query.source === 'search';
 
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({ error: 'url query parameter is required' });
   }
 
-  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-    return res.status(400).json({ error: 'Only http and https protocols are allowed' });
+  if (!targetUrl.startsWith('https://')) {
+    return res.status(400).json({ error: 'Only https protocol is allowed' });
+  }
+
+  if (!isAllowedProxyUrl(targetUrl, requireSearchAllowlist)) {
+    return res.status(400).json({ error: 'URL host is blocked or not permitted' });
   }
 
   try {
-    const upstreamRes = await fetchSafeImage(targetUrl);
+    const upstreamRes = await fetchSafeImage(targetUrl, requireSearchAllowlist);
 
     if (!upstreamRes.ok) {
       return res.status(upstreamRes.status).json({ error: `Upstream error: ${upstreamRes.statusText}` });
     }
 
-    // 1. Content-Length early exit
+    // 1. Content-Length early exit (2 MB cap)
     const contentLength = upstreamRes.headers.get('content-length');
     if (contentLength && parseInt(contentLength, 10) > MAX_IMAGE_BYTES) {
-      return res.status(413).json({ error: 'Image exceeds maximum allowed size (5MB)' });
+      return res.status(413).json({ error: 'Image exceeds maximum allowed size (2MB)' });
     }
 
-    // 2. Strict Content-Type validation
-    const rawContentType = (upstreamRes.headers.get('content-type') || '').toLowerCase();
-    const isAllowedType = ALLOWED_CONTENT_TYPES.some((allowed) => rawContentType.includes(allowed));
+    // 2. Strict Content-Type validation (reject non-permitted MIME types with 415)
+    const rawContentType = (upstreamRes.headers.get('content-type') || '').toLowerCase().split(';')[0].trim();
+    const isAllowedType = (ALLOWED_CONTENT_TYPES as readonly string[]).includes(rawContentType);
 
-    const isSvgUrl = targetUrl.toLowerCase().endsWith('.svg') || targetUrl.includes('simple-icons');
-
-    if (!isAllowedType && !isSvgUrl) {
+    if (!isAllowedType) {
       return res.status(415).json({
-        error: `Unsupported content type "${rawContentType}". Only images are permitted.`,
+        error: `Unsupported content type "${rawContentType}". Permitted: image/png, image/jpeg, image/webp, image/gif, image/svg+xml.`,
       });
     }
 
     // 3. Size-capped arrayBuffer read
     const rawBuffer = Buffer.from(await upstreamRes.arrayBuffer());
     if (rawBuffer.byteLength > MAX_IMAGE_BYTES) {
-      return res.status(413).json({ error: 'Image exceeds maximum allowed size (5MB)' });
+      return res.status(413).json({ error: 'Image exceeds maximum allowed size (2MB)' });
     }
 
-    const isSvg =
-      rawContentType.includes('svg') ||
-      isSvgUrl ||
-      rawBuffer.toString('utf-8', 0, 100).includes('<svg');
+    // Apply strict security headers to all proxied image responses
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    res.setHeader('Cache-Control', 'public, max-age=86400');
 
-    if (isSvg) {
-      let svgText = rawBuffer.toString('utf-8');
+    if (rawContentType === 'image/svg+xml') {
+      let svgText = sanitizeSvgContent(rawBuffer.toString('utf-8'));
 
-      // Sanitize SVG against XSS (strip scripts and inline event handlers)
-      svgText = svgText
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/\bon\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
-
+      // Optional opt-in theme recoloring (only when ?color= is explicitly passed)
       let hexColor = requestedColor.trim();
-      if (hexColor && !hexColor.startsWith('#') && !hexColor.startsWith('rgb')) {
-        hexColor = `#${hexColor}`;
-      }
-
-      // Dynamic theme recoloring
-      if (hexColor) {
+      if (hexColor && /^#?[0-9a-fA-F]{3,8}$/.test(hexColor)) {
+        if (!hexColor.startsWith('#')) {
+          hexColor = `#${hexColor}`;
+        }
         svgText = svgText.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
           const cleanAttrs = attrs.replace(/\bfill="[^"]*"/gi, '');
           return `<svg ${cleanAttrs} fill="${hexColor}" style="color: ${hexColor}; fill: ${hexColor};">`;
         });
         svgText = svgText.replace(/\bfill="(?:currentColor|#000|#000000|black)"/gi, `fill="${hexColor}"`);
         svgText = svgText.replace(/<path\b((?![^>]*\bfill=)[^>]*)>/gi, `<path fill="${hexColor}" $1>`);
-      } else {
-        svgText = svgText.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
-          if (!attrs.includes('fill=')) {
-            return `<svg ${attrs} fill="#FFFFFF" style="color: #FFFFFF; fill: #FFFFFF;">`;
-          }
-          return `<svg ${attrs}>`;
-        });
-        svgText = svgText.replace(/<path\b((?![^>]*\bfill=)[^>]*)>/gi, `<path fill="#FFFFFF" $1>`);
       }
 
       const modifiedBuffer = Buffer.from(svgText, 'utf-8');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Cache-Control', 'public, max-age=86400');
       res.setHeader('Content-Type', 'image/svg+xml;charset=utf-8');
       return res.send(modifiedBuffer);
     }
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('Content-Type', rawContentType || 'image/png');
+    res.setHeader('Content-Type', rawContentType);
     return res.send(rawBuffer);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`Failed to proxy image ${targetUrl}:`, msg);
+    console.warn(`Failed to proxy image:`, msg);
     return res.status(400).json({ error: 'Failed to proxy external image', details: msg });
   }
 }

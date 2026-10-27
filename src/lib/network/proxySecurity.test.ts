@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { isPrivateOrLoopbackIp, isBlockedHostname } from '../../../api/controllers/proxyController';
+import {
+  isPrivateOrLoopbackIp,
+  isBlockedHostname,
+  isAllowedProxyUrl,
+  sanitizeSvgContent,
+} from '../../../api/controllers/proxyController';
+import { mapFactsWithGroundingSupports } from '../../../api/controllers/generateController';
 
-describe('SSRF Protection in Image Proxy', () => {
+describe('SSRF Protection & SVG Sanitization in Image Proxy', () => {
   it('blocks IPv4 loopback and private ranges', () => {
     expect(isPrivateOrLoopbackIp('127.0.0.1')).toBe(true);
     expect(isPrivateOrLoopbackIp('127.1.2.3')).toBe(true);
@@ -46,4 +52,51 @@ describe('SSRF Protection in Image Proxy', () => {
     expect(isBlockedHostname('images.unsplash.com')).toBe(false);
     expect(isBlockedHostname('raw.githubusercontent.com')).toBe(false);
   });
+
+  it('enforces https-only and search host allowlist in isAllowedProxyUrl', () => {
+    expect(isAllowedProxyUrl('http://upload.wikimedia.org/logo.svg')).toBe(false);
+    expect(isAllowedProxyUrl('https://localhost/logo.svg')).toBe(false);
+    expect(isAllowedProxyUrl('https://upload.wikimedia.org/logo.svg', true)).toBe(true);
+    expect(isAllowedProxyUrl('https://untrusted-site.example.com/img.png', true)).toBe(false);
+  });
+
+  it('sanitizes dangerous scripts, event handlers, and foreignObject from SVG payloads', () => {
+    const rawSvg = `<svg onload="alert(1)"><script>fetch("https://evil.tld")</script><foreignObject><iframe></iframe></foreignObject><path d="M0 0h10v10z" onclick="evil()" href="javascript:alert(1)"/></svg>`;
+    const clean = sanitizeSvgContent(rawSvg);
+    expect(clean).not.toContain('<script');
+    expect(clean).not.toContain('<foreignObject');
+    expect(clean).not.toContain('onload=');
+    expect(clean).not.toContain('onclick=');
+    expect(clean).not.toContain('javascript:');
+    expect(clean).toContain('<path d="M0 0h10v10z"');
+  });
 });
+
+describe('Grounding Support Fact Mapping (No Cyclic Fake Citations)', () => {
+  it('leaves sourceUrl empty when groundingSupports do not back a claim', () => {
+    const facts = [{ text: 'Redis 8 improves throughput by 40%', type: 'number' as const, verified: 'verified' as const }];
+    const mapped = mapFactsWithGroundingSupports(facts, [], [])!;
+    expect(mapped[0].sourceUrl).toBeUndefined();
+    expect(mapped[0].verified).toBe('unconfirmed');
+  });
+
+  it('maps a fact only when groundingSupports match its claim text', () => {
+    const facts = [
+      { text: 'Scion replaces Git worktrees with microVM snapshots', type: 'claim' as const, verified: 'unconfirmed' as const },
+      { text: 'Unrelated secondary statement without support', type: 'claim' as const, verified: 'unconfirmed' as const },
+    ];
+    const webSources = [{ title: 'Anthropic Engineering Blog', url: 'https://www.anthropic.com/engineering/scion' }];
+    const supports = [
+      {
+        segment: { text: 'Scion replaces Git worktrees with microVM snapshots' },
+        groundingChunkIndices: [0],
+      },
+    ];
+    const mapped = mapFactsWithGroundingSupports(facts, webSources, supports)!;
+    expect(mapped[0].sourceUrl).toBe('https://www.anthropic.com/engineering/scion');
+    expect(mapped[0].verified).toBe('verified');
+    expect(mapped[1].sourceUrl).toBeUndefined();
+    expect(mapped[1].verified).toBe('unconfirmed');
+  });
+});
+

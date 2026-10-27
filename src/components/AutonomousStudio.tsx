@@ -38,6 +38,7 @@ import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousP
 import { sanitizeSlide } from '../lib/textSanitizer.ts';
 import { seedSlideArchetypeData, synthesizeCarousel } from '../lib/synthesizer.ts';
 import { runQAChecks, CHAR_LIMITS } from '../lib/qaChecks.ts';
+import { runPlatformRiskChecks } from '../lib/riskChecks.ts';
 import { autoPolishHeadline, autoFitTextToLimits } from '../lib/text/headlines.ts';
 import { fixArabicPunctuation } from '../lib/text/arabicBiDi.ts';
 import { SlideImageStudio } from './SlideImageStudio.tsx';
@@ -50,6 +51,32 @@ import {
   ExportBar,
   ElementInspector,
 } from './studio/index.ts';
+
+function deriveTopicHashtags(carousel: CarouselData): string[] {
+  const captionMatches = (carousel.caption || '').match(/#[A-Za-z0-9_\u0600-\u06FF]+/g);
+  if (captionMatches && captionMatches.length >= 3) {
+    return Array.from(new Set(captionMatches)).slice(0, 6);
+  }
+
+  const tags = new Set<string>(['#MARROK', '#SystemDesign']);
+  const catWords = (carousel.category || '')
+    .split(/[^A-Za-z0-9]+/)
+    .filter((w) => w.length >= 3);
+  if (catWords.length > 0) {
+    tags.add(`#${catWords.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('')}`);
+  }
+
+  const firstTitleWords = (carousel.slides[0]?.enTitle || '')
+    .split(/[^A-Za-z0-9]+/)
+    .filter((w) => w.length >= 4 && !/^(with|from|into|beyond|when|what|your|that|this)$/i.test(w));
+  for (const w of firstTitleWords.slice(0, 2)) {
+    tags.add(`#${w.charAt(0).toUpperCase() + w.slice(1)}`);
+  }
+
+  tags.add('#SoftwareEngineering');
+  tags.add('#TechInArabic');
+  return Array.from(tags).slice(0, 6);
+}
 
 interface AutonomousStudioProps {
   carousel: CarouselData;
@@ -723,16 +750,52 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     onShowToast(`Applied "${variant.tag}" Hook to Slide 1`);
   };
 
-  const isOfflineDraft = Boolean(carousel.sourceMeta?.isFallback);
+  const [overrideExportBlock, setOverrideExportBlock] = useState(false);
+  const isOfflineDraft = Boolean(
+    carousel.sourceMeta?.isFallback ||
+      carousel.sourceMeta?.engine === 'offline' ||
+      carousel.sourceMeta?.engine === 'offline-synthesizer'
+  );
   const isReviewed = Boolean(carousel.sourceMeta?.userReviewed);
   const qaReport = runQAChecks(carousel);
+  const riskReport = runPlatformRiskChecks(carousel, promptInput);
+  const dynamicHashtags = deriveTopicHashtags(carousel);
 
-  // 1-Click Export ZIP
+  const engineBadge =
+    carousel.sourceMeta?.engine === 'grounded' || carousel.sourceMeta?.status === 'verified_live'
+      ? { label: 'Grounded', cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' }
+      : isOfflineDraft
+      ? { label: 'Offline', cls: 'bg-amber-500/15 border-amber-500/30 text-amber-300' }
+      : { label: 'Ungrounded AI', cls: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300' };
+
+  // 1-Click Export ZIP with QA & Platform Safety Gate
   const handleExportZip = async () => {
+    const ctaSlide = carousel.slides[carousel.slides.length - 1];
+    const hasCreatorCredit = Boolean(
+      (
+        carousel.sourceMeta?.creator ||
+        carousel.sourceMeta?.channel ||
+        carousel.channel ||
+        ctaSlide?.enCredit ||
+        ''
+      ).trim()
+    );
+
+    if ((!qaReport.canExport || riskReport.status === 'BLOCK' || !hasCreatorCredit) && !overrideExportBlock) {
+      setInspectorTab('caption');
+      setMobileStudioTab('editor');
+      onShowToast(
+        !hasCreatorCredit
+          ? '⚠️ Creator/Channel credit required before export (see Caption & QA tab).'
+          : `⚠️ Export blocked by ${qaReport.failCount} QA / ${riskReport.blockCount} Risk check(s). Review or enable Override in Caption & QA.`
+      );
+      return;
+    }
+
     if (isOfflineDraft && !isReviewed) {
-      onShowToast('⚠️ Exporting unreviewed offline draft...');
-    } else if (!qaReport.canExport) {
-      onShowToast(`⚠️ Exporting with ${qaReport.failCount} QA advisory warning(s)...`);
+      onShowToast('⚠️ Exporting unreviewed offline draft (Override active)...');
+    } else if (!qaReport.canExport || riskReport.status === 'WARN') {
+      onShowToast(`⚠️ Exporting with advisory warnings...`);
     }
     setIsExportingZip(true);
     setExportProgress({ current: 0, total: carousel.slides.length });
@@ -745,7 +808,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         },
         carousel.visualOptions
       );
-      onShowToast('All 1080×1920 PNG slides & Metricool bundle exported into ZIP!');
+      onShowToast('All 1080×1920 JPG slides & Metricool bundle exported into ZIP!');
     } catch (err) {
       console.error('ZIP export failed:', err);
       onShowToast('Failed to export ZIP file.');
@@ -770,11 +833,15 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   // Copy TikTok Caption
   const handleCopyCaption = async () => {
     const rawCaption = carousel.caption || '';
-    const text = `${rawCaption}\n\n#SoftwareArchitecture #TechTok #Programming #SystemDesign`.replace(/\u00A0/g, ' ');
+    const hashtagLine = dynamicHashtags.join(' ');
+    const text = (rawCaption.includes('#') ? rawCaption : `${rawCaption}\n\n${hashtagLine}`).replace(
+      /\u00A0/g,
+      ' '
+    );
     try {
       await navigator.clipboard.writeText(text);
       setCopiedType('caption');
-      onShowToast('Copied TikTok caption and hashtags to clipboard!');
+      onShowToast('Copied TikTok caption and topic hashtags to clipboard!');
       setTimeout(() => setCopiedType(null), 2000);
     } catch {
       onShowToast('Failed to copy caption.');
@@ -1000,6 +1067,16 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 <span className="truncate max-w-[180px]">{pipelineStatus}</span>
               </div>
             )}
+
+            {/* Engine Provenance Badge */}
+            <button
+              type="button"
+              onClick={() => setInspectorTab('caption')}
+              className={`hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-colors cursor-pointer shrink-0 ${engineBadge.cls}`}
+              title="Active synthesis engine & verification status (click to inspect)"
+            >
+              <span>{engineBadge.label}</span>
+            </button>
 
             {/* Expand Ingestion Studio Button */}
             <button
@@ -1679,7 +1756,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   />
 
                   <div className="text-[11px] font-mono text-slate-400">
-                    #SoftwareArchitecture #TechTok #Programming #DevLife #SystemDesign
+                    {dynamicHashtags.join(' ')}
                   </div>
                 </div>
 
@@ -1692,19 +1769,36 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                     isOfflineDraft={isOfflineDraft}
                     isReviewed={isReviewed}
                     qaReport={qaReport}
+                    riskReport={riskReport}
+                    overrideExportBlock={overrideExportBlock}
+                    onToggleOverrideBlock={() => setOverrideExportBlock((prev) => !prev)}
                     isExportingZip={isExportingZip}
                     exportProgress={exportProgress}
                     copiedType={copiedType}
                     onUpdateCreator={(newCreator) => {
-                      applyDeckUpdate((prev) => ({
-                        ...prev,
-                        brand: newCreator.trim() || prev.brand,
-                        sourceMeta: {
-                          ...prev.sourceMeta,
-                          creator: newCreator,
-                          channel: newCreator,
-                        },
-                      }));
+                      applyDeckUpdate((prev) => {
+                        const trimmed = newCreator.trim();
+                        const newSlides = [...prev.slides];
+                        const lastIdx = newSlides.length - 1;
+                        if (lastIdx >= 0 && newSlides[lastIdx].type === 'cta') {
+                          newSlides[lastIdx] = {
+                            ...newSlides[lastIdx],
+                            enCredit: trimmed ? `Source: ${trimmed}` : '',
+                            arCredit: trimmed ? `المصدر: ${trimmed}` : '',
+                          };
+                        }
+                        return {
+                          ...prev,
+                          brand: trimmed || prev.brand,
+                          channel: trimmed,
+                          slides: newSlides,
+                          sourceMeta: {
+                            ...prev.sourceMeta,
+                            creator: newCreator,
+                            channel: newCreator,
+                          },
+                        };
+                      });
                     }}
                     onToggleReviewDraft={handleToggleReviewDraft}
                     onRetryWithAi={() => handleRunAutonomousPipeline()}
