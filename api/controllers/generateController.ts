@@ -20,13 +20,12 @@ type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } };
 
-// Multi-Model Failover Cascade per User Spec
+// Multi-Model Failover Cascade per User Spec (Active models first)
 const CANDIDATE_GENERATION_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
   'gemini-3.1-flash-lite',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-2.5-flash',
 ];
 
 /**
@@ -186,7 +185,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
 
         // Attempt B: Direct LLM Schema Generation (Zero Search Quota Wasted)
         const directController = new AbortController();
-        const directTimer = setTimeout(() => directController.abort(), 15000);
+        const directTimer = setTimeout(() => directController.abort(), hasImage ? 45000 : 25000);
         try {
           console.log(`[AI-Gateway] Calling direct LLM schema mode: ${model} (${isCustom ? 'custom key' : 'system key'})...`);
 
