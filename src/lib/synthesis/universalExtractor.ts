@@ -1,8 +1,8 @@
-import { DiagramNode, SlideData } from '../../types';
-import { autoFitTextToLimits, enforceHeadlineSpecRule, extractCleanSubject, isNonSemanticFileName } from '../text/headlines';
-import { normalizePunctuation, stripMarkdown } from '../text/markdown';
-import { sanitizeArabicSlideText } from '../text/arabicBiDi';
-import { KNOWN_TECH_LOGOS } from '../techLogos';
+import type { DiagramNode, SlideData } from '../../types.ts';
+import { autoFitTextToLimits, enforceHeadlineSpecRule, extractCleanSubject, isNonSemanticFileName } from '../text/headlines.ts';
+import { normalizePunctuation, stripMarkdown } from '../text/markdown.ts';
+import { sanitizeArabicSlideText } from '../text/arabicBiDi.ts';
+import { KNOWN_TECH_LOGOS } from '../techLogos.ts';
 
 export interface UniversalSynthesisOptions {
   brand?: string;

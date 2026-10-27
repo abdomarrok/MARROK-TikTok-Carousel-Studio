@@ -1,4 +1,4 @@
-import { SlideData, SlideType } from '../../types';
+import type { SlideData, SlideType } from '../../types.ts';
 
 /**
  * Instant Archetype Seeder:

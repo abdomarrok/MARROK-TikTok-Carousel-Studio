@@ -1,7 +1,7 @@
-import { CarouselData, SlideData } from '../../types';
-import { normalizePunctuation, stripMarkdown } from './markdown';
-import { sanitizeArabicSlideText } from './arabicBiDi';
-import { enforceHeadlineSpecRule } from './headlines';
+import type { CarouselData, SlideData } from '../../types.ts';
+import { normalizePunctuation, stripMarkdown } from './markdown.ts';
+import { sanitizeArabicSlideText } from './arabicBiDi.ts';
+import { enforceHeadlineSpecRule } from './headlines.ts';
 
 /**
  * Sanitizes English slide text to ensure clean typography, no markdown,

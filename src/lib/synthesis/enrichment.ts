@@ -1,4 +1,4 @@
-import { DiagramNode, DiagramVariant, SlideData } from '../../types';
+import type { DiagramNode, DiagramVariant, SlideData } from '../../types.ts';
 
 /**
  * Dynamic diagram and satellite enrichment:

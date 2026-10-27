@@ -1,4 +1,4 @@
-import { CaptionVariant, CarouselData, ExtractedFact, HookVariant, PostSourceMeta, SlideData } from '../../types';
+import type { CaptionVariant, CarouselData, ExtractedFact, HookVariant, PostSourceMeta, SlideData } from '../../types.ts';
 import {
   extractCleanHeadline,
   extractTopicFromFileName,
@@ -7,21 +7,20 @@ import {
   sanitizeFullCarousel,
   sanitizeMetricForArabic,
   stripMarkdown,
-} from '../text';
-import { enforceHeadlineSpecRule } from '../text/headlines';
+} from '../text/index.ts';
+import { enforceHeadlineSpecRule } from '../text/headlines.ts';
+import type { DomainRule, SynthesisInput } from './domains.ts';
 import {
   DEFAULT_RULE,
   DOMAIN_RULES,
-  DomainRule,
-  SynthesisInput,
   detectBrandAndUrl,
   extractDynamicIcons,
   extractUserInsights,
   resolveDomainTheme,
-} from './domains';
-import { enrichCarouselDiagrams } from './enrichment';
-import { balanceCarouselVisualPacing } from './pacing';
-import { synthesizeUniversalCarousel } from './universalExtractor';
+} from './domains.ts';
+import { enrichCarouselDiagrams } from './enrichment.ts';
+import { balanceCarouselVisualPacing } from './pacing.ts';
+import { synthesizeUniversalCarousel } from './universalExtractor.ts';
 
 /**
  * Universal Synthesis Engine:

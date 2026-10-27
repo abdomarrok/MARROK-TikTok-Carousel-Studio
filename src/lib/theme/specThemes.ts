@@ -1,4 +1,4 @@
-import { ThemePalette } from '../../types';
+import type { ThemePalette } from '../../types.ts';
 
 // Helper to convert RGB tuple to hex
 export function rgbHex(r: number, g: number, b: number): string {

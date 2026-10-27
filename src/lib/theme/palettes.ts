@@ -1,5 +1,5 @@
-import { ThemePalette } from '../../types';
-import { SPEC_PALETTES } from './specThemes';
+import type { ThemePalette } from '../../types.ts';
+import { SPEC_PALETTES } from './specThemes.ts';
 
 export const BASE_PALETTES: Record<string, ThemePalette> = {
   teal: {

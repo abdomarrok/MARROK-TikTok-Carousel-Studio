@@ -1,4 +1,4 @@
-import { normalizePunctuation, stripMarkdown } from './markdown';
+import { normalizePunctuation, stripMarkdown } from './markdown.ts';
 
 export interface HeadlineOptions {
   isHook?: boolean;

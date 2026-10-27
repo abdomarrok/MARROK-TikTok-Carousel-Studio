@@ -11,7 +11,7 @@ import type {
   SlideData,
   SlideType,
   VisualSystemOptions,
-} from '../../types';
+} from '../../types.ts';
 
 const SLIDE_TYPES: SlideType[] = ['hub', 'row', 'number', 'metric', 'code', 'compare', 'image', 'cta'];
 const DIAGRAM_VARIANTS: DiagramVariant[] = ['topology', 'stack', 'isolation', 'takeaway'];

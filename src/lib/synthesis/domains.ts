@@ -1,4 +1,4 @@
-import { KNOWN_TECH_LOGOS } from '../icons';
+import { KNOWN_TECH_LOGOS } from '../icons.ts';
 
 export interface SynthesisInput {
   prompt?: string;

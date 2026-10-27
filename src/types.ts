@@ -194,4 +194,4 @@ export interface ThemePalette {
 export type ThemeConfig = ThemePalette;
 
 // Re-export immutable palette repositories for backwards compatibility
-export { DEFAULT_PALETTES, SPEC_PALETTES, THEME_CONFIGS } from './lib/theme/palettes';
+export { DEFAULT_PALETTES, SPEC_PALETTES, THEME_CONFIGS } from './lib/theme/palettes.ts';

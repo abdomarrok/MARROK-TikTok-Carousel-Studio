@@ -1,4 +1,4 @@
-import { normalizePunctuation, stripMarkdown } from './markdown';
+import { normalizePunctuation, stripMarkdown } from './markdown.ts';
 
 /**
  * Standard technical metrics translator for natural Arabic presentation.
