@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { AutonomousStudio } from './components/AutonomousStudio';
 import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ContactSheetModal } from './components/ContactSheetModal';
 import { PlanInspectorModal } from './components/PlanInspectorModal';
-import { CarouselData, DEFAULT_PALETTES, ThemePalette } from './types';
+import { PreviewAndToolsDrawer } from './components/studio/PreviewAndToolsDrawer';
+import { CarouselData, DEFAULT_PALETTES, SlideData, ThemePalette } from './types';
 import { DEFAULT_STARTER_DECK } from './lib/presets';
-import { sanitizeFullCarousel } from './lib/textSanitizer';
+import { sanitizeFullCarousel, sanitizeSlide } from './lib/textSanitizer';
 import { parseCarouselData } from './lib/validation/carousel';
+
+const MAX_HISTORY_STEPS = 30;
 
 export default function App() {
   // Local Draft Persistence (Hydrate from browser localStorage if available)
@@ -26,6 +29,10 @@ export default function App() {
     }
     return DEFAULT_STARTER_DECK;
   });
+
+  // 30-Step Undo / Redo History Ring Buffer
+  const [pastHistory, setPastHistory] = useState<CarouselData[]>([]);
+  const [futureHistory, setFutureHistory] = useState<CarouselData[]>([]);
 
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
@@ -56,17 +63,85 @@ export default function App() {
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
   const [isPlanInspectorOpen, setIsPlanInspectorOpen] = useState(false);
+  const [isPreviewDrawerOpen, setIsPreviewDrawerOpen] = useState(false);
+  const [previewDrawerTab, setPreviewDrawerTab] = useState<'simulator' | 'polish'>('simulator');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3200);
-  };
+  }, []);
+
+  // History-aware Carousel State Updater
+  const handleUpdateCarousel: React.Dispatch<React.SetStateAction<CarouselData>> = useCallback(
+    (updaterOrValue) => {
+      setCarousel((prev) => {
+        const next =
+          typeof updaterOrValue === 'function'
+            ? (updaterOrValue as (prevState: CarouselData) => CarouselData)(prev)
+            : updaterOrValue;
+        if (next === prev) return prev;
+        setPastHistory((oldPast) => [...oldPast.slice(-(MAX_HISTORY_STEPS - 1)), prev]);
+        setFutureHistory([]);
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleUndo = useCallback(() => {
+    setPastHistory((oldPast) => {
+      if (oldPast.length === 0) return oldPast;
+      const previousState = oldPast[oldPast.length - 1];
+      const remainingPast = oldPast.slice(0, -1);
+      setCarousel((current) => {
+        setFutureHistory((oldFuture) => [current, ...oldFuture.slice(0, MAX_HISTORY_STEPS - 1)]);
+        return previousState;
+      });
+      showToast('Undid last change');
+      return remainingPast;
+    });
+  }, [showToast]);
+
+  const handleRedo = useCallback(() => {
+    setFutureHistory((oldFuture) => {
+      if (oldFuture.length === 0) return oldFuture;
+      const nextState = oldFuture[0];
+      const remainingFuture = oldFuture.slice(1);
+      setCarousel((current) => {
+        setPastHistory((oldPast) => [...oldPast.slice(-(MAX_HISTORY_STEPS - 1)), current]);
+        return nextState;
+      });
+      showToast('Redid change');
+      return remainingFuture;
+    });
+  }, [showToast]);
+
+  // Global Keyboard Shortcuts for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Y / Cmd+Shift+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      const isMod = e.ctrlKey || e.metaKey;
+      if (!isMod) return;
+
+      if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   // Select or Custom Palette Update
   const handleSelectPalette = (palette: ThemePalette) => {
     setCurrentPalette(palette);
-    setCarousel((prev) => ({
+    handleUpdateCarousel((prev) => ({
       ...prev,
       theme: palette.id,
       visualOptions: {
@@ -78,10 +153,35 @@ export default function App() {
   };
 
   const handleResetDraft = () => {
-    setCarousel(DEFAULT_STARTER_DECK);
+    handleUpdateCarousel(DEFAULT_STARTER_DECK);
     setActiveSlideIndex(0);
     localStorage.removeItem('marrok_deck_draft_v1');
     showToast('Reset to Scion Architecture starter deck');
+  };
+
+  const handleOpenPreviewDrawer = (tab: 'simulator' | 'polish' = 'simulator') => {
+    setPreviewDrawerTab(tab);
+    setIsPreviewDrawerOpen(true);
+  };
+
+  const handleUpdateSingleSlideFromDrawer = (
+    slideIndex: number,
+    updater: (prevSlide: SlideData) => SlideData,
+    actionLabel?: string
+  ) => {
+    handleUpdateCarousel((prev) => {
+      if (slideIndex < 0 || slideIndex >= prev.slides.length) return prev;
+      const newSlides = [...prev.slides];
+      const updated = updater(newSlides[slideIndex]);
+      newSlides[slideIndex] = sanitizeSlide(updated, slideIndex, prev.slides.length);
+      return {
+        ...prev,
+        slides: newSlides,
+      };
+    });
+    if (actionLabel) {
+      showToast(actionLabel);
+    }
   };
 
   return (
@@ -93,6 +193,11 @@ export default function App() {
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         onOpenContactSheet={() => setIsContactSheetOpen(true)}
         onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
+        onOpenPreviewDrawer={handleOpenPreviewDrawer}
+        canUndo={pastHistory.length > 0}
+        canRedo={futureHistory.length > 0}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
         lastSavedTime={lastSavedTime}
         onResetDraft={handleResetDraft}
       />
@@ -104,14 +209,28 @@ export default function App() {
           theme={currentPalette}
           activeSlideIndex={activeSlideIndex}
           onSlideChange={setActiveSlideIndex}
-          onUpdateCarousel={setCarousel}
+          onUpdateCarousel={handleUpdateCarousel}
           onSelectTheme={handleSelectPalette}
           onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
           onOpenContactSheet={() => setIsContactSheetOpen(true)}
           onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
+          onOpenPreviewDrawer={handleOpenPreviewDrawer}
           onShowToast={showToast}
         />
       </main>
+
+      {/* Slide-Out Preview & Tools Drawer (TikTok Simulator + Per-Slide Refiner) */}
+      <PreviewAndToolsDrawer
+        isOpen={isPreviewDrawerOpen}
+        initialTab={previewDrawerTab}
+        onClose={() => setIsPreviewDrawerOpen(false)}
+        carousel={carousel}
+        currentSlideIndex={activeSlideIndex}
+        theme={currentPalette}
+        onSelectSlide={setActiveSlideIndex}
+        onUpdateSlide={handleUpdateSingleSlideFromDrawer}
+        onShowToast={showToast}
+      />
 
       {/* Theme Customizer & Color Palette Studio Modal */}
       <ThemeCustomizer
@@ -156,7 +275,7 @@ export default function App() {
 
       {/* Floating Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-20 right-6 z-50 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/20 text-white text-xs font-semibold shadow-2xl flex items-center gap-2 animate-bounce">
+        <div className="fixed bottom-20 right-6 z-50 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/20 text-white text-xs font-semibold shadow-2xl flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentPalette.accent }} />
           <span>{toastMessage}</span>
         </div>
@@ -164,3 +283,4 @@ export default function App() {
     </div>
   );
 }
+

@@ -1,13 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Palette, Key, Grid, FileCheck2, MoreVertical, X, RotateCcw } from 'lucide-react';
+import {
+  Grid,
+  FileCheck2,
+  MoreVertical,
+  X,
+  RotateCcw,
+  Undo2,
+  Redo2,
+  Smartphone,
+} from 'lucide-react';
 import { ThemePalette } from '../types';
 
 interface HeaderProps {
   currentPalette: ThemePalette;
   onOpenThemeCustomizer: () => void;
-  onOpenApiKeyModal: () => void;
+  onOpenApiKeyModal?: () => void;
   onOpenContactSheet?: () => void;
   onOpenPlanInspector?: () => void;
+  onOpenPreviewDrawer?: (tab?: 'simulator' | 'polish') => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   lastSavedTime?: string | null;
   onResetDraft?: () => void;
 }
@@ -15,9 +29,13 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentPalette,
   onOpenThemeCustomizer,
-  onOpenApiKeyModal,
   onOpenContactSheet,
   onOpenPlanInspector,
+  onOpenPreviewDrawer,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
   lastSavedTime,
   onResetDraft,
 }) => {
@@ -44,106 +62,119 @@ export const Header: React.FC<HeaderProps> = ({
   }, [isMobileMenuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#080d11]/85 backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 transition-colors">
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-        {/* Wordmark with Authentic Marrok Logo Badge as 'M' + 'ARROK' */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          <a href="#" className="flex items-center gap-1.5 group">
-            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15 bg-[#0D0D0D] flex items-center justify-center shadow-sm group-hover:border-white/30 transition-all flex-shrink-0">
+    <header className="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#080d11]/90 backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 transition-colors">
+      <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 sm:gap-8">
+        {/* Zone 1: Brand Wordmark */}
+        <div className="flex items-center gap-2 shrink-0">
+          <a href="#" className="flex items-center gap-2 group whitespace-nowrap shrink-0">
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15 bg-[#0D0D0D] flex items-center justify-center shadow-sm group-hover:border-white/30 transition-all shrink-0">
               <img src="/marrok-logo.svg" alt="M" className="w-full h-full object-contain" />
             </div>
-            <span className="text-lg sm:text-xl font-extrabold tracking-tight text-white font-jakarta tracking-wide">
+            <span className="text-lg sm:text-xl font-extrabold tracking-tight text-white font-jakarta whitespace-nowrap">
               MARROK
             </span>
-            <span
-              className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full inline-block ml-0.5 transition-transform duration-200 group-hover:scale-125"
-              style={{ backgroundColor: currentPalette.accent, boxShadow: `0 0 10px ${currentPalette.accent}` }}
-            />
           </a>
-          <span className="text-xs uppercase tracking-wider text-slate-400 font-medium pl-2 border-l border-white/10 hidden md:inline">
-            Autonomous TikTok Studio
-          </span>
         </div>
 
-        {/* Right Controls: Plan, Contact Sheet, Theme, API Key, Auto-Save */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Post Theme Trigger (Always Visible) */}
-          <button
-            type="button"
-            onClick={onOpenThemeCustomizer}
-            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 min-h-[38px] text-xs font-semibold rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer touch-manipulation"
-            title="Configure Theme & Colors for this Post"
-          >
-            <div
-              className="w-2.5 h-2.5 rounded-full border border-white/30 shrink-0"
-              style={{ backgroundColor: currentPalette.accent }}
-            />
-            <span className="hidden lg:inline text-slate-400">Theme:</span>
-            <span className="font-bold text-white max-w-[70px] sm:max-w-[80px] truncate">
-              {currentPalette.name.split(' ')[0]}
-            </span>
-          </button>
+        {/* Zone 2: Clean Workspace Navigation & History Controls */}
+        <nav className="hidden md:flex items-center gap-5 text-xs font-medium text-slate-400">
+          {(onUndo || onRedo) && (
+            <div className="flex items-center gap-1 pr-3 border-r border-white/10">
+              <button
+                type="button"
+                onClick={onUndo}
+                disabled={!canUndo}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                title="Undo last edit (Ctrl+Z)"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onRedo}
+                disabled={!canRedo}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                title="Redo edit (Ctrl+Y)"
+              >
+                <Redo2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
-          {/* Contact Sheet Trigger (Always Visible) */}
           {onOpenContactSheet && (
             <button
               type="button"
               onClick={onOpenContactSheet}
-              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 min-h-[38px] text-xs font-semibold rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer touch-manipulation"
+              className="hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
               title="View all slides in Contact Sheet"
             >
               <Grid className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden md:inline">Contact Sheet</span>
+              <span>Contact Sheet</span>
             </button>
           )}
 
-          {/* Plan Inspector (Desktop / Tablet) */}
           {onOpenPlanInspector && (
             <button
               type="button"
               onClick={onOpenPlanInspector}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 min-h-[38px] text-xs font-semibold rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer touch-manipulation"
-              title="Inspect Plan & Facts"
+              className="hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+              title="Inspect Plan & Verified Facts"
             >
               <FileCheck2 className="w-3.5 h-3.5 text-teal-400" />
-              <span className="hidden md:inline">Plan</span>
+              <span>Verified Claims</span>
             </button>
           )}
 
-          {/* Gemini API Key (Desktop / Tablet) */}
           <button
             type="button"
-            onClick={onOpenApiKeyModal}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 min-h-[38px] text-xs font-semibold rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:text-slate-200 hover:bg-white/[0.08] transition-all cursor-pointer touch-manipulation"
-            title="Configure Custom Gemini API Key"
+            onClick={onOpenThemeCustomizer}
+            className="hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+            title="Configure Theme & Visual Options"
           >
-            <Key className="w-3.5 h-3.5 text-slate-300" />
-            <span className="hidden md:inline">API</span>
+            <span
+              className="w-2.5 h-2.5 rounded-full border border-white/30 shrink-0"
+              style={{ backgroundColor: currentPalette.accent }}
+            />
+            <span>Theme: {currentPalette.name.split(' ')[0]}</span>
           </button>
 
-          {/* Auto-Save Draft Status Pill (Large Desktop) */}
           {lastSavedTime && (
-            <div
-              className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-full border border-white/5 bg-white/[0.03] text-slate-400"
-              title={`Auto-saved to local browser storage at ${lastSavedTime}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-mono text-[10px]">Saved</span>
+            <div className="hidden xl:flex items-center gap-1.5 text-[11px] text-slate-400 font-mono tabular-nums whitespace-nowrap shrink-0">
+              <span>Saved {lastSavedTime}</span>
               {onResetDraft && (
-                <button
-                  type="button"
-                  onClick={onResetDraft}
-                  className="text-[10px] text-slate-500 hover:text-rose-400 ml-1 cursor-pointer transition-colors"
-                  title="Reset to default template"
-                >
-                  Reset
-                </button>
+                <>
+                  <span aria-hidden="true">·</span>
+                  <button
+                    type="button"
+                    onClick={onResetDraft}
+                    className="text-slate-500 hover:text-rose-400 cursor-pointer transition-colors"
+                    title="Reset to default template"
+                  >
+                    Reset
+                  </button>
+                </>
               )}
             </div>
           )}
+        </nav>
 
-          {/* Mobile Overflow Menu Button (Visible on < sm) */}
-          <div className="relative sm:hidden" ref={menuRef}>
+        {/* Zone 3: Primary Studio Action (Slide-Out Simulator & Tools Drawer) + Mobile Overflow */}
+        <div className="flex items-center gap-2 shrink-0">
+          {onOpenPreviewDrawer && (
+            <button
+              type="button"
+              onClick={() => onOpenPreviewDrawer('simulator')}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              style={{ borderColor: `${currentPalette.accent}50` }}
+              title="Open Slide-Out TikTok Feed Simulator & Per-Slide Polish Tools"
+            >
+              <Smartphone className="w-3.5 h-3.5" style={{ color: currentPalette.accent }} />
+              <span>Preview & Tools</span>
+            </button>
+          )}
+
+          {/* Mobile Overflow Menu Button (Visible on < md) */}
+          <div className="relative md:hidden" ref={menuRef}>
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -154,9 +185,66 @@ export const Header: React.FC<HeaderProps> = ({
               {isMobileMenuOpen ? <X className="w-4 h-4" /> : <MoreVertical className="w-4 h-4" />}
             </button>
 
-            {/* Mobile Dropdown Panel */}
             {isMobileMenuOpen && (
               <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-white/15 bg-slate-950/95 backdrop-blur-xl p-2 shadow-2xl space-y-1 z-50 animate-scale-up">
+                {(onUndo || onRedo) && (
+                  <div className="flex items-center gap-1 px-2 py-1 border-b border-white/10 mb-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onUndo?.();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      disabled={!canUndo}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-white/10 disabled:opacity-30 cursor-pointer"
+                    >
+                      <Undo2 className="w-3.5 h-3.5" />
+                      <span>Undo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onRedo?.();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      disabled={!canRedo}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-white/10 disabled:opacity-30 cursor-pointer"
+                    >
+                      <Redo2 className="w-3.5 h-3.5" />
+                      <span>Redo</span>
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenThemeCustomizer();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
+                >
+                  <span
+                    className="w-3 h-3 rounded-full border border-white/30 shrink-0"
+                    style={{ backgroundColor: currentPalette.accent }}
+                  />
+                  <span>Theme: {currentPalette.name}</span>
+                </button>
+
+                {onOpenContactSheet && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenContactSheet();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
+                  >
+                    <Grid className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>Contact Sheet</span>
+                  </button>
+                )}
+
                 {onOpenPlanInspector && (
                   <button
                     type="button"
@@ -171,24 +259,9 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenApiKeyModal();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
-                >
-                  <Key className="w-4 h-4 text-slate-300 shrink-0" />
-                  <span>Configure Gemini API Key</span>
-                </button>
-
                 {lastSavedTime && (
-                  <div className="pt-1.5 mt-1 border-t border-white/10 px-3 py-1 flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>Saved ({lastSavedTime})</span>
-                    </span>
+                  <div className="pt-1.5 mt-1 border-t border-white/10 px-3 py-1 flex items-center justify-between text-[11px] text-slate-400 font-mono tabular-nums">
+                    <span>Saved {lastSavedTime}</span>
                     {onResetDraft && (
                       <button
                         type="button"
@@ -212,3 +285,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

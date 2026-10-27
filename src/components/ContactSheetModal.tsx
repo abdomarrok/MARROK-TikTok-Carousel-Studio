@@ -39,7 +39,13 @@ export const ContactSheetModal: React.FC<ContactSheetModalProps> = ({
         if (c && isMounted) {
           try {
             // Render full-res offscreen, then downsample cleanly to lightweight preview thumbnail
-            const offscreen = await renderSlideToCanvas(carousel, i, undefined, theme);
+            const offscreen = await renderSlideToCanvas(
+              carousel,
+              i,
+              undefined,
+              theme,
+              carousel.visualOptions
+            );
             const ctx = c.getContext('2d');
             if (ctx && isMounted) {
               ctx.clearRect(0, 0, c.width, c.height);
@@ -67,9 +73,14 @@ export const ContactSheetModal: React.FC<ContactSheetModalProps> = ({
     setIsExporting(true);
     setExportProgress({ current: 0, total: carousel.slides.length });
     try {
-      await downloadContactSheetJpg(carousel, theme, (cur, tot) => {
-        setExportProgress({ current: cur, total: tot });
-      });
+      await downloadContactSheetJpg(
+        carousel,
+        theme,
+        (cur, tot) => {
+          setExportProgress({ current: cur, total: tot });
+        },
+        carousel.visualOptions
+      );
       onShowToast('Visual QA Contact Sheet exported successfully!');
     } catch (err) {
       console.error('Failed contact sheet export:', err);

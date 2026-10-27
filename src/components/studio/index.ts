@@ -6,3 +6,5 @@ export * from './ExportBar.tsx';
 export * from './ElementInspector.tsx';
 export * from './IconPickerPopover.tsx';
 export * from './IconThumbnail.tsx';
+export * from './PreviewAndToolsDrawer.tsx';
+

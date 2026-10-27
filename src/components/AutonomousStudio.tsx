@@ -60,6 +60,7 @@ interface AutonomousStudioProps {
   onOpenThemeCustomizer: () => void;
   onOpenContactSheet?: () => void;
   onOpenPlanInspector?: () => void;
+  onOpenPreviewDrawer?: (tab?: 'simulator' | 'polish') => void;
   onShowToast: (msg: string) => void;
 }
 
@@ -161,6 +162,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   onOpenThemeCustomizer,
   onOpenContactSheet,
   onOpenPlanInspector,
+  onOpenPreviewDrawer,
   onShowToast,
 }) => {
   const [promptInput, setPromptInput] = useState('');
@@ -577,7 +579,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     onShowToast(`Switched layout to ${newType.toUpperCase()}`);
   };
 
-  // Explicit confirmation: Creator must confirm draft review to unlock export
+  // Explicit confirmation: Creator confirms draft review (advisory status)
   const handleToggleReviewDraft = () => {
     const newReviewed = !Boolean(carousel.sourceMeta?.userReviewed);
     applyDeckUpdate((prev) => ({
@@ -590,7 +592,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     if (newReviewed) {
       onShowToast('✓ Draft marked as reviewed. Pre-export QA validation active.');
     } else {
-      onShowToast('Draft review unmarked. Export locked.');
+      onShowToast('Draft review unmarked. Advisory QA warnings active.');
     }
   };
 
@@ -704,10 +706,15 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     setIsExportingZip(true);
     setExportProgress({ current: 0, total: carousel.slides.length });
     try {
-      await downloadAllSlidesZip(carousel, theme, (current, total) => {
-        setExportProgress({ current, total });
-      });
-      onShowToast('All 1080×1920 JPG slides exported into ZIP successfully!');
+      await downloadAllSlidesZip(
+        carousel,
+        theme,
+        (current, total) => {
+          setExportProgress({ current, total });
+        },
+        carousel.visualOptions
+      );
+      onShowToast('All 1080×1920 PNG slides & Metricool bundle exported into ZIP!');
     } catch (err) {
       console.error('ZIP export failed:', err);
       onShowToast('Failed to export ZIP file.');
@@ -720,7 +727,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   // Copy Single Slide
   const handleCopySlide = async () => {
     try {
-      await copySlideToClipboard(carousel, currentSlideIndex, theme);
+      await copySlideToClipboard(carousel, currentSlideIndex, theme, carousel.visualOptions);
       setCopiedType('slide');
       onShowToast(`Copied Slide ${currentSlideIndex + 1} to clipboard!`);
       setTimeout(() => setCopiedType(null), 2000);
@@ -900,16 +907,13 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         {!isExpanded ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-2.5 h-2.5 rounded-full animate-pulse"
-                  style={{ backgroundColor: theme.accent, boxShadow: `0 0 10px ${theme.accent}` }}
-                />
-                <span className="text-xs font-bold text-white font-jakarta uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-bold text-white font-jakarta tracking-wide">
                   Autonomous Content Engine
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400">
-                  SMART DOCK
+                <span aria-hidden="true" className="text-slate-600">·</span>
+                <span className="text-slate-400">
+                  Bilingual 9:16 Synthesis
                 </span>
               </div>
               {pipelineStatus ? (
@@ -1022,11 +1026,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             {/* Header with Ingestion Tabs and Collapse Toggle */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <div
-                  className="w-2.5 h-2.5 rounded-full animate-pulse"
-                  style={{ backgroundColor: theme.accent, boxShadow: `0 0 10px ${theme.accent}` }}
-                />
-                <span className="text-xs font-bold text-white font-jakarta uppercase tracking-wider">
+                <span className="text-xs font-bold text-white font-jakarta tracking-wide">
                   Unified AI Ingestion Dock
                 </span>
               </div>
@@ -1381,11 +1381,17 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             onRetryWithAi={() => handleRunAutonomousPipeline()}
             onDownloadSingleSlide={() => {
               if (isOfflineDraft && !isReviewed) {
-                onShowToast('⚠️ Download blocked: Please review draft and click "I reviewed this" first.');
-                return;
+                onShowToast('⚠️ Downloading unreviewed offline draft...');
+              } else {
+                onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
               }
-              downloadSingleSlidePng(carousel, currentSlideIndex, `MARROK_Slide_${currentSlideIndex + 1}.jpg`, theme);
-              onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
+              downloadSingleSlidePng(
+                carousel,
+                currentSlideIndex,
+                `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
+                theme,
+                carousel.visualOptions
+              );
             }}
             onCopySlide={handleCopySlide}
             onExportZip={handleExportZip}
@@ -1400,6 +1406,31 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           }`}
         >
           <div className="bg-black/40 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+            {onOpenPreviewDrawer && (
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.06]">
+                <span className="text-xs text-slate-400">
+                  Slide {currentSlideIndex + 1} Workspace · Bilingual Editor
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenPreviewDrawer('polish')}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-white transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                    <span>Polish Slide Copy & QA</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenPreviewDrawer('simulator')}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    <span>TikTok Simulator</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Inline Text Editor (Visible on desktop OR mobile 'text' tab) */}
             <div className={mobileStudioTab === 'archetype' ? 'hidden lg:block' : 'block'}>
               <InlineSlideEditor

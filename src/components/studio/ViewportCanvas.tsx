@@ -92,7 +92,13 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       if (!isMounted || !activeCanvasRef.current) return;
       const offscreen = document.createElement('canvas');
       try {
-        await renderSlideToCanvas(carousel, currentSlideIndex, offscreen, theme);
+        await renderSlideToCanvas(
+          carousel,
+          currentSlideIndex,
+          offscreen,
+          theme,
+          carousel.visualOptions
+        );
         if (!isMounted || renderSequence !== renderSequenceRef.current) return;
 
         const visibleCanvas = activeCanvasRef.current;

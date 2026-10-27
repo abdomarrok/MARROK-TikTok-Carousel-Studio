@@ -22,9 +22,8 @@ type GeminiPart =
 
 // Multi-Model Failover Cascade per User Spec (Active models first)
 const CANDIDATE_GENERATION_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
+  'gemini-3.1-flash-lite',
   'gemini-2.5-flash',
 ];
 
@@ -120,7 +119,14 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
 
     // Multi-Key & Multi-Model Cascade
     keyLoop: for (const { key, isCustom } of candidateKeys) {
-      const activeAi = new GoogleGenAI({ apiKey: key });
+      const activeAi = new GoogleGenAI({
+        apiKey: key,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
 
       for (const model of CANDIDATE_GENERATION_MODELS) {
         // Attempt A: Google Search Grounding ONLY for short text inputs (< 200 chars) WITHOUT images
@@ -280,3 +286,115 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     return res.json(fallbackData);
   }
 }
+
+/**
+ * Per-Slide Bilingual AI Refinement Controller
+ * Refines an individual slide's English/Arabic headlines and body copy without modifying the rest of the deck.
+ */
+export async function handleRefineSlide(req: Request, res: Response) {
+  const { slide, mode = 'punchy', category = 'SOFTWARE ARCHITECTURE' } = req.body || {};
+  if (!slide || typeof slide !== 'object') {
+    return res.status(400).json({ error: 'Slide object is required' });
+  }
+
+  const customKey =
+    (req.headers['x-gemini-key'] as string) ||
+    (req.headers['x-gemini-api-key'] as string) ||
+    req.body?.apiKey;
+  const systemKey = process.env.GEMINI_API_KEY;
+
+  const candidateKeys: string[] = [];
+  if (typeof customKey === 'string' && customKey.trim().length > 5) {
+    candidateKeys.push(customKey.trim());
+  }
+  if (systemKey && systemKey.trim().length > 5 && !candidateKeys.includes(systemKey.trim())) {
+    candidateKeys.push(systemKey.trim());
+  }
+
+  const enTitle = String(slide.enTitle || '').slice(0, 200);
+  const arTitle = String(slide.arTitle || '').slice(0, 200);
+  const enBody = String(slide.enBody || '').slice(0, 500);
+  const arBody = String(slide.arBody || '').slice(0, 500);
+
+  const modeInstructions: Record<string, string> = {
+    punchy: 'Make the English and Arabic headlines sharper, contrarian, and high-impact (<= 42 chars). Tighten body copy to crisp engineering mechanisms (<= 135 chars).',
+    shorten: 'Compress English and Arabic titles and body copy for instant mobile glanceability while preserving exact technical numbers and mechanisms.',
+    arabic_sync: 'Keep the English headline and body accurate, and produce a natural, authoritative Modern Standard Arabic technical translation with proper BiDi terminology.',
+    analogy: 'Reframe the body explanation using a concrete systems engineering mental model or architectural contrast while staying under 135 characters.',
+  };
+
+  const directive = modeInstructions[String(mode)] || modeInstructions.punchy;
+
+  for (const key of candidateKeys) {
+    const activeAi = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+
+    for (const model of CANDIDATE_GENERATION_MODELS) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      try {
+        const response = await activeAi.models.generateContent({
+          model,
+          contents: `Refine this single engineering carousel slide for topic "${String(category).slice(0, 80)}".
+Directive: ${directive}
+Rules:
+- enTitle: 2 to 6 words ending with a period (.) or question mark (?), max 45 characters.
+- arTitle: Natural Arabic technical headline ending with . or ؟, max 40 characters.
+- enBody: Direct technical explanation, max 140 characters.
+- arBody: Natural Arabic technical explanation ending with an Arabic word and period, max 150 characters.
+- Return ONLY valid JSON with keys: enTitle, arTitle, enBody, arBody.
+
+Current Slide:
+enTitle: ${enTitle}
+arTitle: ${arTitle}
+enBody: ${enBody}
+arBody: ${arBody}`,
+          config: {
+            temperature: 0.3,
+            responseMimeType: 'application/json',
+            abortSignal: controller.signal,
+          },
+        });
+
+        const rawText = response.text;
+        if (rawText) {
+          const cleanText = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+          const parsed = JSON.parse(cleanText);
+          if (parsed && typeof parsed.enTitle === 'string' && typeof parsed.enBody === 'string') {
+            res.setHeader('X-Marrok-Engine', 'gemini-ai');
+            res.setHeader('X-Marrok-Model', model);
+            return res.json({
+              enTitle: parsed.enTitle.trim(),
+              arTitle: typeof parsed.arTitle === 'string' ? parsed.arTitle.trim() : arTitle,
+              enBody: parsed.enBody.trim(),
+              arBody: typeof parsed.arBody === 'string' ? parsed.arBody.trim() : arBody,
+              engine: 'gemini-ai',
+              model,
+            });
+          }
+        }
+      } catch (_err) {
+        // Cascade to next model
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  // Deterministic offline fallback refinement
+  res.setHeader('X-Marrok-Engine', 'offline-synthesizer');
+  return res.json({
+    enTitle,
+    arTitle,
+    enBody,
+    arBody,
+    engine: 'offline-synthesizer',
+  });
+}
+

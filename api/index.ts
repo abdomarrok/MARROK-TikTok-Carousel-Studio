@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import { handleProxyImage } from './controllers/proxyController.ts';
 import { handleSearchMedia } from './controllers/mediaController.ts';
 import { handleGenerateImage } from './controllers/imageController.ts';
-import { handleGenerateCarousel } from './controllers/generateController.ts';
+import { handleGenerateCarousel, handleRefineSlide } from './controllers/generateController.ts';
 
 dotenv.config();
 
@@ -24,19 +24,15 @@ app.use((req, res, next) => {
   const forwardedUri = req.headers['x-forwarded-uri'] as string;
   const matchedPath = req.headers['x-matched-path'] as string;
 
-  let targetPath = forwardedUri;
-  if (!targetPath && matchedPath && matchedPath !== '/api/index' && matchedPath !== '/api/index.js' && matchedPath !== '/api/index.ts') {
+  let targetPath = '';
+  if (forwardedUri && forwardedUri.startsWith('/api')) {
+    targetPath = forwardedUri;
+  } else if (matchedPath && matchedPath.startsWith('/api') && matchedPath !== '/api/index' && matchedPath !== '/api/index.js' && matchedPath !== '/api/index.ts') {
     targetPath = matchedPath;
-  }
-  if (!targetPath) {
-    targetPath = req.originalUrl || req.url;
   }
 
   if (targetPath) {
-    const normalized = targetPath.startsWith('/api') ? targetPath : `/api${targetPath.startsWith('/') ? '' : '/'}${targetPath}`;
-    if (normalized.startsWith('/api/')) {
-      req.url = normalized;
-    }
+    req.url = targetPath;
   }
 
   next();
@@ -58,6 +54,7 @@ app.get(['/api/proxy-image', '/proxy-image'], handleProxyImage);
 app.get(['/api/search-media', '/search-media'], handleSearchMedia);
 app.post(['/api/generate-image', '/generate-image'], handleGenerateImage);
 app.post(['/api/generate', '/generate'], handleGenerateCarousel);
+app.post(['/api/refine-slide', '/refine-slide'], handleRefineSlide);
 
 export default app;
 export { app };
