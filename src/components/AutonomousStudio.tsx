@@ -2,18 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   RefreshCw,
-  Upload,
   X,
   Check,
   Copy,
-  Paperclip,
   FileText,
   Youtube,
   Image as ImageIcon,
   ChevronDown,
   ChevronUp,
-  Maximize2,
-  Minimize2,
   Trash2,
   SlidersHorizontal,
   Zap,
@@ -22,6 +18,9 @@ import {
   Download,
   Sliders,
   Type,
+  Layers,
+  LayoutGrid,
+  Smartphone,
 } from 'lucide-react';
 import {
   CarouselData,
@@ -38,7 +37,9 @@ import { downloadSingleSlidePng, copySlideToClipboard, downloadAllSlidesZip } fr
 import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline.ts';
 import { sanitizeSlide } from '../lib/textSanitizer.ts';
 import { seedSlideArchetypeData, synthesizeCarousel } from '../lib/synthesizer.ts';
-import { runQAChecks } from '../lib/qaChecks.ts';
+import { runQAChecks, CHAR_LIMITS } from '../lib/qaChecks.ts';
+import { autoPolishHeadline, autoFitTextToLimits } from '../lib/text/headlines.ts';
+import { fixArabicPunctuation } from '../lib/text/arabicBiDi.ts';
 import { SlideImageStudio } from './SlideImageStudio.tsx';
 import { MediaSearchModal } from './MediaSearchModal.tsx';
 import {
@@ -159,9 +160,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   onSlideChange,
   onUpdateCarousel,
   onSelectTheme,
-  onOpenThemeCustomizer,
   onOpenContactSheet,
-  onOpenPlanInspector,
   onOpenPreviewDrawer,
   onShowToast,
 }) => {
@@ -174,9 +173,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const [isExportingZip, setIsExportingZip] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
 
+  // Right-Hand Tabbed Inspector ('copy' | 'visual' | 'position' | 'caption')
+  const [inspectorTab, setInspectorTab] = useState<'copy' | 'visual' | 'position' | 'caption'>('copy');
+
   // Direct Graphical Control & Hit-Testing States
   const [selectedElementId, setSelectedElementId] = useState<GraphicalElementId | null>(null);
-  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
 
   // Sync with external slide index changes (e.g. from ContactSheetModal thumbnail clicks)
   useEffect(() => {
@@ -211,7 +212,6 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Deep Customization States
-  const [isAdvancedCustomizerOpen, setIsAdvancedCustomizerOpen] = useState(false);
   const [imageStudioTargetIndex, setImageStudioTargetIndex] = useState<number | null>(null);
   const [mediaModalTarget, setMediaModalTarget] = useState<{
     field: 'imageUrl';
@@ -221,8 +221,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Mobile Studio Segmented Mode Switcher ('canvas' | 'text' | 'archetype')
-  const [mobileStudioTab, setMobileStudioTab] = useState<'canvas' | 'text' | 'archetype'>('canvas');
+  // Mobile Studio Segmented Mode Switcher ('canvas' | 'editor')
+  const [mobileStudioTab, setMobileStudioTab] = useState<'canvas' | 'editor'>('canvas');
 
   // Async lifecycle guards: only the latest generation/image request may commit.
   const generationAbortRef = useRef<AbortController | null>(null);
@@ -333,11 +333,13 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         changeSlide((prev) => Math.max(0, prev - 1));
       } else if (e.key === 'ArrowRight') {
         changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1));
+      } else if (e.key === 'Escape' && isExpanded) {
+        setIsExpanded(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [carousel.slides.length]);
+  }, [carousel.slides.length, isExpanded]);
 
   // Smart Dock Text input with auto-expansion when pasting or typing long material (> 200 chars)
   const handlePromptChange = (val: string) => {
@@ -441,6 +443,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       return;
     }
 
+    // Automatically collapse overlay drawer when starting generation
+    setIsExpanded(false);
+
     generationAbortRef.current?.abort();
     const controller = new AbortController();
     generationAbortRef.current = controller;
@@ -505,6 +510,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   // Instant local synthesis fallback (0ms latency, zero network dependence)
   const handleInstantSynthesize = () => {
+    setIsExpanded(false);
     generationRunIdRef.current += 1;
     generationAbortRef.current?.abort();
     generationAbortRef.current = null;
@@ -557,6 +563,31 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         sourceMeta: prev.sourceMeta ? { ...prev.sourceMeta } : undefined,
       };
     });
+  };
+
+  // 1-Click Auto-Fit Slide Copy to Spec §8 Limits
+  const handleAutoFitCurrentSlide = () => {
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const slide = prev.slides[targetIndex];
+      if (!slide) return prev;
+
+      const newSlides = [...prev.slides];
+      newSlides[targetIndex] = sanitizeSlide(
+        {
+          ...slide,
+          enTitle: autoFitTextToLimits(autoPolishHeadline(slide.enTitle || ''), CHAR_LIMITS.enTitle),
+          arTitle: autoFitTextToLimits(fixArabicPunctuation(slide.arTitle || ''), CHAR_LIMITS.arTitle),
+          enBody: autoFitTextToLimits(slide.enBody || '', CHAR_LIMITS.enBody),
+          arBody: autoFitTextToLimits(fixArabicPunctuation(slide.arBody || ''), CHAR_LIMITS.arBody),
+        },
+        targetIndex,
+        prev.slides.length
+      );
+
+      return { ...prev, slides: newSlides };
+    });
+    onShowToast(`Auto-fitted Slide ${currentSlideIndex + 1} copy to character limits`);
   };
 
   // Immediate Archetype Switcher: Auto-seeds required fields on the fly
@@ -863,9 +894,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     handleUpdateCurrentSlide('diagramEdges', currentEdges);
   };
 
+  const activeOverridesCount = Object.keys(currentSlide.layoutOverrides || {}).length;
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-40 animate-fade-in">
-      {/* 1. Unified Inline Smart Dock (Expandable Auto-Resizing Ingestion Hub) */}
+    <div className="w-full lg:flex-1 lg:min-h-0 flex flex-col gap-3 animate-fade-in">
+      {/* 1. Compact Command Bar with Overlay Ingestion Drawer */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -883,13 +916,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             handleImageFile(file);
           }
         }}
-        className={`bg-black/60 border rounded-2xl shadow-2xl relative overflow-hidden backdrop-blur-xl transition-all duration-300 ${
-          isDragOver
-            ? 'border-cyan-400 bg-cyan-950/20 ring-2 ring-cyan-400/40'
-            : isExpanded
-            ? 'border-white/20 p-5 ring-1 ring-white/10'
-            : 'border-white/10 p-4 sm:p-5'
-        }`}
+        className="relative z-30 shrink-0"
       >
         {/* Hidden file input */}
         <input
@@ -903,106 +930,194 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           }}
         />
 
-        {/* COMPACT MODE */}
-        {!isExpanded ? (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-bold text-white font-jakarta tracking-wide">
-                  Autonomous Content Engine
-                </span>
-                <span aria-hidden="true" className="text-slate-600">·</span>
-                <span className="text-slate-400">
-                  Bilingual 9:16 Synthesis
-                </span>
-              </div>
-              {pipelineStatus ? (
-                <div className="flex items-center gap-2 text-xs font-mono" style={{ color: theme.accent }}>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>{pipelineStatus}</span>
-                </div>
-              ) : uploadedImage ? (
-                <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs px-2.5 py-1 rounded-lg">
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span className="truncate max-w-[140px] font-mono text-[11px]">{uploadedImage.name}</span>
+        {/* Slim Single-Row Command Bar */}
+        <div
+          className={`bg-[#0b1118]/95 border rounded-2xl px-3 py-2 shadow-xl backdrop-blur-xl transition-all duration-200 ${
+            isDragOver
+              ? 'border-cyan-400 bg-cyan-950/20 ring-2 ring-cyan-400/40'
+              : isExpanded
+              ? 'border-white/25 ring-1 ring-white/15'
+              : 'border-white/10'
+          }`}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleRunAutonomousPipeline();
+            }}
+            className="flex flex-wrap sm:flex-nowrap items-center gap-2"
+          >
+            {/* Topic / Notes Input */}
+            <div className="relative flex-1 min-w-[200px] flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 shrink-0 ml-2" style={{ color: theme.accent }} />
+              <input
+                type="text"
+                value={promptInput}
+                onChange={(e) => handlePromptChange(e.target.value)}
+                placeholder="Enter topic, paste notes, or drop a screenshot (e.g. Zero-Trust Mesh, Redis 8)..."
+                disabled={isGenerating}
+                className="w-full bg-transparent px-2 py-1.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none font-sans"
+              />
+
+              {uploadedImage && (
+                <div className="flex items-center gap-1.5 bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[11px] px-2 py-1 rounded-lg shrink-0">
+                  <ImageIcon className="w-3 h-3" />
+                  <span className="truncate max-w-[90px] font-mono text-[10px]">{uploadedImage.name}</span>
                   <button
                     type="button"
                     onClick={() => setUploadedImage(null)}
-                    className="hover:text-white p-0.5"
+                    className="hover:text-white cursor-pointer"
                     title="Remove attachment"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </div>
-              ) : null}
+              )}
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleRunAutonomousPipeline();
-              }}
-              className="flex flex-col sm:flex-row gap-2.5"
-            >
-              <div className="relative flex-1 flex items-center gap-2">
-                <textarea
-                  rows={1}
-                  value={promptInput}
-                  onChange={(e) => handlePromptChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleRunAutonomousPipeline();
-                    }
-                  }}
-                  placeholder="Paste YouTube summary, blog notes, or enter topic (e.g. Zero-Trust Mesh, Rust vs Go)..."
-                  disabled={isGenerating}
-                  className="w-full bg-black/70 border border-white/15 focus:border-white/40 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner resize-none min-h-[46px] max-h-28 leading-relaxed font-sans"
-                />
+            {/* Quick Starter Pills (Desktop XL) */}
+            {!promptInput && !uploadedImage && !pipelineStatus && (
+              <div className="hidden xl:flex items-center gap-1 shrink-0">
+                {STARTER_TOPICS.slice(0, 2).map((topic) => (
+                  <button
+                    key={topic.name}
+                    type="button"
+                    onClick={() => handleTriggerStarterTopic(topic)}
+                    disabled={isGenerating}
+                    className="px-2 py-1 rounded-lg text-[11px] bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                    title={topic.desc}
+                  >
+                    {topic.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded(true)}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-3 rounded-xl border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-slate-200 hover:text-white transition-all cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
-                  title="Expand to Ingestion Mode (Attach Screenshots, YouTube notes, Blog)"
-                >
-                  <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
-                  <span className="hidden sm:inline">Expand / Attach</span>
-                </button>
+            {/* Pipeline Status Indicator */}
+            {pipelineStatus && (
+              <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono px-2 shrink-0" style={{ color: theme.accent }}>
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                <span className="truncate max-w-[180px]">{pipelineStatus}</span>
+              </div>
+            )}
+
+            {/* Expand Ingestion Studio Button */}
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                isExpanded
+                  ? 'border-cyan-400/50 bg-cyan-500/15 text-cyan-200'
+                  : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white'
+              }`}
+              title="Open Multimodal Ingestion Drawer (Notes, YouTube Transcript, Screenshot OCR)"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Source / OCR</span>
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+
+            {/* Primary Generate Button */}
+            <button
+              type="submit"
+              disabled={isGenerating}
+              className="flex items-center justify-center gap-1.5 px-4 py-1.5 min-h-[34px] rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+              style={{ backgroundColor: theme.accent }}
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                  <span>Generate</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Floating Overlay Ingestion Drawer (Expands over workspace without pushing layout) */}
+        {isExpanded && (
+          <>
+            <div
+              className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => setIsExpanded(false)}
+            />
+            <div className="absolute inset-x-0 top-full mt-2 z-40 bg-[#0b1118] border border-white/20 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 animate-fade-in">
+              {/* Header with Ingestion Tabs and Collapse Toggle */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white font-jakarta tracking-wide">
+                    Multimodal Source Ingestion
+                  </span>
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">
+                    · Paste long-form notes, YouTube transcripts, or architecture screenshots
+                  </span>
+                </div>
+
+                {/* Ingestion Mode Tabs */}
+                <div className="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10">
+                  {INGEST_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-white/15 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                        style={{ color: isActive ? theme.accent : undefined }}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Actions: Clear & Collapse */}
+                <div className="flex items-center gap-2">
+                  {(promptInput || uploadedImage) && (
+                    <button
+                      type="button"
+                      onClick={handleClearDock}
+                      className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer text-xs flex items-center gap-1"
+                      title="Clear input"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Clear</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsExpanded(false)}
+                    className="p-1.5 px-2.5 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer text-xs flex items-center gap-1"
+                    title="Close drawer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Close</span>
+                  </button>
+                </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={isGenerating}
-                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[46px] rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-lg cursor-pointer disabled:opacity-50 whitespace-nowrap touch-manipulation"
-                style={{ backgroundColor: theme.accent }}
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 text-slate-950" />
-                    <span>Generate Carousel</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Quick Starter Suggestions */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1">
-              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
-                <span className="text-[11px] text-slate-500 font-medium shrink-0">Try:</span>
+              {/* Starter Topics Row inside Expanded Drawer */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <span className="text-[11px] text-slate-400 font-medium shrink-0">Starter Topics:</span>
                 {STARTER_TOPICS.map((topic) => (
                   <button
                     key={topic.name}
                     type="button"
                     onClick={() => handleTriggerStarterTopic(topic)}
                     disabled={isGenerating}
-                    className="px-2.5 py-1 rounded-lg text-xs bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap shrink-0 touch-manipulation"
-                    title={topic.desc}
+                    className="px-2.5 py-1 rounded-lg text-xs bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0"
                   >
                     <Sparkles className="w-3 h-3 text-cyan-400" />
                     <span>{topic.name}</span>
@@ -1010,564 +1125,616 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsExpanded(true)}
-                className="text-[11px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 transition-colors cursor-pointer shrink-0 ml-auto sm:ml-0"
-              >
-                <span>Expand Ingestion Studio</span>
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* EXPANDED / INGESTION MODE */
-          <div className="space-y-4 animate-fade-in">
-            {/* Header with Ingestion Tabs and Collapse Toggle */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white font-jakarta tracking-wide">
-                  Unified AI Ingestion Dock
-                </span>
+              {/* Smart Multi-Line Textarea */}
+              <div className="relative">
+                <textarea
+                  value={promptInput}
+                  onChange={(e) => setPromptInput(e.target.value)}
+                  rows={5}
+                  disabled={isGenerating}
+                  placeholder={
+                    activeTab === 'youtube'
+                      ? 'Paste YouTube video transcript or summary... e.g.:\nIn this video by Low Level, we explore whether AI can reverse engineer software using Ghidra and automated agent loops...'
+                      : activeTab === 'upload'
+                      ? 'Additional context or guidance for analyzing the attached screenshot (e.g. highlight the microservice topology and CPU metrics)...'
+                      : 'Paste engineering blog post, GitHub README, or system notes... e.g.:\nAnthropic announced Scion, an internal system designed to address Git scaling limitations when thousands of automated AI agents run around the clock...'
+                  }
+                  className="w-full bg-black/70 border border-white/15 focus:border-cyan-400/50 rounded-xl p-3.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner resize-y leading-relaxed font-mono min-h-[110px]"
+                />
+
+                <div className="flex items-center justify-between px-3 py-1.5 bg-black/80 border-x border-b border-white/10 rounded-b-xl text-[11px] text-slate-400 font-mono -mt-1.5">
+                  <span>{promptInput.length.toLocaleString()} characters</span>
+                  {promptInput.length > 200 ? (
+                    <span className="text-emerald-400 flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-emerald-400" />
+                      Direct AI Schema Mode (Search Grounding Bypassed)
+                    </span>
+                  ) : promptInput.length > 0 ? (
+                    <span className="text-cyan-400">🔍 Real-Time Grounding Mode</span>
+                  ) : (
+                    <span>Ready for topic or notes</span>
+                  )}
+                </div>
               </div>
 
-              {/* Ingestion Mode Tabs */}
-              <div className="flex items-center gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
-                {INGEST_TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-white/15 text-white shadow-sm'
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`}
-                      style={{ color: isActive ? theme.accent : undefined }}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Actions: Clear & Collapse */}
-              <div className="flex items-center gap-2">
-                {(promptInput || uploadedImage) && (
-                  <button
-                    type="button"
-                    onClick={handleClearDock}
-                    className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer text-xs flex items-center gap-1"
-                    title="Clear input"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Clear</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded(false)}
-                  className="p-1.5 px-2.5 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer text-xs flex items-center gap-1"
-                  title="Collapse to compact mode"
-                >
-                  <ChevronUp className="w-3.5 h-3.5" />
-                  <span>Compact</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Smart Multi-Line Textarea */}
-            <div className="relative">
-              <textarea
-                value={promptInput}
-                onChange={(e) => handlePromptChange(e.target.value)}
-                rows={6}
-                disabled={isGenerating}
-                placeholder={
-                  activeTab === 'youtube'
-                    ? 'Paste YouTube video transcript or summary... e.g.:\nIn this video by Low Level, we explore whether AI can reverse engineer software using Ghidra and automated agent loops...'
-                    : activeTab === 'upload'
-                    ? 'Additional context or guidance for analyzing the attached screenshot (e.g. highlight the microservice topology and CPU metrics)...'
-                    : 'Paste engineering blog post, GitHub README, or system notes... e.g.:\nAnthropic announced Scion, an internal system designed to address Git scaling limitations when thousands of automated AI agents run around the clock...'
-                }
-                className="w-full bg-black/70 border border-white/15 focus:border-cyan-400/50 rounded-xl p-4 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner resize-y leading-relaxed font-mono min-h-[140px]"
-              />
-
-              {/* Sub-telemetry strip inside editor */}
-              <div className="flex items-center justify-between px-3 py-1.5 bg-black/80 border-x border-b border-white/10 rounded-b-xl text-[11px] text-slate-400 font-mono -mt-1.5">
-                <span>{promptInput.length.toLocaleString()} characters</span>
-                {promptInput.length > 200 ? (
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <Zap className="w-3 h-3 text-emerald-400" />
-                    Direct AI Schema Mode (Search Grounding Bypassed)
-                  </span>
-                ) : promptInput.length > 0 ? (
-                  <span className="text-cyan-400">🔍 Real-Time Grounding Mode</span>
-                ) : (
-                  <span>Ready for topic or notes</span>
-                )}
-              </div>
-            </div>
-
-            {/* Integrated Screenshot & Attachment Dropzone (Shown on 'upload' tab or if image attached) */}
-            {(activeTab === 'upload' || uploadedImage) && (
-              <div className="space-y-3">
-                {uploadedImage ? (
-                  <div className="p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-500/30 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={uploadedImage.base64}
-                        alt="Attached screenshot preview"
-                        className="w-14 h-14 object-cover rounded-lg border border-white/20 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-white truncate">{uploadedImage.name}</div>
-                        <div className="text-[10px] font-mono text-cyan-300">
-                          {uploadedImage.sizeKb} KB • Mobile-optimized JPEG for fast OCR
+              {/* Integrated Screenshot & Attachment Dropzone */}
+              {(activeTab === 'upload' || uploadedImage) && (
+                <div className="space-y-3">
+                  {uploadedImage ? (
+                    <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/30 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={uploadedImage.base64}
+                          alt="Attached screenshot preview"
+                          className="w-12 h-12 object-cover rounded-lg border border-white/20 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-white truncate">{uploadedImage.name}</div>
+                          <div className="text-[10px] font-mono text-cyan-300">
+                            {uploadedImage.sizeKb} KB • Mobile-optimized JPEG for fast OCR
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setUploadedImage(null)}
-                      className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 hover:text-white hover:bg-red-500/20 text-xs transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Remove</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-white/20 rounded-xl p-5 text-center hover:border-cyan-400/50 hover:bg-white/[0.02] transition-all cursor-pointer bg-black/30"
-                  >
-                    <div className="flex flex-col items-center justify-center space-y-1.5">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: `${theme.accent}15` }}
+                      <button
+                        type="button"
+                        onClick={() => setUploadedImage(null)}
+                        className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 hover:text-white hover:bg-red-500/20 text-xs transition-colors cursor-pointer flex items-center gap-1 shrink-0"
                       >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-white/20 rounded-xl p-4 text-center hover:border-cyan-400/50 hover:bg-white/[0.02] transition-all cursor-pointer bg-black/30"
+                    >
+                      <div className="flex flex-col items-center justify-center space-y-1">
                         <ImageIcon className="w-5 h-5" style={{ color: theme.accent }} />
+                        <div className="text-xs font-bold text-white">
+                          Drop screenshot image or click to browse
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Supports PNG, JPG, WebP (or press Ctrl+V anywhere).
+                        </p>
                       </div>
-                      <div className="text-xs font-bold text-white">
-                        Drop screenshot image or click to browse
-                      </div>
-                      <p className="text-[11px] text-slate-400 max-w-sm">
-                        Supports PNG, JPG, WebP. Automatically compressed to 1280px for instant OCR analysis.
-                      </p>
+                    </div>
+                  )}
+
+                  {/* Sample Slides Selector */}
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono block mb-1.5">
+                      Or test with attached architecture samples:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleSelectDemoImage(
+                            '/assets/aistudio/slide1-2_637edc85.jpg',
+                            'Anthropic Scion Hub Slide'
+                          )
+                        }
+                        className="p-2 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-left text-xs text-slate-300 transition-colors cursor-pointer"
+                      >
+                        <div className="font-semibold text-white truncate text-[11px]">Slide 1: Scion Hub</div>
+                        <div className="text-[10px] text-slate-400">Anthropic move beyond Git</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleSelectDemoImage(
+                            '/assets/aistudio/slide6-1_44b08b41.jpg',
+                            'Anthropic Results Slide'
+                          )
+                        }
+                        className="p-2 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-left text-xs text-slate-300 transition-colors cursor-pointer"
+                      >
+                        <div className="font-semibold text-white truncate text-[11px]">Slide 6: 3-Metrics</div>
+                        <div className="text-[10px] text-slate-400">200x smaller, 25% CPU</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleSelectDemoImage(
+                            '/assets/aistudio/slide9_a2264cfb.jpg',
+                            'Anthropic CTA Slide'
+                          )
+                        }
+                        className="p-2 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-left text-xs text-slate-300 transition-colors cursor-pointer"
+                      >
+                        <div className="font-semibold text-white truncate text-[11px]">Slide 9: MARROK CTA</div>
+                        <div className="text-[10px] text-slate-400">AI agents at scale</div>
+                      </button>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Sample Slides Selector */}
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono block mb-1.5">
-                    Or test with attached architecture samples:
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleSelectDemoImage(
-                          '/assets/aistudio/slide1-2_637edc85.jpg',
-                          'Anthropic Scion Hub Slide'
-                        )
-                      }
-                      className="p-2 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-left text-xs text-slate-300 transition-colors cursor-pointer"
-                    >
-                      <div className="font-semibold text-white truncate text-[11px]">Slide 1: Scion Hub</div>
-                      <div className="text-[10px] text-slate-400">Anthropic move beyond Git</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleSelectDemoImage(
-                          '/assets/aistudio/slide6-1_44b08b41.jpg',
-                          'Anthropic Results Slide'
-                        )
-                      }
-                      className="p-2 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-left text-xs text-slate-300 transition-colors cursor-pointer"
-                    >
-                      <div className="font-semibold text-white truncate text-[11px]">Slide 6: 3-Metrics</div>
-                      <div className="text-[10px] text-slate-400">200x smaller, 25% CPU</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleSelectDemoImage(
-                          '/assets/aistudio/slide9_a2264cfb.jpg',
-                          'Anthropic CTA Slide'
-                        )
-                      }
-                      className="p-2 rounded-lg border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] text-left text-xs text-slate-300 transition-colors cursor-pointer"
-                    >
-                      <div className="font-semibold text-white truncate text-[11px]">Slide 9: MARROK CTA</div>
-                      <div className="text-[10px] text-slate-400">AI agents at scale</div>
-                    </button>
+              {/* Domain Classification Pills & Actions */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/10">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="text-slate-400 font-medium text-[11px]">Domain:</span>
+                  <div className="flex flex-wrap items-center bg-black/60 p-1 rounded-xl border border-white/10 gap-1">
+                    {DOMAIN_CATEGORIES.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setCategoryHint(opt.id)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
+                          categoryHint === opt.id
+                            ? 'bg-white/20 text-white font-bold'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* Domain Classification Pills */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/10">
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-slate-400 font-medium text-[11px]">Domain:</span>
-                <div className="flex flex-wrap items-center bg-black/60 p-1 rounded-xl border border-white/10 gap-1">
-                  {DOMAIN_CATEGORIES.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setCategoryHint(opt.id)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
-                        categoryHint === opt.id
-                          ? 'bg-white/20 text-white font-bold'
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleInstantSynthesize}
+                    disabled={isGenerating}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-xs tracking-wide transition-all cursor-pointer disabled:opacity-50"
+                    title="Generate immediately using local MARROK engine (0ms latency)"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Instant Synthesize</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRunAutonomousPipeline()}
+                    disabled={isGenerating}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md cursor-pointer disabled:opacity-75"
+                    style={{ backgroundColor: theme.accent }}
+                  >
+                    <Sparkles className="w-4 h-4 text-slate-950" />
+                    <span>Generate Carousel & Caption</span>
+                  </button>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleInstantSynthesize}
-                  disabled={isGenerating}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-xs tracking-wide transition-all cursor-pointer disabled:opacity-50"
-                  title="Generate immediately using local MARROK engine (0ms latency)"
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Instant Synthesize</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleRunAutonomousPipeline()}
-                  disabled={isGenerating}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md cursor-pointer disabled:opacity-75"
-                  style={{ backgroundColor: theme.accent }}
-                >
-                  {isGenerating ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>{pipelineStatus || 'Synthesizing AI Carousel...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 text-slate-950" />
-                      <span>Generate Carousel & Caption</span>
-                    </>
-                  )}
-                </button>
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
-      {/* 2. Mobile Studio Segmented Mode Switcher (Visible only on < lg) */}
-      <div className="lg:hidden flex items-center p-1 bg-black/75 border border-white/15 rounded-2xl gap-1 mb-5 shadow-xl sticky top-14 z-30 backdrop-blur-xl">
+      {/* 2. Mobile Segmented Switcher (Visible only on < lg) */}
+      <div className="lg:hidden flex items-center p-1 bg-black/75 border border-white/15 rounded-xl gap-1 shrink-0">
         <button
           type="button"
           onClick={() => setMobileStudioTab('canvas')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer touch-manipulation ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
             mobileStudioTab === 'canvas'
-              ? 'bg-white/20 text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              ? 'bg-white/15 text-white shadow-sm'
+              : 'text-slate-400 hover:text-white'
           }`}
           style={mobileStudioTab === 'canvas' ? { color: theme.accent } : undefined}
         >
           <ImageIcon className="w-3.5 h-3.5" />
-          <span>Canvas</span>
+          <span>9:16 Canvas Stage</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setMobileStudioTab('text')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer touch-manipulation ${
-            mobileStudioTab === 'text'
-              ? 'bg-white/20 text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          onClick={() => setMobileStudioTab('editor')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            mobileStudioTab === 'editor'
+              ? 'bg-white/15 text-white shadow-sm'
+              : 'text-slate-400 hover:text-white'
           }`}
-          style={mobileStudioTab === 'text' ? { color: theme.accent } : undefined}
-        >
-          <Type className="w-3.5 h-3.5" />
-          <span>Copy & Text</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMobileStudioTab('archetype')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer touch-manipulation ${
-            mobileStudioTab === 'archetype'
-              ? 'bg-white/20 text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
-          style={mobileStudioTab === 'archetype' ? { color: theme.accent } : undefined}
+          style={mobileStudioTab === 'editor' ? { color: theme.accent } : undefined}
         >
           <Sliders className="w-3.5 h-3.5" />
-          <span>Archetype</span>
+          <span>Slide Inspector</span>
         </button>
       </div>
 
-      {/* 3. Main Studio Viewport: Canvas on Left + Direct Inline Edit on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Viewport Canvas + Slide Navigator + Export Bar */}
+      {/* 3. Fixed Studio Shell: Left 9:16 Stage + Right Tabbed Inspector */}
+      <div className="lg:flex-1 lg:min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        {/* Left Column: 9:16 Canvas + Compact Storyboard + Quick Export Bar */}
         <div
-          className={`lg:col-span-5 flex-col items-center lg:sticky lg:top-20 self-start z-10 space-y-3.5 ${
+          className={`lg:col-span-5 flex-col items-center justify-between lg:h-full lg:min-h-0 gap-2 ${
             mobileStudioTab === 'canvas' ? 'flex w-full' : 'hidden lg:flex'
           }`}
         >
-          <ViewportCanvas
-            carousel={carousel}
-            currentSlideIndex={currentSlideIndex}
-            theme={theme}
-            showSafeZones={showSafeZones}
-            onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
-            onPreviousSlide={() => changeSlide((prev) => Math.max(0, prev - 1))}
-            onNextSlide={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
-            canvasRef={canvasRef}
-            selectedElementId={selectedElementId}
-            onSelectElement={(id) => {
-              setSelectedElementId(id);
-              setIsInspectorOpen(true);
-            }}
-            onUpdateLayoutOverride={handleUpdateElementLayoutOverride}
-          />
+          <div className="flex-1 min-h-0 flex items-center justify-center w-full">
+            <ViewportCanvas
+              carousel={carousel}
+              currentSlideIndex={currentSlideIndex}
+              theme={theme}
+              showSafeZones={showSafeZones}
+              onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
+              onPreviousSlide={() => changeSlide((prev) => Math.max(0, prev - 1))}
+              onNextSlide={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
+              canvasRef={canvasRef}
+              selectedElementId={selectedElementId}
+              onSelectElement={(id) => {
+                setSelectedElementId(id);
+              }}
+              onUpdateLayoutOverride={handleUpdateElementLayoutOverride}
+            />
+          </div>
 
-          <SlideNavigator
-            carousel={carousel}
-            currentSlideIndex={currentSlideIndex}
-            showSafeZones={showSafeZones}
-            onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
-            onSelectSlide={(idx) => changeSlide(idx)}
-            onAddSlide={handleAddSlide}
-            onDuplicateSlide={handleDuplicateSlide}
-            onDeleteSlide={handleDeleteSlide}
-            onMoveSlide={handleMoveSlide}
-            onApplyHookVariant={handleApplyHookVariant}
-          />
+          <div className="w-full flex flex-col items-center gap-2 shrink-0">
+            <SlideNavigator
+              carousel={carousel}
+              currentSlideIndex={currentSlideIndex}
+              showSafeZones={showSafeZones}
+              onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
+              onSelectSlide={(idx) => changeSlide(idx)}
+              onAddSlide={handleAddSlide}
+              onDuplicateSlide={handleDuplicateSlide}
+              onDeleteSlide={handleDeleteSlide}
+              onMoveSlide={handleMoveSlide}
+            />
 
-          <ExportBar
-            carousel={carousel}
-            currentSlideIndex={currentSlideIndex}
-            theme={theme}
-            isOfflineDraft={isOfflineDraft}
-            isReviewed={isReviewed}
-            qaReport={qaReport}
-            isExportingZip={isExportingZip}
-            exportProgress={exportProgress}
-            copiedType={copiedType}
-            onUpdateCreator={(newCreator) => {
-              applyDeckUpdate((prev) => ({
-                ...prev,
-                brand: newCreator.trim() || prev.brand,
-                sourceMeta: {
-                  ...prev.sourceMeta,
-                  creator: newCreator,
-                  channel: newCreator,
-                },
-              }));
-            }}
-            onToggleReviewDraft={handleToggleReviewDraft}
-            onRetryWithAi={() => handleRunAutonomousPipeline()}
-            onDownloadSingleSlide={() => {
-              if (isOfflineDraft && !isReviewed) {
-                onShowToast('⚠️ Downloading unreviewed offline draft...');
-              } else {
-                onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
-              }
-              downloadSingleSlidePng(
-                carousel,
-                currentSlideIndex,
-                `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
-                theme,
-                carousel.visualOptions
-              );
-            }}
-            onCopySlide={handleCopySlide}
-            onExportZip={handleExportZip}
-            onOpenContactSheet={onOpenContactSheet}
-          />
+            {/* Sleek Single-Row Export & Preview Dock */}
+            <div className="w-full max-w-[360px] flex items-center gap-1.5 bg-[#0b1118]/90 border border-white/10 rounded-xl p-1.5 shadow-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isOfflineDraft && !isReviewed) {
+                    onShowToast('⚠️ Downloading unreviewed offline draft...');
+                  } else {
+                    onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
+                  }
+                  downloadSingleSlidePng(
+                    carousel,
+                    currentSlideIndex,
+                    `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
+                    theme,
+                    carousel.visualOptions
+                  );
+                }}
+                className="px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                title="Download current slide as 1080×1920 JPG"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-400" />
+                <span>JPG</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopySlide}
+                className="px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                title="Copy current slide PNG to clipboard"
+              >
+                {copiedType === 'slide' ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                )}
+                <span>{copiedType === 'slide' ? 'Copied' : 'Copy'}</span>
+              </button>
+
+              {onOpenContactSheet && (
+                <button
+                  type="button"
+                  onClick={onOpenContactSheet}
+                  className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                  title="Open All-Slides Contact Sheet"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                </button>
+              )}
+
+              {onOpenPreviewDrawer && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPreviewDrawer('simulator')}
+                  className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                  title="Open 9:16 TikTok Feed Simulator"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleExportZip}
+                disabled={isExportingZip}
+                className="flex-1 py-2 px-3 rounded-lg font-bold text-[11px] uppercase tracking-wider text-slate-950 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                style={{ backgroundColor: theme.accent }}
+                title="Download all 1080×1920 slides + Metricool bundle ZIP"
+              >
+                {isExportingZip && exportProgress ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>
+                      {exportProgress.current}/{exportProgress.total}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Export ZIP</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Direct Inline Text Editing & Expandable Advanced Customizer */}
+        {/* Right Column: Clean Tabbed Inspector (Copy | Visual Layout | Position | Caption & QA) */}
         <div
-          className={`lg:col-span-7 space-y-5 ${
-            mobileStudioTab === 'canvas' ? 'hidden lg:block' : 'block'
+          className={`lg:col-span-7 flex-col lg:h-full lg:min-h-0 bg-[#0b1118]/90 border border-white/10 rounded-2xl overflow-hidden shadow-2xl ${
+            mobileStudioTab === 'canvas' ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          <div className="bg-black/40 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
-            {onOpenPreviewDrawer && (
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.06]">
-                <span className="text-xs text-slate-400">
-                  Slide {currentSlideIndex + 1} Workspace · Bilingual Editor
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpenPreviewDrawer('polish')}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-white transition-colors cursor-pointer whitespace-nowrap"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-                    <span>Polish Slide Copy & QA</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onOpenPreviewDrawer('simulator')}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
-                  >
-                    <span>TikTok Simulator</span>
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* Inspector Top Tab Bar */}
+          <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 border-b border-white/10 bg-black/40 shrink-0 overflow-x-auto">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setInspectorTab('copy')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  inspectorTab === 'copy'
+                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                }`}
+              >
+                <Type className="w-3.5 h-3.5" style={inspectorTab === 'copy' ? { color: theme.accent } : undefined} />
+                <span>Copy</span>
+              </button>
 
-            {/* Inline Text Editor (Visible on desktop OR mobile 'text' tab) */}
-            <div className={mobileStudioTab === 'archetype' ? 'hidden lg:block' : 'block'}>
+              <button
+                type="button"
+                onClick={() => setInspectorTab('visual')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  inspectorTab === 'visual'
+                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" style={inspectorTab === 'visual' ? { color: theme.accent } : undefined} />
+                <span>Visual Layout</span>
+                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-black/50 text-slate-300">
+                  {currentSlide.type}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setInspectorTab('position')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  inspectorTab === 'position'
+                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" style={inspectorTab === 'position' ? { color: theme.accent } : undefined} />
+                <span>Position</span>
+                {activeOverridesCount > 0 && (
+                  <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                    {activeOverridesCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setInspectorTab('caption')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  inspectorTab === 'caption'
+                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" style={inspectorTab === 'caption' ? { color: theme.accent } : undefined} />
+                <span>Caption & QA</span>
+                {(!qaReport.canExport || (isOfflineDraft && !isReviewed)) && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                )}
+              </button>
+            </div>
+
+            {/* Selected Layer Quick Badge */}
+            {selectedElementId && inspectorTab !== 'position' && (
+              <button
+                type="button"
+                onClick={() => setInspectorTab('position')}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-[11px] font-mono text-cyan-300 hover:bg-cyan-500/20 transition-colors cursor-pointer shrink-0"
+                title="Adjust exact position and scale for selected element"
+              >
+                <span>Layer: {selectedElementId}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Scrollable Tab Viewport */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            {/* TAB 1: COPY (Bilingual Headlines, Body, Hook Variants & Auto-Fit) */}
+            {inspectorTab === 'copy' && (
               <InlineSlideEditor
                 currentSlide={currentSlide}
                 currentSlideIndex={currentSlideIndex}
                 theme={theme}
-                isAdvancedCustomizerOpen={isAdvancedCustomizerOpen}
-                onToggleAdvancedCustomizer={() => setIsAdvancedCustomizerOpen(!isAdvancedCustomizerOpen)}
+                isAdvancedCustomizerOpen={false}
+                onToggleAdvancedCustomizer={() => setInspectorTab('visual')}
                 onUpdateField={handleUpdateCurrentSlide}
                 selectedElementId={selectedElementId}
                 onSelectElement={setSelectedElementId}
+                hookVariants={carousel.hookVariants}
+                onApplyHookVariant={handleApplyHookVariant}
+                onAutoFitSlide={handleAutoFitCurrentSlide}
+                onOpenPolishDrawer={onOpenPreviewDrawer ? () => onOpenPreviewDrawer('polish') : undefined}
               />
-            </div>
+            )}
 
-            {/* Archetype Controls (Visible on desktop OR mobile 'archetype' tab) */}
-            <div className={mobileStudioTab === 'text' ? 'hidden lg:block' : 'block'}>
-              <ArchetypeControls
-                currentSlide={currentSlide}
-                theme={theme}
-                isAdvancedCustomizerOpen={isAdvancedCustomizerOpen}
-                onSetSlideType={handleSetSlideType}
-                onUpdateField={handleUpdateCurrentSlide}
-                onUpdateSatLabel={handleUpdateSatLabel}
-                onUpdateSatIcon={handleUpdateSatIcon}
-                onUpdateCenterIcon={handleUpdateCenterIcon}
-                onUpdateCenterTag={handleUpdateCenterTag}
-                onAddSatNode={handleAddSatNode}
-                onDeleteSatNode={handleDeleteSatNode}
-                onUpdateDiagramNode={handleUpdateDiagramNode}
-                onUpdateDiagramEdge={handleUpdateDiagramEdge}
-                onOpenAiImageStudio={() => setImageStudioTargetIndex(currentSlideIndex)}
-                onOpenMediaSearch={() =>
-                  setMediaModalTarget({
-                    field: 'imageUrl',
-                    title: 'Search Architecture Graphic',
-                    initialQuery: currentSlide.enTitle?.slice(0, 30) || '',
-                  })
-                }
-              />
-            </div>
+            {/* TAB 2: VISUAL LAYOUT (7 Archetypes, Hub/Schematic Nodes, Code, Metrics & AI Image Studio) */}
+            {inspectorTab === 'visual' && (
+              <div className="space-y-4">
+                <ArchetypeControls
+                  currentSlide={currentSlide}
+                  theme={theme}
+                  isAdvancedCustomizerOpen={true}
+                  onSetSlideType={handleSetSlideType}
+                  onUpdateField={handleUpdateCurrentSlide}
+                  onUpdateSatLabel={handleUpdateSatLabel}
+                  onUpdateSatIcon={handleUpdateSatIcon}
+                  onUpdateCenterIcon={handleUpdateCenterIcon}
+                  onUpdateCenterTag={handleUpdateCenterTag}
+                  onAddSatNode={handleAddSatNode}
+                  onDeleteSatNode={handleDeleteSatNode}
+                  onUpdateDiagramNode={handleUpdateDiagramNode}
+                  onUpdateDiagramEdge={handleUpdateDiagramEdge}
+                  onOpenAiImageStudio={() => setImageStudioTargetIndex(currentSlideIndex)}
+                  onOpenMediaSearch={() =>
+                    setMediaModalTarget({
+                      field: 'imageUrl',
+                      title: 'Search Architecture Graphic',
+                      initialQuery: currentSlide.enTitle?.slice(0, 30) || '',
+                    })
+                  }
+                />
 
-            {/* Direct Graphical Control / Layer Inspector (Visible on desktop OR mobile 'archetype' tab) */}
-            <div className={mobileStudioTab === 'text' ? 'hidden lg:block' : 'block'}>
+                {imageStudioTargetIndex !== null && carousel.slides[imageStudioTargetIndex] && (
+                  <SlideImageStudio
+                    slideIndex={imageStudioTargetIndex}
+                    slide={carousel.slides[imageStudioTargetIndex]}
+                    theme={theme}
+                    onApplyImage={(targetIndex, imageUrl, prompt, model) => {
+                      applyDeckUpdate((prev) => {
+                        if (targetIndex < 0 || targetIndex >= prev.slides.length) return prev;
+                        const newSlides = [...prev.slides];
+                        newSlides[targetIndex] = sanitizeSlide(
+                          {
+                            ...newSlides[targetIndex],
+                            imageUrl,
+                            imagePrompt: prompt,
+                            imageModel: model,
+                          },
+                          targetIndex,
+                          prev.slides.length
+                        );
+                        return { ...prev, slides: newSlides };
+                      });
+                      setImageStudioTargetIndex(null);
+                      onShowToast(`Applied AI diagram to Slide ${targetIndex + 1}`);
+                    }}
+                    onClose={() => setImageStudioTargetIndex(null)}
+                    onShowToast={onShowToast}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: POSITION (Direct Graphical Layer Offsets, Scale & Anti-Collision Nudge) */}
+            {inspectorTab === 'position' && (
               <ElementInspector
                 slide={currentSlide}
                 theme={theme}
-                isOpen={isInspectorOpen}
-                onToggleOpen={() => setIsInspectorOpen(!isInspectorOpen)}
+                isOpen={true}
+                onToggleOpen={() => {}}
                 selectedElementId={selectedElementId}
                 onSelectElement={setSelectedElementId}
                 onUpdateOverride={handleUpdateElementLayoutOverride}
                 onResetOverrides={handleResetSlideLayoutOverrides}
                 onApplyToAllSlides={handleApplyOverrideToAllSlides}
               />
-            </div>
-
-            {imageStudioTargetIndex !== null &&
-              carousel.slides[imageStudioTargetIndex] && (
-              <SlideImageStudio
-                slideIndex={imageStudioTargetIndex}
-                slide={carousel.slides[imageStudioTargetIndex]}
-                theme={theme}
-                onApplyImage={(targetIndex, imageUrl, prompt, model) => {
-                  applyDeckUpdate((prev) => {
-                    if (targetIndex < 0 || targetIndex >= prev.slides.length) return prev;
-                    const newSlides = [...prev.slides];
-                    newSlides[targetIndex] = sanitizeSlide(
-                      {
-                        ...newSlides[targetIndex],
-                        imageUrl,
-                        imagePrompt: prompt,
-                        imageModel: model,
-                      },
-                      targetIndex,
-                      prev.slides.length
-                    );
-                    return { ...prev, slides: newSlides };
-                  });
-                  setImageStudioTargetIndex(null);
-                  onShowToast(`Applied AI diagram to Slide ${targetIndex + 1}`);
-                }}
-                onClose={() => setImageStudioTargetIndex(null)}
-                onShowToast={onShowToast}
-              />
             )}
-          </div>
 
-          {/* TikTok Posting Copy (Visible on desktop OR mobile 'text' tab) */}
-          <div
-            className={`bg-black/40 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3.5 ${
-              mobileStudioTab === 'archetype' ? 'hidden lg:block' : 'block'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                TikTok Posting Copy
-              </span>
-              <button
-                type="button"
-                onClick={handleCopyCaption}
-                className="flex items-center gap-1 text-xs text-cyan-300 hover:text-cyan-200 font-semibold cursor-pointer transition-colors"
-              >
-                {copiedType === 'caption' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedType === 'caption' ? 'Copied!' : 'Copy Caption'}</span>
-              </button>
-            </div>
+            {/* TAB 4: CAPTION & QA (TikTok Posting Copy, Creator Attribution & Pre-Export QA) */}
+            {inspectorTab === 'caption' && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-black/50 border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider block">
+                        Bilingual TikTok Posting Copy
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Included automatically in your Metricool ZIP bundle
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyCaption}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-xs text-cyan-200 hover:bg-cyan-500/25 font-semibold cursor-pointer transition-colors"
+                    >
+                      {copiedType === 'caption' ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                      <span>{copiedType === 'caption' ? 'Copied!' : 'Copy Caption'}</span>
+                    </button>
+                  </div>
 
-            <div className="p-3 rounded-xl bg-black/60 border border-white/10 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
-              {`${carousel.caption || ''}\n\n#SoftwareArchitecture #TechTok #Programming #DevLife #SystemDesign`}
-            </div>
+                  <textarea
+                    rows={6}
+                    value={carousel.caption || ''}
+                    onChange={(e) =>
+                      applyDeckUpdate((prev) => ({
+                        ...prev,
+                        caption: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter bilingual TikTok caption..."
+                    className="w-full p-3 rounded-xl bg-black/70 border border-white/10 focus:border-white/30 text-xs text-slate-200 leading-relaxed focus:outline-none resize-y font-sans"
+                  />
+
+                  <div className="text-[11px] font-mono text-slate-400">
+                    #SoftwareArchitecture #TechTok #Programming #DevLife #SystemDesign
+                  </div>
+                </div>
+
+                {/* Attribution, Draft Review & Pre-Export QA Checklist */}
+                <div className="flex justify-center">
+                  <ExportBar
+                    carousel={carousel}
+                    currentSlideIndex={currentSlideIndex}
+                    theme={theme}
+                    isOfflineDraft={isOfflineDraft}
+                    isReviewed={isReviewed}
+                    qaReport={qaReport}
+                    isExportingZip={isExportingZip}
+                    exportProgress={exportProgress}
+                    copiedType={copiedType}
+                    onUpdateCreator={(newCreator) => {
+                      applyDeckUpdate((prev) => ({
+                        ...prev,
+                        brand: newCreator.trim() || prev.brand,
+                        sourceMeta: {
+                          ...prev.sourceMeta,
+                          creator: newCreator,
+                          channel: newCreator,
+                        },
+                      }));
+                    }}
+                    onToggleReviewDraft={handleToggleReviewDraft}
+                    onRetryWithAi={() => handleRunAutonomousPipeline()}
+                    onDownloadSingleSlide={() => {
+                      downloadSingleSlidePng(
+                        carousel,
+                        currentSlideIndex,
+                        `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
+                        theme,
+                        carousel.visualOptions
+                      );
+                    }}
+                    onCopySlide={handleCopySlide}
+                    onExportZip={handleExportZip}
+                    onOpenContactSheet={onOpenContactSheet}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Floating Canvas Switcher Pill (Visible on mobile when in text or archetype mode) */}
-      <div className="lg:hidden fixed bottom-16 right-4 z-40">
-        {mobileStudioTab !== 'canvas' && (
-          <button
-            type="button"
-            onClick={() => setMobileStudioTab('canvas')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-slate-900/95 border border-white/20 text-white text-xs font-bold shadow-2xl backdrop-blur-md active:scale-95 transition-all cursor-pointer"
-            style={{ borderColor: `${theme.accent}80` }}
-            title="Switch to Canvas View"
-          >
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: theme.accent }} />
-            <span>View Canvas</span>
-          </button>
-        )}
-      </div>
-
-      {/* Sticky Mobile Thumb Navigation Bar (Visible only on < lg) */}
+      {/* Sticky Mobile Bottom Navigation Bar (Visible only on < lg) */}
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#080d11]/95 border-t border-white/10 px-3 py-2 backdrop-blur-md flex items-center justify-between gap-2 shadow-2xl">
         <button
           type="button"
           onClick={() => changeSlide((prev) => Math.max(0, prev - 1))}
           disabled={currentSlideIndex === 0}
-          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
+          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
           title="Previous Slide"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -1576,7 +1743,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         <button
           type="button"
           onClick={onOpenContactSheet}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 min-h-[38px] rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-slate-200 active:bg-white/10 cursor-pointer touch-manipulation"
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 min-h-[38px] rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-slate-200 active:bg-white/10 cursor-pointer"
           title="Jump to Contact Sheet"
         >
           <span>Slide</span>
@@ -1588,7 +1755,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           type="button"
           onClick={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
           disabled={currentSlideIndex === carousel.slides.length - 1}
-          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0 touch-manipulation"
+          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
           title="Next Slide"
         >
           <ChevronRight className="w-4 h-4" />
@@ -1598,7 +1765,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           type="button"
           onClick={handleExportZip}
           disabled={isExportingZip}
-          className="flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-xl font-bold text-xs text-slate-950 active:scale-95 transition-all shadow-md cursor-pointer shrink-0 touch-manipulation"
+          className="flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-xl font-bold text-xs text-slate-950 active:scale-95 transition-all shadow-md cursor-pointer shrink-0"
           style={{ backgroundColor: theme.accent }}
           title="Export Metricool ZIP"
         >

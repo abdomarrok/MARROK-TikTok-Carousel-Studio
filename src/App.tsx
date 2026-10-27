@@ -185,7 +185,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen text-[#CDD5D9] flex flex-col font-jakarta selection:bg-white/20 transition-colors duration-300 bg-[#080d11]">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden text-[#CDD5D9] flex flex-col font-jakarta selection:bg-white/20 transition-colors duration-300 bg-[#080d11]">
       {/* Streamlined Minimalist Header */}
       <Header
         currentPalette={currentPalette}
@@ -203,7 +203,7 @@ export default function App() {
       />
 
       {/* Primary Autonomous Studio Viewport */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 lg:pb-6">
+      <main className="flex-1 lg:min-h-0 max-w-6xl w-full mx-auto px-4 sm:px-6 py-3 sm:py-4 pb-24 lg:pb-4 flex flex-col">
         <AutonomousStudio
           carousel={carousel}
           theme={currentPalette}

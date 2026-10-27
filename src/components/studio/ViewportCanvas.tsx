@@ -251,7 +251,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     <div
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(540px,calc(100vh-250px))] aspect-[9/16] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none group"
+      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(480px,calc(100vh-255px))] aspect-[9/16] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none group"
     >
       <canvas
         ref={activeCanvasRef}
