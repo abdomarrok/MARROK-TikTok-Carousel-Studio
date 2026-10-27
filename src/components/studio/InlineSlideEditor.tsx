@@ -50,7 +50,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
       <div className="space-y-3">
         <div>
           <label className="text-[11px] font-bold text-slate-300 block mb-1">
-            English Headline (Spec §8: 2–5 words ending in a period)
+            English Headline (Spec §8: 2–8 words, max 45 chars, ending in . or ?)
           </label>
           <input
             type="text"

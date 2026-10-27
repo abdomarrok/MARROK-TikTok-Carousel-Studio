@@ -231,15 +231,15 @@ function checkHeadlineSpecRule(slide: SlideData, idx: number, totalSlides: numbe
       });
     }
 
-    if (words.length < 2 || words.length > 5) {
+    if (words.length < 2 || words.length > 8) {
       results.push({
         id: `headline-length-${idx}`,
         severity: 'fail',
         slideIndex: idx,
         field: 'enTitle',
-        message: `Slide 1 hook has ${words.length} words (rule is 2 to 5 words). Shorten or lengthen to 2–5 words.`,
+        message: `Slide 1 hook has ${words.length} words (rule is 2 to 8 words, max 50 chars). Adjust length to 2–8 words.`,
         value: words.length,
-        limit: '2–5 words',
+        limit: '2–8 words',
       });
     }
   } else if (isCta) {

@@ -237,11 +237,11 @@ export const CAROUSEL_RESPONSE_SCHEMA = {
           },
           enTitle: {
             type: Type.STRING,
-            description: 'English headline: MUST be strictly 2 to 5 words ending in a period (.). E.g. "Zero-Trust, explained." or "Redis 8 gets faster." NEVER use colons or rambling titles.',
+            description: 'English headline: 2 to 8 words (max 45 chars) ending in . or ?. Punchy, informative, and grammatically complete.',
           },
           arTitle: {
             type: Type.STRING,
-            description: 'Concise, contextual Arabic headline (2-5 words). Never use colons touching Latin words.',
+            description: 'Concise, contextual Arabic headline. Keep brand/tool names in Latin. Correct grammar and natural flow.',
           },
           enBody: {
             type: Type.STRING,

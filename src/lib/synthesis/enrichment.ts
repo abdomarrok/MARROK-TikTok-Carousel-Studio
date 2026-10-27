@@ -23,13 +23,14 @@ export function enrichCarouselDiagrams(
       let satLabels = slide.satLabels;
       // If already provided with satellites, preserve them!
       if (!satLabels || satLabels.length < 2) {
+        const distinctTokens = cleanTokens.map((t) => t.toUpperCase());
         const fallbackSet = [
-          cleanTokens[0] ? cleanTokens[0].toUpperCase() : 'INGRESS',
-          cleanTokens[1] ? cleanTokens[1].toUpperCase() : 'RUNTIME',
-          cleanTokens[2] ? cleanTokens[2].toUpperCase() : 'EXECUTION',
-          'CACHE',
-          'STORAGE',
-          'TELEMETRY',
+          distinctTokens[0] || 'ENGINE',
+          distinctTokens[1] || 'ARCHITECTURE',
+          distinctTokens[2] || 'CONCURRENCY',
+          distinctTokens[3] || 'RELIABILITY',
+          distinctTokens[4] || 'PIPELINE',
+          distinctTokens[5] || 'TELEMETRY',
         ];
         satLabels = fallbackSet;
       }
@@ -96,11 +97,13 @@ export function enrichCarouselDiagrams(
     }
 
     // STRICT INVARIANT 2: If diagramNodes are missing (offline mode / fallback),
-    // derive node labels dynamically by splitting actual phrases from slide.enTitle and slide.enBody.
+    // derive node labels dynamically by splitting actual phrases from slide.enTitle and slide.enBody or slide.icons.
     // Never stamp hardcoded domain strings!
-    const titleClean = (slide.enTitle || 'Core Pipeline').replace(/[.?!]$/, '').trim();
+    const titleClean = (slide.enTitle || 'Core Mechanism').replace(/[.?!]$/, '').trim();
     const titleWords = titleClean.split(/\s+/).filter((w) => w.length > 2);
-    const midLabel = titleWords.length > 0 ? titleWords.slice(0, 3).join(' ') : 'Execution Engine';
+    const n1Label = slide.icons?.[0]?.label || titleWords[0] || 'Ingress';
+    const midLabel = slide.icons?.[1]?.label || (titleWords.length > 1 ? titleWords.slice(1, 3).join(' ') : 'Engine');
+    const n3Label = slide.icons?.[2]?.label || (titleWords.length > 3 ? titleWords.slice(3, 5).join(' ') : 'Outcome');
 
     let diagramNodes: DiagramNode[];
     let diagramEdges: string[];
@@ -108,36 +111,36 @@ export function enrichCarouselDiagrams(
 
     if (variant === 'isolation') {
       diagramNodes = [
-        { label: 'Restricted Scope', sublabel: 'Untrusted Boundary', status: 'DENIED', icon: 'shieldAlert' },
-        { label: 'Isolation Perimeter', sublabel: 'Boundary Enforced', status: 'ISOLATED', icon: 'lock' },
-        { label: 'Protected Core', sublabel: 'Zero Implicit Drift', status: 'SECURED', icon: 'database' },
+        { label: n1Label, sublabel: 'Input Boundary', status: 'AUDITED', icon: slide.icons?.[0]?.icon || 'shieldAlert' },
+        { label: 'Isolation Guard', sublabel: 'Boundary Enforced', status: 'ISOLATED', icon: 'lock' },
+        { label: n3Label, sublabel: 'Protected Core', status: 'SECURED', icon: slide.icons?.[2]?.icon || 'database' },
       ];
       diagramEdges = ['ISOLATE', 'GUARD'];
-      diagramFooter = 'FAULT DOMAIN ISOLATED • ZERO ESCAPE TO SURROUNDING RUNTIMES';
+      diagramFooter = 'FAULT DOMAIN: BOUNDED • RESILIENCE: AUDITED';
     } else if (variant === 'stack') {
       diagramNodes = [
-        { label: 'Ingress & Protocol', sublabel: 'Traffic Routing • Session Pool', status: 'LAYER 01', icon: 'network' },
-        { label: midLabel, sublabel: 'High-Throughput Execution', status: 'LAYER 02', icon: 'cpu' },
-        { label: 'Storage & Persistence', sublabel: 'Durable State Verification', status: 'LAYER 03', icon: 'database' },
+        { label: n1Label, sublabel: 'Interface Tier', status: 'LAYER 01', icon: slide.icons?.[0]?.icon || 'network' },
+        { label: midLabel, sublabel: 'Execution Layer', status: 'LAYER 02', icon: slide.icons?.[1]?.icon || 'cpu' },
+        { label: n3Label, sublabel: 'Storage & State', status: 'LAYER 03', icon: slide.icons?.[2]?.icon || 'database' },
       ];
       diagramEdges = ['DISPATCH', 'COMMIT'];
-      diagramFooter = 'PIPELINE STACK VERIFIED • LATENCY: P99 < 1.0ms';
+      diagramFooter = 'ARCHITECTURE STACK: VERIFIED • PIPELINE: DETERMINISTIC';
     } else if (variant === 'takeaway') {
       diagramNodes = [
-        { label: 'Design Principle', sublabel: 'Architecture Boundary', status: 'RULE 01', icon: 'layers' },
-        { label: 'Runtime Guard', sublabel: 'Resource Isolation', status: 'RULE 02', icon: 'shieldAlert' },
-        { label: 'Continuous Telemetry', sublabel: 'Profile p99 Latency', status: 'RULE 03', icon: 'activity' },
+        { label: n1Label, sublabel: 'Standard Baseline', status: 'RULE 01', icon: slide.icons?.[0]?.icon || 'layers' },
+        { label: midLabel, sublabel: 'Core Shift', status: 'RULE 02', icon: slide.icons?.[1]?.icon || 'shieldAlert' },
+        { label: n3Label, sublabel: 'Production Outcome', status: 'RULE 03', icon: slide.icons?.[2]?.icon || 'activity' },
       ];
-      diagramEdges = ['ADOPT', 'VERIFY'];
-      diagramFooter = 'ARCHITECTURE BEST PRACTICE • AUDITED PRODUCTION SYSTEM';
+      diagramEdges = ['EVALUATE', 'VERIFY'];
+      diagramFooter = 'ENGINEERING PRINCIPLE: AUDITED • STATUS: PRODUCTION-GRADE';
     } else {
       diagramNodes = [
-        { label: 'Client Ingress', sublabel: 'Request Ingress', status: 'CLIENT', icon: 'server' },
-        { label: midLabel, sublabel: 'Active Processing', status: 'ROUTED', icon: 'cpu' },
-        { label: 'Target State', sublabel: 'State Output', status: 'COMMITTED', icon: 'database' },
+        { label: n1Label, sublabel: 'Input Stream', status: 'ACTIVE', icon: slide.icons?.[0]?.icon || 'server' },
+        { label: midLabel, sublabel: 'Core Logic', status: 'ROUTED', icon: slide.icons?.[1]?.icon || 'cpu' },
+        { label: n3Label, sublabel: 'Committed State', status: 'COMMITTED', icon: slide.icons?.[2]?.icon || 'database' },
       ];
-      diagramEdges = ['DISPATCH', 'SYNC'];
-      diagramFooter = 'SYSTEM: ONLINE • LATENCY: P99 < 1.0ms • PIPELINE: DETERMINISTIC';
+      diagramEdges = ['DATAFLOW', 'SYNC'];
+      diagramFooter = 'DATAFLOW: VERIFIED • STATUS: OPERATIONAL';
     }
 
     return {

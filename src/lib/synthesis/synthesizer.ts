@@ -72,10 +72,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const { brand, brandUrl } = detectBrandAndUrl(lowerText);
 
   // 3. Extract Clean Title and User Points
-  const { headline, cleanTitle } = extractCleanHeadline(rawText, domainCategory);
+  const { headline, cleanTitle, cleanSubject, arSubject } = extractCleanHeadline(rawText, domainCategory);
   const { lines, metrics } = extractUserInsights(rawText);
-  const userPoint1 = lines[0] || `Scaling ${cleanTitle} requires rethinking state isolation and memory allocation patterns.`;
-  const userPoint2 = lines[1] || `Decoupled authoritative state ensures compute resources scale with actual payload size.`;
 
   const rawMetric1 = metrics[0] || activeRule.metricFallback;
   const metric1 = normalizePunctuation(stripMarkdown(rawMetric1)).replace(/[.?!]+$/, '');
@@ -107,28 +105,32 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   slides = enrichCarouselDiagrams(slides, rawText, domainCategory, brand);
   slides = balanceCarouselVisualPacing(slides);
 
+  // Derive meaningful bullet takeaways for captions directly from synthesized deck if user provided none
+  const userPoint1 = lines[0] || slides[1]?.enBody || slides[2]?.enBody || `Scaling ${cleanSubject} requires rethinking state isolation and memory allocation patterns.`;
+  const userPoint2 = lines[1] || slides[slides.length - 2]?.enBody || `Decoupled authoritative state ensures compute resources scale with actual payload size.`;
+
   // 6. Universal Hook Variants (A/B testing) adhering strictly to Spec §8
   const hookVariants: HookVariant[] = [
     {
       tag: 'Curiosity & Shift',
       enTitle: slides[0]?.enTitle || headline,
-      arTitle: slides[0]?.arTitle || `هندسة منظومة ${cleanTitle}`,
+      arTitle: slides[0]?.arTitle || `تحليل معماري لمنظومة ${arSubject}`,
       enBody: slides[0]?.enBody || `How architectural redesign solved scalability bottlenecks in ${domainCategory.toLowerCase()}.`,
       arBody: slides[0]?.arBody || `كيف أدت التحديات الهندسية إلى إعادة التفكير بالكامل في بنية النظام.`,
       centerIcon: slides[0]?.centerIcon || centerIcon,
     },
     {
       tag: 'Hard Metrics & Scale',
-      enTitle: enforceHeadlineSpecRule(`${cleanTitle} telemetry`, { isHook: true }),
-      arTitle: `معايير وأرقام أداء ${cleanTitle}`,
+      enTitle: enforceHeadlineSpecRule(`Measuring ${cleanSubject} at scale`, { isHook: true }),
+      arTitle: `معايير وأرقام الأداء الحقيقية`,
       enBody: `Key production benchmarks (${metric1}) and lessons learned under maximum concurrency.`,
       arBody: `أهم معايير الأداء والدروس المستفادة (${arMetric1}) من تشغيل الأنظمة تحت أقصى ضغط.`,
       centerIcon: 'gauge',
     },
     {
       tag: 'Problem & Solution',
-      enTitle: enforceHeadlineSpecRule(`Overcoming ${cleanTitle} limits`, { isHook: true }),
-      arTitle: `تجاوز اختناقات ${cleanTitle}`,
+      enTitle: enforceHeadlineSpecRule(`Fixing ${cleanSubject} limits`, { isHook: true }),
+      arTitle: `تجاوز اختناقات النظام المعمارية`,
       enBody: `Moving beyond legacy bottlenecks to build modern high-efficiency software.`,
       arBody: `تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والموثوقية.`,
       centerIcon: 'shieldAlert',
@@ -181,7 +183,7 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     },
   ];
 
-  const slide1ArHeader = (slides[0]?.arTitle || headline).replace(/[:.]\s*\n+/g, ' — ').replace(/\n+/g, ' — ').trim();
+  const slide1ArHeader = (slides[0]?.arTitle || `تحليل معماري لمنظومة ${arSubject}`).replace(/[:.]\s*\n+/g, ' — ').replace(/\n+/g, ' — ').trim();
   const slide1EnHeader = (slides[0]?.enTitle || headline).replace(/[:.]\s*\n+/g, ' — ').replace(/\n+/g, ' — ').replace(/[:.]\s*$/, '').trim();
 
   const formattedBilingualCaption = `⚡ ${slide1ArHeader}
@@ -217,7 +219,7 @@ ${hashtags}`;
       caption: `ماذا يحدث عندما تصل الأنظمة التقليدية إلى حدودها القصوى؟ 🚨
 الحل ليس الترقيع، بل إعادة التفكير في المعمارية البرمجية من الصفر.
 
-في هذا التحليل المفصل حول ${headline}، نستعرض كيف نجحت الفرق الهندسية في تحقيق ${metric1} مع تفادي نقاط الاختناق الشائعة.
+في هذا التحليل المفصل (${slide1EnHeader})، نستعرض كيف نجحت الفرق الهندسية في تحقيق قفزة نوعية (${metric1}) مع تفادي نقاط الاختناق الشائعة.
 
 اسحب الصور لمتابعة الشرح خطوة بخطوة 👉
 Swipe through the slides for the complete breakdown!

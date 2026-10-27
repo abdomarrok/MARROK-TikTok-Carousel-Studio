@@ -142,35 +142,69 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
       .replace(/[.?!]$/, '')
       .split(/\s+/)
       .filter((w) => w.length > 2);
-    const n1Name = defaultTitleWords[0] || 'Client Ingress';
-    const n2Name = defaultTitleWords[1] || 'Execution Core';
-    const n3Name = defaultTitleWords[2] || 'Storage State';
+    const n1Name = slide.icons?.[0]?.label || defaultTitleWords[0] || 'Ingress Layer';
+    const n2Name = slide.icons?.[1]?.label || defaultTitleWords[1] || 'Execution Engine';
+    const n3Name = slide.icons?.[2]?.label || defaultTitleWords[2] || 'State Persistence';
 
     const rawNodes = slide.diagramNodes || [];
+
+    let fallbackSub1 = 'Input Handler';
+    let fallbackSub2 = 'Core Execution';
+    let fallbackSub3 = 'Durable State';
+    let fallbackEdge1 = 'Process';
+    let fallbackEdge2 = 'Commit';
+    let fallbackFooter = 'PIPELINE: ACTIVE • EXECUTION: DETERMINISTIC';
+
+    if (chosenVariant === 'isolation') {
+      fallbackSub1 = 'Untrusted Scope';
+      fallbackSub2 = 'Boundary Guard';
+      fallbackSub3 = 'Protected Core';
+      fallbackEdge1 = 'ISOLATE';
+      fallbackEdge2 = 'GUARD';
+      fallbackFooter = 'FAULT DOMAIN: ISOLATED • ESCAPE RISK: ZERO';
+    } else if (chosenVariant === 'stack') {
+      fallbackSub1 = 'Interface Tier';
+      fallbackSub2 = 'Processing Engine';
+      fallbackSub3 = 'Storage Tier';
+      fallbackEdge1 = 'DISPATCH';
+      fallbackEdge2 = 'PERSIST';
+      fallbackFooter = 'ARCHITECTURE STACK: VERIFIED • RUNTIME: DETERMINISTIC';
+    } else if (chosenVariant === 'takeaway') {
+      fallbackSub1 = 'Standard Workflow';
+      fallbackSub2 = 'Engineered Shift';
+      fallbackSub3 = 'Production Result';
+      fallbackEdge1 = 'EVALUATE';
+      fallbackEdge2 = 'ADOPT';
+      fallbackFooter = 'ENGINEERING PRINCIPLE: AUDITED • SYSTEM: PRODUCTION-GRADE';
+    }
+
     const diagramNodes: DiagramNode[] = [
       {
         label: rawNodes[0]?.label || n1Name,
-        sublabel: rawNodes[0]?.sublabel || 'Port 443 / Ingress',
+        sublabel: rawNodes[0]?.sublabel || fallbackSub1,
         status: rawNodes[0]?.status || 'ACTIVE',
         icon: rawNodes[0]?.icon || slide.icons?.[0]?.icon || 'server',
       },
       {
         label: rawNodes[1]?.label || n2Name,
-        sublabel: rawNodes[1]?.sublabel || 'Policy Engine',
+        sublabel: rawNodes[1]?.sublabel || fallbackSub2,
         status: rawNodes[1]?.status || 'VERIFIED',
         icon: rawNodes[1]?.icon || slide.icons?.[1]?.icon || 'cpu',
       },
       {
         label: rawNodes[2]?.label || n3Name,
-        sublabel: rawNodes[2]?.sublabel || 'Encrypted Storage',
-        status: rawNodes[2]?.status || 'SECURED',
+        sublabel: rawNodes[2]?.sublabel || fallbackSub3,
+        status: rawNodes[2]?.status || 'COMMITTED',
         icon: rawNodes[2]?.icon || slide.icons?.[2]?.icon || 'database',
       },
     ];
 
     const rawEdges = slide.diagramEdges || [];
-    const diagramEdges = [rawEdges[0] || 'MUTUAL AUTH', rawEdges[1] || 'SYNC PIPE'];
-    const diagramFooter = slide.diagramFooter || 'LATENCY: P99 < 1.0ms • PROTOCOL: DETERMINISTIC • STATUS: 100% HEALTHY';
+    const diagramEdges = [
+      rawEdges[0] || fallbackEdge1,
+      rawEdges[1] || fallbackEdge2,
+    ];
+    const diagramFooter = slide.diagramFooter || fallbackFooter;
 
     return {
       ...slide,

@@ -191,14 +191,15 @@ export async function runAutonomousPipeline(
 
   throwIfAborted(signal);
 
-  // Step 4: Auto-Generate 9:16 Architecture Diagram for Key Mechanism Slide
-  if (generateDiagram && cleanCarousel.slides.length >= 3) {
-    // Choose slide 2 or 3 (core technical mechanism)
-    const targetIdx = Math.min(2, cleanCarousel.slides.length - 2);
-    const targetSlide = cleanCarousel.slides[targetIdx];
+  // Step 4: Auto-Generate 9:16 Architecture Diagram ONLY for slides explicitly designated as 'image'
+  if (generateDiagram) {
+    const imageSlideIdx = cleanCarousel.slides.findIndex(
+      (s) => s.type === 'image' && !s.imageUrl
+    );
 
-    if (targetSlide && (!targetSlide.imageUrl || targetSlide.type !== 'image')) {
-      onProgress?.('Generating native 9:16 architecture diagram with gemini-nano-banana-2.1...');
+    if (imageSlideIdx >= 0) {
+      const targetSlide = cleanCarousel.slides[imageSlideIdx];
+      onProgress?.('Generating native 9:16 architecture diagram...');
       const imageDeadline = createRequestDeadline(signal, IMAGE_REQUEST_TIMEOUT_MS);
       try {
         const diagramPrompt = `Architectural system diagram for ${targetSlide.enTitle || 'distributed systems'}: ${targetSlide.enBody?.slice(0, 120) || ''}. Isometric vector blueprint, high contrast, glowing neon accents, deep carbon background.`;
@@ -218,7 +219,7 @@ export async function runAutonomousPipeline(
           const imgData = await imgRes.json();
           const parsedImage = parseImageDataUrl(imgData?.imageUrl);
           if (parsedImage) {
-            cleanCarousel.slides[targetIdx] = {
+            cleanCarousel.slides[imageSlideIdx] = {
               ...targetSlide,
               type: 'image',
               imageUrl: parsedImage.dataUrl,
@@ -232,7 +233,7 @@ export async function runAutonomousPipeline(
         }
       } catch (err) {
         if (signal?.aborted) throw err;
-        console.warn('Autonomous image generation encountered an error (continuing with icon layout):', err);
+        console.warn('Autonomous image generation encountered an error (continuing with vector layout):', err);
       } finally {
         imageDeadline.cleanup();
       }
