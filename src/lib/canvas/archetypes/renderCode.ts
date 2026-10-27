@@ -16,7 +16,7 @@ export async function drawCodeSlide(
   const winX = SAFE_MARGIN_LEFT;
   const winY = 240;
   const winW = SAFE_CONTENT_WIDTH;
-  const winH = 430;
+  const winH = 490;
   const winRadius = 28;
 
   // 1. Ambient glow behind terminal window
@@ -175,16 +175,16 @@ export async function drawCodeSlide(
     }
 
     // Line number in gutter
-    ctx.font = '500 19px "JetBrains Mono", monospace';
+    ctx.font = '500 22px "JetBrains Mono", monospace';
     ctx.fillStyle = '#455964';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(String(i + 1), winX + gutterW - 16, lineBaselineY);
 
-    // Monospace code line
+    // Monospace code line (Spec: >= 26px font for mobile readability)
     ctx.shadowBlur = 0;
     ctx.shadowColor = 'transparent';
-    ctx.font = '500 24px "JetBrains Mono", monospace';
+    ctx.font = '500 26px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
 
     if (line.startsWith('$') || line.startsWith('>')) {
@@ -207,5 +207,5 @@ export async function drawCodeSlide(
 
   ctx.restore(); // End clipping
 
-  return 670;
+  return 730;
 }

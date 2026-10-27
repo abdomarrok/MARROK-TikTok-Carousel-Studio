@@ -17,7 +17,17 @@ export interface DiagramNode {
   icon?: string;
 }
 
-export type DiagramVariant = 'topology' | 'stack' | 'isolation' | 'takeaway';
+export type DiagramVariant =
+  | 'topology'
+  | 'stack'
+  | 'isolation'
+  | 'takeaway'
+  | 'scatter'
+  | 'graph'
+  | 'clusters'
+  | 'split'
+  | 'features';
+
 
 export interface SlideData {
   type: SlideType;
@@ -119,6 +129,7 @@ export interface PostSourceMeta {
   type?: 'article' | 'screenshot' | 'youtube' | 'notes';
   title?: string;
   creator?: string;
+  channel?: string;
   url?: string;
   published?: string;
   groundingQueries?: string[];

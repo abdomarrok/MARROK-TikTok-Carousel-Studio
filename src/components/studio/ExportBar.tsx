@@ -13,6 +13,7 @@ interface ExportBarProps {
   isExportingZip: boolean;
   exportProgress: { current: number; total: number } | null;
   copiedType: 'caption' | 'slide' | null;
+  onUpdateCreator?: (creator: string) => void;
   onToggleReviewDraft: () => void;
   onRetryWithAi: () => void;
   onDownloadSingleSlide: () => void;
@@ -31,6 +32,7 @@ export const ExportBar: React.FC<ExportBarProps> = ({
   isExportingZip,
   exportProgress,
   copiedType,
+  onUpdateCreator,
   onToggleReviewDraft,
   onRetryWithAi,
   onDownloadSingleSlide,
@@ -38,7 +40,9 @@ export const ExportBar: React.FC<ExportBarProps> = ({
   onExportZip,
   onOpenContactSheet,
 }) => {
-  const isExportBlocked = (isOfflineDraft && !isReviewed) || !qaReport.canExport;
+  const creatorCredit = (carousel.sourceMeta?.creator || carousel.sourceMeta?.channel || '').trim();
+  const hasCreatorCredit = creatorCredit.length > 0 && creatorCredit.toLowerCase() !== 'marrok';
+  const isExportBlocked = (isOfflineDraft && !isReviewed) || !qaReport.canExport || !hasCreatorCredit;
 
   return (
     <div className="space-y-4">
@@ -117,6 +121,34 @@ export const ExportBar: React.FC<ExportBarProps> = ({
         </div>
       )}
 
+      {/* Creator / Channel Attribution Card (Required for Slide 8 citation & manifest) */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 backdrop-blur-md">
+        <div className="flex-1 w-full">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[11px] font-bold font-jakarta uppercase tracking-wider text-slate-300">
+              Creator / Channel Attribution <span className="text-cyan-400 font-bold">*</span>
+            </span>
+            <span
+              className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                hasCreatorCredit
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+              }`}
+            >
+              {hasCreatorCredit ? '✓ Credited on Slide 8' : 'Required before export'}
+            </span>
+          </div>
+          <input
+            id="creator-channel-credit-input"
+            type="text"
+            value={carousel.sourceMeta?.creator || carousel.sourceMeta?.channel || ''}
+            onChange={(e) => onUpdateCreator?.(e.target.value)}
+            placeholder="Creator or Channel Name (e.g. ByteByteGo, Hussein Nasser, ArjanCodes, Stanford CS)"
+            className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none transition-all font-mono"
+          />
+        </div>
+      </div>
+
       {/* Docked Action & Delivery Bar */}
       <div className="p-2.5 rounded-xl bg-black/60 border border-white/15 shadow-xl flex items-center justify-between gap-2 mt-2">
         <div className="flex items-center gap-1.5">
@@ -176,6 +208,8 @@ export const ExportBar: React.FC<ExportBarProps> = ({
           title={
             isOfflineDraft && !isReviewed
               ? 'Export locked: Confirm "I reviewed this draft" in banner first.'
+              : !hasCreatorCredit
+              ? 'Export locked: Enter creator or channel name above.'
               : !qaReport.canExport
               ? `Export blocked: ${qaReport.failCount} QA issue(s) detected.`
               : 'Export all 1080×1920 slides as ZIP'
@@ -190,6 +224,11 @@ export const ExportBar: React.FC<ExportBarProps> = ({
             <>
               <span className="text-xs">🔒</span>
               <span className="text-[11px]">Draft Locked</span>
+            </>
+          ) : !hasCreatorCredit ? (
+            <>
+              <span className="text-xs">⚠️</span>
+              <span className="text-[11px]">Creator Required</span>
             </>
           ) : !qaReport.canExport ? (
             <>

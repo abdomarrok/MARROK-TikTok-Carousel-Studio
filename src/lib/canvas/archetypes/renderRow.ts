@@ -4,59 +4,111 @@ import {
   drawBlastRadiusIsolationGrid,
   drawLayeredArchitectureStack,
   drawKeyTakeawayCard,
+  drawVectorScatterDiagram,
+  drawHnswHierarchicalGraph,
+  drawIvfClustersDiagram,
+  drawHotColdDualStoreDiagram,
+  drawFeatureCardsDiagram,
 } from './renderDiagram.ts';
 
 /**
- * Archetype 2: Row / Multi-Node Dynamic Technical Schematic
- * Dispatches to bespoke labeled diagrams (topology flow, isolation grid, stack, or takeaway card)
- * based on explicit diagramVariant or semantic keyword matching.
+ * Archetype 2: Row / Dynamic Technical Schematic
+ * Dispatches to bespoke labeled diagrams:
+ * - 'scatter' / 'vectors': High-dimensional vector space & cosine nearest neighbors
+ * - 'graph' / 'hnsw': Multi-layer skip-graph traversal path
+ * - 'clusters' / 'ivf': Space partitioning & target cluster search
+ * - 'split' / 'hotcold': Hot RAM buffer vs Cold immutable index
+ * - 'features' / 'cards': 3 prominent conceptual feature cards
+ * - 'stack': 3-tier architectural layers
+ * - 'isolation': Component fault boundary & blast radius containment
+ * - 'takeaway': Architectural decision & trade-off card
+ * - 'topology': Protocol dataflow pipeline
  */
 export async function drawRowSlide(
   ctx: CanvasRenderingContext2D,
   slide: SlideData,
   theme: ThemePalette,
   options: VisualSystemOptions,
-  slideIndex: number = 1
+  _slideIndex: number = 1
 ): Promise<number> {
   const slideText = `${slide.enTitle || ''} ${slide.enBody || ''} ${slide.arTitle || ''}`.toLowerCase();
-  const iconCount = slide.icons?.length || 0;
+  const variant = (slide.diagramVariant || '').toLowerCase();
 
-  // Prioritize explicit diagramVariant layout choice if set
-  if (slide.diagramVariant === 'isolation') {
+  // 1. Explicit diagramVariant Routing
+  if (variant === 'scatter' || variant === 'vectors') {
+    return drawVectorScatterDiagram(ctx, slide, theme, options, 240);
+  }
+  if (variant === 'graph' || variant === 'hnsw' || variant === 'hierarchy') {
+    return drawHnswHierarchicalGraph(ctx, slide, theme, options, 240);
+  }
+  if (variant === 'clusters' || variant === 'ivf' || variant === 'partition') {
+    return drawIvfClustersDiagram(ctx, slide, theme, options, 240);
+  }
+  if (variant === 'split' || variant === 'hotcold' || variant === 'buffer') {
+    return drawHotColdDualStoreDiagram(ctx, slide, theme, options, 240);
+  }
+  if (variant === 'features' || variant === 'cards') {
+    return drawFeatureCardsDiagram(ctx, slide, theme, options, 240);
+  }
+  if (variant === 'isolation') {
+    // Check if slide is actually about HNSW or IVF (prevents AI wrongly tagging HNSW as isolation)
+    if (/hnsw|skip[- ]?list|graph/i.test(slideText)) {
+      return drawHnswHierarchicalGraph(ctx, slide, theme, options, 240);
+    }
+    if (/ivf|cluster|k-means|centroid/i.test(slideText)) {
+      return drawIvfClustersDiagram(ctx, slide, theme, options, 240);
+    }
     return drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
-  } else if (slide.diagramVariant === 'stack') {
+  }
+  if (variant === 'stack') {
     return drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
-  } else if (slide.diagramVariant === 'takeaway') {
+  }
+  if (variant === 'takeaway') {
     return drawKeyTakeawayCard(ctx, slide, theme, options, 240);
-  } else if (slide.diagramVariant === 'topology') {
-    return drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
-  } else if (
-    slideText.includes('blast radius') ||
-    slideText.includes('microsegment') ||
-    slideText.includes('isolation') ||
-    slideText.includes('isolate') ||
-    slideText.includes('perimeter') ||
-    slideText.includes('firewall') ||
-    slideText.includes('quarantine') ||
-    slideText.includes('sandbox')
-  ) {
-    return drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
-  } else if (
-    slideText.includes('stack') ||
-    slideText.includes('layer') ||
-    slideText.includes('pipeline') ||
-    slideText.includes('server-side') ||
-    slideText.includes('engine') ||
-    slideText.includes('tier') ||
-    slideText.includes('virtual mount') ||
-    slideText.includes('object store') ||
-    slideText.includes('hierarchy') ||
-    slideIndex === 4
-  ) {
-    return drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
-  } else if (iconCount === 1) {
-    return drawKeyTakeawayCard(ctx, slide, theme, options, 240);
-  } else {
+  }
+  if (variant === 'topology') {
+    // Check if slide is actually about semantic search or writes
+    if (/semantic search|embedding|high-dimensional|cosine/i.test(slideText)) {
+      return drawVectorScatterDiagram(ctx, slide, theme, options, 240);
+    }
+    if (/write|hot|cold|buffer/i.test(slideText)) {
+      return drawHotColdDualStoreDiagram(ctx, slide, theme, options, 240);
+    }
     return drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
   }
+
+  // 2. Semantic Topic Detection (When variant is not specified or was defaulted)
+  if (/\b(?:hot\s*\/?\s*cold|write buffer|writes are|writes and|async flusher|lsm|compaction|consistency)\b/i.test(slideText)) {
+    return drawHotColdDualStoreDiagram(ctx, slide, theme, options, 240);
+  }
+
+  if (/\b(?:hnsw|skip[- ]?list|graph navigation|layered graph|graph structure)\b/i.test(slideText)) {
+    return drawHnswHierarchicalGraph(ctx, slide, theme, options, 240);
+  }
+
+  if (/\b(?:ivf|k-means|centroid|clustering|cluster|partitions?|shards?)\b/i.test(slideText)) {
+    return drawIvfClustersDiagram(ctx, slide, theme, options, 240);
+  }
+
+  if (/\b(?:vector|embedding|embeddings|cosine|similarity|high-dim|semantic search|ann search)\b/i.test(slideText)) {
+    return drawVectorScatterDiagram(ctx, slide, theme, options, 240);
+  }
+
+  if (/\b(?:takeaway|trade-?off|the catch|drawback|limitations?|caveats?|cost of)\b/i.test(slideText)) {
+    return drawKeyTakeawayCard(ctx, slide, theme, options, 240);
+  }
+
+  if (/\b(?:blast radius|microsegment|isolation|perimeter|quarantine|sandbox|spiffe)\b/i.test(slideText)) {
+    return drawBlastRadiusIsolationGrid(ctx, slide, theme, options, 240);
+  }
+
+  if (/\b(?:stack|layers?|tiers?|pipeline|virtual mount|object store|tree)\b/i.test(slideText)) {
+    return drawLayeredArchitectureStack(ctx, slide, theme, options, 240);
+  }
+
+  if (slide.icons && slide.icons.length >= 3) {
+    return drawFeatureCardsDiagram(ctx, slide, theme, options, 240);
+  }
+
+  return drawMultiNodeTopologyFlow(ctx, slide, theme, options, 240);
 }

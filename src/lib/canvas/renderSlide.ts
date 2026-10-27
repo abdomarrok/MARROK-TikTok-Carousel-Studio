@@ -160,20 +160,21 @@ export async function renderSlideToCanvas(
         minFontSize: 42,
         lineHeightFactor: 1.457,
       });
-      const enBody = fitTextInBox(ctx, rawEnBody, SAFE_TEXT_WIDTH_BODY, 38 * scale, '"Plus Jakarta Sans", sans-serif', '400', {
+      // Spec: Mobile typography minimum 26px floor for phone readability
+      const enBody = fitTextInBox(ctx, rawEnBody, SAFE_TEXT_WIDTH_BODY, 40 * scale, '"Plus Jakarta Sans", sans-serif', '400', {
         maxLines: bodyLinesCap,
-        minFontSize: 24,
+        minFontSize: 26,
         lineHeightFactor: 1.42,
       });
-      const arBody = fitTextInBox(ctx, rawArBody, SAFE_TEXT_WIDTH_BODY, 38 * scale, '"Cairo", sans-serif', '400', {
+      const arBody = fitTextInBox(ctx, rawArBody, SAFE_TEXT_WIDTH_BODY, 40 * scale, '"Cairo", sans-serif', '400', {
         maxLines: bodyLinesCap,
-        minFontSize: 24,
+        minFontSize: 26,
         lineHeightFactor: 1.526,
       });
 
-      const gapTitles = (enTitle.lines.length > 0 && arTitle.lines.length > 0) ? 16 : 0;
-      const gapTitlesToBody = ((enTitle.lines.length > 0 || arTitle.lines.length > 0) && (enBody.lines.length > 0 || arBody.lines.length > 0)) ? 36 : 0;
-      const gapBodies = (enBody.lines.length > 0 && arBody.lines.length > 0) ? 20 : 0;
+      const gapTitles = (enTitle.lines.length > 0 && arTitle.lines.length > 0) ? 18 : 0;
+      const gapTitlesToBody = ((enTitle.lines.length > 0 || arTitle.lines.length > 0) && (enBody.lines.length > 0 || arBody.lines.length > 0)) ? 40 : 0;
+      const gapBodies = (enBody.lines.length > 0 && arBody.lines.length > 0) ? 24 : 0;
 
       const hTextTotal =
         (enTitle.lines.length * enTitle.lineHeight) +
@@ -187,13 +188,13 @@ export async function renderSlideToCanvas(
       return { enTitle, arTitle, enBody, arBody, gapTitles, gapTitlesToBody, gapBodies, hTextTotal };
     };
 
-    let textScale = 1;
+    let textScale = availableHeight >= 940 ? 1.06 : 1.0;
     let bodyCap = 4;
     let layout = buildTextLayout(textScale, bodyCap);
 
-    // Phase A: Scale down font size smoothly
-    while (layout.hTextTotal > availableHeight - 24 && textScale > 0.6) {
-      textScale = Math.max(0.6, textScale - 0.05);
+    // Phase A: Scale down font size smoothly if text overflows
+    while (layout.hTextTotal > availableHeight - 24 && textScale > 0.65) {
+      textScale = Math.max(0.65, textScale - 0.05);
       layout = buildTextLayout(textScale, bodyCap);
     }
 
@@ -213,8 +214,9 @@ export async function renderSlideToCanvas(
     // 6b. Dynamic Vertical Optical Centering:
     // Upper bound: yGraphicEnd
     // Lower ceiling: 1710px (clearing the footer pagination dots at y=1826 with 116px padding)
+    // Eliminates empty bottom third by scaling cushion with generous ceiling up to 260px
     const remainingSpace = availableHeight - hTextTotal;
-    const topCushion = Math.min(Math.max(remainingSpace * 0.38, 28), 135);
+    const topCushion = Math.min(Math.max(remainingSpace * 0.44, 34), 260);
     let currentY = yGraphicEnd + topCushion;
 
     ctx.save();

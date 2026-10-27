@@ -15,7 +15,7 @@ export async function drawCompareSlide(
   _options: VisualSystemOptions
 ): Promise<number> {
   const cardY = 240;
-  const cardH = 430;
+  const cardH = 490;
   const cardW = 395;
   const leftX = SAFE_MARGIN_LEFT;
   const rightX = SAFE_MARGIN_RIGHT - cardW;
@@ -186,5 +186,5 @@ export async function drawCompareSlide(
   ctx.fillText('VS', vsX, vsY);
   ctx.restore();
 
-  return 670;
+  return 730;
 }

@@ -42,20 +42,24 @@ export function seedSlideArchetypeData(slide: SlideData, targetType: SlideType):
     }
 
     case 'code': {
+      const text = `${title} ${body}`.toLowerCase();
       if (!updated.codeFileName) {
-        const isSql = /sql|query|table|postgres|db/i.test(`${title} ${body}`);
-        const isBash = /deploy|curl|install|docker|cli/i.test(`${title} ${body}`);
-        updated.codeFileName = isSql ? 'query.sql' : isBash ? 'deploy.sh' : 'engine.rs';
+        const isPgVector = /vector|pgvector|cosine|embedding|similarity|<=>/.test(text);
+        const isSql = isPgVector || /sql|query|table|postgres|db/i.test(text);
+        const isBash = /deploy|curl|install|docker|cli/i.test(text);
+        updated.codeFileName = isPgVector ? 'pgvector_example.sql' : isSql ? 'query.sql' : isBash ? 'deploy.sh' : 'engine.rs';
         updated.codeLanguage = isSql ? 'sql' : isBash ? 'bash' : 'rust';
       }
       if (!updated.codeSnippet) {
-        if (dNodes.length >= 2) {
+        if (/vector|pgvector|cosine|embedding|similarity|<=>/.test(text)) {
+          updated.codeSnippet = `-- Semantic similarity query with pgvector\nSELECT id, title, 1 - (embedding <=> $query) AS score\nFROM documents\nWHERE status = 'active'\nORDER BY embedding <=> $query LIMIT 5;`;
+        } else if (dNodes.length >= 2) {
           const n0 = dNodes[0]?.label || 'Client';
           const n1 = dNodes[1]?.label || 'Engine';
           const sub1 = dNodes[1]?.sublabel || 'Active';
-          updated.codeSnippet = `$ exec --target=${n0.toLowerCase().replace(/[^a-z0-9]/g, '_')}\n> Initializing ${n1}...\n+ ${sub1}\n✔ Execution verified · 0 disk stalls`;
+          updated.codeSnippet = `$ exec --target=${n0.toLowerCase().replace(/[^a-z0-9]/g, '_')}\n> Initializing ${n1}...\n+ ${sub1}\n✔ Execution verified`;
         } else {
-          updated.codeSnippet = `$ psql -h localhost -U postgres\n> EXPLAIN ANALYZE SELECT * FROM users;\n+ B-Tree Index Scan using idx_users_id\n✔ Execution time: 0.12ms`;
+          updated.codeSnippet = `$ psql -h localhost -U postgres\n> EXPLAIN ANALYZE SELECT * FROM users;\n+ B-Tree Index Scan using idx_users_id\n✔ Execution verified`;
         }
       }
       break;
@@ -63,19 +67,19 @@ export function seedSlideArchetypeData(slide: SlideData, targetType: SlideType):
 
     case 'compare': {
       if (!updated.compareLeftTitle) {
-        updated.compareLeftTitle = 'LEGACY BOTTLENECK';
+        updated.compareLeftTitle = 'STANDARD / BASELINE';
       }
       if (!updated.compareLeftBody) {
-        updated.compareLeftBody = '• Full table sequential scans\n• High disk I/O wait & drift\n• Stalls active pipeline';
+        updated.compareLeftBody = '• Exact keyword lookups only\n• High indexing overhead for changes\n• Limited semantic awareness';
       }
       if (!updated.compareRightTitle) {
-        updated.compareRightTitle = 'MODERN ARCHITECTURE';
+        updated.compareRightTitle = 'OPTIMIZED APPROACH';
       }
       if (!updated.compareRightBody) {
         if (dNodes.length >= 2) {
           updated.compareRightBody = dNodes.slice(0, 3).map((n) => `• ${n.label}: ${n.sublabel || 'Active'}`).join('\n');
         } else {
-          updated.compareRightBody = '• Zero-copy memory architecture\n• Sub-millisecond latency\n• Strict bounded blast radius';
+          updated.compareRightBody = '• Approximate Nearest Neighbors (ANN)\n• Fast vector index traversal\n• Tuned recall vs latency trade-off';
         }
       }
       break;
@@ -110,23 +114,84 @@ export function seedSlideArchetypeData(slide: SlideData, targetType: SlideType):
 
     case 'cta': {
       if (!updated.ctaText) {
-        updated.ctaText = 'DM us • رسالة خاصة';
+        updated.ctaText = 'Join Discussion • شارك برأيك';
       }
       break;
     }
 
     case 'row': {
+      const text = `${title} ${body}`.toLowerCase();
       if (!updated.diagramVariant) {
-        updated.diagramVariant = 'topology';
+        if (/vector|embedding|cosine|similarity|ann\b|metric|high-dimensional/.test(text)) {
+          updated.diagramVariant = 'scatter';
+        } else if (/hnsw|skip[- ]?list|graph|hierarchy|layer|hops/.test(text)) {
+          updated.diagramVariant = 'graph';
+        } else if (/ivf|cluster|k-means|centroid|partition|inverted/.test(text)) {
+          updated.diagramVariant = 'clusters';
+        } else if (/write|hot|cold|buffer|lsm|compaction|consistency|store/.test(text)) {
+          updated.diagramVariant = 'split';
+        } else if (/isolation|blast|firewall|boundary|sandbox/.test(text)) {
+          updated.diagramVariant = 'isolation';
+        } else if (/stack|tier|kernel|hardware|runtime/.test(text)) {
+          updated.diagramVariant = 'stack';
+        } else if (/takeaway|summary|rule|axiom|conclusion/.test(text)) {
+          updated.diagramVariant = 'takeaway';
+        } else if (/feature|benefit|aspect|module/.test(text)) {
+          updated.diagramVariant = 'features';
+        } else {
+          updated.diagramVariant = 'topology';
+        }
       }
+
       if (!updated.diagramNodes || updated.diagramNodes.length < 3) {
-        updated.diagramNodes = [
-          { label: 'Client Ingress', sublabel: 'Port 443 / HTTPS', status: 'CLIENT', icon: 'server' },
-          { label: 'Processing Core', sublabel: 'Zero-Copy Engine', status: 'ROUTED', icon: 'cpu' },
-          { label: 'Storage Target', sublabel: 'State Committed', status: 'COMMITTED', icon: 'database' },
-        ];
-        updated.diagramEdges = ['DISPATCH', 'SYNC'];
-        updated.diagramFooter = 'LATENCY: P99 < 1.0ms • SYSTEM: ONLINE';
+        if (/vector|embedding|semantic|cosine|similarity|ann\b/.test(text)) {
+          updated.diagramNodes = [
+            { label: 'Embedding Model', sublabel: 'Dense Float Vector Array', status: 'ENCODED', icon: 'cpu' },
+            { label: 'Vector Index', sublabel: 'High-Dimensional Space', status: 'INDEXED', icon: 'database' },
+            { label: 'Cosine Search', sublabel: 'Nearest Neighbor Top-K', status: 'MATCHED', icon: 'search' },
+          ];
+          updated.diagramEdges = ['ENCODE', 'SIMILARITY'];
+          updated.diagramFooter = 'METRIC: COSINE SIMILARITY • RECALL OPTIMIZED';
+        } else if (/hnsw|skip[- ]?list|graph|hierarchy|layer/.test(text)) {
+          updated.diagramNodes = [
+            { label: 'Entry Node', sublabel: 'Top Sparse Layer 2', status: 'ENTRY', icon: 'network' },
+            { label: 'Skip Traversal', sublabel: 'Fast Long-Range Hops', status: 'ROUTED', icon: 'layers' },
+            { label: 'Target Neighbor', sublabel: 'Dense Base Layer 0', status: 'CONVERGED', icon: 'checkCircle' },
+          ];
+          updated.diagramEdges = ['DESCENT', 'CONVERGE'];
+          updated.diagramFooter = 'GRAPH: HIERARCHICAL NAVIGABLE SMALL WORLD';
+        } else if (/ivf|cluster|k-means|centroid|partition/.test(text)) {
+          updated.diagramNodes = [
+            { label: 'K-Means Centroid', sublabel: 'Space Partition Hub', status: 'PARTITIONED', icon: 'layers' },
+            { label: 'Target Cluster', sublabel: 'Shortlisted Candidate Subset', status: 'SELECTED', icon: 'zap' },
+            { label: 'Inverted List', sublabel: 'Pruned Candidate Scan', status: 'SCANNED', icon: 'search' },
+          ];
+          updated.diagramEdges = ['PARTITION', 'SCAN'];
+          updated.diagramFooter = 'INDEX: INVERTED FILE CLUSTERING • FAST PRUNING';
+        } else if (/write|hot|cold|buffer|lsm|compaction|consistency/.test(text)) {
+          updated.diagramNodes = [
+            { label: 'Hot Store', sublabel: 'Mutable RAM Write Buffer', status: 'FAST WRITE', icon: 'zap' },
+            { label: 'Async Compactor', sublabel: 'Batch Index Flusher', status: 'SYNCING', icon: 'arrowRightLeft' },
+            { label: 'Cold Store', sublabel: 'Immutable Vector Index', status: 'PERSISTED', icon: 'database' },
+          ];
+          updated.diagramEdges = ['BUFFER', 'COMPACT'];
+          updated.diagramFooter = 'ARCHITECTURE: DUAL HOT/COLD STORE';
+        } else {
+          const words = title
+            .replace(/[^a-zA-Z0-9\s]/g, '')
+            .split(/\s+/)
+            .filter((w) => w.length >= 4 && !/this|that|with|from|what|when|where|which|about|does|system/i.test(w));
+          const n1 = words[0] || 'Ingress Input';
+          const n2 = words[1] || 'Core Pipeline';
+          const n3 = words[2] || 'Target State';
+          updated.diagramNodes = [
+            { label: n1.charAt(0).toUpperCase() + n1.slice(1), sublabel: 'Stage 01 Flow', status: 'INPUT', icon: 'server' },
+            { label: n2.charAt(0).toUpperCase() + n2.slice(1), sublabel: 'Stage 02 Engine', status: 'ROUTED', icon: 'cpu' },
+            { label: n3.charAt(0).toUpperCase() + n3.slice(1), sublabel: 'Stage 03 Storage', status: 'COMMITTED', icon: 'database' },
+          ];
+          updated.diagramEdges = ['PROCESS', 'PERSIST'];
+          updated.diagramFooter = 'DATA PIPELINE • END-TO-END FLOW';
+        }
       }
       break;
     }

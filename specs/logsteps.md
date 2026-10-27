@@ -1057,3 +1057,82 @@ This document records the chronological development history, engineering decisio
   - `npm run build` (`vite build`): Built production bundle in 236ms.
   - Visual verification with `browser_subagent` on 390x844 mobile viewport: header dropdown, segmented tab switcher, copy view, archetype view, bottom sheet, and sticky bar verified.
 
+---
+
+## Step 41: Elimination of AI Slop, Dynamic Visual Schematics, and Mobile-Floor Layout Architecture
+- **Context & User Evaluation:**
+  - The user evaluated synthesized output from a YouTube summary on Vector Databases against contact sheet `specs/MARROK_ContactSheet_DATABASES___CACHING.jpg` and provided a 10-point critique requiring a fully dynamic, non-hardcoded architecture:
+    1. Repeated generic networking diagram ("Client Ingress -> Processing Core -> Storage Target" with Port 443 and misspelled "Storage Commited").
+    2. Small 12px-18px diagram/body fonts unreadable on mobile screens.
+    3. Uneven layout leaving the bottom third of slides 5 to 8 empty.
+    4. Counter contradiction on Slide 3 ("STEP 01" badge over big "02" numeral).
+    5. Missing creator/channel attribution field before export.
+    6. Practical technical takeaways omitted (embeddings & cosine similarity, pgvector vs dedicated vector DBs, model upgrade re-embedding costs, primary DB as source of truth).
+    7. Arabic BiDi punctuation glitch with mathematical constraints (`< 150` -> `('150 >`).
+    8. Unsourced latency telemetry (`P99 < 1.0ms`) and unlabeled SQL code.
+    9. Declarative headlines ending in question marks instead of periods.
+    10. Commercial service claims in CTA ("DM for Architecture Review").
+- **Engineering Solutions Implemented:**
+  1. **Dynamic Bespoke Diagram Schematics (`src/types.ts`, `renderDiagram.ts`, `renderRow.ts`):**
+     - Expanded `DiagramVariant` to 9 schematics: `'topology' | 'stack' | 'isolation' | 'takeaway' | 'scatter' | 'graph' | 'clusters' | 'split' | 'features'`.
+     - Built dedicated visual renderers in `renderDiagram.ts`:
+       * `drawVectorScatterDiagram`: 2D/3D scatter plot with query beacon, radius rings, dashed cosine distance lines, and similarity metric badges.
+       * `drawHnswHierarchicalGraph`: 3 stacked graph layers with descending traversal path and hop badges.
+       * `drawIvfClustersDiagram`: K-means space partition with target centroid illuminated and candidate clusters pruned.
+       * `drawHotColdDualStoreDiagram`: Dual split-store showing mutable RAM ingestion buffer vs immutable cold index with background compaction.
+       * `drawFeatureCardsDiagram`: Filtered search constraint cards with large Lucide icons.
+     - Implemented `deriveDynamicSlideNodes()` replacing hardcoded networking ingress labels with topic-derived semantic nodes.
+  2. **Mobile Typography Floor ($\ge 26\text{px}$):**
+     - Enforced `minFontSize: 26` floor for all body copy in `renderSlide.ts`.
+     - Upgraded all diagram badges and step pills to $\ge 22\text{px}-26\text{px}$, node titles to $28\text{px}-32\text{px}$, code monospace to $26\text{px}$, and compare bullets to $22\text{px}-24\text{px}$.
+  3. **Balanced Vertical Centering & Canvas Height Filling:**
+     - Expanded archetype card height to $490\text{px}$ across diagram, code, and compare slides.
+     - In `renderSlide.ts`, replaced static 135px ceiling with responsive vertical cushion up to $260\text{px}$ (`Math.min(Math.max(remainingSpace * 0.44, 34), 260)`), eliminating empty lower thirds.
+  4. **Counter Synchronization (`renderNumber.ts`):**
+     - Added regex replacement `(slide.stepLabel || '').replace(/\bstep\s*\d+\b/i, \`STEP \${stepNumStr}\`)` ensuring label and number numerals are mathematically identical.
+  5. **Required Creator / Channel Attribution (`src/types.ts`, `ExportBar.tsx`, `renderCta.ts`):**
+     - Added `channel?: string` to `PostSourceMeta`.
+     - Added Creator Attribution input card in `ExportBar.tsx`; blocks export ZIP if empty.
+     - Dynamically renders `Source: {creator} • {title}` on Slide 8 and records attribution in export files.
+  6. **Semantic Diversity Clustering Pass (`universalExtractor.ts`):**
+     - Dynamically groups points across mechanism categories (vector scatter, graph traversal, clustering partitions, ingestion writes, database comparison, architectural takeaways).
+     - Ensures practical trade-offs and takeaways are synthesized into distinct slides.
+  7. **Arabic BiDi Relational Symbol Translation (`arabicBiDi.ts`):**
+     - Replaced mathematical comparisons (`< 150`, `<= 150`, `> 150`) with natural Arabic words (`أقل من 150`, `أكثر من 150`), eliminating Unicode line-break inversions.
+  8. **No-Slop Telemetry & pgvector Code Label (`renderCode.ts`, `systemPrompt.ts`):**
+     - Code tab labeled `pgvector_example.sql` whenever vector operators (`<=>`) are present; eliminated fabricated latency numbers.
+  9. **Declarative Headline Punctuation Rule (`headlines.ts`):**
+     - Distinguishes direct questions from declarative technical explanations (`Vector databases, explained.`), ensuring declarative hooks end in `.`.
+  10. **Community Discussion CTA (`renderCta.ts`, `archetypes.ts`):**
+      - Replaced commercial claims with engineering community discussion prompts (`Join Discussion • شارك برأيك`).
+
+---
+
+## Step 42: Dynamic Viewport Selection, Baseline-Accurate Bounding Boxes & Bidirectional Editor Sync
+- **Context & Problem Analysis:**
+  - Selecting elements on the slide canvas produced bounding boxes misaligned by up to 300px because bounds were computed from static hardcoded percentages.
+  - Clicking canvas coordinates used naive ratio slices that misidentified elements (e.g. clicking headlines selected body text).
+  - The viewport overlay had an obtrusive bottom hint pill covering slide copy, and the slide editor provided zero visual connection to the active canvas selection.
+- **Engineering Solutions Implemented:**
+  1. **Dynamic Layout Bounds Engine (`src/lib/canvas/layoutBounds.ts`):**
+     - Built `computeSlideElementBounds(slide, carousel)` matching `renderSlide.ts` typography, cap-height, line-wrapping, and archetype bounds.
+     - Computes alphabetic baseline offsets (`currentY - fontSize * 0.82`) for exact text framing without cross-element bleeding.
+     - Implemented `findSlideElementAtPoint(canvasX, canvasY, boundsMap)` for precision coordinate hit-testing in $1080\times 1920$ space.
+  2. **Viewport Canvas Modernization (`src/components/studio/ViewportCanvas.tsx`):**
+     - Dynamic neon bounding box tracking element position in real-time.
+     - Smart floating HUD badge positioned above or inside the element with translation coordinates (`+15x, -20y`), reset button `↺`, and deselect button `✕`.
+     - Docked keyboard hint at top-right (`Arrows: nudge • Shift=10px • Esc: deselect`), leaving slide text 100% visible.
+     - Added hover preview outlines before clicking.
+     - Background clicking and `Escape` key cleanly deselect.
+  3. **Bidirectional Editor Synchronization (`src/components/studio/InlineSlideEditor.tsx` & `AutonomousStudio.tsx`):**
+     - Clicking or focusing any field in the editor immediately selects and outlines the corresponding element on the canvas.
+     - Selecting an element on the canvas highlights the editor field with a glowing accent ring, background tint, and `ACTIVE ON SLIDE` badge.
+  4. **Regression Unit Test Suite (`src/lib/canvas/layoutBounds.test.ts`):**
+     - 4 unit tests verifying dynamic bounds computation across `hub`, `row`, `cta`, and coordinate hit-testing.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): 0 TypeScript errors.
+  - `npm test` (`vitest run`): 12 test files, 51 unit tests passed.
+  - `npm run build` (`vite build`): Built production bundle in 349ms.
+  - Browser verification at 1440x900: side-by-side selection, precise bounding box framing, and bidirectional editor highlighting confirmed.
+
+

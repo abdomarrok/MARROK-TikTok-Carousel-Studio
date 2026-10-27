@@ -180,4 +180,65 @@ describe('synthesizeUniversalCarousel (Zero AI Slop)', () => {
     expect(fullText).toContain('SPIFFE');
     expect(slides[7].type).toBe('cta');
   });
+
+  it('correctly processes YouTube vector database summary without generic networking slop', () => {
+    const youtubeSummary = `This video explains the role and architecture of **vector databases**, which are designed for semantic search and similarity matching rather than traditional exact lookups (0:00-1:23).
+
+### **Key Concepts**
+
+*   **Vectors (Embeddings):** Data (products, images, text) is converted into high-dimensional arrays of numbers using an embedding model (2:33-4:47).
+*   **Similarity Search:** Instead of exact keyword matches, the database finds the "closest" vectors using metrics like **cosine similarity** (4:47-5:55).
+*   **ANN (Approximate Nearest Neighbors):** To maintain speed at scale, vector databases use indexing strategies to skip most comparisons, trading a tiny bit of accuracy (**recall**) for low latency (6:00-6:33).
+
+### **Indexing Strategies**
+
+*   **HNSW (Hierarchical Navigable Small World):** The most popular method. It uses a layered, graph-based structure similar to a skip list to navigate high-dimensional space efficiently (6:44-9:48).
+*   **IVF (Inverted File Index):** Uses clustering (K-means) to partition the space, searching only within the most relevant clusters (9:48-11:24).
+
+### **Practical Design Considerations**
+
+*   **Filtered Search:** Combining vector similarity with hard constraints (e.g., "in stock," "under $150") using techniques like pre-filtering or metadata-backed indexing (14:01-16:21).
+*   **Writes and Consistency:** Inserting new data into an HNSW graph is expensive. Many systems use a "hot" (new data) and "cold" (static index) architecture to handle updates and eventually rebuild the index (16:21-18:02).
+*   **Choosing a Database:** For many use cases, standard databases (like *Postgres* with \`pgvector\` or *Elasticsearch*) are sufficient. Purpose-built vector databases like *Pinecone* or *Milvus* are best reserved for massive scale or specific operational needs (18:02-20:19).
+
+### **Interview Tips**
+
+*   Keep architecture "boring": Use a primary database as the source of truth and the vector database as a search index (20:19-21:44).
+*   Be prepared to discuss how to handle **model upgrades** (re-embedding data) and the tradeoffs between dimension size, memory, and recall (21:44-24:34).`;
+
+    const slides = synthesizeUniversalCarousel(youtubeSummary);
+
+    expect(slides).toHaveLength(8);
+
+    // Slide 1 Hook headline ends in a period ('.'), not a question mark ('?')
+    expect(slides[0].enTitle).toMatch(/\.$/);
+    expect(slides[0].enTitle).not.toContain('?');
+
+    // Slide 1 Hub has relevant vector DB satellite labels
+    const satPills = slides[0].satLabels || [];
+    expect(satPills.some((p) => /embedding|hnsw|ivf|vector|search|filter/i.test(p))).toBe(true);
+
+    // Full deck must contain the core concepts & schematics
+    const variants = slides.map((s) => s.diagramVariant);
+    const types = slides.map((s) => s.type);
+
+    expect(variants).toContain('scatter');
+    expect(variants).toContain('graph');
+    expect(variants).toContain('split');
+    expect(types).toContain('compare');
+
+    // Strict No-Slop Check: ZERO "Client Ingress", ZERO "Port 443", ZERO "P99 < 1.0ms"
+    const jsonStr = JSON.stringify(slides);
+    expect(jsonStr).not.toContain('Client Ingress');
+    expect(jsonStr).not.toContain('Port 443');
+    expect(jsonStr).not.toContain('Zero-Copy Engine');
+    expect(jsonStr).not.toContain('LATENCY: P99 < 1.0ms');
+
+    // Timestamp ranges like (0:00-1:23) must be completely stripped
+    expect(jsonStr).not.toMatch(/\(\d{1,2}:\d{2}-\d{1,2}:\d{2}\)/);
+
+    // CTA must be discussion-focused
+    expect(slides[7].ctaText).toContain('شارك برأيك');
+    expect(slides[7].ctaText).not.toContain('DM for Architecture Review');
+  });
 });

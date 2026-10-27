@@ -154,7 +154,8 @@ export const CAROUSEL_RESPONSE_SCHEMA = {
           },
           diagramVariant: {
             type: Type.STRING,
-            description: 'Diagram layout style for technical mechanisms: "topology" (3-node protocol flow), "stack" (3-layer architecture pipeline), "isolation" (segmented boundary/quarantine grid), or "takeaway" (principle card)',
+            description:
+              'Diagram layout style: "scatter" (vector scatter with query point & cosine distances), "graph" (layered/hierarchical skip-graph like HNSW), "clusters" (space partitioning & K-means centroids like IVF), "split" (dual hot/cold store or memory vs disk buffer), "features" (metadata filtered search with attribute constraints), "topology" (connected 3-node protocol flow), "stack" (vertical 3-layer architecture pipeline), "isolation" (blast radius / boundary quarantine grid), or "takeaway" (engineering decision card)',
           },
           diagramNodes: {
             type: Type.ARRAY,

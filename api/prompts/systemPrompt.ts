@@ -42,14 +42,22 @@ Build an 8-slide narrative tailored to the topic:
     - "number" (Steps): When detailing chronological or procedural steps (01, 02, 03).
     - "metric": If there is another verified benchmark to showcase.
 - Slide 7: "The Catch / Before You Switch / Trade-offs" (Spec §7 & §12.1) — Every honest engineering post includes the caveats, prerequisites, trade-offs, or limits (e.g. "Proprietary internal tool", "Not a general Git killer", "Requires custom tooling"). Use archetype "row" with diagramVariant: 'takeaway' or 'isolation'.
-- Slide 8: Archetype "cta" (The Closer) — Targeted viewer domain challenge question, DM us button, marrok.org, and source credit.
+- Slide 8: Archetype "cta" (The Closer) — Targeted viewer engineering question or community discussion call ("Join discussion • شارك برأيك"), marrok.org, and source credit. NEVER make commercial service claims (no "DM for Architecture Review").
 
 DIAGRAM NODE SPECIFICITY:
 - For every mechanism slide ("row"):
-  * diagramVariant: 'topology' | 'stack' | 'isolation' | 'takeaway'
-  * diagramNodes: exactly 3 component cards specific to THAT slide's concept (label, sublabel, status, icon). E.g. for Git server: ["Virtual Tree", "Commit API", "Object Store"]. NEVER output unrelated terms (no mTLS or Envoy unless topic is explicitly Zero-Trust!).
-  * diagramEdges: 2 flow/protocol labels relevant to the slide (e.g. ["Lazy Fetch", "Async Land"]).
-  * diagramFooter: bottom telemetry line (e.g. "VIRTUAL FS: STREAMED • MERGES: LOCKLESS").
+  * diagramVariant: 'scatter' | 'graph' | 'clusters' | 'split' | 'features' | 'topology' | 'stack' | 'isolation' | 'takeaway'
+    - 'scatter': For vector spaces, coordinates, embeddings, and nearest-neighbor search.
+    - 'graph': For multi-layer hierarchical graphs (HNSW), skip lists, and network traversal.
+    - 'clusters': For space partitioning, K-means centroids, and IVF clusters.
+    - 'split': For dual hot/cold stores, mutable RAM buffers vs immutable indexes, and compaction.
+    - 'features': For metadata filtered search and attribute constraints.
+    - 'topology' / 'stack': For protocol flows and layered architecture tiers.
+    - 'isolation': For security boundaries, sandboxing, and blast radius defense.
+    - 'takeaway': For engineering rules, caveats, and model upgrade trade-offs.
+  * diagramNodes: exactly 3 component cards specific to THAT slide's concept (label, sublabel, status, icon). NEVER invent ports ("Port 443") or latency numbers ("P99 < 1.0ms") unless present in the user's source text.
+  * diagramEdges: 2 flow/protocol labels relevant to the slide (e.g. ["Encode", "Similarity"] or ["Descent", "Converge"]).
+  * diagramFooter: bottom telemetry line (e.g. "METRIC: COSINE SIMILARITY • RECALL OPTIMIZED").
 
 STAGE 5: COPYWRITING & RTL LINT (Spec §8)
 - ENGLISH HEADLINES:

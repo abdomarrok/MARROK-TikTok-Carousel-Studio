@@ -1373,6 +1373,17 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             isExportingZip={isExportingZip}
             exportProgress={exportProgress}
             copiedType={copiedType}
+            onUpdateCreator={(newCreator) => {
+              applyDeckUpdate((prev) => ({
+                ...prev,
+                brand: newCreator.trim() || prev.brand,
+                sourceMeta: {
+                  ...prev.sourceMeta,
+                  creator: newCreator,
+                  channel: newCreator,
+                },
+              }));
+            }}
             onToggleReviewDraft={handleToggleReviewDraft}
             onRetryWithAi={() => handleRunAutonomousPipeline()}
             onDownloadSingleSlide={() => {
@@ -1405,6 +1416,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 isAdvancedCustomizerOpen={isAdvancedCustomizerOpen}
                 onToggleAdvancedCustomizer={() => setIsAdvancedCustomizerOpen(!isAdvancedCustomizerOpen)}
                 onUpdateField={handleUpdateCurrentSlide}
+                selectedElementId={selectedElementId}
+                onSelectElement={setSelectedElementId}
               />
             </div>
 

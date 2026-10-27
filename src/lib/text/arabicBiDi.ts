@@ -92,6 +92,16 @@ export function sanitizeArabicSlideText(
     .replace(/\b(\d+(?:\.\d+)?)\s*\.?MB\.?/gi, '$1 ميجابايت')
     .replace(/\b(\d+(?:\.\d+)?)\s*\.?ms\.?/gi, '$1 مللي ثانية');
 
+  // Translate math inequalities and constraints into natural Arabic words
+  // Eliminates severe BiDi glyph flipping like "('150 >" from "< $150" across line wraps
+  clean = clean
+    .replace(/<=\s*([\$€£]?\s*\d+(?:\.\d+)?)/g, 'بحد أقصى $1')
+    .replace(/>=\s*([\$€£]?\s*\d+(?:\.\d+)?)/g, 'بحد أدنى $1')
+    .replace(/<\s*([\$€£]?\s*\d+(?:\.\d+)?)/g, 'أقل من $1')
+    .replace(/>\s*([\$€£]?\s*\d+(?:\.\d+)?)/g, 'أكثر من $1')
+    .replace(/\(\s*['"]?([^\)]*?)(أقل من|أكثر من|بحد أقصى|بحد أدنى)([^)]*?)['"]?\s*\)/g, '($1$2$3)');
+
+
   // Fix orphan Latin words on their own line (prevents "Zero-Trust" hanging alone on line 2)
   const lines = clean.split('\n');
   if (lines.length > 1) {

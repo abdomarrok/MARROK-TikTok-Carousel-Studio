@@ -1,6 +1,7 @@
 import { DiagramNode, SlideData } from '../../types';
 import { autoFitTextToLimits, enforceHeadlineSpecRule, extractCleanSubject } from '../text/headlines';
 import { normalizePunctuation, stripMarkdown } from '../text/markdown';
+import { sanitizeArabicSlideText } from '../text/arabicBiDi';
 import { KNOWN_TECH_LOGOS } from '../techLogos';
 
 export interface UniversalSynthesisOptions {
@@ -214,15 +215,21 @@ export function resolveTechLogo(name: string): string | undefined {
  */
 export function cleanRawInput(raw: string): { cleaned: string; lines: string[]; paragraphs: string[] } {
   const withoutUrls = (raw || '').replace(/https?:\/\/\S+/gi, '').trim();
-  const withoutTimestamps = withoutUrls.replace(/\[\d{1,2}:\d{2}(?::\d{2})?\]|\(\d{1,2}:\d{2}(?::\d{2})?\)/g, '');
+  // Strip single timestamps (0:00) and timestamp ranges (0:00-1:23 or 21:44-24:34)
+  const withoutTimestamps = withoutUrls.replace(
+    /\[\d{1,2}:\d{2}(?::\d{2})?(?:\s*-\s*\d{1,2}:\d{2}(?::\d{2})?)?\]|\(\d{1,2}:\d{2}(?::\d{2})?(?:\s*-\s*\d{1,2}:\d{2}(?::\d{2})?)?\)/g,
+    ''
+  );
   const cleaned = withoutTimestamps
     .replace(/^#+\s*/gm, '')
     .replace(/^[*_~`]+|[*_~`]+$/gm, '')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
     .trim();
 
   const lines = cleaned
     .split(/[\r\n]+/)
-    .map((l) => l.replace(/^\s*(?:[-*•]+|\d{1,3}[.)])\s+/, '').trim())
+    .map((l) => l.replace(/^\s*(?:[-*•]+|\d{1,3}[.)])\s+/, '').replace(/\s+([.,;:!?])/g, '$1').trim())
     .filter((l) => l.length > 5);
 
   const paragraphs = cleaned
@@ -574,8 +581,20 @@ interface StoryOptions {
   metrics?: ExtractedMetric[];
 }
 
+function parsePointTopicAndBody(rawPoint: string): { topicTitle: string; topicBody: string } {
+  const clean = rawPoint.replace(/^[•\s\d.-]+/, '').trim();
+  const match = clean.match(/^\*{0,2}([^:*]{2,45})\*{0,2}:\s*(.+)$/s);
+  if (match) {
+    const rawHeading = match[1].replace(/[*_`]/g, '').trim();
+    const rawBody = match[2].replace(/[*_`]/g, '').trim();
+    return { topicTitle: rawHeading, topicBody: rawBody };
+  }
+  return { topicTitle: '', topicBody: clean };
+}
+
 /**
  * Builds slides directly from the user's provided notes, bullets, or recap lines.
+ * Dynamic, topic-driven synthesis mapping concepts to dedicated visual schematics.
  */
 function buildDeckFromUserPoints(
   subject: string,
@@ -592,21 +611,56 @@ function buildDeckFromUserPoints(
   const { brand, brandUrl, domainCategory, targetCount, metrics } = options;
 
   const { cleanSubject, arSubject } = extractCleanSubject(subject);
-  const enHook = enforceHeadlineSpecRule(subject, { isHook: true, fallbackSubject: 'System' });
+  const hasPreamble = /^(?:this\s+(?:video|article|post|guide|talk)?\s+(?:explains|covers|discusses|breaks\s+down)|in\s+this\s+video)\b/i.test(subject.trim());
+  const enHook = hasPreamble
+    ? `${cleanSubject}, explained.`
+    : enforceHeadlineSpecRule(subject, { isHook: true, fallbackSubject: cleanSubject });
   const arHook = `تحليل معماري لمنظومة ${arSubject}`;
 
-  // Extract 6 clean satLabels from user points
+  // Extract clean, meaningful satLabels from user points
   const satLabels: string[] = [];
   for (const pt of userPoints) {
-    const words = pt.replace(/[^A-Za-z0-9\s]/g, '').split(/\s+/).filter((w) => w.length >= 4);
-    if (words[0] && !satLabels.includes(words[0])) satLabels.push(words[0].slice(0, 14));
-    if (words[1] && !satLabels.includes(words[1]) && satLabels.length < 6) satLabels.push(words[1].slice(0, 14));
+    const { topicTitle } = parsePointTopicAndBody(pt);
+    if (topicTitle) {
+      let pill = topicTitle.replace(/\(.*?\)/g, '').trim();
+      if (pill.length > 16) pill = pill.split(/\s+/).slice(0, 2).join(' ');
+      if (pill && !satLabels.includes(pill.toUpperCase())) {
+        satLabels.push(pill.toUpperCase());
+      }
+    }
+  }
+  if (satLabels.length < 6) {
+    for (const pt of userPoints) {
+      const words = pt.replace(/[^A-Za-z0-9\s]/g, '').split(/\s+/).filter((w) => w.length >= 4);
+      if (words[0] && !satLabels.includes(words[0].toUpperCase())) satLabels.push(words[0].toUpperCase().slice(0, 14));
+      if (satLabels.length >= 6) break;
+    }
   }
   const defaultSatPills = ['Architecture', 'Dataflow', 'Execution', 'Scale', 'Resilience', 'Telemetry'];
   for (const p of defaultSatPills) {
     if (satLabels.length >= 6) break;
-    if (!satLabels.includes(p)) satLabels.push(p);
+    if (!satLabels.includes(p.toUpperCase())) satLabels.push(p.toUpperCase());
   }
+
+  let hubOverviewEn = `An architectural breakdown of ${cleanSubject}, covering core indexing algorithms, memory trade-offs, and production design.`;
+  if (hasPreamble && subject.length > 25) {
+    const strippedPreamble = subject
+      .replace(/^(?:this\s+(?:video|article|post|guide|talk)?\s+(?:explains|covers|discusses|breaks\s+down)|in\s+this\s+video)\s+(?:the\s+role\s+and\s+architecture\s+of\s+)?/i, '')
+      .replace(/[*_`]/g, '')
+      .replace(/\s+([.,;:!?])/g, '$1')
+      .trim();
+    if (strippedPreamble.length > 15) {
+      const capitalized = strippedPreamble.charAt(0).toUpperCase() + strippedPreamble.slice(1);
+      hubOverviewEn = autoFitTextToLimits(capitalized, 135);
+    }
+  } else if (userPoints[0]) {
+    const { topicBody } = parsePointTopicAndBody(userPoints[0]);
+    if (topicBody) {
+      hubOverviewEn = autoFitTextToLimits(topicBody.replace(/\s+([.,;:!?])/g, '$1'), 135);
+    }
+  }
+
+  const hubOverviewAr = `نظرة معمارية معمقة تشرح آليات عمل ${arSubject} وخوارزميات الفهرسة والتحديات في بيئات الإنتاج الفعلية.`;
 
   const slides: SlideData[] = [
     {
@@ -616,76 +670,268 @@ function buildDeckFromUserPoints(
       satLabels: satLabels.slice(0, 6),
       enTitle: enHook,
       arTitle: arHook,
-      enBody: userPoints[0] ? userPoints[0].slice(0, 135) : `A deep technical breakdown of ${subject}.`,
-      arBody: `نظرة معمارية معمقة تشرح آليات العمل والتحديات في بيئات الإنتاج الفعلية.`,
+      enBody: hubOverviewEn,
+      arBody: hubOverviewAr,
     },
   ];
 
-  // Map each user point into a substantive content slide
-  const contentPoints = userPoints.slice(0, targetCount - 2);
+  // Distribute points across available content slots (targetCount - 2 = 6 slots)
+  // Ensure beginning concepts, core indexing/mechanism, comparisons, and closing takeaways are all represented
+  const maxContentSlots = targetCount - 2;
+  let selectedPoints: string[] = [];
 
-  contentPoints.forEach((point, idx) => {
-    const isLastContent = idx === contentPoints.length - 1;
-    const lowerPt = point.toLowerCase();
-    const cleanPt = point.replace(/^[•\s\d.-]+/, '').trim();
-    const words = cleanPt.split(/\s+/).filter(Boolean);
+  // Filter out standalone section title lines that don't contain a colon or period and are short
+  const substantivePoints = userPoints.filter((p) => {
+    const clean = p.replace(/^[•\s\d.-]+/, '').trim();
+    if (clean.length < 25) return false;
+    if (!clean.includes(':') && !clean.includes('.') && clean.length < 40) return false;
+    return true;
+  });
 
-    const titleWords = words.slice(0, 5).join(' ');
-    const enTitle = enforceHeadlineSpecRule(titleWords, { isHook: false });
+  if (substantivePoints.length <= maxContentSlots) {
+    selectedPoints = [...substantivePoints];
+  } else {
+    // Semantic diversity grouping: collect candidates for distinct mechanism variants
+    const categories: Array<{ pattern: RegExp }> = [
+      { pattern: /vector|embedding|high-dimensional|cosine/i },
+      { pattern: /hnsw|hierarchical|graph|skip[- ]?list/i },
+      { pattern: /ivf|cluster|k-means|centroid|partition/i },
+      { pattern: /write|hot|cold|buffer|lsm|compaction/i },
+      { pattern: /choosing\s+a\s+database|postgres.*pinecone|vs\b|versus/i },
+      { pattern: /model upgrade|re-embed|source of truth|primary db|boring|trade-?off/i },
+      { pattern: /filter|constraint|metadata/i },
+    ];
 
-    // Archetype selection based on content
-    if (/catch|trade-?off|limit|drawback|however|caution|overhead/i.test(lowerPt)) {
+    const pickedIndices = new Set<number>();
+
+    for (const cat of categories) {
+      if (pickedIndices.size >= maxContentSlots) break;
+      const matchIdx = substantivePoints.findIndex((p, idx) => !pickedIndices.has(idx) && cat.pattern.test(p));
+      if (matchIdx >= 0) {
+        pickedIndices.add(matchIdx);
+      }
+    }
+
+    // Fill remaining slots in sequential order if needed
+    for (let i = 0; i < substantivePoints.length && pickedIndices.size < maxContentSlots; i++) {
+      pickedIndices.add(i);
+    }
+
+    selectedPoints = Array.from(pickedIndices)
+      .sort((a, b) => a - b)
+      .slice(0, maxContentSlots)
+      .map((idx) => substantivePoints[idx]);
+  }
+
+  selectedPoints.forEach((point, idx) => {
+    const { topicTitle, topicBody } = parsePointTopicAndBody(point);
+    const fullText = `${topicTitle} ${topicBody}`.toLowerCase();
+    const effectiveTitle = topicTitle || point.split(/\s+/).slice(0, 5).join(' ');
+    const enTitle = enforceHeadlineSpecRule(effectiveTitle, { isHook: false });
+    const hasArabicText = /[\u0600-\u06FF]/.test(topicBody);
+
+    // 1. Compare Archetype (e.g. Standard DB vs Purpose-Built Vector DB)
+    if (/choosing\s+a\s+database|standard\s+database|vs\b|versus|compared\s+to/i.test(fullText)) {
+      if (/postgres|pgvector|elasticsearch/i.test(fullText)) {
+        slides.push({
+          type: 'compare',
+          compareLeftTitle: 'POSTGRES + PGVECTOR',
+          compareLeftBody: '• Standard relational database\n• ACID transactional guarantees\n• Zero new operational footprint',
+          compareRightTitle: 'PINECONE / MILVUS',
+          compareRightBody: '• Dedicated vector database\n• Billion-scale clustering engine\n• Specialized operational overhead',
+          enTitle: 'Choosing your vector database.',
+          arTitle: 'مقارنة: قواعد البيانات والبحث المتجهي',
+          enBody: autoFitTextToLimits(topicBody, 135),
+          arBody: 'قواعد البيانات الحالية مثل Postgres مع pgvector كافية لمعظم المشاريع، بينما قواعد البيانات المتخصصة للأنظمة المليارية.',
+        });
+        return;
+      }
       slides.push({
-        type: 'row',
-        diagramVariant: 'takeaway',
-        icons: [{ icon: 'shieldAlert', label: 'Trade-off' }, { icon: 'activity', label: 'Evaluation' }],
-        diagramNodes: [
-          { label: 'Standard Pattern', sublabel: 'General workflow', status: 'STANDARD', icon: 'layers' },
-          { label: 'Engineered Shift', sublabel: 'Specific optimization', status: 'SHIFT', icon: 'zap' },
-          { label: 'Operational Cost', sublabel: 'Requires custom tooling', status: 'CAVEAT', icon: 'shieldAlert' },
-        ],
-        diagramEdges: ['Evaluate', 'Adopt'],
-        diagramFooter: 'ENGINEERING DECISION: ARCHITECTURE TRADE-OFFS BALANCED',
-        enTitle: 'The core tradeoff.',
-        arTitle: 'المفاضلة وحدود الاستخدام',
-        enBody: autoFitTextToLimits(cleanPt, 135),
-        arBody: 'لكل اختيار معماري تكلفة؛ اختر التحسين العميق فقط حين يبرر حجم العمل التعقيد.',
+        type: 'compare',
+        compareLeftTitle: 'STANDARD BASELINE',
+        compareLeftBody: '• Standard execution model\n• Higher indexing cost\n• Generic pipeline overhead',
+        compareRightTitle: 'DEDICATED ARCHITECTURE',
+        compareRightBody: '• Specialized high-throughput engine\n• Scaled partition indexes\n• Verified production speedup',
+        enTitle,
+        arTitle: `مقارنة: ${effectiveTitle}`,
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: hasArabicText
+          ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+          : 'مقارنة معمارية توضح الفوارق في الكفاءة والتكلفة التشغيلية.',
       });
       return;
     }
 
-    if (/\b(\d+(?:\.\d+)?(?:x|%|GB|MB|ms|req\/s))\b/i.test(cleanPt)) {
-      const match = cleanPt.match(/\b(\d+(?:\.\d+)?(?:x|%|GB|MB|ms|req\/s))\b/i);
+    // 2. Code Archetype (SQL query or script)
+    if (/sql|psql|<=>|query\s+planner|code|syntax/i.test(fullText)) {
+      const isVectorSql = /vector|embedding|<=>|pgvector/i.test(fullText);
+      slides.push({
+        type: 'code',
+        codeFileName: isVectorSql ? 'pgvector_example.sql' : 'query.sql',
+        codeLanguage: 'sql',
+        codeSnippet: isVectorSql
+          ? `-- Semantic cosine similarity with pgvector\nSELECT id, title, 1 - (embedding <=> $query) AS score\nFROM documents\nWHERE status = 'in_stock'\nORDER BY embedding <=> $query LIMIT 5;`
+          : `$ psql -h localhost -U postgres\n> EXPLAIN ANALYZE SELECT * FROM vectors;\n+ Index Scan using hnsw_cosine_idx\n✔ Execution verified`,
+        enTitle: enforceHeadlineSpecRule(effectiveTitle || 'pgvector distance query', { isHook: false }),
+        arTitle: 'الاستعلام عبر الشيفرة البرمجية',
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: 'طريقة تطبيق البحث الدلالي في قاعدة البيانات ودمج الشروط المسبقة بكفاءة.',
+      });
+      return;
+    }
+
+    // 3. Split Visual Schematic (Hot/Cold Stores & Writes) — evaluated before HNSW to handle writes into graphs
+    if (/write|hot\s+and\s+cold|cold\s+store|hot\s+store|buffer|lsm|compaction|consistency|insert/i.test(fullText)) {
+      slides.push({
+        type: 'row',
+        diagramVariant: 'split',
+        diagramNodes: [
+          { label: 'Hot Store', sublabel: 'Mutable RAM Write Buffer', status: 'FAST WRITE', icon: 'zap' },
+          { label: 'Async Compactor', sublabel: 'Batch Index Flusher', status: 'SYNCING', icon: 'arrowRightLeft' },
+          { label: 'Cold Store', sublabel: 'Immutable Vector Index', status: 'PERSISTED', icon: 'database' },
+        ],
+        diagramEdges: ['BUFFER', 'COMPACT'],
+        diagramFooter: 'ARCHITECTURE: DUAL HOT/COLD STORE',
+        enTitle,
+        arTitle: 'معمارية التخزين الساخن والبارد',
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: hasArabicText
+          ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+          : 'فصل عمليات الكتابة السريعة في الذاكرة الحية عن الفهارس الثابتة لتقليل تكلفة إعادة بناء الرسم البياني.',
+      });
+      return;
+    }
+
+    // 4. Graph Visual Schematic (HNSW Indexing) — evaluated before generic vector scatter
+    if (/hnsw|hierarchical|skip[- ]?list/i.test(fullText)) {
+      slides.push({
+        type: 'row',
+        diagramVariant: 'graph',
+        diagramNodes: [
+          { label: 'Entry Node', sublabel: 'Top Sparse Layer 2', status: 'ENTRY', icon: 'network' },
+          { label: 'Skip Traversal', sublabel: 'Fast Long-Range Hops', status: 'ROUTED', icon: 'layers' },
+          { label: 'Target Neighbor', sublabel: 'Dense Base Layer 0', status: 'CONVERGED', icon: 'checkCircle' },
+        ],
+        diagramEdges: ['DESCENT', 'CONVERGE'],
+        diagramFooter: 'GRAPH: HIERARCHICAL NAVIGABLE SMALL WORLD',
+        enTitle,
+        arTitle: 'فهارس HNSW الطبقية',
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: hasArabicText
+          ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+          : 'هيكل بياني متعدد الطبقات يتيح التنقل السريع عبر قفزات متباعدة في الفضاء عالي الأبعاد ثم تقارب دقيق.',
+      });
+      return;
+    }
+
+    // 5. Clusters Visual Schematic (IVF Indexing) — evaluated before generic vector scatter
+    if (/ivf|inverted file|cluster|k-means|centroid|partition/i.test(fullText)) {
+      slides.push({
+        type: 'row',
+        diagramVariant: 'clusters',
+        diagramNodes: [
+          { label: 'K-Means Centroid', sublabel: 'Space Partition Hub', status: 'PARTITIONED', icon: 'layers' },
+          { label: 'Target Cluster', sublabel: 'Shortlisted Candidate Subset', status: 'SELECTED', icon: 'zap' },
+          { label: 'Inverted List', sublabel: 'Pruned Candidate Scan', status: 'SCANNED', icon: 'search' },
+        ],
+        diagramEdges: ['PARTITION', 'SCAN'],
+        diagramFooter: 'INDEX: INVERTED FILE CLUSTERING • FAST PRUNING',
+        enTitle,
+        arTitle: 'تقسيم المساحات عبر عناقيد IVF',
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: hasArabicText
+          ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+          : 'تجزئة الفضاء عالي الأبعاد عبر خوارزميات العناقيد، وحصر البحث فقط داخل العناقيد الأقرب للمتجه المطلوب.',
+      });
+      return;
+    }
+
+    // 6. Features Visual Schematic (Filtered Search)
+    if (/filter|constraint|metadata|pre-filter|hard constraint/i.test(fullText)) {
+      slides.push({
+        type: 'row',
+        diagramVariant: 'features',
+        diagramNodes: [
+          { label: 'Metadata Filter', sublabel: 'Hard Business Constraints', status: 'FILTERED', icon: 'sliders' },
+          { label: 'Vector Index', sublabel: 'Similarity Distance Scan', status: 'INDEXED', icon: 'search' },
+          { label: 'Ranked Result', sublabel: 'Top-K Verified Items', status: 'VERIFIED', icon: 'checkCircle' },
+        ],
+        diagramEdges: ['FILTER', 'INTERSECT'],
+        diagramFooter: 'SEARCH: METADATA CONSTRAINTS + VECTOR DISTANCE',
+        enTitle,
+        arTitle: 'البحث المفلتر والقيود المسبقة',
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: hasArabicText
+          ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+          : 'دمج الشروط المحددة (مثل توفر المنتج والحد السعري) مع البحث المتجهي عبر الفلترة المسبقة الموثقة.',
+      });
+      return;
+    }
+
+    // 7. Takeaway / Trade-off (Model upgrades & Primary DB source of truth)
+    if (/model upgrade|re-embed|source of truth|primary db|boring|interview|catch|trade-?off|overhead/i.test(fullText)) {
+      slides.push({
+        type: 'row',
+        diagramVariant: 'takeaway',
+        diagramNodes: [
+          { label: 'Primary DB', sublabel: 'Immutable Source of Truth', status: 'PRIMARY', icon: 'database' },
+          { label: 'Vector Index', sublabel: 'Disposable Search Index', status: 'INDEX', icon: 'search' },
+          { label: 'Model Upgrade', sublabel: 'Full Re-Embedding Cost', status: 'CAUTION', icon: 'shieldAlert' },
+        ],
+        diagramEdges: ['SOURCE', 'RE-EMBED'],
+        diagramFooter: 'ARCHITECTURE RULE: PRIMARY DB AS SOURCE OF TRUTH',
+        enTitle,
+        arTitle: 'تحديث النماذج وقاعدة البيانات المرجعية',
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: hasArabicText
+          ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+          : 'الاحتفاظ بقاعدة البيانات الأساسية كمصدر موثوق؛ فترقية نموذج التضمين تعني إعادة معالجة وحساب كل المتجهات من جديد.',
+      });
+      return;
+    }
+
+    // 8. Scatter Visual Schematic (Vectors & Embeddings)
+    if (/vector|embedding|high-dimensional|cosine|similarity|ann\b|nearest neighbor/i.test(fullText)) {
+      slides.push({
+        type: 'row',
+        diagramVariant: 'scatter',
+        diagramNodes: [
+          { label: 'Embedding Model', sublabel: 'Dense Float Vector Array', status: 'ENCODED', icon: 'cpu' },
+          { label: 'Vector Index', sublabel: 'High-Dimensional Space', status: 'INDEXED', icon: 'database' },
+          { label: 'Cosine Search', sublabel: 'Nearest Neighbor Top-K', status: 'MATCHED', icon: 'search' },
+        ],
+        diagramEdges: ['ENCODE', 'SIMILARITY'],
+        diagramFooter: 'METRIC: COSINE SIMILARITY • RECALL OPTIMIZED',
+        enTitle,
+        arTitle: 'المتجهات والتضمين الدلالي',
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: hasArabicText
+          ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+          : 'تحويل البيانات (صور، نصوص، منتجات) إلى مصفوفات رقمية عالية الأبعاد مع قياس التشابه عبر مسافة جيب التمام.',
+      });
+      return;
+    }
+
+    // 9. Metric Archetype
+    if (/\b(\d+(?:\.\d+)?(?:x|%|GB|MB|ms|req\/s))\b/i.test(fullText)) {
+      const match = fullText.match(/\b(\d+(?:\.\d+)?(?:x|%|GB|MB|ms|req\/s))\b/i);
       const val = match ? match[1] : '10x';
       slides.push({
         type: 'metric',
         metricValue: val,
         metricLabel: 'PRODUCTION MEASUREMENT',
-        metricDiff: `▲ Verified in production benchmark`,
+        metricDiff: '▲ Verified in production benchmark',
         metricIcon: 'gauge',
         enTitle,
         arTitle: `قياس الأداء الفعلي: ${val}`,
-        enBody: autoFitTextToLimits(cleanPt, 135),
-        arBody: `أرقام حقيقية تثبت كفاءة النظام تحت أقصى ضغط عمل في بيئة التشغيل.`,
+        enBody: autoFitTextToLimits(topicBody, 135),
+        arBody: 'أرقام حقيقية تثبت كفاءة النظام تحت أقصى ضغط عمل في بيئة التشغيل.',
       });
       return;
     }
 
-    if (/\b(?:from|import|fn |func |def |curl |docker |git |psql |\$ )\b/i.test(cleanPt)) {
-      slides.push({
-        type: 'code',
-        codeFileName: 'implementation.sh',
-        codeLanguage: 'bash',
-        codeSnippet: `$ exec --step=${idx + 1}\n> Initializing pipeline...\n+ ${cleanPt.slice(0, 60)}\n✔ Verified zero stalls · Execution confirmed`,
-        enTitle,
-        arTitle: 'التنفيذ بالشيفرة البرمجية',
-        enBody: autoFitTextToLimits(cleanPt, 135),
-        arBody: `فحص طريقة التنفيذ والتهيئة لضمان استقرار الأداء وسرعة الاستجابة.`,
-      });
-      return;
-    }
-
-    // Default: Architectural row slide with nodes derived from the point
+    // Default Fallback
+    const words = (topicBody || point).split(/\s+/).filter(Boolean);
     const n1 = words[0] ? words[0].slice(0, 16) : 'Ingress';
     const n2 = words[2] ? words[2].slice(0, 16) : 'Engine';
     const n3 = words[4] ? words[4].slice(0, 16) : 'Persistence';
@@ -702,8 +948,10 @@ function buildDeckFromUserPoints(
       diagramFooter: `PIPELINE STEP ${idx + 1} • STATUS: VERIFIED`,
       enTitle,
       arTitle: `آلية العمل: ${n1}`,
-      enBody: autoFitTextToLimits(cleanPt, 135),
-      arBody: `كيفية إدارة وتوجيه العمليات المتزامنة بكفاءة وموثوقية في النظام.`,
+      enBody: autoFitTextToLimits(topicBody, 135),
+      arBody: hasArabicText
+        ? sanitizeArabicSlideText(topicBody.slice(0, 135))
+        : 'كيفية إدارة وتوجيه العمليات المتزامنة بكفاءة وموثوقية في النظام.',
     });
   });
 
@@ -722,7 +970,7 @@ function buildDeckFromUserPoints(
       diagramFooter: 'ENGINEERING DECISION: ARCHITECTURE TRADE-OFFS BALANCED',
       enTitle: 'The core tradeoff.',
       arTitle: 'المفاضلة وحدود الاستخدام',
-      enBody: `Every architectural choice has a cost. Adopt deep optimization only when production scale justifies the operational complexity.`,
+      enBody: 'Every architectural choice has a cost. Adopt deep optimization only when production scale justifies operational complexity.',
       arBody: 'لكل اختيار معماري تكلفة؛ اختر التحسين العميق فقط حين يبرر حجم العمل التعقيد.',
     });
   }
@@ -736,7 +984,7 @@ function buildDeckFromUserPoints(
       stepLabel: `STEP 0${stepNum - 1} // ARCHITECTURE`,
       enTitle: 'The scalability bottleneck.',
       arTitle: 'نقطة الاختناق ومحدودية التوسع',
-      enBody: `Legacy approaches stall under high concurrency or growing state size, requiring a fundamental shift in system design.`,
+      enBody: 'Legacy approaches stall under high concurrency or growing state size, requiring a fundamental shift in system design.',
       arBody: 'الأساليب التقليدية تصل لحدودها القصوى تحت الضغط العالي، مما يفرض إعادة تصميم بنية المنظومة بالكامل.',
     });
   }
@@ -750,10 +998,10 @@ function buildDeckFromUserPoints(
   slides.push({
     type: 'cta',
     enTitle: enforceHeadlineSpecRule(`Scaling ${cleanSubject}?`, { isCta: true }),
-    arTitle: 'تبني حلولاً برمجية متقدمة؟',
+    arTitle: `تبني حلول ${arSubject}؟`,
     enBody: 'Connect with software engineers to discuss system design, performance profiling, and production trade-offs.',
-    arBody: 'تواصل معنا لمناقشة تصميم الأنظمة، تحليل الأداء، وبناء برمجيات عالية الكفاءة.',
-    ctaText: 'DM us  •  رسالة خاصة',
+    arBody: 'شارك برأيك وتجربتك في التعليقات حول تصميم الأنظمة المعمارية والمفاضلات التقنية.',
+    ctaText: 'Join discussion  •  شارك برأيك',
     url: brandUrl,
     enCredit: `${brand} · ${domainCategory}`,
     arCredit: `${brand} · دراسة هندسية في ${domainCategory}`,

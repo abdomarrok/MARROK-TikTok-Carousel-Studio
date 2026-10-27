@@ -223,7 +223,7 @@ export async function drawCtaSlide(
   }
   ctx.restore();
 
-  // 6. High-Contrast Bilingual CTA Pill Button (Tightly positioned directly below question)
+  // 6. High-Contrast Bilingual CTA Pill Button & Proportional Vertical Balance
   const ctaOverride = slide.layoutOverrides?.ctaButton;
   const ctaDx = ctaOverride?.dx || 0;
   const ctaDy = ctaOverride?.dy || 0;
@@ -234,8 +234,19 @@ export async function drawCtaSlide(
   const pillW = basePillW * ctaScale;
   const pillH = basePillH * ctaScale;
   const pillX = 518 - pillW / 2 + ctaDx;
-  // Strictly clamp pill and card so they never overflow TikTok footer safe ceiling (y <= 1710)
-  const pillY = Math.min(Math.max(curY + 36 + ctaDy, 920), 1360);
+
+  // Anchor bottom attribution card safely above the footer pagination dots (ceiling: 1710px)
+  const cardW = 780;
+  const cardH = 96;
+  const cardX = 518 - cardW / 2;
+  const cardY = 1710 - cardH - 24; // 1590px
+
+  const displayUrl = carousel.brandUrl || slide.url || 'marrok.org';
+  const urlY = cardY - 42; // ~1548px
+
+  // Center the CTA button between the question text and the URL
+  const availablePillGap = Math.max(80, urlY - curY - pillH);
+  const pillY = Math.min(Math.max(curY + availablePillGap * 0.42 + ctaDy, 960), urlY - pillH - 40);
 
   ctx.save();
   ctx.shadowColor = theme.accent;
@@ -243,21 +254,24 @@ export async function drawCtaSlide(
   drawRoundRect(ctx, pillX, pillY, pillW, pillH, 52 * ctaScale, theme.accent);
   ctx.restore();
 
+  // Sanitize CTA text against commercial service claims
+  let rawCta = slide.ctaText || 'Join discussion  •  شارك برأيك';
+  if (/architecture review|hire|consulting|book a call/i.test(rawCta)) {
+    rawCta = 'Join discussion  •  شارك برأيك';
+  }
+
   ctx.save();
   ctx.font = `800 ${Math.round(38 * ctaScale)}px "Cairo", "Plus Jakarta Sans", sans-serif`;
   ctx.fillStyle = '#081216';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(slide.ctaText || 'DM us  •  رسالة خاصة', 518 + ctaDx, pillY + pillH / 2);
+  ctx.fillText(rawCta, 518 + ctaDx, pillY + pillH / 2);
   ctx.restore();
 
-  // 7. Verified marrok.org Attribution Card (Tightly grouped below CTA button)
-  const displayUrl = carousel.brandUrl || slide.url || 'marrok.org';
-  const urlY = pillY + pillH + 44;
-
+  // 7. Verified Website URL
   ctx.save();
   const fitUrl = fitTextInBox(ctx, displayUrl, 780, 32, '"JetBrains Mono", monospace', '600', {
-    minFontSize: 18,
+    minFontSize: 20,
   });
   ctx.font = `600 ${fitUrl.fontSize}px "JetBrains Mono", monospace`;
   ctx.fillStyle = '#E2E8EC';
@@ -266,56 +280,62 @@ export async function drawCtaSlide(
   ctx.fillText(fitUrl.lines[0] || displayUrl, 518, urlY);
   ctx.restore();
 
-  // Bilingual Source Attribution Card container
-  const cardW = 780;
-  const cardH = 92;
-  const cardX = 518 - cardW / 2;
-  const cardY = Math.min(urlY + 28, 1710 - cardH - 10);
+  // 8. Bilingual Source Attribution Card container
   drawRoundRect(ctx, cardX, cardY, cardW, cardH, 20, `${theme.surface}99`, theme.surfaceBorder, 1.5);
 
   // 1. Miniature authentic MARROK logo badge
-  const mBadgeSize = 42;
+  const mBadgeSize = 46;
   const mBadgeX = cardX + 22;
   const mBadgeY = cardY + (cardH - mBadgeSize) / 2;
   drawRoundRect(ctx, mBadgeX, mBadgeY, mBadgeSize, mBadgeSize, 10, '#0D0D0D', `${theme.accent}55`, 1.2);
   drawMarrokVectorBadge(ctx, mBadgeX + mBadgeSize / 2, mBadgeY + mBadgeSize / 2, mBadgeSize - 6, theme.accent, 'transparent');
 
   // 2. Verified shield icon badge alongside MARROK badge
-  const sBadgeSize = 42;
+  const sBadgeSize = 46;
   const sBadgeX = mBadgeX + mBadgeSize + 10;
   const sBadgeY = cardY + (cardH - sBadgeSize) / 2;
   drawRoundRect(ctx, sBadgeX, sBadgeY, sBadgeSize, sBadgeSize, 10, `${theme.accent}20`, `${theme.accent}65`, 1.2);
   const shieldImg = await loadIconImage('shieldAlert', theme.accent);
-  safeDrawImage(ctx, shieldImg, sBadgeX + 9, sBadgeY + 9, 24, 24);
+  safeDrawImage(ctx, shieldImg, sBadgeX + 11, sBadgeY + 11, 24, 24);
 
-  // 3. Attribution text tier
+  // 3. Attribution text tier with creator and channel support
   const textStartX = sBadgeX + sBadgeSize + 18;
-  const enCredit = slide.enCredit || `Verified Technical Analysis // ${carousel.brand || 'MARROK'}`;
-  const arCredit = slide.arCredit || `تحليل تقني موثق ومعتمد من منصة ${carousel.brand || 'ماروك'}`;
+  const creator = carousel.sourceMeta?.creator || carousel.sourceMeta?.channel;
+  const sourceTitle = carousel.sourceMeta?.title || 'Engineering Architecture';
+
+  const defaultEnCredit = creator
+    ? `Source: ${creator} • ${sourceTitle}`
+    : `Technical Analysis // ${sourceTitle}`;
+  const defaultArCredit = creator
+    ? `المصدر: ${creator} • تحليل هندسي موثق`
+    : `توثيق وتحليل تقني // ${sourceTitle}`;
+
+  const enCredit = slide.enCredit || defaultEnCredit;
+  const arCredit = slide.arCredit || defaultArCredit;
 
   const creditMaxWidth = cardX + cardW - textStartX - 22;
 
   ctx.save();
-  const fitEnCredit = fitTextInBox(ctx, enCredit, creditMaxWidth, 22, '"Plus Jakarta Sans", sans-serif', '500', {
-    minFontSize: 11,
+  const fitEnCredit = fitTextInBox(ctx, enCredit, creditMaxWidth, 24, '"Plus Jakarta Sans", sans-serif', '600', {
+    minFontSize: 14,
   });
-  ctx.font = `500 ${fitEnCredit.fontSize}px "Plus Jakarta Sans", sans-serif`;
-  ctx.fillStyle = theme.textMuted;
+  ctx.font = `600 ${fitEnCredit.fontSize}px "Plus Jakarta Sans", sans-serif`;
+  ctx.fillStyle = '#CBD5E1';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(fitEnCredit.lines[0] || enCredit, textStartX, cardY + 40);
   ctx.restore();
 
   ctx.save();
-  const fitArCredit = fitTextInBox(ctx, arCredit, creditMaxWidth, 22, '"Cairo", sans-serif', '500', {
-    minFontSize: 11,
+  const fitArCredit = fitTextInBox(ctx, arCredit, creditMaxWidth, 24, '"Cairo", sans-serif', '600', {
+    minFontSize: 14,
   });
-  ctx.font = `500 ${fitArCredit.fontSize}px "Cairo", sans-serif`;
-  ctx.fillStyle = theme.textMuted;
+  ctx.font = `600 ${fitArCredit.fontSize}px "Cairo", sans-serif`;
+  ctx.fillStyle = theme.accent;
   ctx.textAlign = 'left';
   ctx.direction = 'rtl';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(fitArCredit.lines[0] || arCredit, textStartX, cardY + 74);
+  ctx.fillText(fitArCredit.lines[0] || arCredit, textStartX, cardY + 76);
   ctx.restore();
 
   return cardY + cardH;

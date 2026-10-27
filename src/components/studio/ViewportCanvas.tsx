@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Move, RotateCcw } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Move, RotateCcw, X } from 'lucide-react';
 import { CarouselData, GraphicalElementId, ElementLayoutOverride, ThemePalette } from '../../types.ts';
 import { renderSlideToCanvas } from '../../lib/canvasExporter.ts';
+import { computeSlideElementBounds, findSlideElementAtPoint, ElementBounds } from '../../lib/canvas/layoutBounds.ts';
 
 interface ViewportCanvasProps {
   carousel: CarouselData;
@@ -13,23 +14,9 @@ interface ViewportCanvasProps {
   onNextSlide: () => void;
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   selectedElementId?: GraphicalElementId | null;
-  onSelectElement?: (id: GraphicalElementId) => void;
+  onSelectElement?: (id: GraphicalElementId | null) => void;
   onUpdateLayoutOverride?: (id: GraphicalElementId, override: ElementLayoutOverride | null) => void;
 }
-
-const ELEMENT_BOUNDS: Record<
-  GraphicalElementId,
-  { top: string; left: string; width: string; height: string; label: string }
-> = {
-  headerBadge: { top: '5.2%', left: '7.4%', width: '85.2%', height: '6.2%', label: 'Top MARROK Badge' },
-  graphicCard: { top: '12.5%', left: '7.4%', width: '85.2%', height: '28.1%', label: 'Visual Archetype Card' },
-  titleBlock: { top: '41.5%', left: '10.0%', width: '80.0%', height: '9.5%', label: 'English Headline' },
-  arabicTitleBlock: { top: '51.5%', left: '10.0%', width: '80.0%', height: '9.5%', label: 'Arabic Headline' },
-  bodyBlock: { top: '61.5%', left: '12.0%', width: '76.0%', height: '11.0%', label: 'English Body' },
-  arabicBodyBlock: { top: '73.0%', left: '12.0%', width: '76.0%', height: '11.0%', label: 'Arabic Body' },
-  ctaButton: { top: '48.0%', left: '15.0%', width: '70.0%', height: '6.5%', label: 'CTA Pill Button' },
-  attributionCard: { top: '56.0%', left: '15.0%', width: '70.0%', height: '5.0%', label: 'Attribution Card' },
-};
 
 export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   carousel,
@@ -47,9 +34,29 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   const activeCanvasRef = externalCanvasRef || internalCanvasRef;
 
   const [isDragging, setIsDragging] = useState(false);
+  const [hoveredElementId, setHoveredElementId] = useState<GraphicalElementId | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const initialOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const [mobileNudgeStep, setMobileNudgeStep] = useState<number>(5);
+
+  const prevIndexRef = useRef(currentSlideIndex);
+  const prevArchetypeRef = useRef(carousel.slides[currentSlideIndex]?.type);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const renderSequenceRef = useRef(0);
+
+  const currentSlide = carousel.slides[currentSlideIndex];
+  const currentOverride = (selectedElementId && currentSlide?.layoutOverrides?.[selectedElementId]) || null;
+  const currentDx = currentOverride?.dx ?? 0;
+  const currentDy = currentOverride?.dy ?? 0;
+
+  // Dynamically compute exact layout bounds for every element on current slide
+  const boundsMap = useMemo(() => {
+    if (!currentSlide) return {} as Record<GraphicalElementId, ElementBounds>;
+    return computeSlideElementBounds(currentSlide, carousel);
+  }, [currentSlide, carousel]);
+
+  const activeBounds = selectedElementId ? boundsMap[selectedElementId] : null;
+  const hoveredBounds = hoveredElementId && hoveredElementId !== selectedElementId ? boundsMap[hoveredElementId] : null;
 
   const handleNudge = (deltaX: number, deltaY: number) => {
     if (!selectedElementId || !onUpdateLayoutOverride) return;
@@ -62,19 +69,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     });
   };
 
-  const prevIndexRef = useRef(currentSlideIndex);
-  const prevArchetypeRef = useRef(carousel.slides[currentSlideIndex]?.type);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const renderSequenceRef = useRef(0);
-
-  const currentSlide = carousel.slides[currentSlideIndex];
-  const currentOverride = (selectedElementId && currentSlide?.layoutOverrides?.[selectedElementId]) || null;
-  const currentDx = currentOverride?.dx ?? 0;
-  const currentDy = currentOverride?.dy ?? 0;
-
-  // Debounced canvas rendering:
-  // Instant (0ms) on slide switch or archetype change,
-  // 150ms debounced on text keystrokes to ensure smooth lag-free typing.
+  // Debounced canvas rendering
   useEffect(() => {
     let isMounted = true;
     const currentSlide = carousel.slides[currentSlideIndex];
@@ -92,7 +87,6 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       const offscreen = document.createElement('canvas');
       try {
         await renderSlideToCanvas(carousel, currentSlideIndex, offscreen, theme);
-        // Render race protection: If another render started or component unmounted, discard
         if (!isMounted || renderSequence !== renderSequenceRef.current) return;
 
         const visibleCanvas = activeCanvasRef.current;
@@ -111,53 +105,47 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     };
 
     if (isIndexChange || isArchetypeChange) {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       executeRender();
     } else {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(executeRender, 150);
     }
 
     return () => {
       isMounted = false;
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [carousel, currentSlideIndex, theme, activeCanvasRef]);
 
-  // Click-to-select hit testing in 1080x1920 canvas coordinates
+  // Accurate hit-testing on Canvas click
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!onSelectElement || !activeCanvasRef.current) return;
+    if (!activeCanvasRef.current || !onSelectElement) return;
     const rect = activeCanvasRef.current.getBoundingClientRect();
-    const clickYRatio = (e.clientY - rect.top) / rect.height;
-    const currentSlide = carousel.slides[currentSlideIndex];
+    if (rect.width === 0 || rect.height === 0) return;
 
-    if (currentSlide?.type === 'cta') {
-      if (clickYRatio < 0.12) onSelectElement('headerBadge');
-      else if (clickYRatio >= 0.12 && clickYRatio < 0.45) onSelectElement('titleBlock');
-      else if (clickYRatio >= 0.45 && clickYRatio < 0.60) onSelectElement('ctaButton');
-      else onSelectElement('bodyBlock');
-      return;
-    }
+    const canvasX = ((e.clientX - rect.left) / rect.width) * 1080;
+    const canvasY = ((e.clientY - rect.top) / rect.height) * 1920;
 
-    if (clickYRatio < 0.12) {
-      onSelectElement('headerBadge');
-    } else if (clickYRatio >= 0.12 && clickYRatio < 0.42) {
-      onSelectElement('graphicCard');
-    } else if (clickYRatio >= 0.42 && clickYRatio < 0.53) {
-      onSelectElement('titleBlock');
-    } else if (clickYRatio >= 0.53 && clickYRatio < 0.64) {
-      onSelectElement('arabicTitleBlock');
-    } else if (clickYRatio >= 0.64 && clickYRatio < 0.77) {
-      onSelectElement('bodyBlock');
-    } else if (clickYRatio >= 0.77 && clickYRatio < 0.90) {
-      onSelectElement('arabicBodyBlock');
-    }
+    const hitId = findSlideElementAtPoint(canvasX, canvasY, boundsMap, currentSlide?.layoutOverrides);
+    onSelectElement(hitId);
+  };
+
+  // Hover detection for interactive feedback
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isDragging || !activeCanvasRef.current) return;
+    const rect = activeCanvasRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const canvasX = ((e.clientX - rect.left) / rect.width) * 1080;
+    const canvasY = ((e.clientY - rect.top) / rect.height) * 1920;
+
+    const hitId = findSlideElementAtPoint(canvasX, canvasY, boundsMap, currentSlide?.layoutOverrides);
+    setHoveredElementId(hitId);
+  };
+
+  const handleCanvasMouseLeave = () => {
+    if (!isDragging) setHoveredElementId(null);
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -202,6 +190,12 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      onSelectElement?.(null);
+      e.preventDefault();
+      return;
+    }
+
     if (!selectedElementId || !onUpdateLayoutOverride) return;
     const step = e.shiftKey ? 10 : 2;
     let nextDx = currentDx;
@@ -232,19 +226,40 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     }
   };
 
-  const activeBounds = selectedElementId ? ELEMENT_BOUNDS[selectedElementId] : null;
+  // Check if HUD pill should render inside box or above
+  const isPillInside = activeBounds && (activeBounds.y + currentDy < 140 || selectedElementId === 'headerBadge');
 
   return (
     <div
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(540px,calc(100vh-250px))] aspect-[9/16] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none"
+      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(540px,calc(100vh-250px))] aspect-[9/16] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none group"
     >
       <canvas
         ref={activeCanvasRef}
         onClick={handleCanvasClick}
-        className="w-full h-full object-contain cursor-crosshair"
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={handleCanvasMouseLeave}
+        className={`w-full h-full object-contain ${hoveredElementId ? 'cursor-pointer' : 'cursor-crosshair'}`}
+        title={hoveredElementId ? `Click to select ${boundsMap[hoveredElementId]?.label}` : 'Click any element to select & edit'}
       />
+
+      {/* Subtle Hover Outline preview when hovering over selectable element */}
+      {hoveredBounds && !isDragging && (
+        <div
+          className="absolute pointer-events-none rounded-lg border border-dashed border-white/40 bg-white/[0.03] transition-all duration-75"
+          style={{
+            top: `calc(${hoveredBounds.topPct} + ${((currentSlide?.layoutOverrides?.[hoveredBounds.id]?.dy ?? 0) / 1920) * 100}%)`,
+            left: `calc(${hoveredBounds.leftPct} + ${((currentSlide?.layoutOverrides?.[hoveredBounds.id]?.dx ?? 0) / 1080) * 100}%)`,
+            width: hoveredBounds.widthPct,
+            height: hoveredBounds.heightPct,
+          }}
+        >
+          <div className="absolute top-1 left-2 px-1.5 py-0.5 rounded text-[8px] font-mono uppercase tracking-wider bg-black/75 text-white/80 border border-white/20 whitespace-nowrap">
+            {hoveredBounds.label}
+          </div>
+        </div>
+      )}
 
       {/* Selected Element Bounding Box (Direct Graphical Selection & Drag Feedback) */}
       {activeBounds && (
@@ -253,37 +268,35 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          className={`absolute transition-shadow ${
+          className={`absolute transition-shadow duration-150 ${
             isDragging
-              ? 'cursor-grabbing border-2 border-solid shadow-2xl'
-              : 'cursor-grab border-2 border-dashed'
+              ? 'cursor-grabbing border-2 border-solid shadow-[0_0_24px_rgba(0,0,0,0.8)]'
+              : 'cursor-grab border-2 border-solid shadow-[0_0_16px_rgba(0,0,0,0.5)]'
           } rounded-lg`}
           style={{
-            top: `calc(${activeBounds.top} + ${(currentDy / 1920) * 100}%)`,
-            left: `calc(${activeBounds.left} + ${(currentDx / 1080) * 100}%)`,
-            width: activeBounds.width,
-            height: activeBounds.height,
+            top: `calc(${activeBounds.topPct} + ${(currentDy / 1920) * 100}%)`,
+            left: `calc(${activeBounds.leftPct} + ${(currentDx / 1080) * 100}%)`,
+            width: activeBounds.widthPct,
+            height: activeBounds.heightPct,
             borderColor: theme.accent,
-            backgroundColor: isDragging ? `${theme.accent}25` : `${theme.accent}12`,
+            backgroundColor: isDragging ? `${theme.accent}28` : `${theme.accent}12`,
             transform: currentOverride?.scale && currentOverride.scale !== 1 ? `scale(${currentOverride.scale})` : undefined,
             transformOrigin: 'center center',
             touchAction: 'none',
           }}
-          title="Drag to reposition on canvas (or use keyboard arrow keys)"
+          title="Drag to reposition on canvas (or use keyboard arrow keys, Esc to deselect)"
         >
-          {/* Draggable HUD Header Pill - positioned safely inside for top-edge elements */}
+          {/* Smart Floating Element HUD Badge */}
           <div
-            className={`absolute flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono uppercase tracking-wider text-black font-bold shadow-md whitespace-nowrap z-20 ${
-              selectedElementId === 'headerBadge'
-                ? 'top-1.5 left-2'
-                : '-top-6 left-1/2 -translate-x-1/2'
+            className={`absolute flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-mono uppercase tracking-wider text-black font-bold shadow-xl whitespace-nowrap z-20 ${
+              isPillInside ? 'top-1.5 left-2' : '-top-7 left-1/2 -translate-x-1/2'
             }`}
             style={{ backgroundColor: theme.accent }}
           >
             <Move className="w-2.5 h-2.5 stroke-[3]" />
             <span>{activeBounds.label}</span>
             {(currentDx !== 0 || currentDy !== 0) && (
-              <span className="bg-black/20 text-black px-1 rounded text-[8px] font-bold">
+              <span className="bg-black/25 text-black px-1 rounded text-[8px] font-bold">
                 {currentDx >= 0 ? `+${currentDx}` : currentDx}x, {currentDy >= 0 ? `+${currentDy}` : currentDy}y
               </span>
             )}
@@ -300,13 +313,36 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
                 <RotateCcw className="w-2.5 h-2.5" />
               </button>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectElement?.(null);
+              }}
+              className="hover:opacity-70 p-0.5 cursor-pointer ml-0.5"
+              title="Deselect element (Esc)"
+            >
+              <X className="w-2.5 h-2.5 stroke-[3]" />
+            </button>
           </div>
 
-          {/* Corner Resizing Pips */}
-          <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -bottom-1 -right-1 w-2 h-2 rounded-full border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          {/* Corner Precision Handles */}
+          <div className="absolute -top-1.5 -left-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -bottom-1.5 -left-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          <div className="absolute -bottom-1.5 -right-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
+        </div>
+      )}
+
+      {/* Top Floating Keyboard Shortcut Hint (Non-obtrusive, leaves slide body text 100% visible) */}
+      {selectedElementId && (
+        <div className="hidden sm:flex absolute top-2 right-2 bg-black/85 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-0.5 text-[8px] font-mono text-slate-300 shadow-xl items-center gap-1.5 pointer-events-none whitespace-nowrap z-20">
+          <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: theme.accent }} />
+          <span>Arrows: nudge</span>
+          <span className="text-slate-500">•</span>
+          <span>Shift=10px</span>
+          <span className="text-slate-500">•</span>
+          <span>Esc: deselect</span>
         </div>
       )}
 
@@ -379,18 +415,6 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
           >
             ↺
           </button>
-        </div>
-      )}
-
-      {/* Desktop Direct Dragging Selection Affordance Pill */}
-      {selectedElementId && (
-        <div className="hidden sm:flex absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-0.5 text-[8.5px] font-mono text-slate-300 shadow-xl items-center gap-1.5 pointer-events-none whitespace-nowrap z-20">
-          <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: theme.accent }} />
-          <span>Drag to move</span>
-          <span className="text-slate-500">•</span>
-          <span>Arrows nudge</span>
-          <span className="text-slate-500">•</span>
-          <span>Shift=10px</span>
         </div>
       )}
 

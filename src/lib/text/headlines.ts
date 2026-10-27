@@ -14,8 +14,10 @@ export function autoPolishHeadline(title: string): string {
   let clean = title.trim().replace(/\s+/g, ' ');
   // If ending with punctuation, preserve; otherwise add period or question mark
   if (!/[.?!:]$/.test(clean)) {
-    const isQuestion = /^(?:why|how|what|is|are|can|could|does|did|should|will|would)\b/i.test(clean);
-    clean += isQuestion ? '?' : '.';
+    const isDirectQuestion =
+      /^(?:is|are|can|could|does|did|should|will|would|do)\b/i.test(clean) ||
+      /^(?:why|how|what)\s+(?:do|does|did|is|are|can|could|should|will|would)\b/i.test(clean);
+    clean += isDirectQuestion ? '?' : '.';
   }
   return clean;
 }
@@ -32,8 +34,10 @@ export function autoFitTextToLimits(text: string, limit: number): string {
     res = (res + ' ' + w).trim();
   }
   if (!/[.?!]$/.test(res)) {
-    const isQuestion = /^(?:why|how|what|is|are|can|could|does|did|should|will|would)\b/i.test(res);
-    res += isQuestion ? '?' : '.';
+    const isDirectQuestion =
+      /^(?:is|are|can|could|does|did|should|will|would|do)\b/i.test(res) ||
+      /^(?:why|how|what)\s+(?:do|does|did|is|are|can|could|should|will|would)\b/i.test(res);
+    res += isDirectQuestion ? '?' : '.';
   }
   return res;
 }
@@ -57,11 +61,12 @@ export function enforceHeadlineSpecRule(
   }
 
   const trimmed = rawHeadline.trim();
-  const isQuestion =
+  const isDirectQuestion =
     trimmed.endsWith('?') ||
-    /^(?:why|how|what|is|are|can|could|does|did|should|will|would)\b/i.test(trimmed) ||
-    (isCta && /^(?:need|how|why|what|ready|scaling)\b/i.test(trimmed));
-  let endingPunc = isQuestion ? '?' : '.';
+    /^(?:is|are|can|could|does|did|should|will|would|do)\b/i.test(trimmed) ||
+    /^(?:why|how|what)\s+(?:do|does|did|is|are|can|could|should|will|would)\b/i.test(trimmed) ||
+    (isCta && /^(?:need|ready|want|scaling)\b/i.test(trimmed));
+  let endingPunc = isDirectQuestion ? '?' : '.';
   if (trimmed.endsWith('!')) endingPunc = '!';
 
   // Clean markdown, symbols, and remove ALL colons (preserve compound hyphens like Zero-Trust)
@@ -100,6 +105,9 @@ export function enforceHeadlineSpecRule(
 export function extractCleanSubject(rawText: string): { cleanSubject: string; arSubject: string } {
   const lower = (rawText || '').toLowerCase();
 
+  if (/\b(?:vector\s*databases?|vector\s*db|embeddings?|pgvector|pinecone|milvus)\b/i.test(lower)) {
+    return { cleanSubject: 'Vector Databases', arSubject: 'قواعد البيانات المتجهية' };
+  }
   if (/\b(?:scion|anthropic)\b/i.test(lower) && /\bgit\b/i.test(lower)) {
     return { cleanSubject: 'Anthropic Scion', arSubject: 'أنظمة Scion' };
   }
@@ -137,10 +145,29 @@ export function extractCleanSubject(rawText: string): { cleanSubject: string; ar
     return { cleanSubject: 'AI Architecture', arSubject: 'بنية نماذج الذكاء' };
   }
 
-  // Generic fallback: clean question words and verbs
+  // Generic fallback: clean question words, verbs, and narrative video preambles
   const withoutUrls = (rawText || '').replace(/https?:\/\/\S+/gi, '').trim();
   const firstLine = withoutUrls.split('\n')[0].trim();
+
+  // Check if firstLine contains an explicit bold topic e.g. "**vector databases**"
+  const boldMatch = firstLine.match(/\*\*([^*]{3,40})\*\*/);
+  if (boldMatch && boldMatch[1]) {
+    const boldClean = boldMatch[1].replace(/[:;]+/g, ' ').trim();
+    const titleCase = boldClean
+      .split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+    return {
+      cleanSubject: titleCase,
+      arSubject: `منظومة ${titleCase}`,
+    };
+  }
+
   const cleaned = stripMarkdown(firstLine)
+    .replace(
+      /^(?:this\s+(?:video|article|post|guide|talk|paper)?\s+(?:explains|covers|discusses|breaks\s+down|dives\s+into)\s+(?:the\s+role\s+and\s+architecture\s+of|the\s+architecture\s+of|the\s+internals\s+of|how\s+to\s+build|how)?\s*)/i,
+      ''
+    )
     .replace(/^(?:why\s+did|why\s+does|why\s+is|how\s+did|how\s+does|how\s+to|what\s+is|what\s+are|moving\s+beyond|understanding|demystifying|a\s+look\s+at)\s+/i, '')
     .replace(/[:;]+/g, ' ')
     .replace(/[.?!،؟…]+/g, '')

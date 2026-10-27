@@ -7,10 +7,25 @@ import { DiagramNode, DiagramVariant, SlideData } from '../../types';
  * and repairs any missing fields (nodes, edges, footer, code, metric) so no slide ever renders half-empty.
  */
 export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
-  const ALL_VARIANTS: DiagramVariant[] = ['topology', 'stack', 'isolation', 'takeaway'];
+  const ALL_VARIANTS: DiagramVariant[] = [
+    'scatter',
+    'graph',
+    'clusters',
+    'split',
+    'topology',
+    'features',
+    'stack',
+    'isolation',
+    'takeaway',
+  ];
   let lastMechanismVariant: DiagramVariant | null = null;
   const variantCounts: Record<DiagramVariant, number> = {
+    scatter: 0,
+    graph: 0,
+    clusters: 0,
+    split: 0,
     topology: 0,
+    features: 0,
     stack: 0,
     isolation: 0,
     takeaway: 0,
@@ -34,7 +49,9 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
       return {
         ...slide,
         type: 'cta',
-        ctaText: slide.ctaText || 'DM us  •  رسالة خاصة',
+        ctaText: slide.ctaText && !slide.ctaText.toLowerCase().includes('dm for')
+          ? slide.ctaText
+          : 'Join Discussion  •  شارك برأيك',
       };
     }
 
@@ -85,8 +102,30 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
     const slideText = `${slide.enTitle || ''} ${slide.enBody || ''} ${slide.arTitle || ''}`.toLowerCase();
 
     // Determine semantic affinity
-    let preferredVariant: DiagramVariant = 'topology';
-    if (
+    let preferredVariant: DiagramVariant = slide.diagramVariant || 'topology';
+    if (slide.diagramVariant && ALL_VARIANTS.includes(slide.diagramVariant)) {
+      preferredVariant = slide.diagramVariant;
+    } else if (
+      /vector|embedding|semantic|cosine|similarity|high-dimensional|query point/.test(slideText)
+    ) {
+      preferredVariant = 'scatter';
+    } else if (
+      /hnsw|skip[- ]?list|graph|hierarchy|layered|traversal|hops\b/.test(slideText)
+    ) {
+      preferredVariant = 'graph';
+    } else if (
+      /ivf|cluster|k-means|centroid|partition|inverted file|shortlist/.test(slideText)
+    ) {
+      preferredVariant = 'clusters';
+    } else if (
+      /write|hot|cold|buffer|lsm|compaction|consistency|store/.test(slideText)
+    ) {
+      preferredVariant = 'split';
+    } else if (
+      /filter|constraint|metadata|attribute|pre-filter/.test(slideText)
+    ) {
+      preferredVariant = 'features';
+    } else if (
       slideText.includes('blast radius') ||
       slideText.includes('microsegment') ||
       slideText.includes('isolation') ||
@@ -104,9 +143,7 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
       slideText.includes('layer') ||
       slideText.includes('pipeline') ||
       slideText.includes('server-side') ||
-      slideText.includes('engine') ||
       slideText.includes('tier') ||
-      slideText.includes('storage') ||
       slideText.includes('virtual mount')
     ) {
       preferredVariant = 'stack';
@@ -124,9 +161,9 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
     }
 
     // Anti-repetition: if preferred matches immediately previous mechanism slide,
-    // or if preferred has already been used more than others in this deck, cycle to least used candidate
+    // cycle to least used candidate
     let chosenVariant: DiagramVariant = preferredVariant;
-    if (chosenVariant === lastMechanismVariant || variantCounts[chosenVariant] > 0) {
+    if (chosenVariant === lastMechanismVariant || variantCounts[chosenVariant] > 1) {
       const candidates = ALL_VARIANTS.filter((v) => v !== lastMechanismVariant);
       candidates.sort((a, b) => variantCounts[a] - variantCounts[b]);
       if (candidates.length > 0) {
@@ -155,7 +192,42 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
     let fallbackEdge2 = 'Commit';
     let fallbackFooter = 'PIPELINE: ACTIVE • EXECUTION: DETERMINISTIC';
 
-    if (chosenVariant === 'isolation') {
+    if (chosenVariant === 'scatter') {
+      fallbackSub1 = 'Vector Array';
+      fallbackSub2 = 'High-Dim Space';
+      fallbackSub3 = 'Top-K Match';
+      fallbackEdge1 = 'ENCODE';
+      fallbackEdge2 = 'SIMILARITY';
+      fallbackFooter = 'METRIC: COSINE SIMILARITY • RECALL OPTIMIZED';
+    } else if (chosenVariant === 'graph') {
+      fallbackSub1 = 'Layer 2 Sparse';
+      fallbackSub2 = 'Fast Hops';
+      fallbackSub3 = 'Layer 0 Dense';
+      fallbackEdge1 = 'DESCENT';
+      fallbackEdge2 = 'CONVERGE';
+      fallbackFooter = 'GRAPH: HIERARCHICAL NAVIGABLE SMALL WORLD';
+    } else if (chosenVariant === 'clusters') {
+      fallbackSub1 = 'Centroid Partition';
+      fallbackSub2 = 'Target Centroid';
+      fallbackSub3 = 'Candidate List';
+      fallbackEdge1 = 'PARTITION';
+      fallbackEdge2 = 'SCAN';
+      fallbackFooter = 'INDEX: INVERTED FILE CLUSTERING • PRUNED SEARCH';
+    } else if (chosenVariant === 'split') {
+      fallbackSub1 = 'Mutable Buffer';
+      fallbackSub2 = 'Index Compactor';
+      fallbackSub3 = 'Immutable Core';
+      fallbackEdge1 = 'BUFFER';
+      fallbackEdge2 = 'FLUSH';
+      fallbackFooter = 'ARCHITECTURE: DUAL HOT/COLD STORE';
+    } else if (chosenVariant === 'features') {
+      fallbackSub1 = 'Attribute Check';
+      fallbackSub2 = 'Vector Scan';
+      fallbackSub3 = 'Merged Result';
+      fallbackEdge1 = 'FILTER';
+      fallbackEdge2 = 'MERGE';
+      fallbackFooter = 'CAPABILITIES: HARD CONSTRAINTS • HIGH PERFORMANCE';
+    } else if (chosenVariant === 'isolation') {
       fallbackSub1 = 'Untrusted Scope';
       fallbackSub2 = 'Boundary Guard';
       fallbackSub3 = 'Protected Core';

@@ -12,7 +12,12 @@ export async function drawNumberSlide(
   slideIndex: number = 0
 ): Promise<number> {
   const stepStr = slide.stepNumber || String(slideIndex + 1).padStart(2, '0');
-  const labelStr = slide.stepLabel || `STEP ${stepStr}`;
+  let labelStr = (slide.stepLabel || `STEP ${stepStr}`).trim();
+
+  // Strict counter synchronization: badge counter must always match the big numeral
+  if (/^STEP\s*\d+/i.test(labelStr)) {
+    labelStr = labelStr.replace(/^STEP\s*\d+/i, `STEP ${stepStr}`);
+  }
 
   // Micro step badge above big number
   ctx.save();
