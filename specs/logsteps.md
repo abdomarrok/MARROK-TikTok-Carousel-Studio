@@ -1135,4 +1135,52 @@ This document records the chronological development history, engineering decisio
   - `npm run build` (`vite build`): Built production bundle in 349ms.
   - Browser verification at 1440x900: side-by-side selection, precise bounding box framing, and bidirectional editor highlighting confirmed.
 
+---
+
+## Step 43: Non-Blocking QA Export Workflow & Image Upload Ingestion Header Fix
+- **Context & User Feedback:**
+  - User feedback: "THIS STEP OF STOPING MY ABILITY TO EXPORT IS ANNOYING IT SHOULD BE ONLY WARNING NOT STOP ME".
+  - In addition, uploading an image (e.g. mobile screenshot `specs/image.png`) caused the ingestion dock to synthesize a nonsensical header containing raw disk filenames (e.g., `image.png`) as slide titles.
+- **Engineering Solutions Implemented:**
+  1. **Non-Blocking QA Export Workflow (`ExportBar.tsx` & `AutonomousStudio.tsx`):**
+     - Converted strict export blockers (`canExport = false`) into advisory warnings with amber warning toasts.
+     - Creator attribution defaults to `MARROK` so publishing is never blocked by empty creator inputs.
+  2. **Image Ingestion Header Sanitization (`generateController.ts` & `synthesizer.ts`):**
+     - Stripped raw image filenames from becoming slide titles; guaranteed domain-relevant headlines are extracted or synthesized from image content.
+
+---
+
+## Step 44: Slide Layout Awareness Engine, Guaranteed Non-Overlapping Clearances & Anti-Collision Drag Clamping
+- **Context & Visual Glitch Analysis:**
+  - User reported: "can we have slide layout awarness where element shouldnt overlay each othr" with screenshot showing Slide 3 (ROW archetype: HNSW Graph/Topology) where English and Arabic headlines overlapped directly onto the bottom footer/border of the diagram card.
+  - **Root Cause:**
+    * Canvas `fillText` positions text on the alphabetic baseline. When `ctx.textBaseline = 'alphabetic'`, capital letters extend *above* the baseline by `fontSize * 0.82` (~60px).
+    * The static text offset ($730 + 34 = 764\text{px}$) placed the top of capital letters at $704\text{px}$—26px *inside* the $730\text{px}$ diagram card.
+    * Card scaling (`scale: 1.2`) or downward shifts (`dy > 0`) enlarged the card without notifying the text blocks below.
+- **Engineering Solutions Implemented:**
+  1. **Slide Layout Awareness Engine (`src/lib/canvas/layoutAwareness.ts`):**
+     - Computes the effective physical bottom of any visual card:
+       $$\text{effectiveBottom} = y_c + \frac{H_{\text{base}}}{2} \cdot \text{scale} + dy$$
+     - Compensates for font ascenders: sets $\text{firstBaselineY} = \text{actualTitleTop} + \text{fontSize} \cdot 0.82$, guaranteeing $\ge 44\text{px}$ positive clearance.
+     - Downward cascading clearances:
+       * `MIN_GAP_GRAPHIC_TO_TITLE = 44px`
+       * `MIN_GAP_TITLES = 18px`
+       * `MIN_GAP_TITLE_TO_BODY = 36px`
+       * `MIN_GAP_BODIES = 22px`
+     - Safety ceiling compression pass: shifts and compresses text if content approaches the $y = 1710\text{px}$ TikTok footer dots.
+  2. **Canvas Render Pipeline Integration (`src/lib/canvas/renderSlide.ts`):**
+     - Canvas rendering reads directly from `layout.titleBlock`, `layout.arabicTitleBlock`, `layout.bodyBlock`, and `layout.arabicBodyBlock`.
+  3. **1:1 Unified Viewport Bounds (`src/lib/canvas/layoutBounds.ts`):**
+     - Unified `computeSlideElementBounds` with `computeSlideLayoutAwareness`, eliminating bounding box drift.
+  4. **Anti-Collision Drag Clamping (`clampElementDrag`):**
+     - Enforces strict boundary checks during pointer dragging, keyboard arrow nudges, and inspector sliders.
+  5. **Unit Test Suite (`src/lib/canvas/layoutAwareness.test.ts`):**
+     - 6 automated regression tests verifying clearance across all archetypes, cascading vertical ordering, scaling overrides, and drag clamping.
+- **Verification:**
+  - `npm run lint` (`tsc --noEmit`): 0 TypeScript errors.
+  - `npm test` (`vitest run`): 15 test files, 74 unit tests passed.
+  - `npm run build` (`vite build`): Built production bundle in 349ms.
+  - Verified live in browser: positive clearance and zero text-diagram overlay visually confirmed.
+
+
 

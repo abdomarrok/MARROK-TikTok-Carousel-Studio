@@ -120,20 +120,27 @@ yGraphicEnd = await drawArchetype(ctx, slide, theme, options);
 ctx.restore();
 ```
 
-### 4.2 Text Blocks (`titleBlock`, `arabicTitleBlock`, `bodyBlock`, `arabicBodyBlock`)
-For text lines, vertical and horizontal offsets are applied to line draw coordinates with safe-ceiling clamping:
+### 4.3 Slide Layout Awareness Engine (`src/lib/canvas/layoutAwareness.ts`)
+To prevent visual elements from overlapping each other (such as headlines overlapping onto the bottom borders of visual archetype cards), `computeSlideLayoutAwareness()` establishes strict mathematical clearances:
 
-```typescript
-const titleOverride = slide.layoutOverrides?.titleBlock;
-const tDx = titleOverride?.dx || 0;
-const tDy = titleOverride?.dy || 0;
+1. **Effective Physical Card Bounds**:
+   Calculates the true rendered bottom of the visual card accounting for base height, scaling factor, and vertical offset:
+   $$\text{effectiveBottom} = y_c + \frac{H_{\text{base}}}{2} \cdot \text{scale} + dy$$
 
-for (const line of enTitleLines) {
-  if (currentY + tDy + enTitle.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-  ctx.fillText(line, SAFE_TEXT_CENTER_X + tDx, currentY + tDy);
-  currentY += enTitle.lineHeight;
-}
-```
+2. **Alphabetic Baseline Compensation**:
+   Since canvas `fillText` operates with `textBaseline = 'alphabetic'`, capital letters extend *above* the baseline by `fontSize * 0.82`. The starting baseline is placed at:
+   $$\text{firstBaselineY} = \text{actualTitleTop} + \text{fontSize} \cdot 0.82$$
+   where $\text{actualTitleTop} \ge \text{effectiveBottom} + \text{MIN\_GAP\_GRAPHIC\_TO\_TITLE}$ ($44\text{px}$).
+
+3. **Cascading Downward Clearance**:
+   Each subsequent block strictly flows below its preceding neighbor with guaranteed minimum safe gaps:
+   - `MIN_GAP_GRAPHIC_TO_TITLE = 44px`
+   - `MIN_GAP_TITLES = 18px`
+   - `MIN_GAP_TITLE_TO_BODY = 36px`
+   - `MIN_GAP_BODIES = 22px`
+
+4. **Footer Ceiling Compression Pass**:
+   If user overrides or long text push the lowest element past `SAFE_FOOTER_CEILING_Y = 1710px`, an automatic upward compression shift is applied to guarantee zero collision with TikTok pagination dots.
 
 ---
 
@@ -149,29 +156,24 @@ const rect = activeCanvasRef.current.getBoundingClientRect();
 const clickYRatio = (e.clientY - rect.top) / rect.height;
 ```
 
-### 5.2 Element Boundary Partitions
+### 5.2 Dynamic Bounding Box Alignment
+Bounding boxes and hit-testing in `layoutBounds.ts` directly invoke `computeSlideLayoutAwareness()`. This guarantees that the bounding outline rendered on the screen matches the rendered canvas pixels 1:1, completely eliminating position drift.
 
-| Element ID | Normalized Vertical Partition ($y / 1920$) | Logical Canvas Range |
-|---|---|---|
-| `headerBadge` | $y < 0.12$ | $y < 230$px |
-| `graphicCard` | $0.12 \le y < 0.42$ | $230 \le y < 806$px |
-| `titleBlock` | $0.42 \le y < 0.53$ | $806 \le y < 1017$px |
-| `arabicTitleBlock` | $0.53 \le y < 0.64$ | $1017 \le y < 1228$px |
-| `bodyBlock` | $0.64 \le y < 0.77$ | $1228 \le y < 1478$px |
-| `arabicBodyBlock` | $0.77 \le y < 0.90$ | $1478 \le y < 1728$px |
-| `ctaButton` *(CTA Slide)* | $0.45 \le y < 0.60$ | $864 \le y < 1152$px |
-
-### 5.3 Visual Feedback Overlay
-When an element is selected (either by clicking the canvas or selecting it in the inspector), `ViewportCanvas.tsx` renders a high-contrast theme-accented dashed bounding box with corner sizing pips and an identifying pill tag.
+### 5.3 Collision-Aware Drag Clamping (`clampElementDrag`)
+During viewport pointer drags, keyboard micro-nudges, and inspector slider adjustments, translation deltas are processed through `clampElementDrag(elementId, desiredDx, desiredDy, slide)`.
+- Prevents dragging `titleBlock` upward into `graphicCard`.
+- Prevents dragging `arabicTitleBlock` upward into `titleBlock`.
+- Prevents dragging `bodyBlock` upward into `arabicTitleBlock`.
+- Prevents dragging `arabicBodyBlock` downward past the $1710\text{px}$ TikTok footer ceiling.
 
 ---
 
 ## 6. Layer & Element Inspector Panel (`ElementInspector.tsx`)
 
 A dedicated collapsible inspector panel is mounted in the right column of `AutonomousStudio.tsx`:
-- **Graphical Block Selector**: Grid pills for each active layer with visual modification badges.
-- **Horizontal Offset ($dX$)**: Continuous slider (-200px to +200px) and discrete step buttons (-10, +10).
-- **Vertical Offset ($dY$)**: Continuous slider (-200px to +200px) and discrete step buttons (-10, +10).
+- **Graphical Block Selector**: Grid pills for each active layer with visual modification badges and `🛡️ Anti-Overlay` protection badge.
+- **Horizontal Offset ($dX$)**: Continuous slider (-200px to +200px) and discrete step buttons (-10, +10), clamped in real-time.
+- **Vertical Offset ($dY$)**: Continuous slider (-200px to +200px) and discrete step buttons (-10, +10), clamped in real-time.
 - **Scale Factor**: Continuous slider (0.50x to 1.50x) and fine step buttons (-0.05, +0.05).
 - **Reset Controls**: One-click reset for the selected element or all overrides on the current slide.
 - **Debounced Instant Rerender**: Real-time canvas preview with zero latency.
@@ -190,7 +192,7 @@ A dedicated collapsible inspector panel is mounted in the right column of `Auton
 
 ## 8. Implementation Status & Roadmap
 
-### 8.1 Completed Milestones (Phases 1, 2, & 3 Active)
+### 8.1 Completed Milestones (Phases 1, 2, 3, & 4 Active)
 1. **Direct Viewport Dragging (Phase 3)**:
    Pointer event listeners (`onPointerDown`, `onPointerMove`, `onPointerUp`) with `setPointerCapture` enabling direct drag-and-drop translation on the 1080×1920 canvas viewport with locked bounding box synchronization.
 2. **Precision HUD Badge & Keyboard Micro-Nudging**:
@@ -199,6 +201,8 @@ A dedicated collapsible inspector panel is mounted in the right column of `Auton
    "Apply to All Slides" action in `ElementInspector` for copying element offsets across all slides in the deck with a single click.
 4. **Direct Clipboard Screenshot Ingestion**:
    Global clipboard event listener (`Ctrl+V`) that extracts image data directly, compresses it client-side to 1280px, and auto-populates the ingestion dock.
+5. **Slide Layout Awareness & Anti-Collision Engine (Phase 4)**:
+   Mathematical positive-clearance engine (`computeSlideLayoutAwareness`, `clampElementDrag`) eliminating text-card overlaps and enforcing cascading downward spacing across all 8 archetypes.
 
 ### 8.2 Future Enhancements
 1. **Magnetic Alignment Guides**:

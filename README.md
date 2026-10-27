@@ -34,6 +34,14 @@ Creators provide a single input (topic prompt, engineering summary, architecture
 - **Auto Architecture Diagram Generation:** Detects technical mechanism slides and generates vertical 9:16 schematics automatically.
 - **Silent QA Verification:** Runs pre-publish quality checks (`qaChecks.ts`) and auto-corrects soft violations before display.
 
+### 🛡️ Slide Layout Awareness & Anti-Collision Engine (`src/lib/canvas/layoutAwareness.ts`)
+MARROK guarantees that slide elements never collide or overlay each other across all 8 slide archetypes:
+- **Zero-Overlap Clearance Guarantee:** Dynamically computes the effective physical bottom of any visual card (factoring in card height, scaling, and $dY$ translations), guaranteeing a minimum $44\text{px}$ positive clearance before the headline starts.
+- **Alphabetic Baseline Compensation:** Offsets canvas font baselines (`firstBaselineY = actualTitleTop + fontSize * 0.82`) so tall capital letters never overlap diagram borders.
+- **Cascading Vertical Flow:** Each subsequent block strictly flows below its preceding neighbor with guaranteed minimum safe gaps (`MIN_GAP_TITLES = 18px`, `MIN_GAP_TITLE_TO_BODY = 36px`, `MIN_GAP_BODIES = 22px`).
+- **Anti-Collision Drag Clamping (`clampElementDrag`):** Restricts viewport pointer dragging, keyboard arrow nudges, and inspector sliders so elements cannot be dragged onto neighboring blocks or outside safe zones.
+- **Footer Ceiling Compression Pass:** Automatically compresses and shifts text stacks if long copy or user offsets approach the TikTok pagination dots at $y = 1710\text{px}$.
+
 ### 🖼️ AI Architecture Diagram Studio (`gemini-nano-banana-2.1`)
 - **Native 9:16 Vertical Diagrams:** Powered by `POST /api/generate-image` utilizing `gemini-nano-banana-2.1` with `{ aspectRatio: '9:16', imageSize: '1K' }` to generate high-resolution vertical visuals that match TikTok feed geometry.
 - **Zero-Config 1-Click Theme Schematic:** Automatically derives the technical diagram prompt from the slide's `enTitle`, `diagramNodes`, and deck's exact hex colors (`theme.accent`, `theme.baseBg`, `theme.surface`), producing a matching dark OLED schematic with 1 click.
@@ -47,7 +55,7 @@ Creators provide a single input (topic prompt, engineering summary, architecture
 ### 🎛️ Minimalist Studio with Progressive Disclosure (`AutonomousStudio.tsx`)
 - **Unified Inline Smart Dock:** Auto-expanding command center supporting instant text prompts, multi-line notes, code files, web links, and YouTube transcripts without clumsy modal popups.
 - **Direct Clipboard Screenshot Ingestion (Ctrl+V):** Paste screenshots directly from the clipboard (`Win+Shift+S` or `Cmd+Shift+4` followed by `Ctrl+V`) with automated client-side 1280px compression.
-- **Direct Viewport Dragging & Precision Graphical Control:** Click and drag any slide layer directly on the 1080×1920 canvas viewport with live HUD coordinate delta feedback (`+125x, +61y`), keyboard arrow-key micro-nudging (2px / 10px with Shift), and one-click "Apply to All Slides" multi-slide layout stamping.
+- **Direct Viewport Dragging & Precision Graphical Control:** Click and drag any slide layer directly on the 1080×1920 canvas viewport with collision-clamped boundary awareness, live HUD coordinate delta feedback (`+125x, +61y`), keyboard arrow-key micro-nudging (2px / 10px with Shift), and one-click "Apply to All Slides" multi-slide layout stamping.
 - **Direct Inline Text Editing:** Click directly on English headlines, Arabic text, or body mechanism copy in the live preview to edit instantly without clumsy forms.
 - **Sleek Slide Management Bar:** Rapid Add (`+`), Duplicate, Delete (safely guarded $\ge 3$ slides), Reorder (Move Left / Right), and Slide 1 Hook Variant selector (Curiosity, Metric, Contrast).
 - **Expandable Advanced Customizer Drawer:** Power features are cleanly tucked into a collapsible side drawer:
@@ -81,7 +89,8 @@ Creators provide a single input (topic prompt, engineering summary, architecture
 - `README.txt` (Creator publishing guide with step-by-step mobile & Metricool instructions)
 
 ### 🛡️ Pre-Publish QA Gate & Visual Contact Sheet
-- **Automated QA Linter (`src/lib/qaChecks.ts`):** Checks headline character limits, body length, placeholder tokens (`Lorem ipsum`, `00%`), and Arabic punctuation jump bugs.
+- **Advisory QA Linter (`src/lib/qaChecks.ts`):** Evaluates headline character limits, body length, placeholder tokens (`Lorem ipsum`, `00%`), and Arabic punctuation jump bugs. Flags advisory warnings in the export drawer without blocking creator exports.
+- **Creator Attribution Default:** Attribution fields default gracefully to `MARROK` so publishing is never blocked by empty creator inputs.
 - **Contact Sheet Generator:** Renders all deck slides tiled in a high-resolution master grid for instant visual inspection before posting.
 
 ---
