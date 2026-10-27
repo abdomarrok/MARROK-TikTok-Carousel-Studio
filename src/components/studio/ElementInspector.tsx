@@ -12,8 +12,10 @@ import {
   Square,
   Sparkles,
   Copy,
+  ShieldCheck,
 } from 'lucide-react';
 import { GraphicalElementId, ElementLayoutOverride, SlideData, ThemePalette } from '../../types.ts';
+import { clampElementDrag } from '../../lib/canvas/layoutAwareness.ts';
 
 interface ElementInspectorProps {
   slide: SlideData;
@@ -68,9 +70,15 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   const scale = currentOverride.scale ?? 1;
 
   const handleUpdate = (updates: Partial<ElementLayoutOverride>) => {
+    const desiredDx = updates.dx !== undefined ? updates.dx : dx;
+    const desiredDy = updates.dy !== undefined ? updates.dy : dy;
+
+    // Apply Layout Awareness anti-collision clamping
+    const clamped = clampElementDrag(activeElementId, desiredDx, desiredDy, slide);
+
     const nextOverride: ElementLayoutOverride = {
-      dx: updates.dx !== undefined ? updates.dx : dx,
-      dy: updates.dy !== undefined ? updates.dy : dy,
+      dx: clamped.dx,
+      dy: clamped.dy,
       scale: updates.scale !== undefined ? updates.scale : scale,
     };
     onUpdateOverride(activeElementId, nextOverride);
@@ -99,6 +107,10 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
           <div>
             <div className="text-xs font-bold text-white flex items-center gap-2">
               <span>Direct Graphical Control</span>
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <ShieldCheck className="w-2.5 h-2.5" />
+                <span>Anti-Overlay</span>
+              </span>
               {hasAnyOverrides && (
                 <span
                   className="px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider"
@@ -123,6 +135,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
                 onResetOverrides();
               }}
               className="px-2 py-1 text-[11px] font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center gap-1"
+              title="Reset all layout offsets to clean golden-ratio defaults"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset Slide</span>

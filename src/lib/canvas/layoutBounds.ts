@@ -1,15 +1,12 @@
-import { CarouselData, GraphicalElementId, SlideData } from '../../types.ts';
+import type { CarouselData, GraphicalElementId, SlideData } from '../../types.ts';
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
-  SAFE_FOOTER_CEILING_Y,
   SAFE_TEXT_WIDTH_TITLE,
   SAFE_TEXT_WIDTH_BODY,
   SAFE_TEXT_CENTER_X,
-  SAFE_MARGIN_LEFT,
-  SAFE_CONTENT_WIDTH,
 } from './constants.ts';
-import { fitTextInBox } from './textLayout.ts';
+import { computeSlideLayoutAwareness } from './layoutAwareness.ts';
 
 export interface ElementBounds {
   id: GraphicalElementId;
@@ -24,35 +21,17 @@ export interface ElementBounds {
   heightPct: string;
 }
 
-// Cached measure canvas context
-let measureCtx: CanvasRenderingContext2D | null = null;
-let hasAttemptedContext = false;
-function getMeasureContext(): CanvasRenderingContext2D | null {
-  if (typeof document === 'undefined') return null;
-  if (!hasAttemptedContext) {
-    hasAttemptedContext = true;
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 100;
-      canvas.height = 100;
-      measureCtx = canvas.getContext('2d');
-    } catch (_) {
-      measureCtx = null;
-    }
-  }
-  return measureCtx;
-}
-
 /**
  * Computes exact 1080x1920 pixel coordinates and percentage bounds
- * for all interactive elements on a slide, matching renderSlide.ts layout calculations.
+ * for all interactive elements on a slide, powered by the non-overlapping
+ * Slide Layout Awareness Engine.
  */
 export function computeSlideElementBounds(
   slide: SlideData,
   carousel?: CarouselData
 ): Record<GraphicalElementId, ElementBounds> {
   const bounds: Partial<Record<GraphicalElementId, ElementBounds>> = {};
-  const ctx = getMeasureContext();
+  const layout = computeSlideLayoutAwareness(slide, carousel);
 
   const toPct = (val: number, total: number) => `${((val / total) * 100).toFixed(2)}%`;
 
@@ -76,117 +55,24 @@ export function computeSlideElementBounds(
     heightPct: toPct(height, CANVAS_HEIGHT),
   });
 
-  // 1. Header Badge (Header branding & category)
+  // 1. Header Badge
   bounds.headerBadge = makeBound(
     'headerBadge',
     'Top MARROK Header',
-    80,
-    100,
-    CANVAS_WIDTH - 160,
-    72
+    layout.headerBadge.x,
+    layout.headerBadge.y,
+    layout.headerBadge.width,
+    layout.headerBadge.height
   );
 
-  // 2. CTA Slide Layout
-  if (slide.type === 'cta') {
-    let curY = 685;
-    const rawEnTitle = (slide.enTitle || '').trim();
-    const rawArTitle = (slide.arTitle || '').trim();
-
-    let enH = 68;
-    if (ctx && rawEnTitle) {
-      const enFit = fitTextInBox(ctx, rawEnTitle, 850, 56, '"Plus Jakarta Sans", sans-serif', '800', {
-        maxLines: 2,
-        minFontSize: 36,
-        lineHeightFactor: 1.2,
-      });
-      enH = Math.max(56, enFit.lines.length * enFit.lineHeight);
-    }
-    bounds.titleBlock = makeBound(
-      'titleBlock',
-      'CTA Question Headline',
-      SAFE_TEXT_CENTER_X - 425,
-      curY - 10,
-      850,
-      enH + 16
-    );
-    curY += enH;
-
-    let arH = 60;
-    if (ctx && rawArTitle) {
-      const arFit = fitTextInBox(ctx, rawArTitle, 850, 52, '"Cairo", sans-serif', '800', {
-        maxLines: 2,
-        minFontSize: 34,
-        lineHeightFactor: 1.35,
-      });
-      arH = Math.max(50, arFit.lines.length * arFit.lineHeight);
-    }
-    bounds.arabicTitleBlock = makeBound(
-      'arabicTitleBlock',
-      'Arabic Question Subtitle',
-      SAFE_TEXT_CENTER_X - 425,
-      curY + 4,
-      850,
-      arH + 16
-    );
-    curY += arH + 8;
-
-    // CTA Pill Button
-    const pillW = 656;
-    const pillH = 104;
-    const cardH = 96;
-    const cardY = 1710 - cardH - 24; // 1590px
-    const urlY = cardY - 42; // 1548px
-    const availablePillGap = Math.max(80, urlY - curY - pillH);
-    const pillY = Math.min(Math.max(curY + availablePillGap * 0.42, 960), urlY - pillH - 40);
-
-    bounds.ctaButton = makeBound(
-      'ctaButton',
-      'CTA Pill Button',
-      SAFE_TEXT_CENTER_X - pillW / 2,
-      pillY,
-      pillW,
-      pillH
-    );
-
-    // Attribution Card
-    bounds.attributionCard = makeBound(
-      'attributionCard',
-      'Attribution & Creator Card',
-      SAFE_TEXT_CENTER_X - 780 / 2,
-      cardY,
-      780,
-      cardH
-    );
-
-    return bounds as Record<GraphicalElementId, ElementBounds>;
-  }
-
-  // 3. Graphic Card / Diagram Area
-  let yGraphicEnd = 730;
-  if (slide.type === 'hub') {
-    bounds.graphicCard = makeBound(
-      'graphicCard',
-      'Central Hub & Orbital Satellites',
-      SAFE_MARGIN_LEFT,
-      190,
-      SAFE_CONTENT_WIDTH,
-      790
-    );
-    yGraphicEnd = 980;
-  } else if (slide.type === 'number') {
-    bounds.graphicCard = makeBound(
-      'graphicCard',
-      'Big Number & Metric Badge',
-      SAFE_MARGIN_LEFT,
-      240,
-      SAFE_CONTENT_WIDTH,
-      430
-    );
-    yGraphicEnd = 670;
-  } else {
-    // row, code, compare, metric, image
+  // 2. Graphic Card
+  if (layout.graphicCard) {
     const cardLabel =
-      slide.type === 'code'
+      slide.type === 'hub'
+        ? 'Central Hub & Orbital Satellites'
+        : slide.type === 'number'
+        ? 'Big Number & Metric Badge'
+        : slide.type === 'code'
         ? 'Code Window Terminal'
         : slide.type === 'compare'
         ? 'Comparison Columns'
@@ -199,191 +85,78 @@ export function computeSlideElementBounds(
     bounds.graphicCard = makeBound(
       'graphicCard',
       cardLabel,
-      SAFE_MARGIN_LEFT,
-      240,
-      SAFE_CONTENT_WIDTH,
-      490
+      layout.graphicCard.x,
+      layout.graphicCard.y,
+      layout.graphicCard.width,
+      layout.graphicCard.height
     );
-    yGraphicEnd = 730;
   }
 
-  // 4. Content Slides Text Layout (identical to renderSlide.ts)
-  const rawEnTitle = (slide.enTitle || '').trim();
-  const rawArTitle = (slide.arTitle || '').trim();
-  const rawEnBody = (slide.enBody || '').trim();
-  const rawArBody = (slide.arBody || '').trim();
-
-  const availableHeight = SAFE_FOOTER_CEILING_Y - yGraphicEnd;
-
-  let textScale = availableHeight >= 940 ? 1.06 : 1.0;
-  let bodyCap = 4;
-
-  let enTitleLinesCount = rawEnTitle ? (rawEnTitle.length > 28 ? 2 : 1) : 0;
-  let arTitleLinesCount = rawArTitle ? (rawArTitle.length > 25 ? 2 : 1) : 0;
-  let enBodyLinesCount = rawEnBody ? Math.min(bodyCap, Math.ceil(rawEnBody.length / 42)) : 0;
-  let arBodyLinesCount = rawArBody ? Math.min(bodyCap, Math.ceil(rawArBody.length / 38)) : 0;
-
-  let enTitleLineHeight = 74 * textScale * 1.19;
-  let arTitleLineHeight = 70 * textScale * 1.457;
-  let enBodyLineHeight = 40 * textScale * 1.42;
-  let arBodyLineHeight = 40 * textScale * 1.526;
-
-  // Track font sizes for baseline-accurate bounding boxes
-  let enTitleFontSize = 74 * textScale;
-  let arTitleFontSize = 70 * textScale;
-  let enBodyFontSize = 40 * textScale;
-  let arBodyFontSize = 40 * textScale;
-
-  if (ctx) {
-    const buildLayout = (scale: number, cap: number) => {
-      const enTitle = fitTextInBox(ctx, rawEnTitle, SAFE_TEXT_WIDTH_TITLE, 74 * scale, '"Plus Jakarta Sans", sans-serif', '800', {
-        maxLines: 2,
-        minFontSize: 44,
-        lineHeightFactor: 1.19,
-      });
-      const arTitle = fitTextInBox(ctx, rawArTitle, SAFE_TEXT_WIDTH_TITLE, 70 * scale, '"Cairo", sans-serif', '800', {
-        maxLines: 2,
-        minFontSize: 42,
-        lineHeightFactor: 1.457,
-      });
-      const enBody = fitTextInBox(ctx, rawEnBody, SAFE_TEXT_WIDTH_BODY, 40 * scale, '"Plus Jakarta Sans", sans-serif', '400', {
-        maxLines: cap,
-        minFontSize: 26,
-        lineHeightFactor: 1.42,
-      });
-      const arBody = fitTextInBox(ctx, rawArBody, SAFE_TEXT_WIDTH_BODY, 40 * scale, '"Cairo", sans-serif', '400', {
-        maxLines: cap,
-        minFontSize: 26,
-        lineHeightFactor: 1.526,
-      });
-
-      const gapTitles = enTitle.lines.length > 0 && arTitle.lines.length > 0 ? 18 : 0;
-      const gapTitlesToBody =
-        (enTitle.lines.length > 0 || arTitle.lines.length > 0) &&
-        (enBody.lines.length > 0 || arBody.lines.length > 0)
-          ? 40
-          : 0;
-      const gapBodies = enBody.lines.length > 0 && arBody.lines.length > 0 ? 24 : 0;
-
-      const hTextTotal =
-        enTitle.lines.length * enTitle.lineHeight +
-        gapTitles +
-        arTitle.lines.length * arTitle.lineHeight +
-        gapTitlesToBody +
-        enBody.lines.length * enBody.lineHeight +
-        gapBodies +
-        arBody.lines.length * arBody.lineHeight;
-
-      return { enTitle, arTitle, enBody, arBody, gapTitles, gapTitlesToBody, gapBodies, hTextTotal };
-    };
-
-    let layout = buildLayout(textScale, bodyCap);
-    while (layout.hTextTotal > availableHeight - 24 && textScale > 0.65) {
-      textScale = Math.max(0.65, textScale - 0.05);
-      layout = buildLayout(textScale, bodyCap);
-    }
-    while (layout.hTextTotal > availableHeight - 20 && bodyCap > 2) {
-      bodyCap -= 1;
-      layout = buildLayout(textScale, bodyCap);
-    }
-
-    enTitleLinesCount = layout.enTitle.lines.length;
-    arTitleLinesCount = layout.arTitle.lines.length;
-    enBodyLinesCount = layout.enBody.lines.length;
-    arBodyLinesCount = layout.arBody.lines.length;
-
-    enTitleLineHeight = layout.enTitle.lineHeight;
-    arTitleLineHeight = layout.arTitle.lineHeight;
-    enBodyLineHeight = layout.enBody.lineHeight;
-    arBodyLineHeight = layout.arBody.lineHeight;
-
-    enTitleFontSize = layout.enTitle.fontSize;
-    arTitleFontSize = layout.arTitle.fontSize;
-    enBodyFontSize = layout.enBody.fontSize;
-    arBodyFontSize = layout.arBody.fontSize;
+  // 3. CTA Buttons / Attribution
+  if (layout.ctaButton) {
+    bounds.ctaButton = makeBound(
+      'ctaButton',
+      'CTA Pill Button',
+      layout.ctaButton.x,
+      layout.ctaButton.y,
+      layout.ctaButton.width,
+      layout.ctaButton.height
+    );
+  }
+  if (layout.attributionCard) {
+    bounds.attributionCard = makeBound(
+      'attributionCard',
+      'Attribution & Creator Card',
+      layout.attributionCard.x,
+      layout.attributionCard.y,
+      layout.attributionCard.width,
+      layout.attributionCard.height
+    );
   }
 
-  const gapTitles = enTitleLinesCount > 0 && arTitleLinesCount > 0 ? 18 : 0;
-  const gapTitlesToBody =
-    (enTitleLinesCount > 0 || arTitleLinesCount > 0) && (enBodyLinesCount > 0 || arBodyLinesCount > 0)
-      ? 40
-      : 0;
-  const gapBodies = enBodyLinesCount > 0 && arBodyLinesCount > 0 ? 24 : 0;
-
-  const hTextTotal =
-    enTitleLinesCount * enTitleLineHeight +
-    gapTitles +
-    arTitleLinesCount * arTitleLineHeight +
-    gapTitlesToBody +
-    enBodyLinesCount * enBodyLineHeight +
-    gapBodies +
-    arBodyLinesCount * arBodyLineHeight;
-
-  const remainingSpace = availableHeight - hTextTotal;
-  const topCushion = Math.min(Math.max(remainingSpace * 0.44, 34), 260);
-  let currentY = yGraphicEnd + topCushion;
-
-  // Title Block (Alphabetic baseline aware)
-  if (enTitleLinesCount > 0) {
-    const blockTop = currentY - enTitleFontSize * 0.82;
-    const blockH = (enTitleLinesCount - 1) * enTitleLineHeight + enTitleFontSize * 1.05;
+  // 4. Content Text Blocks
+  if (layout.titleBlock) {
     bounds.titleBlock = makeBound(
       'titleBlock',
       'English Headline',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2,
-      blockTop,
+      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2 + layout.titleBlock.dx,
+      layout.titleBlock.top,
       SAFE_TEXT_WIDTH_TITLE,
-      blockH
+      layout.titleBlock.height
     );
-    currentY += enTitleLinesCount * enTitleLineHeight;
   }
 
-  // Arabic Title Block
-  if (arTitleLinesCount > 0) {
-    currentY += gapTitles;
-    const blockTop = currentY - arTitleFontSize * 0.82;
-    const blockH = (arTitleLinesCount - 1) * arTitleLineHeight + arTitleFontSize * 1.08;
+  if (layout.arabicTitleBlock) {
     bounds.arabicTitleBlock = makeBound(
       'arabicTitleBlock',
       'Arabic Headline',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2,
-      blockTop,
+      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2 + layout.arabicTitleBlock.dx,
+      layout.arabicTitleBlock.top,
       SAFE_TEXT_WIDTH_TITLE,
-      blockH
+      layout.arabicTitleBlock.height
     );
-    currentY += arTitleLinesCount * arTitleLineHeight;
   }
 
-  // English Body Block
-  if (enBodyLinesCount > 0) {
-    currentY += gapTitlesToBody;
-    const blockTop = currentY - enBodyFontSize * 0.82;
-    const blockH = (enBodyLinesCount - 1) * enBodyLineHeight + enBodyFontSize * 1.05;
+  if (layout.bodyBlock) {
     bounds.bodyBlock = makeBound(
       'bodyBlock',
       'English Technical Details',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_BODY / 2,
-      blockTop,
+      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_BODY / 2 + layout.bodyBlock.dx,
+      layout.bodyBlock.top,
       SAFE_TEXT_WIDTH_BODY,
-      blockH
+      layout.bodyBlock.height
     );
-    currentY += enBodyLinesCount * enBodyLineHeight;
   }
 
-  // Arabic Body Block
-  if (arBodyLinesCount > 0) {
-    currentY += gapBodies;
-    const blockTop = currentY - arBodyFontSize * 0.82;
-    const blockH = (arBodyLinesCount - 1) * arBodyLineHeight + arBodyFontSize * 1.08;
+  if (layout.arabicBodyBlock) {
     bounds.arabicBodyBlock = makeBound(
       'arabicBodyBlock',
       'Arabic Technical Details',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_BODY / 2,
-      blockTop,
+      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_BODY / 2 + layout.arabicBodyBlock.dx,
+      layout.arabicBodyBlock.top,
       SAFE_TEXT_WIDTH_BODY,
-      blockH
+      layout.arabicBodyBlock.height
     );
-    currentY += arBodyLinesCount * arBodyLineHeight;
   }
 
   return bounds as Record<GraphicalElementId, ElementBounds>;
@@ -421,10 +194,16 @@ export function findSlideElementAtPoint(
     const dy = override?.dy ?? 0;
     const scale = override?.scale ?? 1;
 
-    const left = bound.x + dx - (bound.width * (scale - 1)) / 2 - pad;
-    const right = bound.x + dx + bound.width + (bound.width * (scale - 1)) / 2 + pad;
-    const top = bound.y + dy - (bound.height * (scale - 1)) / 2 - pad;
-    const bottom = bound.y + dy + bound.height + (bound.height * (scale - 1)) / 2 + pad;
+    // Note: bounds from computeSlideLayoutAwareness already incorporate dx and dy for text & cards!
+    // But if overrides are passed separately, ensure we do not double count
+    const hasAlreadyShifted = bound.x !== SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2 && bound.id.includes('Block');
+    const effDx = hasAlreadyShifted ? 0 : dx;
+    const effDy = hasAlreadyShifted ? 0 : dy;
+
+    const left = bound.x + effDx - (bound.width * (scale - 1)) / 2 - pad;
+    const right = bound.x + effDx + bound.width + (bound.width * (scale - 1)) / 2 + pad;
+    const top = bound.y + effDy - (bound.height * (scale - 1)) / 2 - pad;
+    const bottom = bound.y + effDy + bound.height + (bound.height * (scale - 1)) / 2 + pad;
 
     if (canvasX >= left && canvasX <= right && canvasY >= top && canvasY <= bottom) {
       return id;

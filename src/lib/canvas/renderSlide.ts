@@ -11,6 +11,7 @@ import {
   SAFE_FOOTER_CEILING_Y,
 } from './constants.ts';
 import { fitTextInBox } from './textLayout.ts';
+import { computeSlideLayoutAwareness } from './layoutAwareness.ts';
 import {
   drawBaseBackground,
   drawRadialGlow,
@@ -136,173 +137,88 @@ export async function renderSlideToCanvas(
   }
   ctx.restore();
 
-  // 6. Text Zone Rendering (for hub, row, metric, code, and compare slides)
-  // Strict Safe-Zone Rule: Center at x = 518 with maxWidth 850 (titles) and 820 (body)
-  // to enforce right safe margin >= 135px (x <= 945) clearing TikTok native right-side action buttons.
-  // Rendering is a pure read-only projection: NO regex re-sanitization passes in the draw loop!
+  // 6. Non-Overlapping Layout-Aware Text Rendering (for hub, row, metric, code, and compare slides)
   if (slide.type !== 'cta') {
-    const rawEnTitle = (slide.enTitle || '').trim();
-    const rawArTitle = (slide.arTitle || '').trim();
-    const rawEnBody = (slide.enBody || '').trim();
-    const rawArBody = (slide.arBody || '').trim();
-
-    // Real font scaling + line caps (never line-height squashing).
-    const availableHeight = SAFE_FOOTER_CEILING_Y - yGraphicEnd;
-
-    const buildTextLayout = (scale: number, bodyLinesCap: number = 4) => {
-      const enTitle = fitTextInBox(ctx, rawEnTitle, SAFE_TEXT_WIDTH_TITLE, 74 * scale, '"Plus Jakarta Sans", sans-serif', '800', {
-        maxLines: 2,
-        minFontSize: 44,
-        lineHeightFactor: 1.19,
-      });
-      const arTitle = fitTextInBox(ctx, rawArTitle, SAFE_TEXT_WIDTH_TITLE, 70 * scale, '"Cairo", sans-serif', '800', {
-        maxLines: 2,
-        minFontSize: 42,
-        lineHeightFactor: 1.457,
-      });
-      // Spec: Mobile typography minimum 26px floor for phone readability
-      const enBody = fitTextInBox(ctx, rawEnBody, SAFE_TEXT_WIDTH_BODY, 40 * scale, '"Plus Jakarta Sans", sans-serif', '400', {
-        maxLines: bodyLinesCap,
-        minFontSize: 26,
-        lineHeightFactor: 1.42,
-      });
-      const arBody = fitTextInBox(ctx, rawArBody, SAFE_TEXT_WIDTH_BODY, 40 * scale, '"Cairo", sans-serif', '400', {
-        maxLines: bodyLinesCap,
-        minFontSize: 26,
-        lineHeightFactor: 1.526,
-      });
-
-      const gapTitles = (enTitle.lines.length > 0 && arTitle.lines.length > 0) ? 18 : 0;
-      const gapTitlesToBody = ((enTitle.lines.length > 0 || arTitle.lines.length > 0) && (enBody.lines.length > 0 || arBody.lines.length > 0)) ? 40 : 0;
-      const gapBodies = (enBody.lines.length > 0 && arBody.lines.length > 0) ? 24 : 0;
-
-      const hTextTotal =
-        (enTitle.lines.length * enTitle.lineHeight) +
-        gapTitles +
-        (arTitle.lines.length * arTitle.lineHeight) +
-        gapTitlesToBody +
-        (enBody.lines.length * enBody.lineHeight) +
-        gapBodies +
-        (arBody.lines.length * arBody.lineHeight);
-
-      return { enTitle, arTitle, enBody, arBody, gapTitles, gapTitlesToBody, gapBodies, hTextTotal };
-    };
-
-    let textScale = availableHeight >= 940 ? 1.06 : 1.0;
-    let bodyCap = 4;
-    let layout = buildTextLayout(textScale, bodyCap);
-
-    // Phase A: Scale down font size smoothly if text overflows
-    while (layout.hTextTotal > availableHeight - 24 && textScale > 0.65) {
-      textScale = Math.max(0.65, textScale - 0.05);
-      layout = buildTextLayout(textScale, bodyCap);
-    }
-
-    // Phase B: If still overflows tight graphic, progressively cap body lines
-    while (layout.hTextTotal > availableHeight - 20 && bodyCap > 2) {
-      bodyCap -= 1;
-      layout = buildTextLayout(textScale, bodyCap);
-    }
-
-    const { enTitle, arTitle, enBody, arBody, gapTitles, gapTitlesToBody, gapBodies } = layout;
-    const enTitleLines = enTitle.lines;
-    const arTitleLines = arTitle.lines;
-    const enBodyLines = enBody.lines;
-    const arBodyLines = arBody.lines;
-    const hTextTotal = layout.hTextTotal;
-
-    // 6b. Dynamic Vertical Optical Centering:
-    // Upper bound: yGraphicEnd
-    // Lower ceiling: 1710px (clearing the footer pagination dots at y=1826 with 116px padding)
-    // Eliminates empty bottom third by scaling cushion with generous ceiling up to 260px
-    const remainingSpace = availableHeight - hTextTotal;
-    const topCushion = Math.min(Math.max(remainingSpace * 0.44, 34), 260);
-    let currentY = yGraphicEnd + topCushion;
+    const layout = computeSlideLayoutAwareness(slide, carousel);
+    const graphicBottom = layout.graphicCard ? layout.graphicCard.effectiveBottom : yGraphicEnd;
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(
       SAFE_MARGIN_LEFT,
-      yGraphicEnd,
+      graphicBottom,
       SAFE_MARGIN_RIGHT - SAFE_MARGIN_LEFT,
-      Math.max(0, SAFE_FOOTER_CEILING_Y - yGraphicEnd)
+      Math.max(0, SAFE_FOOTER_CEILING_Y - graphicBottom)
     );
     ctx.clip();
 
-    // 6c. Render English Headline
-    if (enTitleLines.length > 0) {
-      const titleOverride = slide.layoutOverrides?.titleBlock;
-      const tDx = titleOverride?.dx || 0;
-      const tDy = titleOverride?.dy || 0;
+    // 6c. Render English Headline (Layout Aware, zero overlap with graphic card)
+    if (layout.titleBlock && layout.titleBlock.lines.length > 0) {
+      const tb = layout.titleBlock;
       ctx.save();
-      ctx.font = `800 ${enTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
+      ctx.font = `800 ${tb.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textWhite;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      for (const line of enTitleLines) {
-        if (currentY + tDy + enTitle.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + tDx, currentY + tDy);
-        currentY += enTitle.lineHeight;
+      let lineY = tb.firstBaselineY;
+      for (const line of tb.lines) {
+        if (lineY + tb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + tb.dx, lineY);
+        lineY += tb.lineHeight;
       }
       ctx.restore();
     }
 
-    // 6d. Render Arabic Headline with generous line-height
-    if (arTitleLines.length > 0) {
-      currentY += gapTitles;
-      const arTitleOverride = slide.layoutOverrides?.arabicTitleBlock;
-      const arTDx = arTitleOverride?.dx || 0;
-      const arTDy = arTitleOverride?.dy || 0;
+    // 6d. Render Arabic Headline (Strictly flows below English headline)
+    if (layout.arabicTitleBlock && layout.arabicTitleBlock.lines.length > 0) {
+      const atb = layout.arabicTitleBlock;
       ctx.save();
-      ctx.font = `800 ${arTitle.fontSize}px "Cairo", sans-serif`;
+      ctx.font = `800 ${atb.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.accent;
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
-      for (const line of arTitleLines) {
-        if (currentY + arTDy + arTitle.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + arTDx, currentY + arTDy);
-        currentY += arTitle.lineHeight;
+      let lineY = atb.firstBaselineY;
+      for (const line of atb.lines) {
+        if (lineY + atb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + atb.dx, lineY);
+        lineY += atb.lineHeight;
       }
       ctx.restore();
     }
 
-    // 6e. Render English Body Copy
-    if (enBodyLines.length > 0) {
-      currentY += gapTitlesToBody;
-      const bodyOverride = slide.layoutOverrides?.bodyBlock;
-      const bDx = bodyOverride?.dx || 0;
-      const bDy = bodyOverride?.dy || 0;
+    // 6e. Render English Body Copy (Strictly flows below headlines)
+    if (layout.bodyBlock && layout.bodyBlock.lines.length > 0) {
+      const bb = layout.bodyBlock;
       ctx.save();
-      ctx.font = `400 ${enBody.fontSize}px "Plus Jakarta Sans", sans-serif`;
+      ctx.font = `400 ${bb.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textEnBody;
       ctx.textAlign = 'center';
       ctx.direction = 'ltr';
       ctx.textBaseline = 'alphabetic';
-      for (const line of enBodyLines) {
-        if (currentY + bDy + enBody.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + bDx, currentY + bDy);
-        currentY += enBody.lineHeight;
+      let lineY = bb.firstBaselineY;
+      for (const line of bb.lines) {
+        if (lineY + bb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + bb.dx, lineY);
+        lineY += bb.lineHeight;
       }
       ctx.restore();
     }
 
-    // 6f. Render Arabic Body Copy with generous line-height and strict right margin safe-zone
-    if (arBodyLines.length > 0) {
-      currentY += gapBodies;
-      const arBodyOverride = slide.layoutOverrides?.arabicBodyBlock;
-      const arBDx = arBodyOverride?.dx || 0;
-      const arBDy = arBodyOverride?.dy || 0;
+    // 6f. Render Arabic Body Copy (Strictly flows below English body with RTL alignment)
+    if (layout.arabicBodyBlock && layout.arabicBodyBlock.lines.length > 0) {
+      const abb = layout.arabicBodyBlock;
       ctx.save();
-      ctx.font = `400 ${arBody.fontSize}px "Cairo", sans-serif`;
+      ctx.font = `400 ${abb.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.textArBody;
       ctx.textAlign = 'center';
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
-      for (const line of arBodyLines) {
-        if (currentY + arBDy + arBody.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + arBDx, currentY + arBDy);
-        currentY += arBody.lineHeight;
+      let lineY = abb.firstBaselineY;
+      for (const line of abb.lines) {
+        if (lineY + abb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
+        ctx.fillText(line, SAFE_TEXT_CENTER_X + abb.dx, lineY);
+        lineY += abb.lineHeight;
       }
       ctx.restore();
     }

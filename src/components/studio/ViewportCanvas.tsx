@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Move, RotateCcw, X } from 'lucide-react';
 import { CarouselData, GraphicalElementId, ElementLayoutOverride, ThemePalette } from '../../types.ts';
 import { renderSlideToCanvas } from '../../lib/canvasExporter.ts';
 import { computeSlideElementBounds, findSlideElementAtPoint, ElementBounds } from '../../lib/canvas/layoutBounds.ts';
+import { clampElementDrag } from '../../lib/canvas/layoutAwareness.ts';
 
 interface ViewportCanvasProps {
   carousel: CarouselData;
@@ -59,9 +60,14 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   const hoveredBounds = hoveredElementId && hoveredElementId !== selectedElementId ? boundsMap[hoveredElementId] : null;
 
   const handleNudge = (deltaX: number, deltaY: number) => {
-    if (!selectedElementId || !onUpdateLayoutOverride) return;
-    const nextDx = Math.max(-450, Math.min(450, currentDx + deltaX));
-    const nextDy = Math.max(-800, Math.min(800, currentDy + deltaY));
+    if (!selectedElementId || !onUpdateLayoutOverride || !currentSlide) return;
+    const { dx: nextDx, dy: nextDy } = clampElementDrag(
+      selectedElementId,
+      currentDx + deltaX,
+      currentDy + deltaY,
+      currentSlide,
+      carousel
+    );
     onUpdateLayoutOverride(selectedElementId, {
       ...(currentOverride || {}),
       dx: nextDx,
@@ -158,7 +164,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !dragStartRef.current || !selectedElementId || !onUpdateLayoutOverride) return;
+    if (!isDragging || !dragStartRef.current || !selectedElementId || !onUpdateLayoutOverride || !currentSlide) return;
     e.stopPropagation();
     const rect = activeCanvasRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0 || rect.height === 0) return;
@@ -169,8 +175,13 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     const deltaX = Math.round((e.clientX - dragStartRef.current.x) * scaleX);
     const deltaY = Math.round((e.clientY - dragStartRef.current.y) * scaleY);
 
-    const newDx = Math.max(-450, Math.min(450, initialOffsetRef.current.dx + deltaX));
-    const newDy = Math.max(-800, Math.min(800, initialOffsetRef.current.dy + deltaY));
+    const { dx: newDx, dy: newDy } = clampElementDrag(
+      selectedElementId,
+      initialOffsetRef.current.dx + deltaX,
+      initialOffsetRef.current.dy + deltaY,
+      currentSlide,
+      carousel
+    );
 
     onUpdateLayoutOverride(selectedElementId, {
       ...(currentOverride || {}),
@@ -196,38 +207,39 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       return;
     }
 
-    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    if (!selectedElementId || !onUpdateLayoutOverride || !currentSlide) return;
     const step = e.shiftKey ? 10 : 2;
     let nextDx = currentDx;
     let nextDy = currentDy;
     let handled = false;
 
     if (e.key === 'ArrowLeft') {
-      nextDx = Math.max(-450, currentDx - step);
+      nextDx = currentDx - step;
       handled = true;
     } else if (e.key === 'ArrowRight') {
-      nextDx = Math.min(450, currentDx + step);
+      nextDx = currentDx + step;
       handled = true;
     } else if (e.key === 'ArrowUp') {
-      nextDy = Math.max(-800, currentDy - step);
+      nextDy = currentDy - step;
       handled = true;
     } else if (e.key === 'ArrowDown') {
-      nextDy = Math.min(800, currentDy + step);
+      nextDy = currentDy + step;
       handled = true;
     }
 
     if (handled) {
       e.preventDefault();
+      const clamped = clampElementDrag(selectedElementId, nextDx, nextDy, currentSlide, carousel);
       onUpdateLayoutOverride(selectedElementId, {
         ...(currentOverride || {}),
-        dx: nextDx,
-        dy: nextDy,
+        dx: clamped.dx,
+        dy: clamped.dy,
       });
     }
   };
 
   // Check if HUD pill should render inside box or above
-  const isPillInside = activeBounds && (activeBounds.y + currentDy < 140 || selectedElementId === 'headerBadge');
+  const isPillInside = activeBounds && (activeBounds.y < 140 || selectedElementId === 'headerBadge');
 
   return (
     <div
@@ -249,8 +261,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
         <div
           className="absolute pointer-events-none rounded-lg border border-dashed border-white/40 bg-white/[0.03] transition-all duration-75"
           style={{
-            top: `calc(${hoveredBounds.topPct} + ${((currentSlide?.layoutOverrides?.[hoveredBounds.id]?.dy ?? 0) / 1920) * 100}%)`,
-            left: `calc(${hoveredBounds.leftPct} + ${((currentSlide?.layoutOverrides?.[hoveredBounds.id]?.dx ?? 0) / 1080) * 100}%)`,
+            top: hoveredBounds.topPct,
+            left: hoveredBounds.leftPct,
             width: hoveredBounds.widthPct,
             height: hoveredBounds.heightPct,
           }}
@@ -274,8 +286,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
               : 'cursor-grab border-2 border-solid shadow-[0_0_16px_rgba(0,0,0,0.5)]'
           } rounded-lg`}
           style={{
-            top: `calc(${activeBounds.topPct} + ${(currentDy / 1920) * 100}%)`,
-            left: `calc(${activeBounds.leftPct} + ${(currentDx / 1080) * 100}%)`,
+            top: activeBounds.topPct,
+            left: activeBounds.leftPct,
             width: activeBounds.widthPct,
             height: activeBounds.heightPct,
             borderColor: theme.accent,
