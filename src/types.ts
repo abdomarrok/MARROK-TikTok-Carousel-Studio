@@ -143,8 +143,11 @@ export interface PostSourceMeta {
   userReviewed?: boolean;
 }
 
+export type PostFormat = 'carousel' | 'single';
+
 export interface CarouselData {
   id?: string;
+  postFormat?: PostFormat;
   theme: string;
   category: string;
   brand?: string;    // Brand wordmark / watermark (defaults to 'MARROK' or creator handle)

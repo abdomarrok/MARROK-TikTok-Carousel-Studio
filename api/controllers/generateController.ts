@@ -196,7 +196,9 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
   const uniqueParts = Array.from(new Set(rawPromptParts));
   const combinedPrompt = uniqueParts.join('\n\n');
 
-  const { inputMode, imageBase64, imageMimeType, categoryHint, imageName } = req.body || {};
+  const { inputMode, imageBase64, imageMimeType, categoryHint, imageName, postFormat: rawFormat } = req.body || {};
+  const postFormat: 'carousel' | 'single' = rawFormat === 'single' ? 'single' : 'carousel';
+  const minSlidesRequired = postFormat === 'single' ? 1 : 3;
   const customKey =
     (req.headers['x-gemini-key'] as string) ||
     (req.headers['x-gemini-api-key'] as string) ||
@@ -262,6 +264,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
       safeInputMode,
       hasImage,
       imageName: safeImageName,
+      postFormat,
     });
     parts.push({ text: userPromptText });
 
@@ -320,7 +323,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
           if (rawText) {
             const cleanText = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
             const parsed = parseCarouselData(JSON.parse(cleanText), {
-              minSlides: 3,
+              minSlides: minSlidesRequired,
               requireSlideContent: true,
             });
 
@@ -401,7 +404,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
           if (directText) {
             const cleanText = directText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
             const parsed = parseCarouselData(JSON.parse(cleanText), {
-              minSlides: 3,
+              minSlides: minSlidesRequired,
               requireSlideContent: true,
             });
             if (parsed) {
@@ -426,6 +429,18 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     if (jsonResult) {
       const engineType = wasGroundedWithSources ? 'grounded' : 'ungrounded';
       jsonResult.brand = 'MARROK';
+      jsonResult.postFormat = postFormat;
+      if (postFormat === 'single' && jsonResult.slides.length > 1) {
+        const firstSlide = jsonResult.slides[0];
+        const lastSlide = jsonResult.slides[jsonResult.slides.length - 1];
+        jsonResult.slides = [
+          {
+            ...firstSlide,
+            enCredit: firstSlide.enCredit || lastSlide?.enCredit || `Source: ${jsonResult.sourceMeta?.creator || 'MARROK'}`,
+            arCredit: firstSlide.arCredit || lastSlide?.arCredit || `المصدر: ${jsonResult.sourceMeta?.creator || 'MARROK'}`,
+          },
+        ];
+      }
       jsonResult.sourceMeta = {
         ...jsonResult.sourceMeta,
         isFallback: false,
@@ -450,9 +465,11 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
       categoryHint: safeCategoryHint,
       inputMode: safeInputMode,
       imageFileName: safeImageName,
+      postFormat,
     });
 
     synthesizedData.brand = 'MARROK';
+    synthesizedData.postFormat = postFormat;
     synthesizedData.sourceMeta = {
       ...synthesizedData.sourceMeta,
       isFallback: true,
@@ -474,8 +491,10 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
       categoryHint: safeCategoryHint,
       inputMode: safeInputMode,
       imageFileName: safeImageName,
+      postFormat,
     });
     fallbackData.brand = 'MARROK';
+    fallbackData.postFormat = postFormat;
     fallbackData.sourceMeta = {
       ...fallbackData.sourceMeta,
       isFallback: true,

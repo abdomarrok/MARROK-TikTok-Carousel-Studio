@@ -226,8 +226,8 @@ export async function renderSlideToCanvas(
     ctx.restore();
   }
 
-  // 7. Pagination Footer (Present on EVERY slide at y = 1826, centered at x = 518)
-  drawPaginationFooter(ctx, slideIndex, totalSlides, theme);
+  // 7. Pagination Footer (Dots on multi-slide carousels; standalone attribution bar on single-slide posts)
+  drawPaginationFooter(ctx, slideIndex, totalSlides, theme, carousel, slide);
 
   return canvas;
 }

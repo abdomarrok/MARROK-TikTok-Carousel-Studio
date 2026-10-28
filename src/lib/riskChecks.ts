@@ -56,6 +56,8 @@ function checkOriginality(carousel: CarouselData, rawInput: string = ''): RiskCh
   const hasCreatorCredit = Boolean(
     (carousel.channel && carousel.channel.trim().length > 0) ||
       (carousel.brand && carousel.brand.trim().length > 0) ||
+      (carousel.sourceMeta?.creator && carousel.sourceMeta.creator.trim().length > 0) ||
+      (carousel.sourceMeta?.channel && carousel.sourceMeta.channel.trim().length > 0) ||
       (ctaSlide?.enCredit && ctaSlide.enCredit.trim().length > 0)
   );
 
@@ -64,7 +66,10 @@ function checkOriginality(carousel: CarouselData, rawInput: string = ''): RiskCh
       id: 'originality',
       label: 'Originality & Attribution',
       status: 'BLOCK',
-      message: 'Missing creator or channel attribution on the CTA slide. Add a creator/channel credit before exporting.',
+      message:
+        carousel.postFormat === 'single' || carousel.slides.length === 1
+          ? 'Missing creator or channel attribution on the post. Add a creator/channel credit before exporting.'
+          : 'Missing creator or channel attribution on the CTA slide. Add a creator/channel credit before exporting.',
     };
   }
 

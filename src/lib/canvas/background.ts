@@ -197,21 +197,51 @@ export function drawHeader(
 }
 
 /**
- * 7. Pagination Footer (Present on EVERY slide at y = 1826, centered at x = 518)
+ * 7. Pagination Footer (Multi-slide dots at y = 1826, or Standalone Attribution Footer when totalSlides === 1)
  */
 export function drawPaginationFooter(
   ctx: CanvasRenderingContext2D,
   slideIndex: number,
   totalSlides: number,
-  theme: ThemePalette
+  theme: ThemePalette,
+  carousel?: CarouselData,
+  slide?: CarouselData['slides'][number]
 ) {
+  const dotY = PAGINATION_DOT_Y;
+
+  if (totalSlides <= 1) {
+    ctx.save();
+    const rawDomain = (carousel?.brandUrl || 'marrok.org').replace(/^https?:\/\//i, '').trim() || 'marrok.org';
+    const rawCredit = (
+      slide?.enCredit ||
+      carousel?.channel ||
+      carousel?.sourceMeta?.creator ||
+      carousel?.sourceMeta?.channel ||
+      carousel?.brand ||
+      'MARROK'
+    )
+      .replace(/^Source:\s*/i, '')
+      .trim();
+
+    const footerText = rawCredit && rawCredit.toUpperCase() !== rawDomain.toUpperCase()
+      ? `${rawDomain}  ·  ${rawCredit}`
+      : rawDomain;
+
+    ctx.font = '600 26px "JetBrains Mono", "Plus Jakarta Sans", monospace';
+    ctx.fillStyle = theme.textMuted || 'rgba(255, 255, 255, 0.58)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(footerText.slice(0, 64), SAFE_TEXT_CENTER_X, dotY);
+    ctx.restore();
+    return;
+  }
+
   const dotRadius = 8;
   const dotDiameter = 16;
   const dotGap = 16;
   const step = dotDiameter + dotGap;
   const totalDotsWidth = totalSlides * dotDiameter + (totalSlides - 1) * dotGap;
   const startDotX = SAFE_TEXT_CENTER_X - totalDotsWidth / 2 + dotRadius;
-  const dotY = PAGINATION_DOT_Y;
 
   ctx.save();
   for (let i = 0; i < totalSlides; i++) {

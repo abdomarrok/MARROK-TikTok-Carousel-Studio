@@ -14,9 +14,15 @@ import { parseCarouselData } from '../../src/lib/validation/carousel.ts';
 import { sanitizeFullCarousel } from '../../src/lib/textSanitizer.ts';
 import { runQAChecks } from '../../src/lib/qaChecks.ts';
 import { runPlatformRiskChecks } from '../../src/lib/riskChecks.ts';
+import bundledSavedPostsJson from '../../data/saved-posts.json';
 
 const KV_STORAGE_KEY = 'marrok:saved_posts:v1';
 const MAX_SAVED_POSTS = 100;
+
+export function getBundledSeedPosts(): SavedPostRecord[] {
+  if (!Array.isArray(bundledSavedPostsJson)) return [];
+  return bundledSavedPostsJson as unknown as SavedPostRecord[];
+}
 
 /**
  * Resolves a writable file path for file-based storage.
@@ -111,6 +117,27 @@ async function readFromFileStore(env: NodeJS.ProcessEnv = process.env): Promise<
         // Ignore if file does not exist yet
       }
     }
+
+    // On Vercel cold start (/tmp empty) when no custom test file override is set,
+    // hydrate initial posts from the repository's data/saved-posts.json bundle.
+    if (!env.POSTS_STORAGE_FILE) {
+      const repoSeedPath = path.join(process.cwd(), 'data', 'saved-posts.json');
+      if (repoSeedPath !== filePath) {
+        try {
+          const rawSeed = await fs.readFile(repoSeedPath, 'utf-8');
+          const parsedSeed = JSON.parse(rawSeed);
+          if (Array.isArray(parsedSeed) && parsedSeed.length > 0) {
+            return { posts: parsedSeed, engine };
+          }
+        } catch {
+          // Fall through to statically bundled JSON import
+        }
+      }
+      const bundled = getBundledSeedPosts();
+      if (bundled.length > 0) {
+        return { posts: bundled, engine };
+      }
+    }
   }
   return { posts: [], engine };
 }
@@ -142,8 +169,9 @@ export async function loadStoredPosts(env: NodeJS.ProcessEnv = process.env): Pro
   if (config.kvRestUrl && config.kvRestToken) {
     const kvPosts = await readFromKv(config.kvRestUrl, config.kvRestToken);
     if (kvPosts !== null) {
+      const seeded = kvPosts.length > 0 ? kvPosts : getBundledSeedPosts();
       return {
-        posts: kvPosts,
+        posts: seeded,
         storageEngine: 'cloud-kv',
         isCloudPersistent: true,
       };
@@ -227,11 +255,17 @@ export function validateAndBuildPostRecord(
   if (!parsedDeck) {
     return {
       ok: false,
-      error: 'Invalid carousel payload. A valid post requires at least 3 slides with content.',
+      error: 'Invalid carousel payload. A valid post requires at least 3 slides with content (or 1 slide in Single-Slide mode).',
     };
   }
 
   const sanitizedDeck: CarouselData = sanitizeFullCarousel(parsedDeck);
+  // Saving a post as Validated or Posted explicitly confirms human review
+  sanitizedDeck.sourceMeta = {
+    ...sanitizedDeck.sourceMeta,
+    userReviewed: true,
+  };
+
   const qaReport = runQAChecks(sanitizedDeck);
   const riskReport = runPlatformRiskChecks(sanitizedDeck);
 
@@ -268,12 +302,8 @@ export function validateAndBuildPostRecord(
       'MARROK'
     ).trim() || 'MARROK';
 
-  // Ensure the deck itself carries its ID and userReviewed=true
+  // Ensure the deck itself carries its ID
   sanitizedDeck.id = postId;
-  sanitizedDeck.sourceMeta = {
-    ...sanitizedDeck.sourceMeta,
-    userReviewed: true,
-  };
 
   const derivedTitle =
     (typeof input.title === 'string' && input.title.trim()) ||

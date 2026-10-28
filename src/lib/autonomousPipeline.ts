@@ -25,6 +25,7 @@ export interface AutonomousPipelineOptions {
   imageMimeType?: string;
   imageName?: string;
   categoryHint?: string;
+  postFormat?: 'carousel' | 'single';
   signal?: AbortSignal;
 }
 
@@ -71,7 +72,10 @@ export function enrichAndPaceCarousel(
     cleanCarousel.category || '',
     cleanCarousel.brand || 'MARROK'
   );
-  const balancedSlides = balanceCarouselVisualPacing(enrichedSlides);
+  const balancedSlides =
+    cleanCarousel.postFormat === 'single' || enrichedSlides.length <= 1
+      ? enrichedSlides
+      : balanceCarouselVisualPacing(enrichedSlides);
 
   cleanCarousel = {
     ...cleanCarousel,
@@ -105,12 +109,19 @@ export async function runAutonomousPipeline(
     imageMimeType,
     imageName,
     categoryHint,
+    postFormat = 'carousel',
     signal,
   } = options;
 
+  const isSinglePost = postFormat === 'single';
+
   // Step 1: Synthesize Content & Bilingual Structure
   throwIfAborted(signal);
-  onProgress?.('Synthesizing 8-slide architecture carousel...');
+  onProgress?.(
+    isSinglePost
+      ? 'Synthesizing standalone 1080×1920 single-slide post...'
+      : 'Synthesizing 8-slide architecture carousel...'
+  );
   let rawCarousel: CarouselData | null = null;
 
   const customKey = typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_key') : null;
@@ -134,12 +145,16 @@ export async function runAutonomousPipeline(
         imageMimeType,
         imageName,
         categoryHint,
+        postFormat,
       }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      const parsed = parseCarouselData(data, { minSlides: 3, requireSlideContent: true });
+      const parsed = parseCarouselData(data, {
+        minSlides: isSinglePost ? 1 : 3,
+        requireSlideContent: true,
+      });
       if (parsed) {
         const headerEngine = res.headers.get('x-marrok-engine') as
           | 'grounded'
@@ -180,10 +195,20 @@ export async function runAutonomousPipeline(
       categoryHint,
       inputMode,
       imageFileName: imageName,
+      postFormat,
     });
     if (rawCarousel.sourceMeta) {
       rawCarousel.sourceMeta.userReviewed = false;
     }
+  }
+
+  if (isSinglePost) {
+    rawCarousel.postFormat = 'single';
+    if (rawCarousel.slides.length > 1) {
+      rawCarousel.slides = [rawCarousel.slides[0]];
+    }
+  } else {
+    rawCarousel.postFormat = 'carousel';
   }
 
   // Domain-Aware Theme Routing: match input topic to best visual theme

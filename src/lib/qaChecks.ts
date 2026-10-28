@@ -47,8 +47,17 @@ export interface QAReport {
 // ─── Individual Check Functions ─────────────────────────────────────
 
 /** Check slide count is within acceptable range */
-function checkSlideCount(slides: SlideData[]): QACheckResult {
+function checkSlideCount(slides: SlideData[], isSingleSlide: boolean = false): QACheckResult {
   const count = slides.length;
+  if (isSingleSlide && count === 1) {
+    return {
+      id: 'slide-count',
+      severity: 'pass',
+      message: '1 slide — Single-Slide Post format.',
+      value: 1,
+      limit: '1',
+    };
+  }
   if (count < 3) {
     return { id: 'slide-count', severity: 'fail', message: `Only ${count} slide(s). Minimum is 3.`, value: count, limit: '3–12' };
   }
@@ -480,12 +489,12 @@ function checkPlaceholders(slide: SlideData, idx: number): QACheckResult[] {
 }
 
 /** Check first slide (hook/hub) has meaningful content for thumbnail readability */
-function checkFirstFrame(slides: SlideData[]): QACheckResult[] {
+function checkFirstFrame(slides: SlideData[], isSingleSlide: boolean = false): QACheckResult[] {
   const results: QACheckResult[] = [];
   if (slides.length === 0) return results;
 
   const first = slides[0];
-  if (first.type !== 'hub' && first.type !== 'row') {
+  if (!isSingleSlide && first.type !== 'hub' && first.type !== 'row') {
     results.push({
       id: 'first-frame-type',
       severity: 'warn',
@@ -508,9 +517,16 @@ function checkFirstFrame(slides: SlideData[]): QACheckResult[] {
 }
 
 /** Check that the last slide is a CTA */
-function checkLastSlideCta(slides: SlideData[]): QACheckResult {
+function checkLastSlideCta(slides: SlideData[], isSingleSlide: boolean = false): QACheckResult {
   if (slides.length === 0) {
     return { id: 'last-slide-cta', severity: 'fail', message: 'No slides in deck.' };
+  }
+  if (isSingleSlide && slides.length === 1) {
+    return {
+      id: 'last-slide-cta',
+      severity: 'pass',
+      message: 'Single-slide post carries standalone footer attribution.',
+    };
   }
   const last = slides[slides.length - 1];
   if (last.type !== 'cta') {
@@ -756,11 +772,13 @@ export function runQAChecks(carousel: CarouselData, options: QACheckOptions = {}
     });
   }
 
+  const isSingleSlide = carousel.postFormat === 'single';
+
   // Deck-level checks
-  results.push(checkSlideCount(slides));
-  results.push(checkLastSlideCta(slides));
+  results.push(checkSlideCount(slides, isSingleSlide));
+  results.push(checkLastSlideCta(slides, isSingleSlide));
   results.push(...checkCreditPresence(slides));
-  results.push(...checkFirstFrame(slides));
+  results.push(...checkFirstFrame(slides, isSingleSlide));
   results.push(...checkDuplicateBodyText(slides));
 
   // Check if deck is an unreviewed draft (either offline fallback or ungrounded draft)

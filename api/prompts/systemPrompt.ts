@@ -141,8 +141,12 @@ export function buildUserCarouselPrompt(options: {
   safeInputMode?: string;
   hasImage?: boolean;
   imageName?: string;
+  postFormat?: 'carousel' | 'single';
 }): string {
-  let userPromptText = `Generate a publication-ready 8-slide MARROK TikTok technical carousel, 3 Hook Variants for Slide 1, and 2 Caption Variants from this input.\n`;
+  const isSingle = options.postFormat === 'single';
+  let userPromptText = isSingle
+    ? `Generate a publication-ready SINGLE-SLIDE standalone 1080x1920 technical infographic post (slides array length MUST be 1), 3 Hook Variants for the slide, and 2 Caption Variants from this input.\n`
+    : `Generate a publication-ready 8-slide MARROK TikTok technical carousel, 3 Hook Variants for Slide 1, and 2 Caption Variants from this input.\n`;
 
   if (options.safeCategoryHint && options.safeCategoryHint !== 'auto') {
     userPromptText += `Preferred Domain Category: ${options.safeCategoryHint}\n`;
@@ -162,11 +166,26 @@ export function buildUserCarouselPrompt(options: {
 - CRITICAL NEGATIVE CONSTRAINT: Under NO circumstances should an image filename (such as "${options.imageName || '20760.png'}") or file extension (.png, .jpg, .webp) ever be used as a slide title, headline, or topic. Extract and name the authentic technical subject depicted in the image.
 `;
     if (!options.rawPrompt) {
-      userPromptText += `- Since no text prompt was provided, derive the full 8-slide narrative, step-by-step mechanisms, and bilingual copy entirely from the system architecture shown in the image.\n`;
+      userPromptText += isSingle
+        ? `- Since no text prompt was provided, derive the standalone single-slide technical schematic and bilingual copy entirely from the system architecture shown in the image.\n`
+        : `- Since no text prompt was provided, derive the full 8-slide narrative, step-by-step mechanisms, and bilingual copy entirely from the system architecture shown in the image.\n`;
     }
   }
 
-  userPromptText += `\nInstructions for a coherent, sensible technical carousel:
+  if (isSingle) {
+    userPromptText += `\nInstructions for a coherent, high-impact SINGLE-SLIDE technical post:
+- Return EXACTLY 1 slide in slides[] that distills the core engineering insight onto a single 1080x1920 poster:
+  * Pick the archetype that BEST EXPLAINS the topic:
+    - "row" (with diagramVariant 'topology', 'stack', 'isolation', 'takeaway', 'scatter', 'graph', 'clusters', 'split', or 'features' and 3 concrete diagramNodes + 2 diagramEdges + diagramFooter) for system architectures and mechanisms.
+    - "compare" for contrasting two architectures, versions, or runtimes side-by-side.
+    - "metric" if a verified benchmark or dramatic quantitative metric is the main takeaway.
+    - "code" if a concrete CLI/code snippet is the centerpiece.
+    - "hub" for a 6-node ecosystem or architectural overview.
+  * Populate enTitle, arTitle, enBody, arBody, plus enCredit and arCredit for standalone footer attribution.
+- NO AI SLOP: All titles and explanations must be factual, specific, and directly based on the input.
+- Return valid JSON matching the exact schema.`;
+  } else {
+    userPromptText += `\nInstructions for a coherent, sensible technical carousel:
 - Build a logical 8-slide narrative:
   * Slide 1: Archetype "hub" (The Hook) with centerIcon, 6 topic-specific satIcons, AND satLabels (6 distinct technical component names extracted directly from this topic).
   * Slide 2: Context / Trigger (use "metric" ONLY if there is a real metric in the text; otherwise use "row" or "number").
@@ -179,6 +198,7 @@ export function buildUserCarouselPrompt(options: {
   * Slide 8: Closer ("cta") with domain question hook, DM us CTA, and source attribution.
 - NO AI SLOP: All titles and explanations must be factual, specific, and directly based on the input.
 - Return valid JSON matching the exact schema.`;
+  }
 
   return userPromptText;
 }

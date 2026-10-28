@@ -97,8 +97,9 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
   const metric1 = normalizePunctuation(stripMarkdown(rawMetric1)).replace(/[.?!]+$/, '');
   const arMetric1 = sanitizeMetricForArabic(metric1);
 
-  // 4. Target Slide Count (Spec §7: 8 slides standard for technical narrative arc)
-  const targetSlideCount = input.targetSlideCount || 8;
+  // 4. Target Slide Count (Spec §7: 8 slides standard for carousel, 1 slide for Single-Slide Post)
+  const isSinglePost = input.postFormat === 'single' || input.targetSlideCount === 1;
+  const targetSlideCount = isSinglePost ? 8 : input.targetSlideCount || 8;
 
   // 5. Universal NLP Text Extractor & Slide Synthesis (Zero hardcoded topic presets)
   let slides: SlideData[] = synthesizeUniversalCarousel(rawText, {
@@ -111,17 +112,49 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
     satIcons,
   });
 
-  // Strict Safety Invariant: Guarantee Slide 1 is hub, final slide is cta, and NO mid-deck slide has type 'cta'
-  slides = slides.map((s, idx) => {
-    if (idx === 0) return { ...s, type: 'hub' };
-    if (idx === slides.length - 1) return { ...s, type: 'cta' };
-    if (s.type === 'cta' || s.type === 'hub') return { ...s, type: 'row' };
-    return s;
-  });
+  if (isSinglePost) {
+    // Pick the highest-signal standalone technical archetype from synthesized candidates
+    const hookSlide = slides[0];
+    const ctaCandidate = slides[slides.length - 1];
+    const codeCandidate = slides.find((s) => s.type === 'code' && s.codeSnippet);
+    const compareCandidate = slides.find((s) => s.type === 'compare' && s.compareLeftTitle && s.compareRightTitle);
+    const metricCandidate = slides.find((s) => s.type === 'metric' && s.metricValue);
+    const schematicCandidate = slides.find((s) => s.type === 'row' && (s.diagramNodes?.length ?? 0) >= 3);
 
-  // Dynamic Diagram & Satellite Enrichment
-  slides = enrichCarouselDiagrams(slides, rawText, domainCategory, brand);
-  slides = balanceCarouselVisualPacing(slides);
+    const chosen =
+      codeCandidate ||
+      compareCandidate ||
+      metricCandidate ||
+      schematicCandidate ||
+      hookSlide ||
+      slides[0];
+
+    const standaloneSlide: SlideData = {
+      ...chosen,
+      type: chosen.type === 'cta' ? 'row' : chosen.type,
+      enTitle: hookSlide?.enTitle || chosen.enTitle || headline,
+      arTitle: hookSlide?.arTitle || chosen.arTitle || `تحليل معماري لمنظومة ${arSubject}.`,
+      enBody: chosen.enBody || hookSlide?.enBody,
+      arBody: chosen.arBody || hookSlide?.arBody,
+      enCredit: chosen.enCredit || ctaCandidate?.enCredit || `Source: ${brand}`,
+      arCredit: chosen.arCredit || ctaCandidate?.arCredit || `المصدر: ${brand}`,
+      url: chosen.url || brandUrl || 'marrok.org',
+    };
+
+    slides = enrichCarouselDiagrams([standaloneSlide], rawText, domainCategory, brand);
+  } else {
+    // Strict Safety Invariant: Guarantee Slide 1 is hub, final slide is cta, and NO mid-deck slide has type 'cta'
+    slides = slides.map((s, idx) => {
+      if (idx === 0) return { ...s, type: 'hub' };
+      if (idx === slides.length - 1) return { ...s, type: 'cta' };
+      if (s.type === 'cta' || s.type === 'hub') return { ...s, type: 'row' };
+      return s;
+    });
+
+    // Dynamic Diagram & Satellite Enrichment
+    slides = enrichCarouselDiagrams(slides, rawText, domainCategory, brand);
+    slides = balanceCarouselVisualPacing(slides);
+  }
 
   // Derive meaningful bullet takeaways for captions directly from synthesized deck if user provided none
   const userPoint1 = lines[0] || slides[1]?.enBody || slides[2]?.enBody || `Scaling ${cleanSubject} requires rethinking state isolation and memory allocation patterns.`;
@@ -277,6 +310,7 @@ ${hashtags}`,
   const scheduleSlot = '18:00–21:00 ME / 16:00–19:00 UTC (Peak developer engagement)';
 
   return sanitizeFullCarousel({
+    postFormat: isSinglePost ? 'single' : 'carousel',
     theme: recommendedTheme,
     category: domainCategory,
     brand,

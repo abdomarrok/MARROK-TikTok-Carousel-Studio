@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import {
   CarouselData,
+  PostFormat,
   SlideData,
   SlideType,
   ThemePalette,
@@ -272,6 +273,85 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const generationRunIdRef = useRef(0);
   const deckRevisionRef = useRef(0);
   const isMountedRef = useRef(true);
+  const stashedCarouselSlidesRef = useRef<SlideData[] | null>(null);
+
+  const activePostFormat: PostFormat =
+    carousel.postFormat === 'single' || carousel.slides.length === 1 ? 'single' : 'carousel';
+
+  const handleSwitchPostFormat = (nextFormat: PostFormat) => {
+    if (nextFormat === activePostFormat) return;
+
+    if (nextFormat === 'single') {
+      if (carousel.slides.length > 1) {
+        stashedCarouselSlidesRef.current = carousel.slides.map((s) => ({ ...s }));
+      }
+      const focusedIdx = Math.min(currentSlideIndex, carousel.slides.length - 1);
+      const focusedSlide = carousel.slides[focusedIdx] || carousel.slides[0];
+      const ctaSlide = carousel.slides[carousel.slides.length - 1];
+      const singleSlide: SlideData = {
+        ...focusedSlide,
+        type: focusedSlide.type === 'cta' ? 'row' : focusedSlide.type,
+        enCredit:
+          focusedSlide.enCredit ||
+          ctaSlide?.enCredit ||
+          (carousel.channel ? `Source: ${carousel.channel}` : `Source: ${carousel.brand || 'MARROK'}`),
+        arCredit:
+          focusedSlide.arCredit ||
+          ctaSlide?.arCredit ||
+          (carousel.channel ? `المصدر: ${carousel.channel}` : `المصدر: ${carousel.brand || 'MARROK'}`),
+      };
+
+      applyDeckUpdate((prev) => ({
+        ...prev,
+        postFormat: 'single',
+        slides: [sanitizeSlide(singleSlide, 0, 1)],
+      }));
+      changeSlide(0, 1);
+      onShowToast('Switched to Single-Slide Post (1080×1920)');
+      return;
+    }
+
+    // Switching from 'single' -> 'carousel'
+    const stashed = stashedCarouselSlidesRef.current;
+    if (stashed && stashed.length >= 3) {
+      const currentSingle = carousel.slides[0];
+      const restored = stashed.map((s, idx) => (idx === 0 && currentSingle ? { ...s, ...currentSingle } : s));
+      applyDeckUpdate((prev) => ({
+        ...prev,
+        postFormat: 'carousel',
+        slides: restored,
+      }));
+      changeSlide(0, restored.length);
+      onShowToast(`Restored ${restored.length}-slide carousel`);
+      return;
+    }
+
+    // Expand a fresh single-slide post into a full 8-slide carousel
+    const seedTopic = promptInput.trim() || carousel.slides[0]?.enTitle || carousel.category || 'System Architecture';
+    const expanded = synthesizeCarousel({
+      prompt: seedTopic,
+      categoryHint,
+      inputMode: activeTab,
+      postFormat: 'carousel',
+    });
+    const currentFirst = carousel.slides[0];
+    if (currentFirst && expanded.slides.length > 0) {
+      expanded.slides[0] = {
+        ...expanded.slides[0],
+        enTitle: currentFirst.enTitle || expanded.slides[0].enTitle,
+        arTitle: currentFirst.arTitle || expanded.slides[0].arTitle,
+        enBody: currentFirst.enBody || expanded.slides[0].enBody,
+        arBody: currentFirst.arBody || expanded.slides[0].arBody,
+      };
+    }
+    applyDeckUpdate((prev) => ({
+      ...prev,
+      postFormat: 'carousel',
+      slides: expanded.slides,
+    }));
+    changeSlide(0, expanded.slides.length);
+    onShowToast(`Expanded into ${expanded.slides.length}-slide carousel`);
+  };
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -501,7 +581,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     setIsGenerating(true);
     setPipelineStatus(
       uploadedImage
-        ? 'Processing image & synthesizing AI carousel...'
+        ? activePostFormat === 'single'
+          ? 'Processing image & synthesizing single-slide post...'
+          : 'Processing image & synthesizing AI carousel...'
+        : activePostFormat === 'single'
+        ? 'Synthesizing Single-Slide Post...'
         : 'Synthesizing AI Carousel...'
     );
 
@@ -514,6 +598,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         imageMimeType: uploadedImage?.mimeType,
         imageName: uploadedImage?.name,
         categoryHint: categoryHint !== 'auto' ? categoryHint : undefined,
+        postFormat: activePostFormat,
         signal: controller.signal,
         onProgress: (status) => {
           if (isCurrentRun()) setPipelineStatus(status);
@@ -532,12 +617,26 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         onSelectTheme(DEFAULT_PALETTES[generated.theme]);
       }
 
+      if (generated.slides.length > 1) {
+        stashedCarouselSlidesRef.current = generated.slides.map((s) => ({ ...s }));
+      } else {
+        stashedCarouselSlidesRef.current = null;
+      }
+
       onUpdateCarousel(generated);
       changeSlide(0, generated.slides.length);
       if (generated.sourceMeta?.isFallback || generated.sourceMeta?.engine === 'offline-synthesizer') {
-        onShowToast('Offline NLP Engine Activated: Synthesized custom slides from your notes.');
+        onShowToast(
+          activePostFormat === 'single'
+            ? 'Offline NLP Engine Activated: Synthesized single-slide post from your notes.'
+            : 'Offline NLP Engine Activated: Synthesized custom slides from your notes.'
+        );
       } else {
-        onShowToast('✨ Autonomously generated and perfected 8-slide carousel!');
+        onShowToast(
+          activePostFormat === 'single'
+            ? '✨ Autonomously generated standalone 1080×1920 single-slide post!'
+            : '✨ Autonomously generated and perfected 8-slide carousel!'
+        );
       }
     } catch (err) {
       if (controller.signal.aborted || !isCurrentRun()) return;
@@ -566,14 +665,24 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         categoryHint,
         inputMode: activeTab,
         imageFileName: uploadedImage?.name,
+        postFormat: activePostFormat,
       });
       const processed = enrichAndPaceCarousel(generated, promptInput);
       if (processed.theme && DEFAULT_PALETTES[processed.theme]) {
         onSelectTheme(DEFAULT_PALETTES[processed.theme]);
       }
+      if (processed.slides.length > 1) {
+        stashedCarouselSlidesRef.current = processed.slides.map((s) => ({ ...s }));
+      } else {
+        stashedCarouselSlidesRef.current = null;
+      }
       onUpdateCarousel(processed);
       changeSlide(0, processed.slides.length);
-      onShowToast(`⚡ Synthesized ${processed.slides.length}-slide carousel (Instant Offline Mode)`);
+      onShowToast(
+        activePostFormat === 'single'
+          ? '⚡ Synthesized standalone Single-Slide Post (Instant Offline Mode)'
+          : `⚡ Synthesized ${processed.slides.length}-slide carousel (Instant Offline Mode)`
+      );
     } catch (err: unknown) {
       onShowToast(err instanceof Error ? err.message : 'Instant synthesis failed.');
     }
@@ -1090,7 +1199,46 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               </div>
             )}
 
-            {/* Engine Provenance Badge */}
+            {/* Post Format Segmented Toggle: Carousel vs Single Slide */}
+            <div
+              role="group"
+              aria-label="Post format selector"
+              className="flex items-center bg-black/60 p-0.5 rounded-xl border border-white/10 shrink-0"
+            >
+              <button
+                type="button"
+                data-testid="format-toggle-carousel"
+                onClick={() => handleSwitchPostFormat('carousel')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activePostFormat === 'carousel'
+                    ? 'bg-white/15 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                style={activePostFormat === 'carousel' ? { color: theme.accent } : undefined}
+                title="Multi-Slide Carousel (8 slides, 1080×1920)"
+              >
+                <Layers className="w-3 h-3" />
+                <span>Carousel</span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="format-toggle-single"
+                onClick={() => handleSwitchPostFormat('single')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activePostFormat === 'single'
+                    ? 'bg-white/15 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                style={activePostFormat === 'single' ? { color: theme.accent } : undefined}
+                title="Standalone Single-Slide Post (1 slide, 1080×1920)"
+              >
+                <ImageIcon className="w-3 h-3" />
+                <span>Single Slide</span>
+              </button>
+            </div>
+
+            {/* Engine Provenance Status */}
             <button
               type="button"
               onClick={() => setInspectorTab('caption')}
@@ -1131,7 +1279,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-slate-950" />
-                  <span>Generate</span>
+                  <span>{activePostFormat === 'single' ? 'Generate Slide' : 'Generate'}</span>
                 </>
               )}
             </button>
@@ -1469,109 +1617,12 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               onDuplicateSlide={handleDuplicateSlide}
               onDeleteSlide={handleDeleteSlide}
               onMoveSlide={handleMoveSlide}
+              onExpandToCarousel={() => handleSwitchPostFormat('carousel')}
             />
-
-            {/* Sleek Single-Row Export & Preview Dock */}
-            <div className="w-full max-w-[360px] flex items-center gap-1.5 bg-[#0b1118]/90 border border-white/10 rounded-xl p-1.5 shadow-lg">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isOfflineDraft && !isReviewed) {
-                    onShowToast('⚠️ Downloading unreviewed offline draft...');
-                  } else {
-                    onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
-                  }
-                  downloadSingleSlidePng(
-                    carousel,
-                    currentSlideIndex,
-                    `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
-                    theme,
-                    carousel.visualOptions
-                  );
-                }}
-                className="px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-                title="Download current slide as 1080×1920 JPG"
-              >
-                <Download className="w-3.5 h-3.5 text-slate-400" />
-                <span>JPG</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCopySlide}
-                className="px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-                title="Copy current slide PNG to clipboard"
-              >
-                {copiedType === 'slide' ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
-                )}
-                <span>{copiedType === 'slide' ? 'Copied' : 'Copy'}</span>
-              </button>
-
-              {onOpenContactSheet && (
-                <button
-                  type="button"
-                  onClick={onOpenContactSheet}
-                  className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
-                  title="Open All-Slides Contact Sheet"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-                </button>
-              )}
-
-              {onOpenPreviewDrawer && (
-                <button
-                  type="button"
-                  onClick={() => onOpenPreviewDrawer('simulator')}
-                  className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
-                  title="Open 9:16 TikTok Feed Simulator"
-                >
-                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-                </button>
-              )}
-
-              {onSaveValidPost && (
-                <button
-                  type="button"
-                  disabled={isSavingPost}
-                  onClick={() => onSaveValidPost('validated', overrideExportBlock)}
-                  className="px-2.5 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-[11px] font-bold text-cyan-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50"
-                  title="Validate and save this post to your Saved Posts Vault"
-                >
-                  <BookmarkCheck className="w-3.5 h-3.5 text-cyan-300" />
-                  <span>{carousel.id ? 'Saved' : 'Save Valid'}</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={handleExportZip}
-                disabled={isExportingZip}
-                className="flex-1 py-2 px-3 rounded-lg font-bold text-[11px] uppercase tracking-wider text-slate-950 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                style={{ backgroundColor: theme.accent }}
-                title="Download all 1080×1920 slides + Metricool bundle ZIP"
-              >
-                {isExportingZip && exportProgress ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>
-                      {exportProgress.current}/{exportProgress.total}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>Export ZIP</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Right Column: Clean Tabbed Inspector (Copy | Visual Layout | Position | Caption & QA) */}
+        {/* Right Column: Clean Tabbed Inspector + Persistent Unified Delivery Bar */}
         <div
           className={`lg:col-span-7 flex-col lg:h-full lg:min-h-0 bg-[#0b1118]/90 border border-white/10 rounded-2xl overflow-hidden shadow-2xl ${
             mobileStudioTab === 'canvas' ? 'hidden lg:flex' : 'flex'
@@ -1590,7 +1641,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 }`}
               >
                 <Type className="w-3.5 h-3.5" style={inspectorTab === 'copy' ? { color: theme.accent } : undefined} />
-                <span>Copy</span>
+                <span>Slide Text</span>
               </button>
 
               <button
@@ -1659,7 +1710,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
           {/* Scrollable Tab Viewport */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-            {/* TAB 1: COPY (Bilingual Headlines, Body, Hook Variants & Auto-Fit) */}
+            {/* TAB 1: SLIDE TEXT (Bilingual Headlines, Body, Hook Variants & Auto-Fit) */}
             {inspectorTab === 'copy' && (
               <InlineSlideEditor
                 currentSlide={currentSlide}
@@ -1677,7 +1728,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               />
             )}
 
-            {/* TAB 2: VISUAL LAYOUT (7 Archetypes, Hub/Schematic Nodes, Code, Metrics & AI Image Studio) */}
+            {/* TAB 2: VISUAL LAYOUT (8 Archetypes, Hub/Schematic Nodes, Code, Metrics & AI Image Studio) */}
             {inspectorTab === 'visual' && (
               <div className="space-y-4">
                 <ArchetypeControls
@@ -1750,7 +1801,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               />
             )}
 
-            {/* TAB 4: CAPTION & QA (TikTok Posting Copy, Creator Attribution & Pre-Export QA) */}
+            {/* TAB 4: CAPTION & QA (TikTok Posting Copy & Unified Ready-to-Publish Checklist) */}
             {inspectorTab === 'caption' && (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-black/50 border border-white/10 space-y-3">
@@ -1760,7 +1811,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                         Bilingual TikTok Posting Copy
                       </span>
                       <span className="text-[11px] text-slate-400">
-                        Included automatically in your Metricool ZIP bundle
+                        {activePostFormat === 'single'
+                          ? 'Ready to paste directly into TikTok or export in your bundle'
+                          : 'Included automatically in your Metricool ZIP bundle'}
                       </span>
                     </div>
                     <button
@@ -1795,7 +1848,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   </div>
                 </div>
 
-                {/* Attribution, Draft Review & Pre-Export QA Checklist */}
+                {/* Unified Ready-to-Publish Checklist */}
                 <div className="flex justify-center">
                   <ExportBar
                     carousel={carousel}
@@ -1810,12 +1863,17 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                     isExportingZip={isExportingZip}
                     exportProgress={exportProgress}
                     copiedType={copiedType}
+                    hideActionRow={true}
+                    onJumpToSlide={(idx) => {
+                      changeSlide(idx);
+                      setInspectorTab('copy');
+                    }}
                     onUpdateCreator={(newCreator) => {
                       applyDeckUpdate((prev) => {
                         const trimmed = newCreator.trim();
                         const newSlides = [...prev.slides];
                         const lastIdx = newSlides.length - 1;
-                        if (lastIdx >= 0 && newSlides[lastIdx].type === 'cta') {
+                        if (lastIdx >= 0 && (newSlides[lastIdx].type === 'cta' || newSlides.length === 1)) {
                           newSlides[lastIdx] = {
                             ...newSlides[lastIdx],
                             enCredit: trimmed ? `Source: ${trimmed}` : '',
@@ -1863,56 +1921,230 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               </div>
             )}
           </div>
+
+          {/* Single Persistent Unified Delivery Bar (Replaces Duplicated Action Bars) */}
+          <div className="px-4 py-2.5 bg-black/75 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isOfflineDraft && !isReviewed) {
+                    onShowToast('⚠️ Downloading unreviewed offline draft...');
+                  } else {
+                    onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG (1080×1920)`);
+                  }
+                  downloadSingleSlidePng(
+                    carousel,
+                    currentSlideIndex,
+                    activePostFormat === 'single'
+                      ? `MARROK_Post_1080x1920.jpg`
+                      : `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
+                    theme,
+                    carousel.visualOptions
+                  );
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+                title="Download current slide as 1080×1920 JPG"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{activePostFormat === 'single' ? 'Slide JPG' : `Slide #${currentSlideIndex + 1} JPG`}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopySlide}
+                className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+                title="Copy current slide PNG to clipboard"
+              >
+                {copiedType === 'slide' ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                )}
+                <span>{copiedType === 'slide' ? 'Copied Slide' : 'Copy Slide'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyCaption}
+                className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+                title="Copy bilingual TikTok caption & hashtags"
+              >
+                {copiedType === 'caption' ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                )}
+                <span>{copiedType === 'caption' ? 'Copied Caption' : 'Copy Caption'}</span>
+              </button>
+
+              {onOpenContactSheet && activePostFormat === 'carousel' && (
+                <button
+                  type="button"
+                  onClick={onOpenContactSheet}
+                  className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="Open All-Slides Contact Sheet"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                </button>
+              )}
+
+              {onOpenPreviewDrawer && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPreviewDrawer('simulator')}
+                  className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="Open 9:16 TikTok Feed Simulator"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 ml-auto">
+              {onSaveValidPost && (
+                <button
+                  type="button"
+                  disabled={isSavingPost}
+                  onClick={() => onSaveValidPost('validated', true)}
+                  className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-xs font-bold text-cyan-200 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  title="Save validated post to your Saved Posts Library"
+                >
+                  <BookmarkCheck className="w-3.5 h-3.5 text-cyan-300" />
+                  <span>{carousel.id ? 'Saved' : 'Save Post'}</span>
+                </button>
+              )}
+
+              {activePostFormat === 'single' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const singleSlide = carousel.slides[0];
+                    const hasCreatorCredit = Boolean(
+                      (
+                        carousel.sourceMeta?.creator ||
+                        carousel.sourceMeta?.channel ||
+                        carousel.channel ||
+                        singleSlide?.enCredit ||
+                        ''
+                      ).trim()
+                    );
+                    if (
+                      (!qaReport.canExport || riskReport.status === 'BLOCK' || !hasCreatorCredit) &&
+                      !overrideExportBlock
+                    ) {
+                      setInspectorTab('caption');
+                      setMobileStudioTab('editor');
+                      onShowToast(
+                        '⚠️ Review checklist in Caption & QA (or enable Override) before exporting.'
+                      );
+                      return;
+                    }
+                    downloadSingleSlidePng(
+                      carousel,
+                      0,
+                      `MARROK_Single_Post_1080x1920.jpg`,
+                      theme,
+                      carousel.visualOptions
+                    );
+                    if (onSaveValidPost) {
+                      onSaveValidPost('posted', overrideExportBlock).catch(() => {});
+                    }
+                    onShowToast('Downloaded 1080×1920 Single-Slide Post JPG!');
+                  }}
+                  className="py-1.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                  style={{ backgroundColor: theme.accent }}
+                  title="Download standalone 1080×1920 JPG post"
+                >
+                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Download JPG</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleExportZip}
+                  disabled={isExportingZip}
+                  className="py-1.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  style={{ backgroundColor: theme.accent }}
+                  title="Download all 1080×1920 slides + Metricool bundle ZIP"
+                >
+                  {isExportingZip && exportProgress ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>
+                        {exportProgress.current}/{exportProgress.total}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Export ZIP</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Sticky Mobile Bottom Navigation Bar (Visible only on < lg) */}
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#080d11]/95 border-t border-white/10 px-3 py-2 backdrop-blur-md flex items-center justify-between gap-2 shadow-2xl">
-        <button
-          type="button"
-          onClick={() => changeSlide((prev) => Math.max(0, prev - 1))}
-          disabled={currentSlideIndex === 0}
-          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
-          title="Previous Slide"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
+        {activePostFormat === 'carousel' && (
+          <>
+            <button
+              type="button"
+              onClick={() => changeSlide((prev) => Math.max(0, prev - 1))}
+              disabled={currentSlideIndex === 0}
+              className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
+              title="Previous Slide"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenContactSheet}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 min-h-[38px] rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-slate-200 active:bg-white/10 cursor-pointer"
+              title="Jump to Contact Sheet"
+            >
+              <span>Slide</span>
+              <span style={{ color: theme.accent }}>{currentSlideIndex + 1}</span>
+              <span className="text-slate-400">/ {carousel.slides.length}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
+              disabled={currentSlideIndex === carousel.slides.length - 1}
+              className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
+              title="Next Slide"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        {activePostFormat === 'single' && (
+          <div className="flex-1 text-xs font-mono text-slate-300 px-2">
+            Single-Slide Post · 1080×1920
+          </div>
+        )}
 
         <button
           type="button"
-          onClick={onOpenContactSheet}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 min-h-[38px] rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-slate-200 active:bg-white/10 cursor-pointer"
-          title="Jump to Contact Sheet"
-        >
-          <span>Slide</span>
-          <span style={{ color: theme.accent }}>{currentSlideIndex + 1}</span>
-          <span className="text-slate-400">/ {carousel.slides.length}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
-          disabled={currentSlideIndex === carousel.slides.length - 1}
-          className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
-          title="Next Slide"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={handleExportZip}
+          onClick={activePostFormat === 'single' ? () => downloadSingleSlidePng(carousel, 0, 'MARROK_Single_Post_1080x1920.jpg', theme, carousel.visualOptions) : handleExportZip}
           disabled={isExportingZip}
           className="flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-xl font-bold text-xs text-slate-950 active:scale-95 transition-all shadow-md cursor-pointer shrink-0"
           style={{ backgroundColor: theme.accent }}
-          title="Export Metricool ZIP"
+          title={activePostFormat === 'single' ? 'Download 1080×1920 JPG' : 'Export Metricool ZIP'}
         >
           {isExportingZip ? (
             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <Download className="w-3.5 h-3.5 stroke-[2.5]" />
           )}
-          <span>Export</span>
+          <span>{activePostFormat === 'single' ? 'Download JPG' : 'Export'}</span>
         </button>
       </div>
 

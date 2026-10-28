@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Copy, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Plus, Copy, Trash2, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
 import { CarouselData, HookVariant } from '../../types.ts';
 
 interface SlideNavigatorProps {
@@ -12,6 +12,7 @@ interface SlideNavigatorProps {
   onDuplicateSlide: () => void;
   onDeleteSlide: () => void;
   onMoveSlide: (direction: 'left' | 'right') => void;
+  onExpandToCarousel?: () => void;
   onApplyHookVariant?: (variant: HookVariant) => void;
 }
 
@@ -25,7 +26,51 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   onDuplicateSlide,
   onDeleteSlide,
   onMoveSlide,
+  onExpandToCarousel,
 }) => {
+  const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
+  const activeSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
+
+  if (isSinglePost) {
+    return (
+      <div className="w-full max-w-[360px] flex items-center justify-between gap-2 px-1 py-1 text-xs text-slate-300">
+        <div className="flex items-center gap-2 font-mono text-[11px]">
+          <span className="text-white font-bold">Single Slide</span>
+          <span className="text-slate-500">·</span>
+          <span className="uppercase text-emerald-300 font-sans font-semibold">
+            {activeSlide?.type || 'row'}
+          </span>
+          <span className="text-slate-500">·</span>
+          <span className="text-slate-400">1080×1920</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onExpandToCarousel || onAddSlide}
+            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/10 border border-white/10 text-[10px] font-sans font-semibold text-slate-200 transition-colors cursor-pointer"
+            title="Switch to Multi-Slide Carousel mode"
+          >
+            <Layers className="w-3 h-3 text-cyan-400" />
+            <span>Expand to Carousel</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleSafeZones}
+            className={`text-[10px] font-sans font-semibold px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
+              showSafeZones
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                : 'bg-white/[0.03] text-slate-400 border-white/10 hover:text-slate-200'
+            }`}
+          >
+            Safe Zones
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-[360px] space-y-1.5">
       {/* Top Bar: Slide Count, Management Actions & Safe Zones Toggle */}
@@ -121,4 +166,5 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
     </div>
   );
 };
+
 

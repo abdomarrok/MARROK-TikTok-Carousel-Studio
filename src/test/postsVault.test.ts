@@ -68,7 +68,7 @@ describe('Gemini Model Deprecation Upgrade & Vercel Persistence Vault', () => {
     expect(localResolved.filePath).toContain(path.join('data', 'saved-posts.json'));
   });
 
-  it('rejects invalid decks and validates & builds SavedPostRecord for valid posts', () => {
+  it('rejects invalid decks and validates & builds SavedPostRecord for valid posts (carousel and single-slide)', () => {
     const invalidRes = validateAndBuildPostRecord({
       deck: { slides: [{ enTitle: 'Only one slide.' }] },
     });
@@ -85,6 +85,28 @@ describe('Gemini Model Deprecation Upgrade & Vercel Persistence Vault', () => {
       expect(validRes.record.postedAt).toBeDefined();
       expect(validRes.record.deck.sourceMeta?.userReviewed).toBe(true);
       expect(validRes.record.slideCount).toBe(DEFAULT_STARTER_DECK.slides.length);
+    }
+
+    const singleSlideDeck = {
+      ...DEFAULT_STARTER_DECK,
+      postFormat: 'single' as const,
+      slides: [
+        {
+          ...DEFAULT_STARTER_DECK.slides[0],
+          enCredit: 'Source: MARROK',
+          arCredit: 'المصدر: MARROK',
+        },
+      ],
+    };
+    const singleValidRes = validateAndBuildPostRecord({
+      deck: singleSlideDeck,
+      postStatus: 'validated',
+      allowOverride: true,
+    });
+    expect(singleValidRes.ok).toBe(true);
+    if (singleValidRes.ok) {
+      expect(singleValidRes.record.slideCount).toBe(1);
+      expect(singleValidRes.record.deck.postFormat).toBe('single');
     }
   });
 
@@ -115,5 +137,19 @@ describe('Gemini Model Deprecation Upgrade & Vercel Persistence Vault', () => {
     const merged = mergePostLists(loaded.posts, [newerRecord]);
     expect(merged).toHaveLength(1);
     expect(merged[0].postStatus).toBe('posted');
+  });
+
+  it('hydrates bundled data/saved-posts.json on Vercel cold start when /tmp is empty', async () => {
+    const tmpVercelFile = path.join(os.tmpdir(), 'marrok-saved-posts.json');
+    try {
+      await fs.unlink(tmpVercelFile);
+    } catch {
+      // Ignore if not present
+    }
+
+    const coldStartLoaded = await loadStoredPosts({ VERCEL: '1' });
+    expect(coldStartLoaded.storageEngine).toBe('vercel-tmp');
+    expect(coldStartLoaded.posts.length).toBeGreaterThanOrEqual(1);
+    expect(coldStartLoaded.posts.some((p) => p.title === 'Is Your Voice Still Yours?')).toBe(true);
   });
 });

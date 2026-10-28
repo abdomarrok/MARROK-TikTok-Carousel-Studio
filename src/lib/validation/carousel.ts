@@ -7,11 +7,14 @@ import type {
   GroundingSource,
   HookVariant,
   IconLabelPair,
+  PostFormat,
   PostSourceMeta,
   SlideData,
   SlideType,
   VisualSystemOptions,
 } from '../../types.ts';
+
+const POST_FORMATS: PostFormat[] = ['carousel', 'single'];
 
 const SLIDE_TYPES: SlideType[] = ['hub', 'row', 'number', 'metric', 'code', 'compare', 'image', 'cta'];
 const DIAGRAM_VARIANTS: DiagramVariant[] = [
@@ -116,7 +119,7 @@ function parseSlide(
   let type = readEnum(value.type, SLIDE_TYPES);
   if (!type) {
     if (index === 0) type = 'hub';
-    else if (index === total - 1) type = 'cta';
+    else if (total > 1 && index === total - 1) type = 'cta';
     else type = 'row';
   }
 
@@ -336,11 +339,14 @@ export function parseCarouselData(
   value: unknown,
   options: ParseCarouselOptions = {}
 ): CarouselData | null {
-  const minSlides = Math.max(1, options.minSlides ?? 1);
-  const maxSlides = Math.max(minSlides, options.maxSlides ?? DEFAULT_MAX_SLIDES);
-
   if (!isRecord(value)) return null;
   if (!Array.isArray(value.slides)) return null;
+
+  const explicitFormat = readEnum(value.postFormat, POST_FORMATS);
+  const isSingleFormat = explicitFormat === 'single';
+  const minSlides = isSingleFormat ? 1 : Math.max(1, options.minSlides ?? 1);
+  const maxSlides = Math.max(minSlides, options.maxSlides ?? DEFAULT_MAX_SLIDES);
+
   if (value.slides.length < minSlides || value.slides.length > maxSlides) return null;
 
   const slides: SlideData[] = [];
@@ -361,6 +367,12 @@ export function parseCarouselData(
     caption: readString(value, 'caption', 20_000) || '',
     slides,
   };
+
+  if (explicitFormat) {
+    carousel.postFormat = explicitFormat;
+  } else if (slides.length === 1) {
+    carousel.postFormat = 'single';
+  }
 
   const id = readString(value, 'id', 200);
   const brand = readString(value, 'brand', 100);

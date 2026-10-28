@@ -38,9 +38,10 @@ export function sanitizeSlide(
   slideIndex: number = 0,
   totalSlides: number = 8
 ): SlideData {
-  const safeType = slide.type || (slideIndex === 0 ? 'hub' : slideIndex === totalSlides - 1 ? 'cta' : 'row');
+  const safeType =
+    slide.type || (slideIndex === 0 ? 'hub' : totalSlides > 1 && slideIndex === totalSlides - 1 ? 'cta' : 'row');
   const isHook = slideIndex === 0 && safeType === 'hub';
-  const isCta = slideIndex === totalSlides - 1 || safeType === 'cta';
+  const isCta = (totalSlides > 1 && slideIndex === totalSlides - 1) || safeType === 'cta';
 
   return {
     ...slide,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runQAChecks } from './qaChecks';
 import { runPlatformRiskChecks } from './riskChecks';
 import { enrichAndPaceCarousel } from './autonomousPipeline';
+import { synthesizeCarousel } from './synthesizer';
 import { DEFAULT_STARTER_DECK } from './presets';
 import { CarouselData } from '../types';
 
@@ -22,6 +23,34 @@ describe('QA Gate & Platform Risk Checks (Phase 4 & 5)', () => {
     const report = runQAChecks(deck, { exportFormat: 'jpg', width: 1080, height: 1920 });
     expect(report.failCount).toBe(0);
     expect(report.canExport).toBe(true);
+  });
+
+  it('passes QA and Platform Risk checks on a Single-Slide Post (postFormat === "single")', () => {
+    const singlePost = synthesizeCarousel({
+      prompt: 'Redis 8 multi-threaded engine architecture',
+      postFormat: 'single',
+    });
+    expect(singlePost.postFormat).toBe('single');
+    expect(singlePost.slides).toHaveLength(1);
+    expect(singlePost.slides[0].enCredit).toBeTruthy();
+
+    singlePost.sourceMeta = {
+      ...singlePost.sourceMeta,
+      status: 'verified_live',
+      isSearchGrounded: true,
+      groundingSources: [{ title: 'Redis Engineering', url: 'https://redis.io' }],
+      userReviewed: true,
+      creator: 'MARROK',
+    };
+
+    const qa = runQAChecks(singlePost, { exportFormat: 'jpg', width: 1080, height: 1920 });
+    expect(qa.failCount).toBe(0);
+    expect(qa.canExport).toBe(true);
+    expect(qa.results.find((r) => r.id === 'slide-count')?.severity).toBe('pass');
+
+    const risk = runPlatformRiskChecks(singlePost, 'Redis 8 multi-threaded engine architecture');
+    expect(risk.status).toBe('PASS');
+    expect(risk.blockCount).toBe(0);
   });
 
   it('fails QA when PNG output or wrong dimensions are requested', () => {
@@ -79,3 +108,4 @@ describe('QA Gate & Platform Risk Checks (Phase 4 & 5)', () => {
     expect(risk.blockCount).toBe(0);
   });
 });
+

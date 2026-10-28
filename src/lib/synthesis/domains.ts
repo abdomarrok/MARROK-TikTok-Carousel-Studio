@@ -6,6 +6,7 @@ export interface SynthesisInput {
   categoryHint?: string;
   inputMode?: string;
   targetSlideCount?: number;
+  postFormat?: 'carousel' | 'single';
 }
 
 export interface DomainRule {
