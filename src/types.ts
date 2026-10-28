@@ -152,7 +152,84 @@ export interface PostSourceMeta {
   userReviewed?: boolean;
 }
 
-export type PostFormat = 'carousel' | 'single';
+export type PostFormat = 'carousel' | 'single' | 'reel';
+
+export type MotionTemplateId =
+  | 'marrok-slides'
+  | 'kinetic-text'
+  | 'brand-intro'
+  | 'product-showcase';
+
+export interface MotionBrandConfig {
+  name: string;
+  accentColor: string;
+  bgColor: string;
+  textColor: string;
+  font: string;
+  direction: 'rtl' | 'ltr';
+  surfaceColor?: string;
+  surfaceBorder?: string;
+  alertColor?: string;
+  category?: string;
+  channel?: string;
+}
+
+export interface MotionSceneConfig {
+  id: string;
+  label: string;
+  text: string;
+  from: number;
+  to: number;
+  springK: number;
+  springD: number;
+  // Rich MARROK slide fields so every scene can render like an animated MARROK slide
+  slideType?: SlideType;
+  enTitle?: string;
+  arTitle?: string;
+  enBody?: string;
+  arBody?: string;
+  stepNumber?: string;
+  metricValue?: string;
+  metricLabel?: string;
+  codeSnippet?: string;
+  nodes?: string[];
+  ctaText?: string;
+}
+
+export interface MotionTemplateConfig {
+  brand: MotionBrandConfig;
+  duration: number;
+  scenes: MotionSceneConfig[];
+  category?: string;
+  channel?: string;
+  showCadReticles?: boolean;
+}
+
+export interface MotionTemplateMeta {
+  id: MotionTemplateId;
+  name: string;
+  description: string;
+  category: string;
+  tags: string[];
+}
+
+export interface MotionCueItem {
+  t: number;
+  type: 'click' | 'pop' | 'thump' | 'whoosh';
+  amp: number;
+}
+
+export interface MotionReelData {
+  templateId: MotionTemplateId;
+  brand: MotionBrandConfig;
+  duration: number;
+  scenes: MotionSceneConfig[];
+  sfxEnabled?: boolean;
+  languageMode?: 'ar' | 'en' | 'bilingual';
+  category?: string;
+  channel?: string;
+  showCadReticles?: boolean;
+}
 
 export interface CarouselData {
   id?: string;
@@ -173,6 +250,7 @@ export interface CarouselData {
   captionVariants?: CaptionVariant[];
   hookVariants?: HookVariant[];
   slides: SlideData[];
+  reelConfig?: MotionReelData;
   visualOptions?: VisualSystemOptions; // Phase 1-3 visual graphics system toggles
 }
 

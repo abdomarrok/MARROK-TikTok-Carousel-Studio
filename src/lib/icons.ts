@@ -417,18 +417,25 @@ export function drawMarrokVectorBadge(
   ctx.scale(scale, scale);
   ctx.translate(-MARROK_LOGO_PATHS.center.x, -MARROK_LOGO_PATHS.center.y);
 
-  const pMain = new Path2D(MARROK_LOGO_PATHS.pathMain);
-  const pRight = new Path2D(MARROK_LOGO_PATHS.pathRightBottom);
-  const pAccent = new Path2D(MARROK_LOGO_PATHS.pathAccent);
-  const pFrame = new Path2D(MARROK_LOGO_PATHS.pathLeftFrame);
+  if (typeof Path2D !== 'undefined') {
+    const pMain = new Path2D(MARROK_LOGO_PATHS.pathMain);
+    const pRight = new Path2D(MARROK_LOGO_PATHS.pathRightBottom);
+    const pAccent = new Path2D(MARROK_LOGO_PATHS.pathAccent);
+    const pFrame = new Path2D(MARROK_LOGO_PATHS.pathLeftFrame);
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fill(pMain);
-  ctx.fill(pRight);
-  ctx.fill(pFrame);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill(pMain);
+    ctx.fill(pRight);
+    ctx.fill(pFrame);
 
-  ctx.fillStyle = accentColor;
-  ctx.fill(pAccent);
+    ctx.fillStyle = accentColor;
+    ctx.fill(pAccent);
+  } else {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(262, 289, 182, 185);
+    ctx.fillStyle = accentColor;
+    ctx.fillRect(400, 298, 45, 38);
+  }
 
   ctx.restore();
 }

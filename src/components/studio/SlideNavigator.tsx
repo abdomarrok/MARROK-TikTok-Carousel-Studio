@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Copy, Trash2, ArrowLeft, ArrowRight, Layers, LayoutTemplate } from 'lucide-react';
+import { Plus, Copy, Trash2, ArrowLeft, ArrowRight, Layers, LayoutTemplate, Film } from 'lucide-react';
 import { CarouselData, HookVariant } from '../../types.ts';
 
 interface SlideNavigatorProps {
@@ -14,6 +14,7 @@ interface SlideNavigatorProps {
   onMoveSlide: (direction: 'left' | 'right') => void;
   onExpandToCarousel?: () => void;
   onCondenseToSingleSlide?: () => void;
+  onConvertToMotionReel?: () => void;
   onApplyHookVariant?: (variant: HookVariant) => void;
 }
 
@@ -29,6 +30,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   onMoveSlide,
   onExpandToCarousel,
   onCondenseToSingleSlide,
+  onConvertToMotionReel,
 }) => {
   const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
   const activeSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
@@ -42,8 +44,6 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
           <span className="uppercase text-emerald-300 font-sans font-semibold">
             {activeSlide?.type || 'poster'}
           </span>
-          <span className="text-slate-500">·</span>
-          <span className="text-slate-400">1080×1920</span>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -56,6 +56,18 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
             >
               <Layers className="w-3 h-3 text-cyan-400" />
               <span>Restore 8 Slides</span>
+            </button>
+          )}
+
+          {onConvertToMotionReel && (
+            <button
+              type="button"
+              onClick={onConvertToMotionReel}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-[10px] font-sans font-semibold text-purple-200 transition-colors cursor-pointer"
+              title="Convert to animated 9:16 Motion Reel video"
+            >
+              <Film className="w-3 h-3 text-purple-400" />
+              <span>Animate Reel</span>
             </button>
           )}
 
@@ -133,29 +145,41 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {onCondenseToSingleSlide && (
             <button
               type="button"
               onClick={onCondenseToSingleSlide}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-sans font-semibold text-emerald-300 transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-sans font-semibold text-emerald-300 transition-colors cursor-pointer"
               title="Condense entire 8-slide carousel into 1-slide Infographic Poster"
             >
               <LayoutTemplate className="w-3 h-3 text-emerald-400" />
-              <span>Condense to Poster</span>
+              <span>Poster</span>
+            </button>
+          )}
+
+          {onConvertToMotionReel && (
+            <button
+              type="button"
+              onClick={onConvertToMotionReel}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-[10px] font-sans font-semibold text-purple-200 transition-colors cursor-pointer"
+              title="Convert 8-slide carousel into animated 9:16 Motion Reel"
+            >
+              <Film className="w-3 h-3 text-purple-400" />
+              <span>Reel</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={onToggleSafeZones}
-            className={`text-[10px] font-sans font-semibold px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
+            className={`text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded-md border cursor-pointer transition-colors ${
               showSafeZones
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                 : 'bg-white/[0.03] text-slate-400 border-white/10 hover:text-slate-200'
             }`}
           >
-            Safe Zones
+            Safe
           </button>
         </div>
       </div>

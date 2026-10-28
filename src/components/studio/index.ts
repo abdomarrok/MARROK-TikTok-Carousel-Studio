@@ -8,5 +8,4 @@ export * from './IconPickerPopover.tsx';
 export * from './IconThumbnail.tsx';
 export * from './PreviewAndToolsDrawer.tsx';
 export * from './SavedPostsDrawer.tsx';
-
-
+export * from './motion/index.ts';

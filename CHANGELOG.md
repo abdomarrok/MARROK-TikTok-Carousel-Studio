@@ -1,5 +1,23 @@
 # Changelog — MARROK TikTok Carousel Studio
 
+## [1.1.0] — Multi-Format Studio: 1-Slide Poster, 9:16 Motion Reel & Multi-Key AI Failover
+
+### 1. Multi-Key Gemini Failover & Zero-Key Free AI Backup Cascade
+- **Ordered Gemini Key Pool (`api/config.ts`):** Added `getGeminiKeyPool(req)` supporting primary + backup client keys (`x-gemini-key`, `x-gemini-key-backup`) and server environment keys (`GEMINI_API_KEY`, `GEMINI_API_KEY_BACKUP`, `GEMINI_API_KEY_2`, `GEMINI_API_KEYS`). Automatically rotates to the next key on `429` rate-limit or quota exhaustion.
+- **Zero-Key Free AI Backup (`api/freeAiFallback.ts`):** Added `generateCarouselWithFreeBackup()` (Pollinations OpenAI-compatible JSON synthesis) and `generateImageWithFreeBackup()` (Pollinations 9:16 `flux` 1080×1920 image generation) when all Gemini keys are exhausted before falling back to the local offline synthesizer.
+
+### 2. Standalone 1-Slide Infographic Poster Mode
+- **Dual Single-Slide Layouts (`src/lib/canvas/renderSlide.ts`, `src/lib/canvas/layoutAwareness.ts`):** Added `SingleSlideVariant = 'poster' | 'standard'`. Poster mode renders a compact top schematic (`300px`), bilingual headlines/bodies with expanded character limits (`SINGLE_SLIDE_CHAR_LIMITS`), and a 3-row numbered bilingual takeaway card stack (`drawSingleSlideTakeaways`).
+- **Clean Single-Slide Footer (`src/lib/canvas/background.ts`):** Replaces multi-slide pagination dots with a clean `SOURCE //` attribution + `@MARROK` handle bar when `total === 1`.
+- **1-Click Carousel-to-Single Condenser (`src/lib/synthesis/singleSlideCondenser.ts`):** Added `condenseCarouselToSingleSlide()` and top-bar format switcher (`Carousel` · `1-Slide` · `Motion Reel`) with non-destructive slide stashing.
+
+### 3. MARROK 9:16 Motion Reel Studio (`src/lib/motion/`)
+- **Authentic MARROK Slide Chrome in Motion (`src/lib/motion/marrokSlideChrome.ts`):** Every Motion Reel frame renders MARROK's OLED background, radial ambient glow, `108px` engineering grid, CAD safe-zone reticles (`SYS_REF // 1080x1920.CAD_SAFE // MOTION_REEL`), glowing `32×32px` `drawMarrokVectorBadge` header + `MARROK` wordmark, elevated surface cards, spring-animated bilingual EN/AR copy, and scene pagination footer.
+- **4 Spring-Physics Templates (`src/lib/motion/templates/`):** Added flagship `marrok-slides` (**MARROK Slide Deck**) alongside upgraded `kinetic-text`, `brand-intro`, and `product-showcase` templates.
+- **48kHz Procedural SFX & Video Export (`src/lib/motion/sfxSynthesizer.ts`, `src/lib/motion/videoExporter.ts`):** Added mathematical `click`, `pop`, `thump`, and `whoosh` synthesis, 16-bit PCM `.wav` encoding, and in-browser `MediaRecorder` + Web Audio muxed `.webm`/`.mp4` video and standalone `.html` export.
+
+---
+
 ## [1.0.0] — Production Handoff Release
 
 ### Phase 0: Architecture & Security Audit

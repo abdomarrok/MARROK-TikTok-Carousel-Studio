@@ -22,6 +22,9 @@ import {
   LayoutGrid,
   Smartphone,
   BookmarkCheck,
+  Film,
+  Volume2,
+  Code,
 } from 'lucide-react';
 import {
   CarouselData,
@@ -35,6 +38,8 @@ import {
   GraphicalElementId,
   ElementLayoutOverride,
   SavedPostStatus,
+  MotionReelData,
+  MotionTemplateId,
 } from '../types.ts';
 import { downloadSingleSlidePng, copySlideToClipboard, downloadAllSlidesZip } from '../lib/canvasExporter.ts';
 import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline.ts';
@@ -44,6 +49,14 @@ import { runQAChecks, CHAR_LIMITS } from '../lib/qaChecks.ts';
 import { runPlatformRiskChecks } from '../lib/riskChecks.ts';
 import { autoPolishHeadline, autoFitTextToLimits } from '../lib/text/headlines.ts';
 import { fixArabicPunctuation } from '../lib/text/arabicBiDi.ts';
+import {
+  convertCarouselToMotionReel,
+  getMotionTemplate,
+  generateCues,
+  synthesizeSfxFloat32Buffer,
+  encodeWavBlob,
+  triggerBlobDownload,
+} from '../lib/motion/index.ts';
 import { SlideImageStudio } from './SlideImageStudio.tsx';
 import { MediaSearchModal } from './MediaSearchModal.tsx';
 import {
@@ -53,6 +66,9 @@ import {
   ArchetypeControls,
   ExportBar,
   ElementInspector,
+  MotionReelViewport,
+  MotionReelInspector,
+  MotionExportModal,
 } from './studio/index.ts';
 
 function deriveTopicHashtags(carousel: CarouselData): string[] {
@@ -268,6 +284,10 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   // Mobile Studio Segmented Mode Switcher ('canvas' | 'editor')
   const [mobileStudioTab, setMobileStudioTab] = useState<'canvas' | 'editor'>('canvas');
 
+  // Motion Reel Studio States
+  const [selectedMotionSceneId, setSelectedMotionSceneId] = useState<string | null>(null);
+  const [isMotionExportOpen, setIsMotionExportOpen] = useState(false);
+
   // Async lifecycle guards: only the latest generation/image request may commit.
   const generationAbortRef = useRef<AbortController | null>(null);
   const generationRunIdRef = useRef(0);
@@ -276,7 +296,27 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const stashedCarouselSlidesRef = useRef<SlideData[] | null>(null);
 
   const activePostFormat: PostFormat =
-    carousel.postFormat === 'single' || carousel.slides.length === 1 ? 'single' : 'carousel';
+    carousel.postFormat === 'reel'
+      ? 'reel'
+      : carousel.postFormat === 'single' || carousel.slides.length === 1
+      ? 'single'
+      : 'carousel';
+
+  const activeReelConfig: MotionReelData =
+    carousel.reelConfig || convertCarouselToMotionReel(carousel, theme, 'marrok-slides', 'bilingual');
+
+  const handleSyncReelFromCarousel = (
+    templateId: MotionTemplateId = activeReelConfig.templateId || 'marrok-slides',
+    languageMode: 'ar' | 'en' | 'bilingual' = activeReelConfig.languageMode || 'bilingual'
+  ) => {
+    const nextReel = convertCarouselToMotionReel(carousel, theme, templateId, languageMode);
+    applyDeckUpdate((prev) => ({
+      ...prev,
+      postFormat: 'reel',
+      reelConfig: nextReel,
+    }));
+    setSelectedMotionSceneId(nextReel.scenes[0]?.id || null);
+  };
 
   const handleCondenseToSingleSlide = () => {
     if (carousel.slides.length > 1) {
@@ -286,6 +326,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     applyDeckUpdate((prev) => ({
       ...prev,
       ...condensed,
+      postFormat: 'single',
     }));
     changeSlide(0, 1);
     onShowToast('Condensed to 1-Slide Infographic Poster');
@@ -294,12 +335,41 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const handleSwitchPostFormat = (nextFormat: PostFormat) => {
     if (nextFormat === activePostFormat) return;
 
+    if (nextFormat === 'reel') {
+      if (carousel.slides.length > 1) {
+        stashedCarouselSlidesRef.current = carousel.slides.map((s) => ({ ...s }));
+      }
+      const nextReel =
+        carousel.reelConfig || convertCarouselToMotionReel(carousel, theme, 'marrok-slides', 'bilingual');
+      applyDeckUpdate((prev) => ({
+        ...prev,
+        postFormat: 'reel',
+        reelConfig: nextReel,
+      }));
+      setSelectedMotionSceneId(nextReel.scenes[0]?.id || null);
+      if (inspectorTab !== 'caption') {
+        setInspectorTab('copy');
+      }
+      onShowToast('Switched to 9:16 Motion Reel Studio');
+      return;
+    }
+
     if (nextFormat === 'single') {
       handleCondenseToSingleSlide();
       return;
     }
 
-    // Switching from 'single' -> 'carousel'
+    // Switching from 'single' or 'reel' -> 'carousel'
+    if (carousel.slides.length >= 3) {
+      applyDeckUpdate((prev) => ({
+        ...prev,
+        postFormat: 'carousel',
+      }));
+      changeSlide(0, carousel.slides.length);
+      onShowToast(`Switched to ${carousel.slides.length}-slide carousel`);
+      return;
+    }
+
     const stashed = stashedCarouselSlidesRef.current;
     if (stashed && stashed.length >= 3) {
       const currentSingle = carousel.slides[0];
@@ -571,13 +641,19 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       uploadedImage
         ? activePostFormat === 'single'
           ? 'Processing image & synthesizing single-slide post...'
+          : activePostFormat === 'reel'
+          ? 'Processing image & synthesizing motion reel...'
           : 'Processing image & synthesizing AI carousel...'
         : activePostFormat === 'single'
         ? 'Synthesizing Single-Slide Post...'
+        : activePostFormat === 'reel'
+        ? 'Synthesizing Motion Reel Scenes...'
         : 'Synthesizing AI Carousel...'
     );
 
     try {
+      const pipelineTargetFormat: 'carousel' | 'single' =
+        activePostFormat === 'single' ? 'single' : 'carousel';
       const generated = await runAutonomousPipeline(query, {
         theme,
         generateDiagram: !uploadedImage,
@@ -586,7 +662,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         imageMimeType: uploadedImage?.mimeType,
         imageName: uploadedImage?.name,
         categoryHint: categoryHint !== 'auto' ? categoryHint : undefined,
-        postFormat: activePostFormat,
+        postFormat: pipelineTargetFormat,
         signal: controller.signal,
         onProgress: (status) => {
           if (isCurrentRun()) setPipelineStatus(status);
@@ -601,6 +677,10 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       }
 
       // Auto-Theme Routing
+      const resolvedTheme =
+        generated.theme && DEFAULT_PALETTES[generated.theme]
+          ? DEFAULT_PALETTES[generated.theme]
+          : theme;
       if (generated.theme && DEFAULT_PALETTES[generated.theme]) {
         onSelectTheme(DEFAULT_PALETTES[generated.theme]);
       }
@@ -611,18 +691,36 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         stashedCarouselSlidesRef.current = null;
       }
 
-      onUpdateCarousel(generated);
-      changeSlide(0, generated.slides.length);
-      if (generated.sourceMeta?.isFallback || generated.sourceMeta?.engine === 'offline-synthesizer') {
+      const finalGenerated: CarouselData =
+        activePostFormat === 'reel'
+          ? {
+              ...generated,
+              postFormat: 'reel',
+              reelConfig: convertCarouselToMotionReel(
+                generated,
+                resolvedTheme,
+                activeReelConfig.templateId || 'kinetic-text',
+                activeReelConfig.languageMode || 'ar'
+              ),
+            }
+          : generated;
+
+      onUpdateCarousel(finalGenerated);
+      changeSlide(0, finalGenerated.slides.length);
+      if (finalGenerated.sourceMeta?.isFallback || finalGenerated.sourceMeta?.engine === 'offline-synthesizer') {
         onShowToast(
           activePostFormat === 'single'
             ? 'Offline NLP Engine Activated: Synthesized single-slide post from your notes.'
+            : activePostFormat === 'reel'
+            ? 'Offline NLP Engine Activated: Synthesized motion reel scenes from your notes.'
             : 'Offline NLP Engine Activated: Synthesized custom slides from your notes.'
         );
       } else {
         onShowToast(
           activePostFormat === 'single'
             ? '✨ Autonomously generated standalone 1080×1920 single-slide post!'
+            : activePostFormat === 'reel'
+            ? '✨ Autonomously generated 1080×1920 animated Motion Reel!'
             : '✨ Autonomously generated and perfected 8-slide carousel!'
         );
       }
@@ -648,14 +746,20 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     setPipelineStatus(null);
 
     try {
+      const targetFormat: 'carousel' | 'single' =
+        activePostFormat === 'single' ? 'single' : 'carousel';
       const generated = synthesizeCarousel({
         prompt: promptInput,
         categoryHint,
         inputMode: activeTab,
         imageFileName: uploadedImage?.name,
-        postFormat: activePostFormat,
+        postFormat: targetFormat,
       });
       const processed = enrichAndPaceCarousel(generated, promptInput);
+      const resolvedTheme =
+        processed.theme && DEFAULT_PALETTES[processed.theme]
+          ? DEFAULT_PALETTES[processed.theme]
+          : theme;
       if (processed.theme && DEFAULT_PALETTES[processed.theme]) {
         onSelectTheme(DEFAULT_PALETTES[processed.theme]);
       }
@@ -664,12 +768,27 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       } else {
         stashedCarouselSlidesRef.current = null;
       }
-      onUpdateCarousel(processed);
-      changeSlide(0, processed.slides.length);
+      const finalProcessed: CarouselData =
+        activePostFormat === 'reel'
+          ? {
+              ...processed,
+              postFormat: 'reel',
+              reelConfig: convertCarouselToMotionReel(
+                processed,
+                resolvedTheme,
+                activeReelConfig.templateId || 'marrok-slides',
+                activeReelConfig.languageMode || 'bilingual'
+              ),
+            }
+          : processed;
+      onUpdateCarousel(finalProcessed);
+      changeSlide(0, finalProcessed.slides.length);
       onShowToast(
         activePostFormat === 'single'
           ? '⚡ Synthesized standalone Single-Slide Post (Instant Offline Mode)'
-          : `⚡ Synthesized ${processed.slides.length}-slide carousel (Instant Offline Mode)`
+          : activePostFormat === 'reel'
+          ? '⚡ Synthesized animated Motion Reel (Instant Offline Mode)'
+          : `⚡ Synthesized ${finalProcessed.slides.length}-slide carousel (Instant Offline Mode)`
       );
     } catch (err: unknown) {
       onShowToast(err instanceof Error ? err.message : 'Instant synthesis failed.');
@@ -1187,7 +1306,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               </div>
             )}
 
-            {/* Post Format Segmented Toggle: Carousel vs Single Slide */}
+            {/* Post Format Segmented Toggle: Carousel vs Single Slide vs Motion Reel */}
             <div
               role="group"
               aria-label="Post format selector"
@@ -1223,6 +1342,22 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               >
                 <ImageIcon className="w-3 h-3" />
                 <span>Single Slide</span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="format-toggle-reel"
+                onClick={() => handleSwitchPostFormat('reel')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activePostFormat === 'reel'
+                    ? 'bg-white/15 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                style={activePostFormat === 'reel' ? { color: theme.accent } : undefined}
+                title="Animated 9:16 Motion Reel Video (1080×1920 + Procedural SFX)"
+              >
+                <Film className="w-3 h-3" />
+                <span>Motion Reel</span>
               </button>
             </div>
 
@@ -1267,7 +1402,13 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-slate-950" />
-                  <span>{activePostFormat === 'single' ? 'Generate Slide' : 'Generate'}</span>
+                  <span>
+                    {activePostFormat === 'single'
+                      ? 'Generate Slide'
+                      : activePostFormat === 'reel'
+                      ? 'Generate Reel'
+                      : 'Generate'}
+                  </span>
                 </>
               )}
             </button>
@@ -1576,39 +1717,66 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             mobileStudioTab === 'canvas' ? 'flex w-full' : 'hidden lg:flex'
           }`}
         >
-          <div className="flex-1 min-h-0 flex items-center justify-center w-full">
-            <ViewportCanvas
-              carousel={carousel}
-              currentSlideIndex={currentSlideIndex}
+          {activePostFormat === 'reel' ? (
+            <MotionReelViewport
+              reelConfig={activeReelConfig}
               theme={theme}
-              showSafeZones={showSafeZones}
-              onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
-              onPreviousSlide={() => changeSlide((prev) => Math.max(0, prev - 1))}
-              onNextSlide={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
-              canvasRef={canvasRef}
-              selectedElementId={selectedElementId}
-              onSelectElement={(id) => {
-                setSelectedElementId(id);
+              selectedSceneId={selectedMotionSceneId}
+              onSelectScene={(sceneId) => setSelectedMotionSceneId(sceneId)}
+              onToggleSfx={() => {
+                applyDeckUpdate((prev) => ({
+                  ...prev,
+                  reelConfig: {
+                    ...activeReelConfig,
+                    sfxEnabled: activeReelConfig.sfxEnabled === false ? true : false,
+                  },
+                }));
               }}
-              onUpdateLayoutOverride={handleUpdateElementLayoutOverride}
+              onSyncFromCarousel={() => {
+                handleSyncReelFromCarousel();
+                onShowToast('Synced Motion Reel scenes from active slides');
+              }}
+              onRestoreCarousel={() => handleSwitchPostFormat('carousel')}
+              onOpenExportModal={() => setIsMotionExportOpen(true)}
             />
-          </div>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0 flex items-center justify-center w-full">
+                <ViewportCanvas
+                  carousel={carousel}
+                  currentSlideIndex={currentSlideIndex}
+                  theme={theme}
+                  showSafeZones={showSafeZones}
+                  onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
+                  onPreviousSlide={() => changeSlide((prev) => Math.max(0, prev - 1))}
+                  onNextSlide={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
+                  canvasRef={canvasRef}
+                  selectedElementId={selectedElementId}
+                  onSelectElement={(id) => {
+                    setSelectedElementId(id);
+                  }}
+                  onUpdateLayoutOverride={handleUpdateElementLayoutOverride}
+                />
+              </div>
 
-          <div className="w-full flex flex-col items-center gap-2 shrink-0">
-            <SlideNavigator
-              carousel={carousel}
-              currentSlideIndex={currentSlideIndex}
-              showSafeZones={showSafeZones}
-              onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
-              onSelectSlide={(idx) => changeSlide(idx)}
-              onAddSlide={handleAddSlide}
-              onDuplicateSlide={handleDuplicateSlide}
-              onDeleteSlide={handleDeleteSlide}
-              onMoveSlide={handleMoveSlide}
-              onExpandToCarousel={() => handleSwitchPostFormat('carousel')}
-              onCondenseToSingleSlide={handleCondenseToSingleSlide}
-            />
-          </div>
+              <div className="w-full flex flex-col items-center gap-2 shrink-0">
+                <SlideNavigator
+                  carousel={carousel}
+                  currentSlideIndex={currentSlideIndex}
+                  showSafeZones={showSafeZones}
+                  onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
+                  onSelectSlide={(idx) => changeSlide(idx)}
+                  onAddSlide={handleAddSlide}
+                  onDuplicateSlide={handleDuplicateSlide}
+                  onDeleteSlide={handleDeleteSlide}
+                  onMoveSlide={handleMoveSlide}
+                  onExpandToCarousel={() => handleSwitchPostFormat('carousel')}
+                  onCondenseToSingleSlide={handleCondenseToSingleSlide}
+                  onConvertToMotionReel={() => handleSwitchPostFormat('reel')}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right Column: Clean Tabbed Inspector + Persistent Unified Delivery Bar */}
@@ -1619,73 +1787,106 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         >
           {/* Inspector Top Tab Bar */}
           <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 border-b border-white/10 bg-black/40 shrink-0 overflow-x-auto">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setInspectorTab('copy')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  inspectorTab === 'copy'
-                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
-                }`}
-              >
-                <Type className="w-3.5 h-3.5" style={inspectorTab === 'copy' ? { color: theme.accent } : undefined} />
-                <span>Slide Text</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setInspectorTab('visual')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  inspectorTab === 'visual'
-                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" style={inspectorTab === 'visual' ? { color: theme.accent } : undefined} />
-                <span>Visual Layout</span>
-                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-black/50 text-slate-300">
-                  {currentSlide.type}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setInspectorTab('position')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  inspectorTab === 'position'
-                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" style={inspectorTab === 'position' ? { color: theme.accent } : undefined} />
-                <span>Position</span>
-                {activeOverridesCount > 0 && (
-                  <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
-                    {activeOverridesCount}
+            {activePostFormat === 'reel' ? (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setInspectorTab('copy')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab !== 'caption'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <Film className="w-3.5 h-3.5" style={inspectorTab !== 'caption' ? { color: theme.accent } : undefined} />
+                  <span>Motion Studio</span>
+                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-black/50 text-slate-300">
+                    {activeReelConfig.templateId}
                   </span>
-                )}
-              </button>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setInspectorTab('caption')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  inspectorTab === 'caption'
-                    ? 'bg-white/15 text-white shadow-sm border border-white/15'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" style={inspectorTab === 'caption' ? { color: theme.accent } : undefined} />
-                <span>Caption & QA</span>
-                {(!qaReport.canExport || (isOfflineDraft && !isReviewed)) && (
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                )}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setInspectorTab('caption')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab === 'caption'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" style={inspectorTab === 'caption' ? { color: theme.accent } : undefined} />
+                  <span>Caption & QA</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setInspectorTab('copy')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab === 'copy'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <Type className="w-3.5 h-3.5" style={inspectorTab === 'copy' ? { color: theme.accent } : undefined} />
+                  <span>Slide Text</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setInspectorTab('visual')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab === 'visual'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" style={inspectorTab === 'visual' ? { color: theme.accent } : undefined} />
+                  <span>Visual Layout</span>
+                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-black/50 text-slate-300">
+                    {currentSlide.type}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setInspectorTab('position')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab === 'position'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <Sliders className="w-3.5 h-3.5" style={inspectorTab === 'position' ? { color: theme.accent } : undefined} />
+                  <span>Position</span>
+                  {activeOverridesCount > 0 && (
+                    <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                      {activeOverridesCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setInspectorTab('caption')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab === 'caption'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" style={inspectorTab === 'caption' ? { color: theme.accent } : undefined} />
+                  <span>Caption & QA</span>
+                  {(!qaReport.canExport || (isOfflineDraft && !isReviewed)) && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* Selected Layer Quick Badge */}
-            {selectedElementId && inspectorTab !== 'position' && (
+            {activePostFormat !== 'reel' && selectedElementId && inspectorTab !== 'position' && (
               <button
                 type="button"
                 onClick={() => setInspectorTab('position')}
@@ -1699,8 +1900,28 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
           {/* Scrollable Tab Viewport */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            {/* MOTION REEL INSPECTOR */}
+            {activePostFormat === 'reel' && inspectorTab !== 'caption' && (
+              <MotionReelInspector
+                reelConfig={activeReelConfig}
+                theme={theme}
+                selectedSceneId={selectedMotionSceneId}
+                onSelectScene={setSelectedMotionSceneId}
+                onChangeReelConfig={(updated) => {
+                  applyDeckUpdate((prev) => ({
+                    ...prev,
+                    reelConfig: updated,
+                  }));
+                }}
+                onSyncFromCarousel={(tplId, langMode) => {
+                  handleSyncReelFromCarousel(tplId, langMode);
+                }}
+                onShowToast={onShowToast}
+              />
+            )}
+
             {/* TAB 1: SLIDE TEXT (Bilingual Headlines, Body, Hook Variants & Auto-Fit) */}
-            {inspectorTab === 'copy' && (
+            {activePostFormat !== 'reel' && inspectorTab === 'copy' && (
               <InlineSlideEditor
                 currentSlide={currentSlide}
                 currentSlideIndex={currentSlideIndex}
@@ -1719,7 +1940,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             )}
 
             {/* TAB 2: VISUAL LAYOUT (8 Archetypes, Hub/Schematic Nodes, Code, Metrics & AI Image Studio) */}
-            {inspectorTab === 'visual' && (
+            {activePostFormat !== 'reel' && inspectorTab === 'visual' && (
               <div className="space-y-4">
                 <ArchetypeControls
                   currentSlide={currentSlide}
@@ -1777,7 +1998,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             )}
 
             {/* TAB 3: POSITION (Direct Graphical Layer Offsets, Scale & Anti-Collision Nudge) */}
-            {inspectorTab === 'position' && (
+            {activePostFormat !== 'reel' && inspectorTab === 'position' && (
               <ElementInspector
                 slide={currentSlide}
                 theme={theme}
@@ -1915,44 +2136,85 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           {/* Single Persistent Unified Delivery Bar (Replaces Duplicated Action Bars) */}
           <div className="px-4 py-2.5 bg-black/75 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isOfflineDraft && !isReviewed) {
-                    onShowToast('⚠️ Downloading unreviewed offline draft...');
-                  } else {
-                    onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG (1080×1920)`);
-                  }
-                  downloadSingleSlidePng(
-                    carousel,
-                    currentSlideIndex,
-                    activePostFormat === 'single'
-                      ? `MARROK_Post_1080x1920.jpg`
-                      : `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
-                    theme,
-                    carousel.visualOptions
-                  );
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
-                title="Download current slide as 1080×1920 JPG"
-              >
-                <Download className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{activePostFormat === 'single' ? 'Slide JPG' : `Slide #${currentSlideIndex + 1} JPG`}</span>
-              </button>
+              {activePostFormat === 'reel' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cues = generateCues(activeReelConfig.scenes || []);
+                      const { samples, sampleRate } = synthesizeSfxFloat32Buffer(
+                        cues,
+                        activeReelConfig.duration || 20
+                      );
+                      const wavBlob = encodeWavBlob(samples, sampleRate);
+                      triggerBlobDownload(wavBlob, 'MARROK_MotionReel_SFX.wav');
+                      onShowToast('Downloaded 48kHz Procedural SFX WAV track');
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+                    title="Download 48kHz procedural SFX WAV track"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>SFX .WAV</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={handleCopySlide}
-                className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
-                title="Copy current slide PNG to clipboard"
-              >
-                {copiedType === 'slide' ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
-                )}
-                <span>{copiedType === 'slide' ? 'Copied Slide' : 'Copy Slide'}</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tpl = getMotionTemplate(activeReelConfig.templateId);
+                      const html = tpl.toHTML(activeReelConfig);
+                      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                      triggerBlobDownload(blob, 'MARROK_MotionReel_1080x1920.html');
+                      onShowToast('Downloaded standalone HTML5 animation player');
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+                    title="Download standalone HTML5 animation player"
+                  >
+                    <Code className="w-3.5 h-3.5 text-purple-400" />
+                    <span>HTML5 Player</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isOfflineDraft && !isReviewed) {
+                        onShowToast('⚠️ Downloading unreviewed offline draft...');
+                      } else {
+                        onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG (1080×1920)`);
+                      }
+                      downloadSingleSlidePng(
+                        carousel,
+                        currentSlideIndex,
+                        activePostFormat === 'single'
+                          ? `MARROK_Post_1080x1920.jpg`
+                          : `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
+                        theme,
+                        carousel.visualOptions
+                      );
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+                    title="Download current slide as 1080×1920 JPG"
+                  >
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{activePostFormat === 'single' ? 'Slide JPG' : `Slide #${currentSlideIndex + 1} JPG`}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopySlide}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] font-semibold text-slate-200 transition-colors cursor-pointer flex items-center gap-1"
+                    title="Copy current slide PNG to clipboard"
+                  >
+                    {copiedType === 'slide' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                    <span>{copiedType === 'slide' ? 'Copied Slide' : 'Copy Slide'}</span>
+                  </button>
+                </>
+              )}
 
               <button
                 type="button"
@@ -2005,7 +2267,18 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 </button>
               )}
 
-              {activePostFormat === 'single' ? (
+              {activePostFormat === 'reel' ? (
+                <button
+                  type="button"
+                  onClick={() => setIsMotionExportOpen(true)}
+                  className="py-1.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                  style={{ backgroundColor: theme.accent }}
+                  title="Render & download 1080×1920 Motion Reel video with procedural SFX"
+                >
+                  <Film className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Export Video</span>
+                </button>
+              ) : activePostFormat === 'single' ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -2121,22 +2394,64 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           </div>
         )}
 
+        {activePostFormat === 'reel' && (
+          <div className="flex-1 text-xs font-mono text-slate-300 px-2">
+            Motion Reel · {activeReelConfig.duration.toFixed(1)}s · 1080×1920
+          </div>
+        )}
+
         <button
           type="button"
-          onClick={activePostFormat === 'single' ? () => downloadSingleSlidePng(carousel, 0, 'MARROK_Single_Post_1080x1920.jpg', theme, carousel.visualOptions) : handleExportZip}
+          onClick={
+            activePostFormat === 'reel'
+              ? () => setIsMotionExportOpen(true)
+              : activePostFormat === 'single'
+              ? () =>
+                  downloadSingleSlidePng(
+                    carousel,
+                    0,
+                    'MARROK_Single_Post_1080x1920.jpg',
+                    theme,
+                    carousel.visualOptions
+                  )
+              : handleExportZip
+          }
           disabled={isExportingZip}
           className="flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-xl font-bold text-xs text-slate-950 active:scale-95 transition-all shadow-md cursor-pointer shrink-0"
           style={{ backgroundColor: theme.accent }}
-          title={activePostFormat === 'single' ? 'Download 1080×1920 JPG' : 'Export Metricool ZIP'}
+          title={
+            activePostFormat === 'reel'
+              ? 'Export Motion Reel Video'
+              : activePostFormat === 'single'
+              ? 'Download 1080×1920 JPG'
+              : 'Export Metricool ZIP'
+          }
         >
           {isExportingZip ? (
             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          ) : activePostFormat === 'reel' ? (
+            <Film className="w-3.5 h-3.5 stroke-[2.5]" />
           ) : (
             <Download className="w-3.5 h-3.5 stroke-[2.5]" />
           )}
-          <span>{activePostFormat === 'single' ? 'Download JPG' : 'Export'}</span>
+          <span>
+            {activePostFormat === 'reel'
+              ? 'Export Video'
+              : activePostFormat === 'single'
+              ? 'Download JPG'
+              : 'Export'}
+          </span>
         </button>
       </div>
+
+      {/* Motion Reel Export Modal */}
+      <MotionExportModal
+        isOpen={isMotionExportOpen}
+        reelConfig={activeReelConfig}
+        theme={theme}
+        onClose={() => setIsMotionExportOpen(false)}
+        onShowToast={onShowToast}
+      />
 
       {/* Media Search Modal */}
       {mediaModalTarget && (

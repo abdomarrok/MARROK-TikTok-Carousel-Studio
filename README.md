@@ -10,7 +10,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 <p align="center">
-  <strong>Multimodal content engine converting complex engineering breakthroughs, screenshots, code diffs, architecture diagrams, and transcripts into 1080×1920 TikTok carousels and bilingual (English + Arabic) viral captions.</strong>
+  <strong>Multimodal content engine converting complex engineering breakthroughs, screenshots, code diffs, architecture diagrams, and transcripts into 1080×1920 TikTok Carousels, 1-Slide Infographic Posters, 9:16 Motion Reels, and bilingual (English + Arabic) viral captions.</strong>
 </p>
 
 [Architecture](specs/architecture.md) • [Log Steps](specs/logsteps.md) • [Design System](specs/archetypes-and-design-system.md) • [API Specs](specs/api-and-schemas.md)
@@ -56,6 +56,20 @@ MARROK guarantees that slide elements never collide or overlay each other across
 6. **Comparison Split (`compare`):** Side-by-side legacy vs modern cards with problem/solution bullet points and circular `VS` badge.
 7. **Image Visual Card (`image`):** Elevated technical diagram or visual asset container with `contain` or `cover` fit, caption badge, and blueprint grid.
 8. **Final CTA (`cta`):** Geometric branding emblem, domain question, CTA pill, and required creator/source attribution credit.
+
+### 📌 Standalone 1-Slide Infographic Poster Mode (`src/lib/synthesis/singleSlideCondenser.ts`)
+- **Dual Visual Modes:** Toggle between **Dense Infographic Poster** (`poster` layout with compact top graphic + bilingual headlines + 3 numbered bilingual takeaway cards) and **Standard Slide Archetype**.
+- **Expanded Copy Limits (`SINGLE_SLIDE_CHAR_LIMITS`):** Supports deeper single-frame breakdowns (`enTitle` $\le 60$, `arTitle` $\le 55$, `enBody` $\le 220$, `arBody` $\le 240$) and 3 bilingual takeaway items.
+- **1-Click Carousel Condenser:** Instantly condense any 8-slide carousel into a 1-slide poster (or expand back to 8 slides without losing your work), complete with a clean `SOURCE //` + `@MARROK` footer without carousel pagination dots.
+
+### 🎬 9:16 Motion Reel Studio (`src/lib/motion/`)
+- **Authentic MARROK Slide Chrome in Motion:** Every frame renders MARROK's OLED base background, radial ambient glow, `108px` engineering grid, CAD safe-zone reticles (`SYS_REF // 1080x1920.CAD_SAFE // MOTION_REEL`), glowing `32×32px` `drawMarrokVectorBadge` header + `MARROK` wordmark, elevated dark surface cards, and animated scene pagination footer.
+- **4 Spring-Physics Templates:**
+  - `marrok-slides` (**MARROK Slide Deck**): Animates your full carousel or single-slide deck with orbital hub schematics, 3-stage pipelines, live typing code terminals, counting benchmark metrics with sparklines, and spring-animated bilingual EN/AR headlines and body copy.
+  - `kinetic-text` (**Kinetic Slide Hook**): High-retention staggered Arabic & English typography with MARROK vector badges and surface cards.
+  - `brand-intro` (**MARROK Brand Intro**): Staggered geometric matrix build, radial scatter reveal of the MARROK vector logo, and bilingual slide lockup.
+  - `product-showcase` (**Architecture & Metrics**): Problem hook card, UI assembly, staggered mechanisms, and a 200x metric counter.
+- **48kHz Procedural SFX Synthesizer & Video Exporter:** Synthesizes mathematical sound effects (`click`, `pop`, `thump`, `whoosh`) synced to scene keyframes and exports muxed **1080×1920 WebM/MP4 Video**, **16-bit PCM WAV Audio**, or **Standalone HTML**.
 
 ### 📦 Complete Deliverables & Metricool Publishing Bundle (100% JPG)
 1-click export packages everything needed to publish immediately on mobile or via social schedulers (Metricool, Buffer):
@@ -105,8 +119,12 @@ cp .env.example .env
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `GEMINI_API_KEY` | Optional* | `""` | Server-side Gemini API key (*offline fallback used if omitted and no client key sent) |
-| `GEMINI_GENERATION_MODELS` | Optional | `gemini-2.5-flash,...` | Comma-separated model cascade for `/api/generate` and `/api/refine-slide` |
+| `GEMINI_API_KEY` | Optional* | `""` | Primary server-side Gemini API key |
+| `GEMINI_API_KEY_BACKUP` | Optional | `""` | Secondary Gemini API key from another account for automatic failover on 429/quota limits |
+| `GEMINI_API_KEYS` | Optional | `""` | Comma-separated pool of additional Gemini API keys |
+| `FREE_BACKUP_AI_ENABLED` | Optional | `"true"` | Enables zero-key Pollinations AI text + 9:16 Flux image backup before offline fallback |
+| `FREE_TEXT_BACKUP_MODELS` | Optional | `"openai,mistral,llama"` | Comma-separated zero-key Pollinations text models |
+| `GEMINI_GENERATION_MODELS` | Optional | `gemini-3.8-flash,...` | Comma-separated model cascade for `/api/generate` and `/api/refine-slide` |
 | `GEMINI_IMAGE_MODELS` | Optional | `gemini-nano-banana-2.1,...` | Comma-separated model cascade for `/api/generate-image` |
 | `ALLOWED_ORIGIN` | Optional | `*` | CORS `Access-Control-Allow-Origin` header value |
 | `API_SHARED_SECRET` | Optional | `""` | Shared secret (`x-api-secret`) required when relying on server `GEMINI_API_KEY` |
