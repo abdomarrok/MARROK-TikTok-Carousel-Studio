@@ -126,15 +126,12 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3200);
   }, []);
 
-  // Load Saved & Posted Carousels on startup; replace static preset with latest saved post when present
-  useEffect(() => {
-    let mounted = true;
+  const refreshVaultPosts = useCallback((isInitialMount = false) => {
     loadVaultPosts()
       .then((res) => {
-        if (!mounted) return;
         setSavedPosts(res.posts);
         setStorageEngine(res.storageEngine);
-        if (res.posts.length > 0 && !hasRestoredLocalDraftRef.current) {
+        if (isInitialMount && res.posts.length > 0 && !hasRestoredLocalDraftRef.current) {
           const latest = sanitizeFullCarousel(res.posts[0].deck);
           carouselRef.current = latest;
           setCarousel(latest);
@@ -146,10 +143,17 @@ export default function App() {
       .catch((err) => {
         console.warn('Failed to load saved posts vault:', err);
       });
-    return () => {
-      mounted = false;
-    };
   }, []);
+
+  // Load Saved & Posted Carousels on startup and re-sync when switching browser tabs
+  useEffect(() => {
+    refreshVaultPosts(true);
+    const handleFocus = () => refreshVaultPosts(false);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshVaultPosts]);
 
   // History-aware Carousel State Updater
   const handleUpdateCarousel: React.Dispatch<React.SetStateAction<CarouselData>> = useCallback(
@@ -387,7 +391,10 @@ export default function App() {
         onOpenContactSheet={() => setIsContactSheetOpen(true)}
         onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
         onOpenPreviewDrawer={handleOpenPreviewDrawer}
-        onOpenSavedPostsDrawer={() => setIsSavedPostsDrawerOpen(true)}
+        onOpenSavedPostsDrawer={() => {
+          refreshVaultPosts(false);
+          setIsSavedPostsDrawerOpen(true);
+        }}
         savedPostsCount={savedPosts.length}
         canUndo={pastHistory.length > 0}
         canRedo={futureHistory.length > 0}
@@ -410,7 +417,10 @@ export default function App() {
           onOpenContactSheet={() => setIsContactSheetOpen(true)}
           onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
           onOpenPreviewDrawer={handleOpenPreviewDrawer}
-          onOpenSavedPostsDrawer={() => setIsSavedPostsDrawerOpen(true)}
+          onOpenSavedPostsDrawer={() => {
+            refreshVaultPosts(false);
+            setIsSavedPostsDrawerOpen(true);
+          }}
           onSaveValidPost={handleSaveValidPost}
           isSavingPost={isSavingPost}
           onShowToast={showToast}

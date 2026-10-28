@@ -18,6 +18,46 @@ import { BUNDLED_SAVED_POSTS } from '../../src/lib/storage/bundledSavedPosts.ts'
 
 const KV_STORAGE_KEY = 'marrok:saved_posts:v1';
 const MAX_SAVED_POSTS = 100;
+const DEFAULT_REMOTE_VAULT_ORIGIN = 'https://marrok-tik-tok-carousel-studio.vercel.app';
+
+function shouldSyncWithRemoteVault(env: NodeJS.ProcessEnv = process.env): string | null {
+  const isVercel = Boolean(env.VERCEL || env.VERCEL_ENV);
+  const isTest = Boolean(env.POSTS_STORAGE_FILE || env.NODE_ENV === 'test' || env.VITEST);
+  if (isVercel || isTest) return null;
+  const origin = (env.REMOTE_VAULT_ORIGIN || DEFAULT_REMOTE_VAULT_ORIGIN).trim().replace(/\/+$/, '');
+  return origin || null;
+}
+
+async function fetchRemoteVaultPosts(remoteOrigin: string): Promise<SavedPostRecord[] | null> {
+  try {
+    const res = await fetch(`${remoteOrigin}/api/posts`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(2500),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { posts?: SavedPostRecord[] };
+    return Array.isArray(data?.posts) ? data.posts : null;
+  } catch {
+    return null;
+  }
+}
+
+async function pushPostsToRemoteVault(
+  remoteOrigin: string,
+  posts: SavedPostRecord[]
+): Promise<void> {
+  try {
+    await fetch(`${remoteOrigin}/api/posts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncPosts: posts }),
+      signal: AbortSignal.timeout(3500),
+    });
+  } catch {
+    // Non-fatal if offline
+  }
+}
 
 export function getBundledSeedPosts(): SavedPostRecord[] {
   if (!Array.isArray(BUNDLED_SAVED_POSTS)) return [];
@@ -197,9 +237,28 @@ export async function loadStoredPosts(env: NodeJS.ProcessEnv = process.env): Pro
     }
   }
 
-  const { posts, engine } = await readFromFileStore(env);
+  const { posts: localPosts, engine } = await readFromFileStore(env);
+  const remoteOrigin = shouldSyncWithRemoteVault(env);
+  if (remoteOrigin) {
+    const remotePosts = await fetchRemoteVaultPosts(remoteOrigin);
+    if (remotePosts && remotePosts.length > 0) {
+      const merged = mergePostLists(localPosts, remotePosts);
+      if (merged.length !== localPosts.length) {
+        await writeToFileStore(merged, env);
+      }
+      if (merged.length > remotePosts.length) {
+        void pushPostsToRemoteVault(remoteOrigin, merged);
+      }
+      return {
+        posts: merged,
+        storageEngine: engine,
+        isCloudPersistent: true,
+      };
+    }
+  }
+
   return {
-    posts,
+    posts: localPosts,
     storageEngine: engine,
     isCloudPersistent: engine === 'local-disk',
   };
@@ -221,7 +280,12 @@ export async function saveStoredPosts(
     }
   }
 
-  return writeToFileStore(sorted, env);
+  const engine = await writeToFileStore(sorted, env);
+  const remoteOrigin = shouldSyncWithRemoteVault(env);
+  if (remoteOrigin) {
+    void pushPostsToRemoteVault(remoteOrigin, sorted);
+  }
+  return engine;
 }
 
 /**
@@ -494,6 +558,17 @@ export async function handleUpdatePostStatus(req: Request, res: Response) {
 export async function handleDeletePost(req: Request, res: Response) {
   try {
     const id = String(req.params.id || '').trim();
+    const remoteOrigin = shouldSyncWithRemoteVault();
+    if (remoteOrigin && id) {
+      try {
+        await fetch(`${remoteOrigin}/api/posts/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          signal: AbortSignal.timeout(2500),
+        });
+      } catch {
+        // Non-fatal if remote is unreachable
+      }
+    }
     const { posts } = await loadStoredPosts();
     const filtered = posts.filter((p) => p.id !== id);
     const storageEngine = await saveStoredPosts(filtered);

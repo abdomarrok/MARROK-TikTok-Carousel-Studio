@@ -146,6 +146,19 @@ function mergeRecords(
   );
 }
 
+const DEFAULT_REMOTE_VAULT_ORIGIN = 'https://marrok-tik-tok-carousel-studio.vercel.app';
+
+function getRemoteVaultOrigin(): string | null {
+  if (typeof window === 'undefined') return null;
+  if (import.meta.env?.MODE === 'test') return null;
+  const configured = (import.meta.env?.VITE_REMOTE_VAULT_ORIGIN || DEFAULT_REMOTE_VAULT_ORIGIN)
+    .trim()
+    .replace(/\/+$/, '');
+  if (!configured) return null;
+  if (window.location.origin === configured) return null;
+  return configured;
+}
+
 export interface VaultLoadResult {
   posts: SavedPostRecord[];
   storageEngine: SavedPostStorageEngine;
@@ -154,19 +167,40 @@ export interface VaultLoadResult {
 
 /**
  * Loads saved validated/posted carousels by reconciling the bundled repository seed posts,
- * backend (/api/posts), and the durable Browser IndexedDB Vault.
+ * backend (/api/posts), remote Vercel deployment vault, and the durable Browser IndexedDB Vault.
  * If the Vercel serverless /tmp store cold-started, automatically re-hydrates /api/posts
  * from the browser's IndexedDB + bundled Vault.
  */
 export async function loadVaultPosts(): Promise<VaultLoadResult> {
   const deletedIds = readDeletedIds();
   const localPosts = await readLocalVault();
+  const remoteOrigin = getRemoteVaultOrigin();
 
   try {
-    const res = await fetch('/api/posts', {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
+    const [res, remoteRes] = await Promise.all([
+      fetch('/api/posts', {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      }),
+      remoteOrigin
+        ? fetch(`${remoteOrigin}/api/posts`, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+          }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    let remotePosts: SavedPostRecord[] = [];
+    if (remoteRes && remoteRes.ok) {
+      try {
+        const remoteData = (await remoteRes.json()) as { posts?: SavedPostRecord[] };
+        remotePosts = (Array.isArray(remoteData.posts) ? remoteData.posts : []).filter(
+          (p) => !deletedIds.has(p.id)
+        );
+      } catch {
+        // Ignore remote parse error
+      }
+    }
 
     if (res.ok) {
       const data = (await res.json()) as {
@@ -177,14 +211,28 @@ export async function loadVaultPosts(): Promise<VaultLoadResult> {
       const serverPosts = (Array.isArray(data.posts) ? data.posts : []).filter(
         (p) => !deletedIds.has(p.id)
       );
-      const merged = mergeRecords(serverPosts, localPosts).filter((p) => !deletedIds.has(p.id));
+      const mergedServerAndRemote = mergeRecords(remotePosts, serverPosts);
+      const merged = mergeRecords(mergedServerAndRemote, localPosts).filter(
+        (p) => !deletedIds.has(p.id)
+      );
 
       // Persist reconciled set locally
       await writeLocalVault(merged);
 
-      // If client IndexedDB/bundled seed had posts missing from server (e.g. after Vercel cold start), push them up
+      // If client IndexedDB/remote/bundled seed had posts missing from local server, push them up
       if (merged.length > serverPosts.length) {
         fetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ syncPosts: merged }),
+        }).catch(() => {
+          // Non-blocking background sync
+        });
+      }
+
+      // If local/IndexedDB had posts missing from remote Vercel server, push them to remote too
+      if (remoteOrigin && merged.length > remotePosts.length) {
+        fetch(`${remoteOrigin}/api/posts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ syncPosts: merged }),
@@ -260,6 +308,15 @@ export async function saveValidPost(params: SaveValidPostParams): Promise<SavedP
     const updatedLocal = [savedPost, ...currentLocal.filter((p) => p.id !== savedPost.id)];
     await writeLocalVault(updatedLocal);
 
+    const remoteOrigin = getRemoteVaultOrigin();
+    if (remoteOrigin) {
+      fetch(`${remoteOrigin}/api/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ syncPosts: updatedLocal }),
+      }).catch(() => {});
+    }
+
     return savedPost;
   } catch (err) {
     // If the error was an explicit 400 validation error from the backend, rethrow it
@@ -313,6 +370,7 @@ export async function updateSavedPostStatus(
 ): Promise<SavedPostRecord> {
   const currentLocal = await readLocalVault();
   const existing = currentLocal.find((p) => p.id === id);
+  const remoteOrigin = getRemoteVaultOrigin();
 
   try {
     const res = await fetch(`/api/posts/${encodeURIComponent(id)}/status`, {
@@ -325,6 +383,13 @@ export async function updateSavedPostStatus(
       const data = (await res.json()) as { post: SavedPostRecord };
       const updatedList = [data.post, ...currentLocal.filter((p) => p.id !== id)];
       await writeLocalVault(updatedList);
+      if (remoteOrigin) {
+        fetch(`${remoteOrigin}/api/posts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ syncPosts: updatedList }),
+        }).catch(() => {});
+      }
       return data.post;
     }
   } catch {
@@ -352,6 +417,14 @@ export async function updateSavedPostStatus(
     body: JSON.stringify({ syncPosts: updatedList }),
   }).catch(() => {});
 
+  if (remoteOrigin) {
+    fetch(`${remoteOrigin}/api/posts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncPosts: updatedList }),
+    }).catch(() => {});
+  }
+
   return updatedRecord;
 }
 
@@ -362,11 +435,19 @@ export async function deleteSavedPost(id: string): Promise<SavedPostRecord[]> {
   const deletedIds = readDeletedIds();
   deletedIds.add(id);
   writeDeletedIds(deletedIds);
+  const remoteOrigin = getRemoteVaultOrigin();
 
   try {
-    await fetch(`/api/posts/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    });
+    await Promise.all([
+      fetch(`/api/posts/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }),
+      remoteOrigin
+        ? fetch(`${remoteOrigin}/api/posts/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+          }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
   } catch {
     // Continue removing from local vault even if network fails
   }
