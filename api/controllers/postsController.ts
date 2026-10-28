@@ -14,14 +14,14 @@ import { parseCarouselData } from '../../src/lib/validation/carousel.ts';
 import { sanitizeFullCarousel } from '../../src/lib/textSanitizer.ts';
 import { runQAChecks } from '../../src/lib/qaChecks.ts';
 import { runPlatformRiskChecks } from '../../src/lib/riskChecks.ts';
-import bundledSavedPostsJson from '../../data/saved-posts.json';
+import { BUNDLED_SAVED_POSTS } from '../../src/lib/storage/bundledSavedPosts.ts';
 
 const KV_STORAGE_KEY = 'marrok:saved_posts:v1';
 const MAX_SAVED_POSTS = 100;
 
 export function getBundledSeedPosts(): SavedPostRecord[] {
-  if (!Array.isArray(bundledSavedPostsJson)) return [];
-  return bundledSavedPostsJson as unknown as SavedPostRecord[];
+  if (!Array.isArray(BUNDLED_SAVED_POSTS)) return [];
+  return BUNDLED_SAVED_POSTS;
 }
 
 /**
@@ -119,7 +119,7 @@ async function readFromFileStore(env: NodeJS.ProcessEnv = process.env): Promise<
     }
 
     // On Vercel cold start (/tmp empty) when no custom test file override is set,
-    // hydrate initial posts from the repository's data/saved-posts.json bundle.
+    // hydrate initial posts from the repository's bundled seed posts.
     if (!env.POSTS_STORAGE_FILE) {
       const repoSeedPath = path.join(process.cwd(), 'data', 'saved-posts.json');
       if (repoSeedPath !== filePath) {
@@ -130,7 +130,7 @@ async function readFromFileStore(env: NodeJS.ProcessEnv = process.env): Promise<
             return { posts: parsedSeed, engine };
           }
         } catch {
-          // Fall through to statically bundled JSON import
+          // Fall through to statically bundled module import
         }
       }
       const bundled = getBundledSeedPosts();
@@ -150,6 +150,25 @@ async function writeToFileStore(
   try {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, JSON.stringify(posts, null, 2), 'utf-8');
+
+    // When saving locally in dev/studio, also mirror into src/lib/storage/bundledSavedPosts.ts
+    // so git pushes to Vercel automatically include the latest saved posts in the bundle.
+    if (engine === 'local-disk' && !env.POSTS_STORAGE_FILE) {
+      try {
+        const bundledModulePath = path.join(
+          process.cwd(),
+          'src',
+          'lib',
+          'storage',
+          'bundledSavedPosts.ts'
+        );
+        const tsContent = `import type { SavedPostRecord } from '../../types.ts';\n\n/**\n * Bundled repository seed posts for the Saved & Posted Vault.\n * Kept inside \`src/lib/storage/\` so Vite/Rolldown and Vercel Serverless builds\n * always resolve it even when runtime \`data/saved-posts.json\` is not present in git.\n */\nexport const BUNDLED_SAVED_POSTS: SavedPostRecord[] = ${JSON.stringify(posts, null, 2)};\n`;
+        await fs.writeFile(bundledModulePath, tsContent, 'utf-8');
+      } catch {
+        // Non-fatal if source tree is read-only
+      }
+    }
+
     return engine;
   } catch {
     // Fallback to os.tmpdir() if the directory is read-only (e.g. custom serverless container)

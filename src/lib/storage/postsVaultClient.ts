@@ -6,7 +6,7 @@ import type {
 } from '../../types.ts';
 import { parseCarouselData } from '../validation/carousel.ts';
 import { sanitizeFullCarousel } from '../textSanitizer.ts';
-import bundledSavedPostsJson from '../../../data/saved-posts.json';
+import { BUNDLED_SAVED_POSTS } from './bundledSavedPosts.ts';
 
 const IDB_NAME = 'marrok_posts_vault_v1';
 const IDB_STORE = 'saved_posts';
@@ -15,8 +15,8 @@ const FALLBACK_LS_KEY = 'marrok_posts_vault_fallback_v1';
 const DELETED_IDS_LS_KEY = 'marrok_posts_deleted_ids_v1';
 
 function getBundledClientSeedPosts(): SavedPostRecord[] {
-  if (!Array.isArray(bundledSavedPostsJson)) return [];
-  return bundledSavedPostsJson as unknown as SavedPostRecord[];
+  if (!Array.isArray(BUNDLED_SAVED_POSTS)) return [];
+  return BUNDLED_SAVED_POSTS;
 }
 
 function readDeletedIds(): Set<string> {
