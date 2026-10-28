@@ -59,6 +59,13 @@ export default function App() {
   const [pastHistory, setPastHistory] = useState<CarouselData[]>([]);
   const [futureHistory, setFutureHistory] = useState<CarouselData[]>([]);
 
+  const carouselRef = useRef<CarouselData>(carousel);
+  carouselRef.current = carousel;
+  const pastHistoryRef = useRef<CarouselData[]>(pastHistory);
+  pastHistoryRef.current = pastHistory;
+  const futureHistoryRef = useRef<CarouselData[]>(futureHistory);
+  futureHistoryRef.current = futureHistory;
+
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
   // Saved & Posted Vault State
@@ -128,8 +135,9 @@ export default function App() {
         setSavedPosts(res.posts);
         setStorageEngine(res.storageEngine);
         if (res.posts.length > 0 && !hasRestoredLocalDraftRef.current) {
-          const latest = res.posts[0].deck;
-          setCarousel(sanitizeFullCarousel(latest));
+          const latest = sanitizeFullCarousel(res.posts[0].deck);
+          carouselRef.current = latest;
+          setCarousel(latest);
           if (latest.theme && DEFAULT_PALETTES[latest.theme]) {
             setCurrentPalette(DEFAULT_PALETTES[latest.theme]);
           }
@@ -147,46 +155,57 @@ export default function App() {
   const handleUpdateCarousel: React.Dispatch<React.SetStateAction<CarouselData>> = useCallback(
     (updaterOrValue) => {
       hasRestoredLocalDraftRef.current = true;
-      setCarousel((prev) => {
-        const next =
-          typeof updaterOrValue === 'function'
-            ? (updaterOrValue as (prevState: CarouselData) => CarouselData)(prev)
-            : updaterOrValue;
-        if (next === prev) return prev;
-        setPastHistory((oldPast) => [...oldPast.slice(-(MAX_HISTORY_STEPS - 1)), prev]);
-        setFutureHistory([]);
-        return next;
-      });
+      const prev = carouselRef.current;
+      const next =
+        typeof updaterOrValue === 'function'
+          ? (updaterOrValue as (prevState: CarouselData) => CarouselData)(prev)
+          : updaterOrValue;
+      if (next === prev) return;
+      const nextPast = [...pastHistoryRef.current.slice(-(MAX_HISTORY_STEPS - 1)), prev];
+      carouselRef.current = next;
+      pastHistoryRef.current = nextPast;
+      futureHistoryRef.current = [];
+      setCarousel(next);
+      setPastHistory(nextPast);
+      setFutureHistory([]);
     },
     []
   );
 
   const handleUndo = useCallback(() => {
-    setPastHistory((oldPast) => {
-      if (oldPast.length === 0) return oldPast;
-      const previousState = oldPast[oldPast.length - 1];
-      const remainingPast = oldPast.slice(0, -1);
-      setCarousel((current) => {
-        setFutureHistory((oldFuture) => [current, ...oldFuture.slice(0, MAX_HISTORY_STEPS - 1)]);
-        return previousState;
-      });
-      showToast('Undid last change');
-      return remainingPast;
-    });
+    const oldPast = pastHistoryRef.current;
+    if (oldPast.length === 0) return;
+    const previousState = oldPast[oldPast.length - 1];
+    const remainingPast = oldPast.slice(0, -1);
+    const current = carouselRef.current;
+    const nextFuture = [current, ...futureHistoryRef.current.slice(0, MAX_HISTORY_STEPS - 1)];
+
+    carouselRef.current = previousState;
+    pastHistoryRef.current = remainingPast;
+    futureHistoryRef.current = nextFuture;
+
+    setPastHistory(remainingPast);
+    setFutureHistory(nextFuture);
+    setCarousel(previousState);
+    showToast('Undid last change');
   }, [showToast]);
 
   const handleRedo = useCallback(() => {
-    setFutureHistory((oldFuture) => {
-      if (oldFuture.length === 0) return oldFuture;
-      const nextState = oldFuture[0];
-      const remainingFuture = oldFuture.slice(1);
-      setCarousel((current) => {
-        setPastHistory((oldPast) => [...oldPast.slice(-(MAX_HISTORY_STEPS - 1)), current]);
-        return nextState;
-      });
-      showToast('Redid change');
-      return remainingFuture;
-    });
+    const oldFuture = futureHistoryRef.current;
+    if (oldFuture.length === 0) return;
+    const nextState = oldFuture[0];
+    const remainingFuture = oldFuture.slice(1);
+    const current = carouselRef.current;
+    const nextPast = [...pastHistoryRef.current.slice(-(MAX_HISTORY_STEPS - 1)), current];
+
+    carouselRef.current = nextState;
+    pastHistoryRef.current = nextPast;
+    futureHistoryRef.current = remainingFuture;
+
+    setFutureHistory(remainingFuture);
+    setPastHistory(nextPast);
+    setCarousel(nextState);
+    showToast('Redid change');
   }, [showToast]);
 
   // Global Keyboard Shortcuts for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Y / Cmd+Shift+Z)

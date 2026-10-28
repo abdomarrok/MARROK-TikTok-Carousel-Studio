@@ -214,23 +214,31 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   // Direct Graphical Control & Hit-Testing States
   const [selectedElementId, setSelectedElementId] = useState<GraphicalElementId | null>(null);
 
+  const currentSlideIndexRef = useRef(currentSlideIndex);
+  currentSlideIndexRef.current = currentSlideIndex;
+
   // Sync with external slide index changes (e.g. from ContactSheetModal thumbnail clicks)
   useEffect(() => {
-    if (activeSlideIndex !== undefined && activeSlideIndex !== currentSlideIndex) {
+    if (activeSlideIndex !== undefined && activeSlideIndex !== currentSlideIndexRef.current) {
       const clamped = Math.max(0, Math.min(carousel.slides.length - 1, activeSlideIndex));
+      currentSlideIndexRef.current = clamped;
       setCurrentSlideIndex(clamped);
     }
   }, [activeSlideIndex, carousel.slides.length]);
 
-  const changeSlide = (indexOrUpdater: number | ((prev: number) => number)) => {
-    setCurrentSlideIndex((prev) => {
-      const next = typeof indexOrUpdater === 'function' ? indexOrUpdater(prev) : indexOrUpdater;
-      const clamped = Math.max(0, Math.min(carousel.slides.length - 1, next));
-      if (clamped !== prev) {
-        onSlideChange?.(clamped);
-      }
-      return clamped;
-    });
+  const changeSlide = (
+    indexOrUpdater: number | ((prev: number) => number),
+    overrideSlidesCount?: number
+  ) => {
+    const prev = currentSlideIndexRef.current;
+    const next = typeof indexOrUpdater === 'function' ? indexOrUpdater(prev) : indexOrUpdater;
+    const maxCount = overrideSlidesCount ?? carousel.slides.length;
+    const clamped = Math.max(0, Math.min(Math.max(0, maxCount - 1), next));
+    currentSlideIndexRef.current = clamped;
+    setCurrentSlideIndex(clamped);
+    if (clamped !== prev) {
+      onSlideChange?.(clamped);
+    }
   };
 
   // Unified Smart Dock States
@@ -525,7 +533,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       }
 
       onUpdateCarousel(generated);
-      changeSlide(0);
+      changeSlide(0, generated.slides.length);
       if (generated.sourceMeta?.isFallback || generated.sourceMeta?.engine === 'offline-synthesizer') {
         onShowToast('Offline NLP Engine Activated: Synthesized custom slides from your notes.');
       } else {
@@ -564,7 +572,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         onSelectTheme(DEFAULT_PALETTES[processed.theme]);
       }
       onUpdateCarousel(processed);
-      changeSlide(0);
+      changeSlide(0, processed.slides.length);
       onShowToast(`⚡ Synthesized ${processed.slides.length}-slide carousel (Instant Offline Mode)`);
     } catch (err: unknown) {
       onShowToast(err instanceof Error ? err.message : 'Instant synthesis failed.');
@@ -672,73 +680,72 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       enBody: 'Direct architectural explanation of how the system executes under the hood.',
       arBody: 'شرح معماري مباشر لكيفية عمل النظام في الخلفية.',
     };
-    let targetIdx = 0;
+    const targetIdx = Math.min(currentSlideIndex + 1, carousel.slides.length);
+    const nextLength = carousel.slides.length + 1;
     applyDeckUpdate((prev) => {
       const insertAt = Math.min(currentSlideIndex + 1, prev.slides.length);
-      targetIdx = insertAt;
       const newSlides = [...prev.slides];
       newSlides.splice(insertAt, 0, newSlide);
       return { ...prev, slides: newSlides };
     });
-    changeSlide(targetIdx);
+    changeSlide(targetIdx, nextLength);
     onShowToast(`Added slide #${targetIdx + 1}`);
   };
 
   const handleDuplicateSlide = () => {
-    let targetIdx = 0;
+    const fromIdx = Math.min(currentSlideIndex, carousel.slides.length - 1);
+    if (!carousel.slides[fromIdx]) return;
+    const targetIdx = fromIdx + 1;
+    const nextLength = carousel.slides.length + 1;
     applyDeckUpdate((prev) => {
-      const fromIdx = Math.min(currentSlideIndex, prev.slides.length - 1);
-      const current = prev.slides[fromIdx];
+      const idx = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const current = prev.slides[idx];
       if (!current) return prev;
       const clone = JSON.parse(JSON.stringify(current));
-      const insertAt = fromIdx + 1;
-      targetIdx = insertAt;
       const newSlides = [...prev.slides];
-      newSlides.splice(insertAt, 0, clone);
+      newSlides.splice(idx + 1, 0, clone);
       return { ...prev, slides: newSlides };
     });
-    changeSlide(targetIdx);
+    changeSlide(targetIdx, nextLength);
     onShowToast(`Duplicated slide #${targetIdx + 1}`);
   };
 
   const handleDeleteSlide = () => {
-    let deleted = false;
-    let newIdx = 0;
+    if (carousel.slides.length <= 3) {
+      onShowToast('Minimum 3 slides required in carousel');
+      return;
+    }
+    const deleteAt = Math.min(currentSlideIndex, carousel.slides.length - 1);
+    const nextLength = carousel.slides.length - 1;
+    const newIdx = Math.max(0, Math.min(nextLength - 1, deleteAt - 1));
     applyDeckUpdate((prev) => {
       if (prev.slides.length <= 3) return prev;
-      deleted = true;
-      const deleteAt = Math.min(currentSlideIndex, prev.slides.length - 1);
-      const newSlides = prev.slides.filter((_, idx) => idx !== deleteAt);
-      newIdx = Math.max(0, Math.min(newSlides.length - 1, deleteAt - 1));
+      const targetDeleteAt = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const newSlides = prev.slides.filter((_, idx) => idx !== targetDeleteAt);
       return {
         ...prev,
         slides: newSlides,
       };
     });
-    if (deleted) {
-      changeSlide(newIdx);
-      onShowToast(`Deleted slide #${currentSlideIndex + 1}`);
-    } else {
-      onShowToast('Minimum 3 slides required in carousel');
-    }
+    changeSlide(newIdx, nextLength);
+    onShowToast(`Deleted slide #${deleteAt + 1}`);
   };
 
   const handleMoveSlide = (direction: 'left' | 'right') => {
-    let movedTarget = -1;
+    const fromIndex = Math.min(currentSlideIndex, carousel.slides.length - 1);
+    const targetIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
+    if (targetIndex < 0 || targetIndex >= carousel.slides.length) return;
     applyDeckUpdate((prev) => {
-      const fromIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
-      const targetIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
-      if (targetIndex < 0 || targetIndex >= prev.slides.length) return prev;
+      const srcIdx = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const dstIdx = direction === 'left' ? srcIdx - 1 : srcIdx + 1;
+      if (dstIdx < 0 || dstIdx >= prev.slides.length) return prev;
       const newSlides = [...prev.slides];
-      const [removed] = newSlides.splice(fromIndex, 1);
-      newSlides.splice(targetIndex, 0, removed);
-      movedTarget = targetIndex;
+      const [removed] = newSlides.splice(srcIdx, 1);
+      newSlides.splice(dstIdx, 0, removed);
       return { ...prev, slides: newSlides };
     });
-    if (movedTarget !== -1) {
-      changeSlide(movedTarget);
-      onShowToast(`Moved slide to position #${movedTarget + 1}`);
-    }
+    changeSlide(targetIndex, carousel.slides.length);
+    onShowToast(`Moved slide to position #${targetIndex + 1}`);
   };
 
   const handleApplyHookVariant = (variant: HookVariant) => {
