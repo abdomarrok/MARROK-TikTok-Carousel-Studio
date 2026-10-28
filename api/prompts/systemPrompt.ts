@@ -174,14 +174,17 @@ export function buildUserCarouselPrompt(options: {
 
   if (isSingle) {
     userPromptText += `\nInstructions for a coherent, high-impact SINGLE-SLIDE technical post:
-- Return EXACTLY 1 slide in slides[] that distills the core engineering insight onto a single 1080x1920 poster:
+- Return EXACTLY 1 slide in slides[] that distills the core engineering insight onto a single 1080x1920 infographic poster:
   * Pick the archetype that BEST EXPLAINS the topic:
+    - "poster" (HIGHLY RECOMMENDED for single-slide posts): A dense technical infographic poster combining a schematic diagram (with diagramVariant and 3 diagramNodes), up to 3 bilingual key takeaway bullets in takeaways[] ({ en, ar, icon }), and optional metricValue/metricLabel benchmark.
     - "row" (with diagramVariant 'topology', 'stack', 'isolation', 'takeaway', 'scatter', 'graph', 'clusters', 'split', or 'features' and 3 concrete diagramNodes + 2 diagramEdges + diagramFooter) for system architectures and mechanisms.
     - "compare" for contrasting two architectures, versions, or runtimes side-by-side.
     - "metric" if a verified benchmark or dramatic quantitative metric is the main takeaway.
     - "code" if a concrete CLI/code snippet is the centerpiece.
     - "hub" for a 6-node ecosystem or architectural overview.
-  * Populate enTitle, arTitle, enBody, arBody, plus enCredit and arCredit for standalone footer attribution.
+  * Populate takeaways[] with 3 high-signal bilingual bullets ({ en: "...", ar: "...", icon: "..." }) capturing the core engineering takeaways.
+  * Expanded single-slide copy limits: enTitle (up to 55 chars), arTitle (up to 50 chars), enBody (up to 220 chars), arBody (up to 230 chars).
+  * Populate enCredit and arCredit for standalone footer attribution (e.g. author name, source repo, paper title).
 - NO AI SLOP: All titles and explanations must be factual, specific, and directly based on the input.
 - Return valid JSON matching the exact schema.`;
   } else {

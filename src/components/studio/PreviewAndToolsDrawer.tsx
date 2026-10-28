@@ -201,8 +201,11 @@ export const PreviewAndToolsDrawer: React.FC<PreviewAndToolsDrawerProps> = ({
     try {
       const customKey =
         typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_key') : null;
+      const backupKey =
+        typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_backup_key') : null;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (customKey) headers['x-gemini-key'] = customKey;
+      if (backupKey) headers['x-gemini-backup-key'] = backupKey;
 
       const res = await fetch('/api/refine-slide', {
         method: 'POST',

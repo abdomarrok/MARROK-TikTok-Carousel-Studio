@@ -7,3 +7,4 @@ export * from './renderCode.ts';
 export * from './renderCompare.ts';
 export * from './renderImage.ts';
 export * from './renderCta.ts';
+export * from './renderPoster.ts';

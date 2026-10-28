@@ -21,6 +21,7 @@ import {
 import { enrichCarouselDiagrams } from './enrichment.ts';
 import { balanceCarouselVisualPacing } from './pacing.ts';
 import { synthesizeUniversalCarousel } from './universalExtractor.ts';
+import { seedSingleSlideTakeaways } from './singleSlideCondenser.ts';
 
 /**
  * Universal Synthesis Engine:
@@ -131,11 +132,12 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
 
     const standaloneSlide: SlideData = {
       ...chosen,
-      type: chosen.type === 'cta' ? 'row' : chosen.type,
+      type: chosen.type === 'cta' || chosen.type === 'hub' ? 'poster' : chosen.type,
       enTitle: hookSlide?.enTitle || chosen.enTitle || headline,
       arTitle: hookSlide?.arTitle || chosen.arTitle || `تحليل معماري لمنظومة ${arSubject}.`,
       enBody: chosen.enBody || hookSlide?.enBody,
       arBody: chosen.arBody || hookSlide?.arBody,
+      takeaways: seedSingleSlideTakeaways(chosen, domainCategory),
       enCredit: chosen.enCredit || ctaCandidate?.enCredit || `Source: ${brand}`,
       arCredit: chosen.arCredit || ctaCandidate?.arCredit || `المصدر: ${brand}`,
       url: chosen.url || brandUrl || 'marrok.org',

@@ -2,8 +2,11 @@ import type { Request, Response, NextFunction } from 'express';
 
 export interface ServerConfig {
   geminiApiKey: string;
+  geminiApiKeys: string[];
   generationModels: string[];
   imageModels: string[];
+  freeBackupEnabled: boolean;
+  freeTextBackupModels: string[];
   allowedOrigin: string;
   apiSharedSecret: string;
   rateLimitRpm: number;
@@ -11,6 +14,12 @@ export interface ServerConfig {
   isVercel: boolean;
   kvRestUrl: string;
   kvRestToken: string;
+}
+
+export interface CandidateGeminiKey {
+  key: string;
+  isCustom: boolean;
+  label: string;
 }
 
 const DEFAULT_GENERATION_MODELS = [
@@ -22,6 +31,12 @@ const DEFAULT_GENERATION_MODELS = [
 const DEFAULT_IMAGE_MODELS = [
   'gemini-nano-banana-2.1',
   'gemini-3.1-flash-lite-image',
+];
+
+const DEFAULT_FREE_TEXT_BACKUP_MODELS = [
+  'openai',
+  'mistral',
+  'llama',
 ];
 
 const DEPRECATED_MODEL_MAP: Record<string, string> = {
@@ -59,18 +74,109 @@ function parseModelList(
   return unique.length > 0 ? unique : fallback;
 }
 
+function parseApiKeyPool(env: NodeJS.ProcessEnv): string[] {
+  const rawSources = [
+    env.GEMINI_API_KEY,
+    env.GEMINI_API_KEY_BACKUP,
+    env.GEMINI_API_KEY_2,
+    env.GEMINI_API_KEY_3,
+    env.GEMINI_API_KEYS,
+  ];
+
+  const keys: string[] = [];
+  for (const source of rawSources) {
+    if (typeof source !== 'string' || !source.trim()) continue;
+    for (const part of source.split(',')) {
+      const cleaned = part.trim();
+      if (cleaned.length > 5 && cleaned !== 'MY_GEMINI_API_KEY' && !keys.includes(cleaned)) {
+        keys.push(cleaned);
+      }
+    }
+  }
+  return keys;
+}
+
+/**
+ * Resolves the prioritized, deduplicated list of Gemini API keys for an incoming request:
+ * 1. Client primary key (x-gemini-key / x-gemini-api-key / body.apiKey)
+ * 2. Client backup key (x-gemini-backup-key / body.backupApiKey)
+ * 3. Server environment key pool (GEMINI_API_KEY, GEMINI_API_KEY_BACKUP, GEMINI_API_KEY_2, GEMINI_API_KEYS)
+ */
+export function resolveRequestGeminiKeys(
+  req: Request,
+  config: ServerConfig = getServerConfig()
+): CandidateGeminiKey[] {
+  const candidates: CandidateGeminiKey[] = [];
+  const seen = new Set<string>();
+
+  const addRawKeys = (raw: unknown, isCustom: boolean, baseLabel: string) => {
+    if (typeof raw !== 'string' || !raw.trim()) return;
+    const parts = raw
+      .split(',')
+      .map((k) => k.trim())
+      .filter((k) => k.length > 5 && k !== 'MY_GEMINI_API_KEY');
+    parts.forEach((key, idx) => {
+      if (!seen.has(key)) {
+        seen.add(key);
+        candidates.push({
+          key,
+          isCustom,
+          label: parts.length > 1 ? `${baseLabel} #${idx + 1}` : baseLabel,
+        });
+      }
+    });
+  };
+
+  const primaryCustom =
+    (req.headers['x-gemini-key'] as string) ||
+    (req.headers['x-gemini-api-key'] as string) ||
+    req.body?.apiKey;
+  const backupCustom =
+    (req.headers['x-gemini-backup-key'] as string) ||
+    req.body?.backupApiKey;
+
+  addRawKeys(primaryCustom, true, 'custom primary key');
+  addRawKeys(backupCustom, true, 'custom backup key');
+
+  const canUseServerKeys =
+    config.geminiApiKeys.length > 0 &&
+    (!config.apiSharedSecret || req.headers['x-api-secret'] === config.apiSharedSecret);
+
+  if (canUseServerKeys) {
+    config.geminiApiKeys.forEach((serverKey, idx) => {
+      if (!seen.has(serverKey)) {
+        seen.add(serverKey);
+        candidates.push({
+          key: serverKey,
+          isCustom: false,
+          label: idx === 0 ? 'server primary key' : `server backup key #${idx + 1}`,
+        });
+      }
+    });
+  }
+
+  return candidates;
+}
+
 /**
  * Validates and normalizes environment configuration at startup.
  * Never logs raw secret values.
  */
 export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
-  const geminiApiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.trim() : '';
+  const geminiApiKeys = parseApiKeyPool(env);
+  const geminiApiKey = geminiApiKeys[0] || (typeof env.GEMINI_API_KEY === 'string' && env.GEMINI_API_KEY.trim() !== 'MY_GEMINI_API_KEY' ? env.GEMINI_API_KEY.trim() : '');
   const generationModels = parseModelList(
     env.GEMINI_GENERATION_MODELS,
     DEFAULT_GENERATION_MODELS,
     normalizeGenerationModel
   );
   const imageModels = parseModelList(env.GEMINI_IMAGE_MODELS, DEFAULT_IMAGE_MODELS);
+  const rawFreeBackup = (env.FREE_BACKUP_AI_ENABLED || 'true').trim().toLowerCase();
+  const freeBackupEnabled = rawFreeBackup !== 'false' && rawFreeBackup !== '0';
+  const freeTextBackupModels = parseModelList(
+    env.FREE_TEXT_BACKUP_MODELS,
+    DEFAULT_FREE_TEXT_BACKUP_MODELS
+  );
   const allowedOrigin = typeof env.ALLOWED_ORIGIN === 'string' && env.ALLOWED_ORIGIN.trim()
     ? env.ALLOWED_ORIGIN.trim()
     : '*';
@@ -87,8 +193,11 @@ export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCon
 
   return {
     geminiApiKey,
+    geminiApiKeys,
     generationModels,
     imageModels,
+    freeBackupEnabled,
+    freeTextBackupModels,
     allowedOrigin,
     apiSharedSecret,
     rateLimitRpm,

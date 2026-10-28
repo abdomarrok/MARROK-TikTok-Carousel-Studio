@@ -1,4 +1,5 @@
 import type { SlideData, SlideType } from '../../types.ts';
+import { seedSingleSlideTakeaways } from './singleSlideCondenser.ts';
 
 /**
  * Instant Archetype Seeder:
@@ -203,6 +204,24 @@ export function seedSlideArchetypeData(slide: SlideData, targetType: SlideType):
       break;
     }
 
+    case 'poster': {
+      if (!updated.takeaways || updated.takeaways.length === 0) {
+        updated.takeaways = seedSingleSlideTakeaways(updated);
+      }
+      if (!updated.diagramVariant) {
+        updated.diagramVariant = 'topology';
+      }
+      if (!updated.diagramNodes || updated.diagramNodes.length < 3) {
+        updated.diagramNodes = [
+          { label: 'Control Plane', sublabel: 'Policy & Mesh', status: 'ACTIVE', icon: 'shield' },
+          { label: 'Data Plane', sublabel: 'Low Latency Bus', status: 'STREAMING', icon: 'zap' },
+          { label: 'Storage Node', sublabel: 'WAL Replicated', status: 'PERSISTED', icon: 'database' },
+        ];
+        updated.diagramEdges = ['SYNC', 'COMMIT'];
+        updated.diagramFooter = 'CAD_SYS_REF // STANDALONE ARCHITECTURE';
+      }
+      break;
+    }
     case 'number': {
       if (!updated.stepNumber) {
         updated.stepNumber = '01';

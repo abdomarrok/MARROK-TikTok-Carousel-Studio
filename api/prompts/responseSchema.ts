@@ -128,7 +128,20 @@ export const CAROUSEL_RESPONSE_SCHEMA = {
         properties: {
           type: {
             type: Type.STRING,
-            description: 'hub, row, number, metric, code, compare, or cta',
+            description: 'hub, row, number, metric, code, compare, image, cta, or poster',
+          },
+          takeaways: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                en: { type: Type.STRING, description: 'English key takeaway bullet (max 75 chars)' },
+                ar: { type: Type.STRING, description: 'Arabic key takeaway bullet (max 80 chars)' },
+                icon: { type: Type.STRING, description: 'Icon name e.g. zap, shield, checkCircle, database, layers' },
+              },
+              required: ['en', 'ar'],
+            },
+            description: 'Up to 3 high-signal bilingual key takeaway bullets for single-slide poster or summary slides',
           },
           stepNumber: {
             type: Type.STRING,

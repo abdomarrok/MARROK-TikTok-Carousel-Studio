@@ -29,6 +29,8 @@ import {
   drawCompareSlide,
   drawImageSlide,
   drawCtaSlide,
+  drawPosterSlide,
+  drawTakeawaysBlock,
 } from './archetypes/index.ts';
 
 /**
@@ -132,6 +134,8 @@ export async function renderSlideToCanvas(
     yGraphicEnd = await drawCompareSlide(ctx, slide, theme, options);
   } else if (slide.type === 'image') {
     yGraphicEnd = await drawImageSlide(ctx, slide, theme, options);
+  } else if (slide.type === 'poster') {
+    yGraphicEnd = await drawPosterSlide(ctx, slide, theme, options);
   } else if (slide.type === 'cta') {
     yGraphicEnd = await drawCtaSlide(ctx, slide, carousel, theme, options, themeMode);
   }
@@ -224,6 +228,11 @@ export async function renderSlideToCanvas(
     }
 
     ctx.restore();
+
+    // 6g. Render Key Takeaways Block (Single-slide Infographic Posters & Enriched Slides)
+    if (layout.takeawaysBlock && slide.takeaways && slide.takeaways.length > 0) {
+      await drawTakeawaysBlock(ctx, slide.takeaways, theme, layout.takeawaysBlock, options);
+    }
   }
 
   // 7. Pagination Footer (Dots on multi-slide carousels; standalone attribution bar on single-slide posts)

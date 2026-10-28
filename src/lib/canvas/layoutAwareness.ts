@@ -60,6 +60,16 @@ export interface ComputedSlideLayout {
   arabicTitleBlock?: TextBlockLayout;
   bodyBlock?: TextBlockLayout;
   arabicBodyBlock?: TextBlockLayout;
+  takeawaysBlock?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    top: number;
+    bottom: number;
+    dx: number;
+    dy: number;
+  };
   ctaButton?: {
     x: number;
     y: number;
@@ -142,6 +152,9 @@ export function computeSlideLayoutAwareness(
   if (slide.type === 'hub') {
     baseCardY = 190;
     baseCardH = 790;
+  } else if (slide.type === 'poster') {
+    baseCardY = 200;
+    baseCardH = 430;
   } else if (slide.type === 'number') {
     baseCardY = 240;
     baseCardH = 430;
@@ -171,11 +184,23 @@ export function computeSlideLayoutAwareness(
 
   // Floor ceiling for text zone:
   const textCeilingY = Math.max(baseCardY + baseCardH, effectiveBottom);
-  const totalAvailableHeight = Math.max(300, SAFE_FOOTER_CEILING_Y - textCeilingY - MIN_GAP_GRAPHIC_TO_TITLE);
+
+  // Takeaway reservation
+  const hasTakeaways = Boolean(slide.takeaways && slide.takeaways.length > 0);
+  const takeawayCount = hasTakeaways ? Math.min(3, slide.takeaways!.length) : 0;
+  const takeawayRowH = takeawayCount === 1 ? 84 : takeawayCount === 2 ? 80 : 76;
+  const takeawayGap = 12;
+  const takeawaysTotalH = hasTakeaways ? takeawayCount * takeawayRowH + (takeawayCount - 1) * takeawayGap : 0;
+  const takeawayClearance = hasTakeaways ? takeawaysTotalH + MIN_GAP_BODIES : 0;
+
+  const totalAvailableHeight = Math.max(
+    240,
+    SAFE_FOOTER_CEILING_Y - textCeilingY - MIN_GAP_GRAPHIC_TO_TITLE - takeawayClearance
+  );
 
   // Dynamic font fitting pass
-  let textScale = totalAvailableHeight >= 940 ? 1.06 : 1.0;
-  let bodyCap = 4;
+  let textScale = hasTakeaways ? 0.90 : (totalAvailableHeight >= 940 ? 1.06 : 1.0);
+  let bodyCap = hasTakeaways ? 2 : 4;
 
   const measureTextPass = (scale: number, cap: number) => {
     let enTitle = { lines: rawEnTitle ? [rawEnTitle] : [], fontSize: 74 * scale, lineHeight: 74 * scale * 1.19 };
@@ -355,10 +380,31 @@ export function computeSlideLayoutAwareness(
     };
   }
 
+  // 5b. Takeaways Block: strictly flows below Arabic body (or English body / headlines)
+  let takeawaysBlock: ComputedSlideLayout['takeawaysBlock'] | undefined;
+  if (hasTakeaways) {
+    const prevBottom = arabicBodyBlock?.bottom || bodyBlock?.bottom || arabicTitleBlock?.bottom || titleBlock?.bottom || textCeilingY;
+    const tOverride = overrides.takeawaysBlock;
+    const tDx = tOverride?.dx || 0;
+    const tDy = tOverride?.dy || 0;
+    const naturalTop = prevBottom + MIN_GAP_BODIES;
+    const actualTop = Math.max(prevBottom + MIN_GAP_BODIES, naturalTop + tDy);
+    takeawaysBlock = {
+      x: SAFE_MARGIN_LEFT + tDx,
+      y: actualTop,
+      width: SAFE_CONTENT_WIDTH,
+      height: takeawaysTotalH,
+      top: actualTop,
+      bottom: actualTop + takeawaysTotalH,
+      dx: tDx,
+      dy: tDy,
+    };
+  }
+
   // 6. Safety Ceiling Compression Pass:
   // If user applied large positive dy offsets that push the stack past SAFE_FOOTER_CEILING_Y,
   // shift the blocks upward proportionally so they never clip footer pagination
-  const stackLowestY = arabicBodyBlock?.bottom || bodyBlock?.bottom || arabicTitleBlock?.bottom || titleBlock?.bottom || textCeilingY;
+  const stackLowestY = takeawaysBlock?.bottom || arabicBodyBlock?.bottom || bodyBlock?.bottom || arabicTitleBlock?.bottom || titleBlock?.bottom || textCeilingY;
   const footerOverflow = stackLowestY - SAFE_FOOTER_CEILING_Y;
 
   if (footerOverflow > 0 && titleBlock) {
@@ -385,6 +431,11 @@ export function computeSlideLayoutAwareness(
         arabicBodyBlock.bottom -= shift;
         arabicBodyBlock.firstBaselineY -= shift;
       }
+      if (takeawaysBlock) {
+        takeawaysBlock.top -= shift;
+        takeawaysBlock.bottom -= shift;
+        takeawaysBlock.y -= shift;
+      }
     }
   }
 
@@ -396,6 +447,7 @@ export function computeSlideLayoutAwareness(
     arabicTitleBlock,
     bodyBlock,
     arabicBodyBlock,
+    takeawaysBlock,
     hasCollisionWarning: false,
   };
 }

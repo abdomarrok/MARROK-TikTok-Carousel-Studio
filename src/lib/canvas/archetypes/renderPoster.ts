@@ -1,0 +1,177 @@
+import { SlideData, SlideTakeawayItem, ThemePalette, VisualSystemOptions } from '../../../types.ts';
+import { drawRoundRect } from '../background.ts';
+import { SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT, SAFE_TEXT_CENTER_X } from '../constants.ts';
+import { fitTextInBox } from '../textLayout.ts';
+import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
+import { deriveDynamicSlideNodes } from './renderDiagram.ts';
+import { drawRowSlide } from './renderRow.ts';
+
+/**
+ * Archetype 9: Infographic Poster (`poster`)
+ * Dedicated high-density single-slide technical format:
+ * 1. Compact CAD Schematic Card at y = 200 (height 430px) with optional benchmark metric pill.
+ * 2. Labeled multi-node dataflow / topology.
+ * 3. Returns the graphic end Y for the layout-awareness engine.
+ */
+export async function drawPosterSlide(
+  ctx: CanvasRenderingContext2D,
+  slide: SlideData,
+  theme: ThemePalette,
+  options: VisualSystemOptions
+): Promise<number> {
+  const topY = 200;
+  const cardW = SAFE_CONTENT_WIDTH;
+  const cardH = 430;
+  const cardX = SAFE_MARGIN_LEFT;
+
+  // Render the diagram card
+  const graphicEnd = await drawRowSlide(ctx, slide, theme, options);
+
+  // If slide has a metricValue, draw a metric badge badge in the top right of the diagram card
+  if (slide.metricValue) {
+    ctx.save();
+    const badgeW = 260;
+    const badgeH = 58;
+    const badgeX = cardX + cardW - badgeW - 16;
+    const badgeY = topY + 16;
+
+    // Glowing metric backdrop
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 10;
+    drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 10, 'rgba(10, 15, 26, 0.88)', `${theme.accent}99`, 1.2);
+    ctx.shadowBlur = 0;
+
+    // Value text
+    ctx.font = '800 26px "JetBrains Mono", monospace';
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(slide.metricValue.slice(0, 8), badgeX + 16, badgeY + badgeH / 2);
+
+    // Label / Diff text
+    const labelText = (slide.metricLabel || slide.metricDiff || 'BENCHMARK').slice(0, 16);
+    ctx.font = '600 15px "JetBrains Mono", sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillText(labelText, badgeX + 90, badgeY + badgeH / 2);
+
+    ctx.restore();
+  }
+
+  return Math.max(topY + cardH, graphicEnd);
+}
+
+/**
+ * Draws the 3 Bento Takeaway cards in the vertical space computed by layoutAwareness.
+ * Meets mobile typography floor (>= 26px font) and safe-zone boundaries (x <= 945, y <= 1710).
+ */
+export async function drawTakeawaysBlock(
+  ctx: CanvasRenderingContext2D,
+  takeaways: SlideTakeawayItem[],
+  theme: ThemePalette,
+  bounds: { top: number; bottom: number; height: number; dx?: number; dy?: number },
+  options?: VisualSystemOptions
+): Promise<void> {
+  if (!takeaways || takeaways.length === 0) return;
+
+  const count = Math.min(3, takeaways.length);
+  const cardX = SAFE_MARGIN_LEFT + (bounds.dx || 0);
+  const cardW = SAFE_CONTENT_WIDTH;
+  const totalH = bounds.height;
+  const gap = count > 1 ? 14 : 0;
+  const rowH = Math.max(76, Math.floor((totalH - (count - 1) * gap) / count));
+
+  ctx.save();
+
+  for (let i = 0; i < count; i++) {
+    const item = takeaways[i];
+    const rowY = bounds.top + i * (rowH + gap);
+
+    // Clean Bento Card Container
+    drawRoundRect(
+      ctx,
+      cardX,
+      rowY,
+      cardW,
+      rowH,
+      12,
+      'rgba(18, 24, 38, 0.72)',
+      `${theme.accent}40`,
+      1.2
+    );
+
+    // Left Number / Icon Badge (44x44px)
+    const badgeSize = Math.min(44, rowH - 20);
+    const badgeX = cardX + 14;
+    const badgeY = rowY + (rowH - badgeSize) / 2;
+
+    drawRoundRect(
+      ctx,
+      badgeX,
+      badgeY,
+      badgeSize,
+      badgeSize,
+      8,
+      `${theme.accent}1F`,
+      `${theme.accent}80`,
+      1
+    );
+
+    // Draw icon or fallback number
+    const iconKey = item.icon || (i === 0 ? 'zap' : i === 1 ? 'layers' : 'checkCircle');
+    const iconImg = await loadIconImage(iconKey, theme.accent);
+
+    if (iconImg) {
+      safeDrawImage(ctx, iconImg, badgeX + 7, badgeY + 7, badgeSize - 14, badgeSize - 14);
+    } else {
+      ctx.font = '800 18px "JetBrains Mono", monospace';
+      ctx.fillStyle = theme.accent;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`0${i + 1}`, badgeX + badgeSize / 2, badgeY + badgeSize / 2);
+    }
+
+    // Text Zone between badge and right edge
+    const textStartX = badgeX + badgeSize + 16;
+    const textW = cardW - (badgeSize + 40);
+
+    // English Takeaway (Top line / Left)
+    const fitEn = fitTextInBox(
+      ctx,
+      item.en,
+      textW,
+      26,
+      '"Plus Jakarta Sans", sans-serif',
+      '700',
+      { maxLines: 1, minFontSize: 24 }
+    );
+
+    ctx.font = `700 ${fitEn.fontSize}px "Plus Jakarta Sans", sans-serif`;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.direction = 'ltr';
+    ctx.textBaseline = 'top';
+    ctx.fillText(fitEn.lines[0] || item.en, textStartX, rowY + 12);
+
+    // Arabic Takeaway (Bottom line / RTL)
+    if (item.ar) {
+      const fitAr = fitTextInBox(
+        ctx,
+        item.ar,
+        textW,
+        24,
+        '"Cairo", sans-serif',
+        '600',
+        { maxLines: 1, minFontSize: 22 }
+      );
+
+      ctx.font = `600 ${fitAr.fontSize}px "Cairo", sans-serif`;
+      ctx.fillStyle = theme.accent;
+      ctx.textAlign = 'right';
+      ctx.direction = 'rtl';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(fitAr.lines[0] || item.ar, cardX + cardW - 16, rowY + rowH - 10);
+    }
+  }
+
+  ctx.restore();
+}

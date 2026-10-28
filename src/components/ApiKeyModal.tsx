@@ -15,15 +15,17 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
   onShowToast,
 }) => {
   const [keyInput, setKeyInput] = useState('');
+  const [backupKeyInput, setBackupKeyInput] = useState('');
   const [hasCustomKey, setHasCustomKey] = useState(false);
   const [serverHasKey, setServerHasKey] = useState(true);
+  const [serverKeyCount, setServerKeyCount] = useState(1);
 
   useEffect(() => {
-    const saved = localStorage.getItem('marrok_custom_gemini_key');
-    if (saved) {
-      setKeyInput(saved);
-      setHasCustomKey(true);
-    }
+    const savedPrimary = localStorage.getItem('marrok_custom_gemini_key') || '';
+    const savedBackup = localStorage.getItem('marrok_custom_gemini_backup_key') || '';
+    setKeyInput(savedPrimary);
+    setBackupKeyInput(savedBackup);
+    setHasCustomKey(Boolean(savedPrimary || savedBackup));
 
     // Check server key status
     fetch('/api/health')
@@ -32,6 +34,9 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
         if (typeof data.hasApiKey === 'boolean') {
           setServerHasKey(data.hasApiKey);
         }
+        if (typeof data.apiKeyCount === 'number') {
+          setServerKeyCount(data.apiKeyCount);
+        }
       })
       .catch(() => {});
   }, [isOpen]);
@@ -39,24 +44,43 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
   if (!isOpen) return null;
 
   const handleSave = () => {
-    const trimmed = keyInput.trim();
-    if (trimmed) {
-      localStorage.setItem('marrok_custom_gemini_key', trimmed);
-      setHasCustomKey(true);
-      onKeyUpdated(trimmed);
-      onShowToast('Custom Gemini API key saved successfully!');
+    const trimmedPrimary = keyInput.trim();
+    const trimmedBackup = backupKeyInput.trim();
+
+    if (trimmedPrimary) {
+      localStorage.setItem('marrok_custom_gemini_key', trimmedPrimary);
     } else {
-      handleClear();
+      localStorage.removeItem('marrok_custom_gemini_key');
+    }
+
+    if (trimmedBackup) {
+      localStorage.setItem('marrok_custom_gemini_backup_key', trimmedBackup);
+    } else {
+      localStorage.removeItem('marrok_custom_gemini_backup_key');
+    }
+
+    const anyKey = trimmedPrimary || trimmedBackup || null;
+    setHasCustomKey(Boolean(anyKey));
+    onKeyUpdated(anyKey);
+
+    if (trimmedPrimary && trimmedBackup) {
+      onShowToast('Saved Primary + Backup Gemini API keys (Account 1 → Account 2 failover active)!');
+    } else if (anyKey) {
+      onShowToast('Gemini API key saved with free backup cascade active!');
+    } else {
+      onShowToast('Cleared custom keys. Using server key pool + zero-key AI backup.');
     }
     onClose();
   };
 
   const handleClear = () => {
     localStorage.removeItem('marrok_custom_gemini_key');
+    localStorage.removeItem('marrok_custom_gemini_backup_key');
     setKeyInput('');
+    setBackupKeyInput('');
     setHasCustomKey(false);
     onKeyUpdated(null);
-    onShowToast('Cleared custom key. Using default AI Studio runtime.');
+    onShowToast('Cleared custom keys. Using default AI Studio runtime.');
   };
 
   return (
@@ -70,10 +94,10 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                Gemini API Configuration
+                Multi-Key Gemini & Free AI Backup
               </h2>
               <p className="text-[11px] text-[#8E989E]">
-                Configure dedicated quota or personal model tier
+                Automatic Account 1 → Account 2 rotation & zero-key AI fallback
               </p>
             </div>
           </div>
@@ -92,23 +116,23 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
             <ShieldCheck className="w-5 h-5 text-[#37E2C0] shrink-0" />
             <div className="text-xs">
               <p className="font-semibold text-white">
-                {hasCustomKey
-                  ? 'Custom API Key Active'
+                {keyInput.trim() && backupKeyInput.trim()
+                  ? 'Dual-Account Gemini Rotation Active (2 Keys)'
+                  : hasCustomKey
+                  ? 'Custom Gemini Key + Free Backup Cascade Active'
                   : serverHasKey
-                  ? 'Default Environment Key Active'
-                  : 'Synthesizer Mode Active (No Key Required)'}
+                  ? `Server Gemini Key Pool Active (${Math.max(1, serverKeyCount)} Key${serverKeyCount > 1 ? 's' : ''})`
+                  : 'Zero-Key Free AI Backup Active'}
               </p>
               <p className="text-[11px] text-[#8E989E]">
-                {hasCustomKey
-                  ? 'Requests are billed to your personal Google Cloud project quota.'
-                  : 'Using built-in zero-latency pipeline and system secrets.'}
+                Failover chain: Account 1 → Account 2 → Gemini Lite/Flash → Zero-Key Pollinations AI.
               </p>
             </div>
           </div>
 
           <div>
             <label className="text-xs font-semibold text-white block mb-1.5">
-              Custom Gemini API Key (Optional)
+              Primary Gemini API Key — Account 1 (Optional)
             </label>
             <input
               type="password"
@@ -117,13 +141,26 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
               onChange={(e) => setKeyInput(e.target.value)}
               className="w-full px-3.5 py-2.5 text-xs bg-black/60 border border-[#1E2833] rounded-xl text-white font-mono placeholder-[#4f5963] focus:outline-none focus:border-[#37E2C0]"
             />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-white block mb-1.5">
+              Backup Gemini API Key — Account 2 (Automatic 429/503 Failover)
+            </label>
+            <input
+              type="password"
+              placeholder="AIzaSy... (Second Google account key)"
+              value={backupKeyInput}
+              onChange={(e) => setBackupKeyInput(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs bg-black/60 border border-[#1E2833] rounded-xl text-white font-mono placeholder-[#4f5963] focus:outline-none focus:border-[#37E2C0]"
+            />
             <p className="text-[11px] text-[#8E989E] mt-1.5 flex items-center justify-between">
-              <span>Keys remain client-side and in your browser storage only.</span>
+              <span>Keys stay in your browser storage only (or set GEMINI_API_KEY_BACKUP in Vercel).</span>
               <a
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[#37E2C0] hover:underline flex items-center gap-1"
+                className="text-[#37E2C0] hover:underline flex items-center gap-1 shrink-0 ml-2"
               >
                 <span>Get Key</span>
                 <ExternalLink className="w-3 h-3" />
@@ -142,7 +179,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
               <RotateCcw className="w-3 h-3" /> Clear & Use Default
             </button>
           ) : (
-            <span className="text-[11px] text-[#8E989E]">Optional setting</span>
+            <span className="text-[11px] text-[#8E989E]">Multi-key rotation ready</span>
           )}
 
           <div className="flex items-center gap-2">
@@ -157,7 +194,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
               className="px-5 py-2 text-xs font-bold bg-[#37E2C0] text-black rounded-xl hover:brightness-110 transition-all flex items-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
-              Save Key
+              Save Keys
             </button>
           </div>
         </div>
@@ -165,3 +202,4 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
     </div>
   );
 };
+

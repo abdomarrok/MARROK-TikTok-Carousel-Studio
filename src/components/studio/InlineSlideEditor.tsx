@@ -1,7 +1,8 @@
 import React from 'react';
-import { Sliders, CheckCircle2, Sparkles, Wand2 } from 'lucide-react';
-import { SlideData, ThemePalette, GraphicalElementId, HookVariant } from '../../types.ts';
-import { CHAR_LIMITS } from '../../lib/qaChecks.ts';
+import { Sliders, CheckCircle2, Sparkles, Wand2, Plus, Trash2, ListChecks } from 'lucide-react';
+import { SlideData, ThemePalette, GraphicalElementId, HookVariant, SlideTakeawayItem } from '../../types.ts';
+import { CHAR_LIMITS, SINGLE_SLIDE_CHAR_LIMITS } from '../../lib/qaChecks.ts';
+import { seedSingleSlideTakeaways } from '../../lib/synthesis/singleSlideCondenser.ts';
 
 interface InlineSlideEditorProps {
   currentSlide: SlideData;
@@ -16,6 +17,7 @@ interface InlineSlideEditorProps {
   onApplyHookVariant?: (variant: HookVariant) => void;
   onAutoFitSlide?: () => void;
   onOpenPolishDrawer?: () => void;
+  isSingleSlide?: boolean;
 }
 
 export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
@@ -30,8 +32,13 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
   onApplyHookVariant,
   onAutoFitSlide,
   onOpenPolishDrawer,
+  isSingleSlide = false,
 }) => {
   const isCtaSlide = currentSlide.type === 'cta';
+  const isSingle = isSingleSlide || currentSlide.type === 'poster';
+  const limits = isSingle ? SINGLE_SLIDE_CHAR_LIMITS : CHAR_LIMITS;
+  const isHook = currentSlideIndex === 0 && currentSlide.type === 'hub';
+  const enTitleLimit = isHook ? limits.hookTitle : limits.enTitle;
 
   const enTitleLen = (currentSlide.enTitle || '').trim().length;
   const arTitleLen = (currentSlide.arTitle || '').trim().length;
@@ -136,10 +143,10 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             </label>
             <span
               className={`text-[11px] font-mono tabular-nums ${
-                enTitleLen > CHAR_LIMITS.enTitle ? 'text-amber-400 font-bold' : 'text-slate-400'
+                enTitleLen > enTitleLimit ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
-              {enTitleLen} / {CHAR_LIMITS.enTitle}
+              {enTitleLen} / {enTitleLimit}
             </span>
           </div>
           <input
@@ -161,10 +168,10 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           <div className="flex items-center justify-between">
             <span
               className={`text-[11px] font-mono tabular-nums ${
-                arTitleLen > CHAR_LIMITS.arTitle ? 'text-amber-400 font-bold' : 'text-slate-400'
+                arTitleLen > limits.arTitle ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
-              {arTitleLen} / {CHAR_LIMITS.arTitle}
+              {arTitleLen} / {limits.arTitle}
             </span>
             <label className="text-xs font-semibold text-slate-200 flex items-center gap-2 font-cairo">
               {selectedElementId === 'arabicTitleBlock' && (
@@ -238,10 +245,10 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             </label>
             <span
               className={`text-[11px] font-mono tabular-nums ${
-                enBodyLen > CHAR_LIMITS.enBody ? 'text-amber-400 font-bold' : 'text-slate-400'
+                enBodyLen > limits.enBody ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
-              {enBodyLen} / {CHAR_LIMITS.enBody}
+              {enBodyLen} / {limits.enBody}
             </span>
           </div>
           <textarea
@@ -263,10 +270,10 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           <div className="flex items-center justify-between">
             <span
               className={`text-[11px] font-mono tabular-nums ${
-                arBodyLen > CHAR_LIMITS.arBody ? 'text-amber-400 font-bold' : 'text-slate-400'
+                arBodyLen > limits.arBody ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
-              {arBodyLen} / {CHAR_LIMITS.arBody}
+              {arBodyLen} / {limits.arBody}
             </span>
             <label className="text-xs font-semibold text-slate-200 flex items-center gap-2 font-cairo">
               {selectedElementId === 'arabicBodyBlock' && (
@@ -290,6 +297,170 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           />
         </div>
       </div>
+
+      {/* Key Takeaways Bento List (Single-Slide / Poster / Enriched Slides) */}
+      {(isSingle || currentSlide.type === 'poster' || (currentSlide.takeaways && currentSlide.takeaways.length > 0)) && (
+        <div
+          className={`pt-3 border-t border-white/[0.08] space-y-3 rounded-xl transition-colors ${
+            selectedElementId === 'takeawaysBlock' ? 'ring-1 ring-cyan-400/50 bg-cyan-950/10 p-2.5 -mx-2.5' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+              <ListChecks className="w-4 h-4" style={{ color: theme.accent }} />
+              <span>Key Engineering Takeaways (Max 3 Points)</span>
+              {selectedElementId === 'takeawaysBlock' && (
+                <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Selected</span>
+                </span>
+              )}
+            </label>
+            <div className="flex items-center gap-2">
+              {(!currentSlide.takeaways || currentSlide.takeaways.length === 0) && (
+                <button
+                  type="button"
+                  onClick={() => onUpdateField('takeaways', seedSingleSlideTakeaways(currentSlide))}
+                  className="px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-mono font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  Seed 3 Points
+                </button>
+              )}
+              {currentSlide.takeaways && currentSlide.takeaways.length < 3 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = currentSlide.takeaways || [];
+                    onUpdateField('takeaways', [
+                      ...current,
+                      {
+                        en: 'High-throughput architectural component.',
+                        ar: 'ركيزة معمارية أساسية للنظام.',
+                        icon: 'checkCircle',
+                      },
+                    ]);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-mono font-medium text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Point</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {(currentSlide.takeaways || []).map((t, tIdx) => {
+              const enLen = (t.en || '').trim().length;
+              const arLen = (t.ar || '').trim().length;
+              const limitEn = SINGLE_SLIDE_CHAR_LIMITS.takeawayEn;
+              const limitAr = SINGLE_SLIDE_CHAR_LIMITS.takeawayAr;
+
+              return (
+                <div
+                  key={tIdx}
+                  className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-2 hover:border-white/20 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono font-bold" style={{ color: theme.accent }}>
+                      TAKEAWAY #{tIdx + 1}
+                    </span>
+                    {(currentSlide.takeaways?.length || 0) > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = (currentSlide.takeaways || []).filter((_, i) => i !== tIdx);
+                          onUpdateField('takeaways', updated);
+                        }}
+                        className="text-slate-500 hover:text-rose-400 p-0.5 rounded transition-colors cursor-pointer"
+                        title="Delete Takeaway"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* English Takeaway */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-slate-400 font-mono">English Point</span>
+                      <span className={`text-[10px] font-mono ${enLen > limitEn ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
+                        {enLen} / {limitEn}
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={t.en || ''}
+                      onFocus={() => onSelectElement?.('takeawaysBlock')}
+                      onChange={(e) => {
+                        const updated = [...(currentSlide.takeaways || [])];
+                        updated[tIdx] = { ...updated[tIdx], en: e.target.value };
+                        onUpdateField('takeaways', updated);
+                      }}
+                      placeholder="Concise technical bullet point"
+                      className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Arabic Takeaway */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-[10px] font-mono ${arLen > limitAr ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
+                        {arLen} / {limitAr}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-cairo">الخلاصة بالعربية</span>
+                    </div>
+                    <input
+                      type="text"
+                      dir="rtl"
+                      value={t.ar || ''}
+                      onFocus={() => onSelectElement?.('takeawaysBlock')}
+                      onChange={(e) => {
+                        const updated = [...(currentSlide.takeaways || [])];
+                        updated[tIdx] = { ...updated[tIdx], ar: e.target.value };
+                        onUpdateField('takeaways', updated);
+                      }}
+                      placeholder="خلاصة تقنية مكثفة"
+                      className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-cairo text-right focus:outline-none"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Standalone Single-Slide Attribution Footer */}
+      {isSingle && (
+        <div className="pt-3 border-t border-white/[0.08] space-y-2">
+          <label className="text-xs font-semibold text-slate-200 block">
+            Standalone Footer Attribution (Source Credit)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <span className="text-[10px] text-slate-400 font-mono block mb-1">Source / Author (English)</span>
+              <input
+                type="text"
+                value={currentSlide.enCredit || ''}
+                onChange={(e) => onUpdateField('enCredit', e.target.value)}
+                placeholder="e.g. Arxiv / Dr. Martin Kleppmann"
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+              />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-mono block mb-1">Creator / Brand Handle</span>
+              <input
+                type="text"
+                value={currentSlide.arCredit || ''}
+                onChange={(e) => onUpdateField('arCredit', e.target.value)}
+                placeholder="e.g. MARROK"
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

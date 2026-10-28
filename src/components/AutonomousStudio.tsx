@@ -39,7 +39,7 @@ import {
 import { downloadSingleSlidePng, copySlideToClipboard, downloadAllSlidesZip } from '../lib/canvasExporter.ts';
 import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline.ts';
 import { sanitizeSlide } from '../lib/textSanitizer.ts';
-import { seedSlideArchetypeData, synthesizeCarousel } from '../lib/synthesizer.ts';
+import { seedSlideArchetypeData, synthesizeCarousel, condenseCarouselToSingleSlide } from '../lib/synthesizer.ts';
 import { runQAChecks, CHAR_LIMITS } from '../lib/qaChecks.ts';
 import { runPlatformRiskChecks } from '../lib/riskChecks.ts';
 import { autoPolishHeadline, autoFitTextToLimits } from '../lib/text/headlines.ts';
@@ -278,36 +278,24 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const activePostFormat: PostFormat =
     carousel.postFormat === 'single' || carousel.slides.length === 1 ? 'single' : 'carousel';
 
+  const handleCondenseToSingleSlide = () => {
+    if (carousel.slides.length > 1) {
+      stashedCarouselSlidesRef.current = carousel.slides.map((s) => ({ ...s }));
+    }
+    const condensed = condenseCarouselToSingleSlide(carousel);
+    applyDeckUpdate((prev) => ({
+      ...prev,
+      ...condensed,
+    }));
+    changeSlide(0, 1);
+    onShowToast('Condensed to 1-Slide Infographic Poster');
+  };
+
   const handleSwitchPostFormat = (nextFormat: PostFormat) => {
     if (nextFormat === activePostFormat) return;
 
     if (nextFormat === 'single') {
-      if (carousel.slides.length > 1) {
-        stashedCarouselSlidesRef.current = carousel.slides.map((s) => ({ ...s }));
-      }
-      const focusedIdx = Math.min(currentSlideIndex, carousel.slides.length - 1);
-      const focusedSlide = carousel.slides[focusedIdx] || carousel.slides[0];
-      const ctaSlide = carousel.slides[carousel.slides.length - 1];
-      const singleSlide: SlideData = {
-        ...focusedSlide,
-        type: focusedSlide.type === 'cta' ? 'row' : focusedSlide.type,
-        enCredit:
-          focusedSlide.enCredit ||
-          ctaSlide?.enCredit ||
-          (carousel.channel ? `Source: ${carousel.channel}` : `Source: ${carousel.brand || 'MARROK'}`),
-        arCredit:
-          focusedSlide.arCredit ||
-          ctaSlide?.arCredit ||
-          (carousel.channel ? `المصدر: ${carousel.channel}` : `المصدر: ${carousel.brand || 'MARROK'}`),
-      };
-
-      applyDeckUpdate((prev) => ({
-        ...prev,
-        postFormat: 'single',
-        slides: [sanitizeSlide(singleSlide, 0, 1)],
-      }));
-      changeSlide(0, 1);
-      onShowToast('Switched to Single-Slide Post (1080×1920)');
+      handleCondenseToSingleSlide();
       return;
     }
 
@@ -1618,6 +1606,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               onDeleteSlide={handleDeleteSlide}
               onMoveSlide={handleMoveSlide}
               onExpandToCarousel={() => handleSwitchPostFormat('carousel')}
+              onCondenseToSingleSlide={handleCondenseToSingleSlide}
             />
           </div>
         </div>
@@ -1725,6 +1714,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 onApplyHookVariant={handleApplyHookVariant}
                 onAutoFitSlide={handleAutoFitCurrentSlide}
                 onOpenPolishDrawer={onOpenPreviewDrawer ? () => onOpenPreviewDrawer('polish') : undefined}
+                isSingleSlide={activePostFormat === 'single'}
               />
             )}
 

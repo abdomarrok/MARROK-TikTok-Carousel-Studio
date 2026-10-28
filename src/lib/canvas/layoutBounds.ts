@@ -159,6 +159,17 @@ export function computeSlideElementBounds(
     );
   }
 
+  if (layout.takeawaysBlock) {
+    bounds.takeawaysBlock = makeBound(
+      'takeawaysBlock',
+      'Key Takeaways Bento List',
+      layout.takeawaysBlock.x,
+      layout.takeawaysBlock.y,
+      layout.takeawaysBlock.width,
+      layout.takeawaysBlock.height
+    );
+  }
+
   return bounds as Record<GraphicalElementId, ElementBounds>;
 }
 
@@ -173,10 +184,11 @@ export function findSlideElementAtPoint(
 ): GraphicalElementId | null {
   const pad = 14;
 
-  // Priority order for hit testing: text blocks first, then buttons, then graphic card, then header
+  // Priority order for hit testing: takeaways & text blocks first, then buttons, then graphic card, then header
   const priorityOrder: GraphicalElementId[] = [
     'ctaButton',
     'attributionCard',
+    'takeawaysBlock',
     'arabicBodyBlock',
     'bodyBlock',
     'arabicTitleBlock',

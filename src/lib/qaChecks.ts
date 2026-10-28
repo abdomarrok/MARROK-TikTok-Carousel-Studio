@@ -23,6 +23,17 @@ export const CHAR_LIMITS = {
   hookTitle: 60,  // Hook titles allowed slightly longer (2-line @ 96px)
 } as const;
 
+export const SINGLE_SLIDE_CHAR_LIMITS = {
+  enTitle: 55,
+  arTitle: 50,
+  enBody: 220,
+  arBody: 230,
+  takeawayEn: 75,
+  takeawayAr: 80,
+  iconLabel: 16,
+  hookTitle: 65,
+} as const;
+
 // ─── QA Result Types ────────────────────────────────────────────────
 export type QASeverity = 'pass' | 'warn' | 'fail';
 
@@ -71,10 +82,10 @@ function checkSlideCount(slides: SlideData[], isSingleSlide: boolean = false): Q
 }
 
 /** Check character limits on a single slide's text fields */
-function checkCharLimits(slide: SlideData, idx: number, isHook: boolean): QACheckResult[] {
+function checkCharLimits(slide: SlideData, idx: number, isHook: boolean, isSingleSlide: boolean = false): QACheckResult[] {
   const results: QACheckResult[] = [];
-
-  const enTitleLimit = isHook ? CHAR_LIMITS.hookTitle : CHAR_LIMITS.enTitle;
+  const limits = isSingleSlide ? SINGLE_SLIDE_CHAR_LIMITS : CHAR_LIMITS;
+  const enTitleLimit = isHook ? limits.hookTitle : limits.enTitle;
 
   if (slide.enTitle && slide.enTitle.length > enTitleLimit) {
     results.push({
@@ -88,55 +99,97 @@ function checkCharLimits(slide: SlideData, idx: number, isHook: boolean): QAChec
     });
   }
 
-  if (slide.arTitle && slide.arTitle.length > CHAR_LIMITS.arTitle) {
+  if (slide.arTitle && slide.arTitle.length > limits.arTitle) {
     results.push({
       id: `char-ar-title-${idx}`,
       severity: 'warn',
       slideIndex: idx,
       field: 'arTitle',
-      message: `AR title is ${slide.arTitle.length} chars (limit: ${CHAR_LIMITS.arTitle}).`,
+      message: `AR title is ${slide.arTitle.length} chars (limit: ${limits.arTitle}).`,
       value: slide.arTitle.length,
-      limit: CHAR_LIMITS.arTitle,
+      limit: limits.arTitle,
     });
   }
 
-  if (slide.enBody && slide.enBody.length > CHAR_LIMITS.enBody) {
+  if (slide.enBody && slide.enBody.length > limits.enBody) {
     results.push({
       id: `char-en-body-${idx}`,
       severity: 'warn',
       slideIndex: idx,
       field: 'enBody',
-      message: `EN body is ${slide.enBody.length} chars (limit: ${CHAR_LIMITS.enBody}).`,
+      message: `EN body is ${slide.enBody.length} chars (limit: ${limits.enBody}).`,
       value: slide.enBody.length,
-      limit: CHAR_LIMITS.enBody,
+      limit: limits.enBody,
     });
   }
 
-  if (slide.arBody && slide.arBody.length > CHAR_LIMITS.arBody) {
+  if (slide.arBody && slide.arBody.length > limits.arBody) {
     results.push({
       id: `char-ar-body-${idx}`,
       severity: 'warn',
       slideIndex: idx,
       field: 'arBody',
-      message: `AR body is ${slide.arBody.length} chars (limit: ${CHAR_LIMITS.arBody}).`,
+      message: `AR body is ${slide.arBody.length} chars (limit: ${limits.arBody}).`,
       value: slide.arBody.length,
-      limit: CHAR_LIMITS.arBody,
+      limit: limits.arBody,
     });
+  }
+
+  // Check takeaway bullets
+  if (slide.takeaways && slide.takeaways.length > 0) {
+    if (slide.takeaways.length > 3) {
+      results.push({
+        id: `takeaways-count-${idx}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field: 'takeaways',
+        message: `Slide has ${slide.takeaways.length} key takeaway bullets. Limit to 3 for optimal visual balance.`,
+        value: slide.takeaways.length,
+        limit: 3,
+      });
+    }
+
+    const tLimits = isSingleSlide ? SINGLE_SLIDE_CHAR_LIMITS : { takeawayEn: 75, takeawayAr: 80 };
+    for (let tIdx = 0; tIdx < slide.takeaways.length; tIdx++) {
+      const item = slide.takeaways[tIdx];
+      if (item.en && item.en.length > tLimits.takeawayEn) {
+        results.push({
+          id: `char-takeaway-en-${idx}-${tIdx}`,
+          severity: 'warn',
+          slideIndex: idx,
+          field: `takeaways[${tIdx}].en`,
+          message: `Takeaway #${tIdx + 1} EN is ${item.en.length} chars (limit: ${tLimits.takeawayEn}).`,
+          value: item.en.length,
+          limit: tLimits.takeawayEn,
+        });
+      }
+      if (item.ar && item.ar.length > tLimits.takeawayAr) {
+        results.push({
+          id: `char-takeaway-ar-${idx}-${tIdx}`,
+          severity: 'warn',
+          slideIndex: idx,
+          field: `takeaways[${tIdx}].ar`,
+          message: `Takeaway #${tIdx + 1} AR is ${item.ar.length} chars (limit: ${tLimits.takeawayAr}).`,
+          value: item.ar.length,
+          limit: tLimits.takeawayAr,
+        });
+      }
+    }
   }
 
   // Check icon labels
   if (slide.icons) {
     for (let i = 0; i < slide.icons.length; i++) {
       const label = slide.icons[i].label;
-      if (label && label.length > CHAR_LIMITS.iconLabel) {
+      if (label && label.length > limits.iconLabel) {
         results.push({
           id: `char-icon-label-${idx}-${i}`,
           severity: 'warn',
           slideIndex: idx,
           field: `icons[${i}].label`,
-          message: `Icon label "${label}" is ${label.length} chars (limit: ${CHAR_LIMITS.iconLabel}).`,
+          message: `Icon label "${label}" is ${label.length} chars (limit: ${limits.iconLabel}).`,
           value: label.length,
-          limit: CHAR_LIMITS.iconLabel,
+          limit: limits.iconLabel,
         });
       }
     }
@@ -772,7 +825,7 @@ export function runQAChecks(carousel: CarouselData, options: QACheckOptions = {}
     });
   }
 
-  const isSingleSlide = carousel.postFormat === 'single';
+  const isSingleSlide = carousel.postFormat === 'single' || slides.length === 1;
 
   // Deck-level checks
   results.push(checkSlideCount(slides, isSingleSlide));
@@ -799,7 +852,7 @@ export function runQAChecks(carousel: CarouselData, options: QACheckOptions = {}
     const isHook = i === 0 && (slides[i].type === 'hub');
     results.push(...checkHeadlineSpecRule(slides[i], i, slides.length));
     results.push(...checkBoilerplatePhrases(slides[i], i));
-    results.push(...checkCharLimits(slides[i], i, isHook));
+    results.push(...checkCharLimits(slides[i], i, isHook, isSingleSlide));
     results.push(...checkArabicLineEndings(slides[i], i));
     results.push(...checkArabicSafeZone(slides[i], i));
     results.push(...checkArchetypeFields(slides[i], i));

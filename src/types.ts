@@ -3,7 +3,13 @@ export type ThemeMode = 'security' | 'engineering' | 'cyber' | 'violet' | 'bluep
 // Dynamic category type accepting any detected or custom domain
 export type CategoryType = string;
 
-export type SlideType = 'hub' | 'row' | 'number' | 'metric' | 'code' | 'compare' | 'image' | 'cta';
+export type SlideType = 'hub' | 'row' | 'number' | 'metric' | 'code' | 'compare' | 'image' | 'cta' | 'poster';
+
+export interface SlideTakeawayItem {
+  en: string;
+  ar: string;
+  icon?: string;
+}
 
 export interface IconLabelPair {
   icon: string;
@@ -67,6 +73,8 @@ export interface SlideData {
   imageFilter?: 'hud' | 'invert' | 'tint' | 'clean'; // Theme integration filter (hud = blueprint dark blend, invert = dark mode inversion, tint = accent wash, clean = original)
   imagePrompt?: string;       // Prompt used to generate or edit with gemini-nano-banana-2.1
   imageModel?: string;        // Model used (e.g. gemini-nano-banana-2.1)
+  // Key Takeaway Bullets (Single-Slide & Dense Infographic Posters)
+  takeaways?: SlideTakeawayItem[];
   // Titles & Body
   enTitle?: string;
   arTitle?: string;
@@ -87,6 +95,7 @@ export type GraphicalElementId =
   | 'arabicTitleBlock'
   | 'bodyBlock'
   | 'arabicBodyBlock'
+  | 'takeawaysBlock'
   | 'ctaButton'
   | 'attributionCard';
 

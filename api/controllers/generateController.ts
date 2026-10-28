@@ -2,13 +2,14 @@ import type { Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import type { CarouselData, ExtractedFact, GroundingSource } from '../../src/types.ts';
 import { synthesizeCarousel } from '../../src/lib/synthesizer.ts';
+import { condenseCarouselToSingleSlide, seedSingleSlideTakeaways } from '../../src/lib/synthesis/index.ts';
 import { sanitizeFullCarousel } from '../../src/lib/textSanitizer.ts';
 import {
   ALLOWED_INPUT_MODES,
   ALLOWED_IMAGE_MIMES,
   sanitizeLogText,
 } from '../constants.ts';
-import { getServerConfig } from '../config.ts';
+import { getServerConfig, resolveRequestGeminiKeys } from '../config.ts';
 import {
   MARROK_SYSTEM_PROMPT,
   buildUserCarouselPrompt,
@@ -28,8 +29,9 @@ interface GroundingSupportItem {
 
 const TOTAL_REQUEST_BUDGET_MS = 45_000;
 const GROUNDED_ATTEMPT_TIMEOUT_MS = 12_000;
-const DIRECT_TEXT_TIMEOUT_MS = 18_000;
-const DIRECT_IMAGE_TIMEOUT_MS = 30_000;
+const DIRECT_TEXT_TIMEOUT_MS = 16_000;
+const DIRECT_IMAGE_TIMEOUT_MS = 28_000;
+const FREE_BACKUP_TIMEOUT_MS = 11_000;
 
 const OVERLOAD_COOLDOWN_MS = 60_000;
 const NOT_FOUND_COOLDOWN_MS = 300_000;
@@ -48,7 +50,8 @@ function classifyModelError(err: unknown): 'overload' | 'not_found' | 'timeout' 
     upper.includes('UNAVAILABLE') ||
     upper.includes('RESOURCE_EXHAUSTED') ||
     upper.includes('HIGH DEMAND') ||
-    upper.includes('OVERLOADED')
+    upper.includes('OVERLOADED') ||
+    upper.includes('QUOTA')
   ) {
     return 'overload';
   }
@@ -104,6 +107,125 @@ export function formatModelFallbackReason(err: unknown, key?: string): string {
     .replace(/\s+/g, ' ')
     .trim();
   return sanitized.slice(0, 90) || 'transient generation notice';
+}
+
+const JSON_SCHEMA_COMPACT_GUIDE = `
+CRITICAL JSON OUTPUT FORMAT:
+Return ONLY a valid raw JSON object (no markdown fences, no commentary) with this exact structure:
+{
+  "brand": "MARROK",
+  "category": "SYSTEM ARCHITECTURE",
+  "theme": "teal",
+  "caption": "Bilingual English + Arabic caption with hashtags",
+  "hookVariants": [
+    { "tag": "CONTRARIAN", "enTitle": "Short title.", "arTitle": "عنوان قصير." }
+  ],
+  "facts": [
+    { "text": "Key engineering fact", "verified": "unconfirmed" }
+  ],
+  "slides": [
+    {
+      "type": "hub",
+      "enTitle": "Headline under 45 chars.",
+      "arTitle": "عنوان تقني مختصر.",
+      "enBody": "Concise mechanism explanation under 140 chars.",
+      "arBody": "شرح تقني دقيق ومختصر باللغة العربية.",
+      "icon": "cpu",
+      "satellites": [
+        { "label": "Node A", "arLabel": "عقدة أ", "sub": "Subtext", "icon": "server" },
+        { "label": "Node B", "arLabel": "عقدة ب", "sub": "Subtext", "icon": "shield" },
+        { "label": "Node C", "arLabel": "عقدة ج", "sub": "Subtext", "icon": "zap" },
+        { "label": "Node D", "arLabel": "عقدة د", "sub": "Subtext", "icon": "lock" }
+      ],
+      "diagramVariant": "topology",
+      "diagramNodes": [
+        { "id": "n1", "label": "Ingress", "sublabel": "mTLS", "icon": "globe" },
+        { "id": "n2", "label": "Runtime", "sublabel": "Isolate", "icon": "cpu" },
+        { "id": "n3", "label": "Storage", "sublabel": "WAL", "icon": "database" }
+      ]
+    }
+  ]
+}`;
+
+/**
+ * Tier 2 Free Zero-Key AI Fallback via Pollinations OpenAI-compatible endpoint.
+ * Used when all configured Gemini API keys hit quota/overload or when no Gemini key is present.
+ */
+async function generateWithPollinationsFreeBackup(options: {
+  userPromptText: string;
+  minSlidesRequired: number;
+  freeModels: string[];
+  getRemainingMs: () => number;
+}): Promise<{ data: CarouselData; model: string } | null> {
+  const { userPromptText, minSlidesRequired, freeModels, getRemainingMs } = options;
+
+  for (const freeModel of freeModels) {
+    const remaining = getRemainingMs();
+    if (remaining < 3500) break;
+    const timeoutMs = Math.min(FREE_BACKUP_TIMEOUT_MS, remaining - 500);
+
+    try {
+      console.info(`[AI-Gateway] Trying zero-key free AI backup model: pollinations/${freeModel}...`);
+      const res = await fetch('https://text.pollinations.ai/openai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(timeoutMs),
+        body: JSON.stringify({
+          model: freeModel,
+          temperature: 0.2,
+          response_format: { type: 'json_object' },
+          messages: [
+            {
+              role: 'system',
+              content: `${MARROK_SYSTEM_PROMPT}\n\n${JSON_SCHEMA_COMPACT_GUIDE}`,
+            },
+            {
+              role: 'user',
+              content: userPromptText,
+            },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        console.info(`[AI-Gateway] Free backup model pollinations/${freeModel} returned HTTP ${res.status}.`);
+        continue;
+      }
+
+      const payload = await res.json();
+      const rawContent: string =
+        payload?.choices?.[0]?.message?.content ||
+        (typeof payload === 'string' ? payload : '');
+
+      if (!rawContent) continue;
+
+      const cleaned = rawContent
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '');
+
+      const parsed = parseCarouselData(JSON.parse(cleaned), {
+        minSlides: minSlidesRequired,
+        requireSlideContent: true,
+      });
+
+      if (parsed) {
+        parsed.facts = mapFactsWithGroundingSupports(parsed.facts, [], []);
+        return {
+          data: parsed,
+          model: `pollinations/${freeModel}`,
+        };
+      }
+    } catch (err: unknown) {
+      console.info(
+        `[AI-Gateway] Free backup model pollinations/${freeModel} unavailable (${formatModelFallbackReason(err)}); trying next.`
+      );
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -179,9 +301,9 @@ export function mapFactsWithGroundingSupports(
 
 /**
  * Autonomous Carousel Generation Controller
- * - Enforces strict trust rules: only grounded responses with real webSources get status='verified_live';
- *   userReviewed is always false until the human explicitly confirms review in the UI.
- * - Caps total execution time within Vercel's serverless budget using AbortSignal cancellation.
+ * - Multi-account Gemini API key failover rotation (Primary Key -> Backup Key #2 -> Server Key Pool)
+ * - Free-tier Gemini model cascade + lightweight JSON fallback
+ * - Zero-key Pollinations AI backup before ever touching the local offline synthesizer
  */
 export async function handleGenerateCarousel(req: Request, res: Response) {
   const requestStartTime = Date.now();
@@ -203,12 +325,6 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     (req.headers['x-gemini-key'] as string) ||
     (req.headers['x-gemini-api-key'] as string) ||
     req.body?.apiKey;
-
-  // Optional shared-secret protection when relying on the server's GEMINI_API_KEY
-  const canUseServerKey =
-    Boolean(config.geminiApiKey) &&
-    (!config.apiSharedSecret || req.headers['x-api-secret'] === config.apiSharedSecret);
-  const systemKey = canUseServerKey ? config.geminiApiKey : '';
 
   if (!combinedPrompt && !imageBase64) {
     return res.status(400).json({ error: 'Prompt or image is required' });
@@ -268,13 +384,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     });
     parts.push({ text: userPromptText });
 
-    const candidateKeys: { key: string; isCustom: boolean }[] = [];
-    if (typeof customKey === 'string' && customKey.trim().length > 5) {
-      candidateKeys.push({ key: customKey.trim(), isCustom: true });
-    }
-    if (systemKey && systemKey.length > 5 && !candidateKeys.some((k) => k.key === systemKey)) {
-      candidateKeys.push({ key: systemKey, isCustom: false });
-    }
+    const candidateKeys = resolveRequestGeminiKeys(req, config);
 
     let jsonResult: CarouselData | null = null;
     let successfulModel = '';
@@ -282,7 +392,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
 
     const remainingBudgetMs = () => TOTAL_REQUEST_BUDGET_MS - (Date.now() - requestStartTime);
 
-    keyLoop: for (const { key, isCustom } of candidateKeys) {
+    keyLoop: for (const { key, label } of candidateKeys) {
       if (remainingBudgetMs() < 4000) break;
 
       const activeAi = new GoogleGenAI({
@@ -303,7 +413,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
         const timeoutMs = Math.min(GROUNDED_ATTEMPT_TIMEOUT_MS, remainingBudgetMs() - 1000);
         try {
           console.info(
-            `[AI-Gateway] Trying grounded attempt on ${primaryModel} (${isCustom ? 'custom key' : 'system key'})...`
+            `[AI-Gateway] Trying grounded attempt on ${primaryModel} (${label})...`
           );
 
           const response = await activeAi.models.generateContent({
@@ -371,7 +481,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
             failedModelsInAttempt.add(primaryModel);
           }
           console.info(
-            `[AI-Gateway] Grounded mode on ${primaryModel} unavailable (${formatModelFallbackReason(groundingErr, key)}); cascading to direct schema mode.`
+            `[AI-Gateway] Grounded mode on ${primaryModel} (${label}) unavailable (${formatModelFallbackReason(groundingErr, key)}); cascading to direct schema mode.`
           );
         }
       }
@@ -385,7 +495,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
 
         try {
           console.info(
-            `[AI-Gateway] Calling direct schema mode on ${model} (${isCustom ? 'custom key' : 'system key'})...`
+            `[AI-Gateway] Calling direct schema mode on ${model} (${label})...`
           );
 
           const directResponse = await activeAi.models.generateContent({
@@ -420,9 +530,68 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
           recordModelUnavailable(model, directErr);
           failedModelsInAttempt.add(model);
           console.info(
-            `[AI-Gateway] Direct mode on ${model} unavailable (${formatModelFallbackReason(directErr, key)}); trying next fallback.`
+            `[AI-Gateway] Direct mode on ${model} (${label}) unavailable (${formatModelFallbackReason(directErr, key)}); trying next fallback.`
           );
         }
+      }
+
+      // Attempt 3: Lightweight fast JSON-mode pass without strict responseSchema overhead on Lite/Flash
+      if (!jsonResult && !hasImage && remainingBudgetMs() >= 4000) {
+        const liteModel =
+          config.generationModels.find((m) => m.includes('lite')) ||
+          config.generationModels[config.generationModels.length - 1] ||
+          'gemini-3.1-flash-lite';
+        const timeoutMs = Math.min(9_000, remainingBudgetMs() - 500);
+        try {
+          console.info(
+            `[AI-Gateway] Trying lightweight fast JSON pass on ${liteModel} (${label})...`
+          );
+          const liteResponse = await activeAi.models.generateContent({
+            model: liteModel,
+            contents: `${userPromptText}\n\n${JSON_SCHEMA_COMPACT_GUIDE}`,
+            config: {
+              systemInstruction: MARROK_SYSTEM_PROMPT,
+              temperature: 0.2,
+              responseMimeType: 'application/json',
+              abortSignal: AbortSignal.timeout(timeoutMs),
+            },
+          });
+          const liteText = liteResponse.text;
+          if (liteText) {
+            const cleanText = liteText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+            const parsed = parseCarouselData(JSON.parse(cleanText), {
+              minSlides: minSlidesRequired,
+              requireSlideContent: true,
+            });
+            if (parsed) {
+              parsed.facts = mapFactsWithGroundingSupports(parsed.facts, [], []);
+              jsonResult = parsed;
+              successfulModel = liteModel;
+              wasGroundedWithSources = false;
+              modelCooldownUntil.delete(liteModel);
+              break keyLoop;
+            }
+          }
+        } catch (liteErr: unknown) {
+          console.info(
+            `[AI-Gateway] Lightweight JSON pass on ${liteModel} (${label}) unavailable (${formatModelFallbackReason(liteErr, key)}).`
+          );
+        }
+      }
+    }
+
+    // Tier 2: Zero-Key Free Pollinations AI Backup (before ever going offline)
+    if (!jsonResult && !hasImage && config.freeBackupEnabled && remainingBudgetMs() >= 3500) {
+      const freeBackup = await generateWithPollinationsFreeBackup({
+        userPromptText,
+        minSlidesRequired,
+        freeModels: config.freeTextBackupModels,
+        getRemainingMs: remainingBudgetMs,
+      });
+      if (freeBackup) {
+        jsonResult = freeBackup.data;
+        successfulModel = freeBackup.model;
+        wasGroundedWithSources = false;
       }
     }
 
@@ -430,16 +599,17 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
       const engineType = wasGroundedWithSources ? 'grounded' : 'ungrounded';
       jsonResult.brand = 'MARROK';
       jsonResult.postFormat = postFormat;
-      if (postFormat === 'single' && jsonResult.slides.length > 1) {
-        const firstSlide = jsonResult.slides[0];
-        const lastSlide = jsonResult.slides[jsonResult.slides.length - 1];
-        jsonResult.slides = [
-          {
-            ...firstSlide,
-            enCredit: firstSlide.enCredit || lastSlide?.enCredit || `Source: ${jsonResult.sourceMeta?.creator || 'MARROK'}`,
-            arCredit: firstSlide.arCredit || lastSlide?.arCredit || `المصدر: ${jsonResult.sourceMeta?.creator || 'MARROK'}`,
-          },
-        ];
+      if (postFormat === 'single') {
+        if (jsonResult.slides.length > 1) {
+          jsonResult = condenseCarouselToSingleSlide(jsonResult);
+        } else if (jsonResult.slides.length === 1) {
+          if (!jsonResult.slides[0].takeaways || jsonResult.slides[0].takeaways.length === 0) {
+            jsonResult.slides[0].takeaways = seedSingleSlideTakeaways(jsonResult.slides[0], jsonResult.category);
+          }
+          if (!jsonResult.slides[0].enCredit) {
+            jsonResult.slides[0].enCredit = jsonResult.sourceMeta?.creator || jsonResult.brand || 'MARROK';
+          }
+        }
       }
       jsonResult.sourceMeta = {
         ...jsonResult.sourceMeta,
@@ -459,7 +629,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     }
 
     // Offline Fallback Synthesizer
-    console.info('[AI-Gateway] AI attempts exhausted. Activating MARROK offline synthesizer.');
+    console.info('[AI-Gateway] All AI keys & free backup tiers exhausted. Activating MARROK offline synthesizer.');
     const synthesizedData = synthesizeCarousel({
       prompt: safePrompt,
       categoryHint: safeCategoryHint,
@@ -510,6 +680,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
 
 /**
  * Per-Slide Bilingual AI Refinement Controller
+ * Rotates across all available Gemini keys + models, then zero-key Pollinations AI before offline fallback.
  */
 export async function handleRefineSlide(req: Request, res: Response) {
   const config = getServerConfig();
@@ -518,22 +689,7 @@ export async function handleRefineSlide(req: Request, res: Response) {
     return res.status(400).json({ error: 'Slide object is required' });
   }
 
-  const customKey =
-    (req.headers['x-gemini-key'] as string) ||
-    (req.headers['x-gemini-api-key'] as string) ||
-    req.body?.apiKey;
-  const canUseServerKey =
-    Boolean(config.geminiApiKey) &&
-    (!config.apiSharedSecret || req.headers['x-api-secret'] === config.apiSharedSecret);
-  const systemKey = canUseServerKey ? config.geminiApiKey : '';
-
-  const candidateKeys: string[] = [];
-  if (typeof customKey === 'string' && customKey.trim().length > 5) {
-    candidateKeys.push(customKey.trim());
-  }
-  if (systemKey && systemKey.length > 5 && !candidateKeys.includes(systemKey)) {
-    candidateKeys.push(systemKey);
-  }
+  const candidateKeys = resolveRequestGeminiKeys(req, config);
 
   const enTitle = String(slide.enTitle || '').slice(0, 200);
   const arTitle = String(slide.arTitle || '').slice(0, 200);
@@ -552,8 +708,22 @@ export async function handleRefineSlide(req: Request, res: Response) {
   };
 
   const directive = modeInstructions[String(mode)] || modeInstructions.punchy;
+  const refinePrompt = `Refine this single engineering carousel slide for topic "${String(category).slice(0, 80)}".
+Directive: ${directive}
+Rules:
+- enTitle: 2 to 6 words ending with a period (.) or question mark (?), max 45 characters.
+- arTitle: Natural Arabic technical headline ending with . or ؟, max 40 characters.
+- enBody: Direct technical explanation, max 140 characters.
+- arBody: Natural Arabic technical explanation ending with an Arabic word and period, max 150 characters.
+- Return ONLY valid JSON with keys: enTitle, arTitle, enBody, arBody.
 
-  for (const key of candidateKeys) {
+Current Slide:
+enTitle: ${enTitle}
+arTitle: ${arTitle}
+enBody: ${enBody}
+arBody: ${arBody}`;
+
+  for (const { key, label } of candidateKeys) {
     const activeAi = new GoogleGenAI({
       apiKey: key,
       httpOptions: {
@@ -568,20 +738,7 @@ export async function handleRefineSlide(req: Request, res: Response) {
       try {
         const response = await activeAi.models.generateContent({
           model,
-          contents: `Refine this single engineering carousel slide for topic "${String(category).slice(0, 80)}".
-Directive: ${directive}
-Rules:
-- enTitle: 2 to 6 words ending with a period (.) or question mark (?), max 45 characters.
-- arTitle: Natural Arabic technical headline ending with . or ؟, max 40 characters.
-- enBody: Direct technical explanation, max 140 characters.
-- arBody: Natural Arabic technical explanation ending with an Arabic word and period, max 150 characters.
-- Return ONLY valid JSON with keys: enTitle, arTitle, enBody, arBody.
-
-Current Slide:
-enTitle: ${enTitle}
-arTitle: ${arTitle}
-enBody: ${enBody}
-arBody: ${arBody}`,
+          contents: refinePrompt,
           config: {
             temperature: 0.3,
             responseMimeType: 'application/json',
@@ -610,8 +767,60 @@ arBody: ${arBody}`,
       } catch (err: unknown) {
         recordModelUnavailable(model, err);
         console.info(
-          `[AI-Gateway] Slide refine on ${model} unavailable (${formatModelFallbackReason(err, key)}); trying next fallback.`
+          `[AI-Gateway] Slide refine on ${model} (${label}) unavailable (${formatModelFallbackReason(err, key)}); trying next fallback.`
         );
+      }
+    }
+  }
+
+  // Zero-Key Pollinations Free Backup for Slide Refine
+  if (config.freeBackupEnabled) {
+    for (const freeModel of config.freeTextBackupModels) {
+      try {
+        const freeRes = await fetch('https://text.pollinations.ai/openai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(9_000),
+          body: JSON.stringify({
+            model: freeModel,
+            temperature: 0.3,
+            response_format: { type: 'json_object' },
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a bilingual English and Modern Standard Arabic systems architecture editor. Return ONLY valid JSON with keys: enTitle, arTitle, enBody, arBody.',
+              },
+              {
+                role: 'user',
+                content: refinePrompt,
+              },
+            ],
+          }),
+        });
+
+        if (freeRes.ok) {
+          const payload = await freeRes.json();
+          const rawContent: string = payload?.choices?.[0]?.message?.content || '';
+          if (rawContent) {
+            const cleanText = rawContent.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+            const parsed = JSON.parse(cleanText);
+            if (parsed && typeof parsed.enTitle === 'string' && typeof parsed.enBody === 'string') {
+              const modelTag = `pollinations/${freeModel}`;
+              res.setHeader('X-Marrok-Engine', 'ungrounded');
+              res.setHeader('X-Marrok-Model', modelTag);
+              return res.json({
+                enTitle: parsed.enTitle.trim(),
+                arTitle: typeof parsed.arTitle === 'string' ? parsed.arTitle.trim() : arTitle,
+                enBody: parsed.enBody.trim(),
+                arBody: typeof parsed.arBody === 'string' ? parsed.arBody.trim() : arBody,
+                engine: 'ungrounded',
+                model: modelTag,
+              });
+            }
+          }
+        }
+      } catch (_err) {
+        // continue to next free model
       }
     }
   }

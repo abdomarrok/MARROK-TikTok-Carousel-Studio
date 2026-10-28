@@ -11,6 +11,7 @@ import {
   Trash2,
   Sparkles,
   Tag,
+  LayoutTemplate,
 } from 'lucide-react';
 import { SlideData, SlideType, ThemePalette, DiagramVariant, DiagramNode } from '../../types.ts';
 import { ICONS_REGISTRY } from '../../lib/icons.ts';
@@ -43,6 +44,7 @@ const DIAGRAM_VARIANTS: { id: DiagramVariant; label: string }[] = [
 ];
 
 const ARCHETYPES: { id: SlideType; label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }> }[] = [
+  { id: 'poster', label: 'Poster', icon: LayoutTemplate },
   { id: 'hub', label: 'Hub', icon: Cpu },
   { id: 'row', label: 'Mechanism', icon: Layers },
   { id: 'image', label: 'Diagram / AI', icon: ImageIcon },
@@ -271,8 +273,8 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
         </div>
       )}
 
-      {/* Mechanism Slides (Row Archetype) */}
-      {currentSlide.type === 'row' && (
+      {/* Mechanism & Poster Slides (Row / Poster Archetype) */}
+      {(currentSlide.type === 'row' || currentSlide.type === 'poster') && (
         <div className="pt-3 border-t border-white/[0.08] space-y-3.5 animate-fade-in">
           {/* Diagram Layout Switcher */}
           <div>
@@ -423,6 +425,36 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
               />
             </div>
           </div>
+
+          {/* Optional Benchmark Metric Tag for Poster */}
+          {currentSlide.type === 'poster' && (
+            <div className="pt-2 border-t border-white/[0.08] grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                  Corner Benchmark Value (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={currentSlide.metricValue ?? ''}
+                  onChange={(e) => onUpdateField('metricValue', e.target.value)}
+                  placeholder="e.g. 200x, 0ms, 99.9%"
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                  Benchmark Label / Delta
+                </label>
+                <input
+                  type="text"
+                  value={currentSlide.metricLabel ?? ''}
+                  onChange={(e) => onUpdateField('metricLabel', e.target.value)}
+                  placeholder="e.g. P99 LATENCY or ▲ 12x"
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 

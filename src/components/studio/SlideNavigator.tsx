@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Copy, Trash2, ArrowLeft, ArrowRight, Layers } from 'lucide-react';
+import { Plus, Copy, Trash2, ArrowLeft, ArrowRight, Layers, LayoutTemplate } from 'lucide-react';
 import { CarouselData, HookVariant } from '../../types.ts';
 
 interface SlideNavigatorProps {
@@ -13,6 +13,7 @@ interface SlideNavigatorProps {
   onDeleteSlide: () => void;
   onMoveSlide: (direction: 'left' | 'right') => void;
   onExpandToCarousel?: () => void;
+  onCondenseToSingleSlide?: () => void;
   onApplyHookVariant?: (variant: HookVariant) => void;
 }
 
@@ -27,6 +28,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   onDeleteSlide,
   onMoveSlide,
   onExpandToCarousel,
+  onCondenseToSingleSlide,
 }) => {
   const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
   const activeSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
@@ -38,22 +40,24 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
           <span className="text-white font-bold">Single Slide</span>
           <span className="text-slate-500">·</span>
           <span className="uppercase text-emerald-300 font-sans font-semibold">
-            {activeSlide?.type || 'row'}
+            {activeSlide?.type || 'poster'}
           </span>
           <span className="text-slate-500">·</span>
           <span className="text-slate-400">1080×1920</span>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onExpandToCarousel || onAddSlide}
-            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/10 border border-white/10 text-[10px] font-sans font-semibold text-slate-200 transition-colors cursor-pointer"
-            title="Switch to Multi-Slide Carousel mode"
-          >
-            <Layers className="w-3 h-3 text-cyan-400" />
-            <span>Expand to Carousel</span>
-          </button>
+          {onExpandToCarousel && (
+            <button
+              type="button"
+              onClick={onExpandToCarousel}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/10 border border-white/10 text-[10px] font-sans font-semibold text-slate-200 transition-colors cursor-pointer"
+              title="Switch to Multi-Slide Carousel mode / Restore deck"
+            >
+              <Layers className="w-3 h-3 text-cyan-400" />
+              <span>Restore 8 Slides</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -129,17 +133,31 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onToggleSafeZones}
-          className={`text-[10px] font-sans font-semibold px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
-            showSafeZones
-              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-              : 'bg-white/[0.03] text-slate-400 border-white/10 hover:text-slate-200'
-          }`}
-        >
-          Safe Zones
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onCondenseToSingleSlide && (
+            <button
+              type="button"
+              onClick={onCondenseToSingleSlide}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-sans font-semibold text-emerald-300 transition-colors cursor-pointer"
+              title="Condense entire 8-slide carousel into 1-slide Infographic Poster"
+            >
+              <LayoutTemplate className="w-3 h-3 text-emerald-400" />
+              <span>Condense to Poster</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onToggleSafeZones}
+            className={`text-[10px] font-sans font-semibold px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
+              showSafeZones
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                : 'bg-white/[0.03] text-slate-400 border-white/10 hover:text-slate-200'
+            }`}
+          >
+            Safe Zones
+          </button>
+        </div>
       </div>
 
       {/* Storyboard Strip */}

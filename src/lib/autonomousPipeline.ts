@@ -125,9 +125,13 @@ export async function runAutonomousPipeline(
   let rawCarousel: CarouselData | null = null;
 
   const customKey = typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_key') : null;
+  const backupKey = typeof window !== 'undefined' ? localStorage.getItem('marrok_custom_gemini_backup_key') : null;
   const requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
   if (customKey) {
     requestHeaders['x-gemini-key'] = customKey;
+  }
+  if (backupKey) {
+    requestHeaders['x-gemini-backup-key'] = backupKey;
   }
 
   const generationDeadline = createRequestDeadline(signal, GENERATION_REQUEST_TIMEOUT_MS);

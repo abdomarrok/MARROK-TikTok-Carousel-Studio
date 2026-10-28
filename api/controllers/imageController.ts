@@ -1,16 +1,81 @@
 import type { Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { sanitizeLogText } from '../constants.ts';
-import { getServerConfig } from '../config.ts';
+import { getServerConfig, resolveRequestGeminiKeys } from '../config.ts';
 import { decorateImagePrompt } from '../prompts/systemPrompt.ts';
 import { parseImageDataUrl } from '../../src/lib/validation/image.ts';
 
 const VALID_ASPECT_RATIOS = new Set(['9:16', '16:9', '1:1', '4:3', '3:4']);
-const IMAGE_MODEL_TIMEOUT_MS = 25000;
+const IMAGE_MODEL_TIMEOUT_MS = 22_000;
+const FREE_IMAGE_BACKUP_TIMEOUT_MS = 20_000;
 const MAX_EDIT_BASE64_CHARS = 3_800_000; // ~2.8 MB raw binary to stay safely under Vercel 4.5 MB limit
 
+const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  '9:16': { width: 1080, height: 1920 },
+  '16:9': { width: 1920, height: 1080 },
+  '1:1': { width: 1080, height: 1080 },
+  '4:3': { width: 1440, height: 1080 },
+  '3:4': { width: 1080, height: 1440 },
+};
+
 /**
- * AI Image Generation & Editing endpoint powered by configurable Gemini image models.
+ * Zero-key free 9:16 image generation fallback via Pollinations Flux.
+ * Converts the returned binary image into a validated base64 data URL so canvas rendering and ZIP export work without CORS issues.
+ */
+async function generateImageWithPollinationsFreeBackup(
+  decoratedPrompt: string,
+  aspectRatio: string
+): Promise<{ dataUrl: string; model: string } | null> {
+  const dims = ASPECT_RATIO_DIMENSIONS[aspectRatio] || ASPECT_RATIO_DIMENSIONS['9:16'];
+  const compactPrompt = decoratedPrompt.slice(0, 900);
+  const seed = Math.floor(1000 + Math.random() * 900000);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(compactPrompt)}?width=${dims.width}&height=${dims.height}&model=flux&nologo=true&seed=${seed}`;
+
+  try {
+    console.info(
+      `[Image-Gateway] Trying zero-key free 9:16 image backup (pollinations/flux, ${dims.width}x${dims.height})...`
+    );
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(FREE_IMAGE_BACKUP_TIMEOUT_MS),
+    });
+
+    if (!res.ok) {
+      console.info(`[Image-Gateway] Pollinations image backup returned HTTP ${res.status}.`);
+      return null;
+    }
+
+    const contentType = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase();
+    const mimeType =
+      contentType === 'image/png' || contentType === 'image/webp' || contentType === 'image/gif'
+        ? contentType
+        : 'image/jpeg';
+
+    const arrayBuffer = await res.arrayBuffer();
+    if (!arrayBuffer || arrayBuffer.byteLength < 256) {
+      return null;
+    }
+
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const parsedImage = parseImageDataUrl(`data:${mimeType};base64,${base64}`);
+    if (!parsedImage) {
+      return null;
+    }
+
+    return {
+      dataUrl: parsedImage.dataUrl,
+      model: 'pollinations-flux-free',
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.info(`[Image-Gateway] Pollinations image backup unavailable (${msg.slice(0, 100)}).`);
+    return null;
+  }
+}
+
+/**
+ * AI Image Generation & Editing endpoint powered by multi-key Gemini image models
+ * with automatic failover to zero-key 9:16 Pollinations Flux.
  */
 export async function handleGenerateImage(req: Request, res: Response) {
   const {
@@ -43,20 +108,6 @@ export async function handleGenerateImage(req: Request, res: Response) {
     }
   }
 
-  const activeApiKey = customKey || serverConfig.geminiApiKey;
-  if (!activeApiKey) {
-    return res.status(401).json({ error: 'Gemini API key is required for image generation.' });
-  }
-
-  const activeAi = new GoogleGenAI({
-    apiKey: activeApiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
-
   const safeAspectRatio = VALID_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '9:16';
   const safeImageSize = imageSize === '2K' ? '2K' : '1K';
   const safePrompt = prompt.trim().slice(0, 4000);
@@ -76,6 +127,13 @@ export async function handleGenerateImage(req: Request, res: Response) {
     }
   }
 
+  const candidateKeys = resolveRequestGeminiKeys(req, serverConfig);
+
+  // Image-to-image editing requires a Gemini API key (or if free backup is explicitly disabled)
+  if (candidateKeys.length === 0 && (editImage || !serverConfig.freeBackupEnabled)) {
+    return res.status(401).json({ error: 'Gemini API key is required for image generation.' });
+  }
+
   // Apply technical style decorator and theme hex colors
   const decoratedPrompt = decorateImagePrompt(safePrompt, {
     stylePreset,
@@ -85,11 +143,23 @@ export async function handleGenerateImage(req: Request, res: Response) {
   });
 
   const candidateModels = serverConfig.imageModels;
+  let lastError: unknown = null;
 
-  try {
+  for (const { key, label } of candidateKeys) {
+    const activeAi = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+
     for (const model of candidateModels) {
       try {
-        console.log(`Generating/editing image using model: ${model} (aspectRatio: ${safeAspectRatio})...`);
+        console.log(
+          `Generating/editing image using model: ${model} (${label}, aspectRatio: ${safeAspectRatio})...`
+        );
 
         const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
@@ -141,18 +211,32 @@ export async function handleGenerateImage(req: Request, res: Response) {
           }
         }
       } catch (modelErr: unknown) {
+        lastError = modelErr;
         const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
-        const cleanNotice = sanitizeLogText(msg, customKey).replace(/[{}"]/g, '').slice(0, 120);
-        console.info(`Image model ${model} unavailable (${cleanNotice}); trying next fallback.`);
-        if (model === candidateModels[candidateModels.length - 1]) {
-          throw modelErr;
-        }
+        const cleanNotice = sanitizeLogText(msg, key).replace(/[{}"]/g, '').slice(0, 120);
+        console.info(`Image model ${model} (${label}) unavailable (${cleanNotice}); trying next fallback.`);
       }
     }
+  }
 
-    return res.status(500).json({ error: 'No image data returned from generation models.' });
-  } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+  // Tier 2: Zero-key 9:16 Pollinations Flux image backup (for text-to-image requests)
+  if (!editImage && serverConfig.freeBackupEnabled) {
+    const freeBackupImage = await generateImageWithPollinationsFreeBackup(
+      decoratedPrompt,
+      safeAspectRatio
+    );
+    if (freeBackupImage) {
+      return res.json({
+        imageUrl: freeBackupImage.dataUrl,
+        prompt: decoratedPrompt,
+        model: freeBackupImage.model,
+        aspectRatio: safeAspectRatio,
+      });
+    }
+  }
+
+  if (lastError) {
+    const errMsg = lastError instanceof Error ? lastError.message : String(lastError);
     const cleanDetails = sanitizeLogText(errMsg, customKey).replace(/[{}"]/g, '').slice(0, 200);
     console.info('Image generation models unavailable:', cleanDetails);
     return res.status(500).json({
@@ -160,5 +244,8 @@ export async function handleGenerateImage(req: Request, res: Response) {
       details: cleanDetails,
     });
   }
+
+  return res.status(500).json({ error: 'No image data returned from generation models.' });
 }
+
 

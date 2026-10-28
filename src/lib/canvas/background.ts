@@ -7,6 +7,8 @@ import {
   GRID_LINE_WIDTH,
   PAGINATION_DOT_Y,
   SAFE_TEXT_CENTER_X,
+  SAFE_MARGIN_LEFT,
+  SAFE_MARGIN_RIGHT,
 } from './constants.ts';
 
 /**
@@ -211,27 +213,52 @@ export function drawPaginationFooter(
 
   if (totalSlides <= 1) {
     ctx.save();
-    const rawDomain = (carousel?.brandUrl || 'marrok.org').replace(/^https?:\/\//i, '').trim() || 'marrok.org';
+    const rawBrand = (carousel?.brand || 'MARROK').trim() || 'MARROK';
     const rawCredit = (
       slide?.enCredit ||
+      slide?.arCredit ||
       carousel?.channel ||
       carousel?.sourceMeta?.creator ||
       carousel?.sourceMeta?.channel ||
-      carousel?.brand ||
-      'MARROK'
+      ''
     )
       .replace(/^Source:\s*/i, '')
       .trim();
 
-    const footerText = rawCredit && rawCredit.toUpperCase() !== rawDomain.toUpperCase()
-      ? `${rawDomain}  ·  ${rawCredit}`
-      : rawDomain;
+    const leftX = SAFE_MARGIN_LEFT;
+    const rightX = SAFE_MARGIN_RIGHT;
+    const footerY = dotY;
 
-    ctx.font = '600 26px "JetBrains Mono", "Plus Jakarta Sans", monospace';
-    ctx.fillStyle = theme.textMuted || 'rgba(255, 255, 255, 0.58)';
-    ctx.textAlign = 'center';
+    // Left segment: Source credit (or clean spec indicator if no credit)
+    ctx.font = '600 24px "JetBrains Mono", monospace';
     ctx.textBaseline = 'middle';
-    ctx.fillText(footerText.slice(0, 64), SAFE_TEXT_CENTER_X, dotY);
+    if (rawCredit) {
+      ctx.fillStyle = theme.accent;
+      ctx.textAlign = 'left';
+      ctx.fillText('SOURCE //', leftX, footerY);
+      const labelW = ctx.measureText('SOURCE // ').width;
+      ctx.fillStyle = theme.textMuted || 'rgba(255, 255, 255, 0.65)';
+      ctx.fillText(rawCredit.slice(0, 36), leftX + labelW, footerY);
+    } else {
+      ctx.fillStyle = `${theme.accent}99`;
+      ctx.textAlign = 'left';
+      ctx.fillText('STANDALONE INFOGRAPHIC SPEC', leftX, footerY);
+    }
+
+    // Right segment: @MARROK handle with accent status indicator dot
+    const handleText = `@${rawBrand.replace(/^@/, '')}`;
+    ctx.font = '700 24px "JetBrains Mono", "Plus Jakarta Sans", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(handleText, rightX, footerY);
+
+    const handleW = ctx.measureText(handleText).width;
+    const dotX = rightX - handleW - 14;
+    ctx.beginPath();
+    ctx.arc(dotX, footerY, 5, 0, Math.PI * 2);
+    ctx.fillStyle = theme.accent;
+    ctx.fill();
+
     ctx.restore();
     return;
   }

@@ -28,7 +28,7 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-gemini-key, x-gemini-api-key, x-api-secret'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-gemini-key, x-gemini-api-key, x-gemini-backup-key, x-api-secret'
   );
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
@@ -67,7 +67,9 @@ app.get(['/api/health', '/health'], (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: Date.now(),
-    hasApiKey: Boolean(cfg.geminiApiKey),
+    hasApiKey: cfg.geminiApiKeys.length > 0 || Boolean(cfg.geminiApiKey),
+    apiKeyCount: cfg.geminiApiKeys.length,
+    freeBackupEnabled: cfg.freeBackupEnabled,
   });
 });
 
