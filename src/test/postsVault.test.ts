@@ -1,0 +1,119 @@
+import os from 'node:os';
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { getServerConfig, normalizeGenerationModel } from '../../api/config.ts';
+import {
+  resolveStorageFilePath,
+  validateAndBuildPostRecord,
+  mergePostLists,
+  saveStoredPosts,
+  loadStoredPosts,
+} from '../../api/controllers/postsController.ts';
+import {
+  resetModelCooldownsForTest,
+  recordModelUnavailable,
+  getPrioritizedModels,
+  formatModelFallbackReason,
+} from '../../api/controllers/generateController.ts';
+import { DEFAULT_STARTER_DECK } from '../lib/presets.ts';
+
+describe('Gemini Model Deprecation Upgrade & Vercel Persistence Vault', () => {
+  const testFilePath = path.join(os.tmpdir(), `marrok-test-posts-${Date.now()}.json`);
+
+  afterEach(async () => {
+    resetModelCooldownsForTest();
+    try {
+      await fs.unlink(testFilePath);
+    } catch {
+      // Ignore if not created
+    }
+  });
+
+  it('upgrades deprecated gemini-2.5/2.0/1.5 models to gemini-3.8-flash and gemini-3.1-flash-lite', () => {
+    expect(normalizeGenerationModel('gemini-2.5-flash')).toBe('gemini-3.8-flash');
+    expect(normalizeGenerationModel('gemini-2.5-flash-lite')).toBe('gemini-3.1-flash-lite');
+
+    const cfg = getServerConfig({
+      GEMINI_GENERATION_MODELS: 'gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash',
+    });
+    expect(cfg.generationModels).toEqual(['gemini-3.8-flash', 'gemini-3.1-flash-lite']);
+  });
+
+  it('deprioritizes models experiencing HTTP 503 high demand and formats fallback notices cleanly', () => {
+    const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const highDemandErr = new Error(
+      '{"error":{"code":503,"message":"This model is currently experiencing high demand. Spikes in demand are usually temporary."}}'
+    );
+
+    recordModelUnavailable('gemini-3.8-flash', highDemandErr);
+
+    const prioritized = getPrioritizedModels(models, new Set(['gemini-3.8-flash']));
+    expect(prioritized[0]).toBe('gemini-3.1-flash-lite');
+    expect(prioritized[1]).toBe('gemini-flash-latest');
+    expect(prioritized[2]).toBe('gemini-3.8-flash');
+
+    const reason = formatModelFallbackReason(highDemandErr);
+    expect(reason).toBe('HTTP 503/429 temporary high demand');
+    expect(reason).not.toContain('{"error"');
+  });
+
+  it('routes file fallback to os.tmpdir() on Vercel serverless to prevent EROFS errors', () => {
+    const vercelResolved = resolveStorageFilePath({ VERCEL: '1' });
+    expect(vercelResolved.engine).toBe('vercel-tmp');
+    expect(vercelResolved.filePath.startsWith(os.tmpdir())).toBe(true);
+
+    const localResolved = resolveStorageFilePath({});
+    expect(localResolved.engine).toBe('local-disk');
+    expect(localResolved.filePath).toContain(path.join('data', 'saved-posts.json'));
+  });
+
+  it('rejects invalid decks and validates & builds SavedPostRecord for valid posts', () => {
+    const invalidRes = validateAndBuildPostRecord({
+      deck: { slides: [{ enTitle: 'Only one slide.' }] },
+    });
+    expect(invalidRes.ok).toBe(false);
+
+    const validRes = validateAndBuildPostRecord({
+      deck: DEFAULT_STARTER_DECK,
+      postStatus: 'posted',
+      allowOverride: true,
+    });
+    expect(validRes.ok).toBe(true);
+    if (validRes.ok) {
+      expect(validRes.record.postStatus).toBe('posted');
+      expect(validRes.record.postedAt).toBeDefined();
+      expect(validRes.record.deck.sourceMeta?.userReviewed).toBe(true);
+      expect(validRes.record.slideCount).toBe(DEFAULT_STARTER_DECK.slides.length);
+    }
+  });
+
+  it('persists and reconciles saved posts across server and client lists', async () => {
+    const env = { POSTS_STORAGE_FILE: testFilePath, VERCEL: '1' };
+    const built = validateAndBuildPostRecord({
+      id: 'post_scion_1',
+      deck: DEFAULT_STARTER_DECK,
+      postStatus: 'validated',
+      allowOverride: true,
+    });
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+
+    const engine = await saveStoredPosts([built.record], env);
+    expect(engine).toBe('vercel-tmp');
+
+    const loaded = await loadStoredPosts(env);
+    expect(loaded.posts).toHaveLength(1);
+    expect(loaded.posts[0].id).toBe('post_scion_1');
+
+    // Merge with newer status update
+    const newerRecord = {
+      ...built.record,
+      postStatus: 'posted' as const,
+      updatedAt: new Date(Date.now() + 5000).toISOString(),
+    };
+    const merged = mergePostLists(loaded.posts, [newerRecord]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].postStatus).toBe('posted');
+  });
+});

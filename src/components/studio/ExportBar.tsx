@@ -1,6 +1,17 @@
 import React from 'react';
-import { Download, Copy, Check, RefreshCw, CheckCircle, Grid, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { CarouselData, ThemePalette } from '../../types.ts';
+import {
+  Download,
+  Copy,
+  Check,
+  RefreshCw,
+  CheckCircle,
+  Grid,
+  ShieldAlert,
+  ShieldCheck,
+  BookmarkCheck,
+  Send,
+} from 'lucide-react';
+import { CarouselData, SavedPostStatus, ThemePalette } from '../../types.ts';
 import { QAReport } from '../../lib/qaChecks.ts';
 import { RiskReport } from '../../lib/riskChecks.ts';
 
@@ -24,6 +35,9 @@ interface ExportBarProps {
   onCopySlide: () => void;
   onExportZip: () => void;
   onOpenContactSheet?: () => void;
+  onSavePost?: (status: SavedPostStatus) => void;
+  isSavingPost?: boolean;
+  onOpenSavedPostsDrawer?: () => void;
 }
 
 export const ExportBar: React.FC<ExportBarProps> = ({
@@ -45,6 +59,9 @@ export const ExportBar: React.FC<ExportBarProps> = ({
   onCopySlide,
   onExportZip,
   onOpenContactSheet,
+  onSavePost,
+  isSavingPost = false,
+  onOpenSavedPostsDrawer,
 }) => {
   const ctaSlide = carousel.slides[carousel.slides.length - 1];
   const creatorCredit = (
@@ -240,6 +257,53 @@ export const ExportBar: React.FC<ExportBarProps> = ({
                 • {r.message}
               </div>
             ))}
+        </div>
+      )}
+
+      {/* Validated & Posted Vault Persistence Card */}
+      {onSavePost && (
+        <div className="bg-slate-900/70 border border-cyan-500/25 rounded-xl p-3 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-white block">
+                Backend Post Vault (Valid & Posted Only)
+              </span>
+              <span className="text-[10px] text-slate-400">
+                Save verified posts to the backend & IndexedDB Vault instead of static starter data
+              </span>
+            </div>
+            {onOpenSavedPostsDrawer && (
+              <button
+                type="button"
+                onClick={onOpenSavedPostsDrawer}
+                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-cyan-300 font-semibold cursor-pointer shrink-0"
+              >
+                Open Vault
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={isSavingPost}
+              onClick={() => onSavePost('validated')}
+              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-cyan-400/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-200 font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              <BookmarkCheck className="w-3.5 h-3.5 text-cyan-300" />
+              <span>{carousel.id ? 'Update Validated Post' : 'Save as Valid Post'}</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isSavingPost}
+              onClick={() => onSavePost('posted')}
+              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-emerald-400/40 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Send className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Save & Mark as Posted</span>
+            </button>
+          </div>
         </div>
       )}
 

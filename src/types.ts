@@ -195,5 +195,25 @@ export interface ThemePalette {
 
 export type ThemeConfig = ThemePalette;
 
+export type SavedPostStatus = 'validated' | 'posted';
+
+export type SavedPostStorageEngine = 'cloud-kv' | 'vercel-tmp' | 'local-disk' | 'browser-vault';
+
+export interface SavedPostRecord {
+  id: string;
+  title: string;
+  category: string;
+  postStatus: SavedPostStatus;
+  createdAt: string;
+  updatedAt: string;
+  postedAt?: string;
+  creatorHandle: string;
+  slideCount: number;
+  qaPassed: boolean;
+  storageEngine?: SavedPostStorageEngine;
+  deck: CarouselData;
+}
+
 // Re-export immutable palette repositories for backwards compatibility
 export { DEFAULT_PALETTES, SPEC_PALETTES, THEME_CONFIGS } from './lib/theme/palettes.ts';
+

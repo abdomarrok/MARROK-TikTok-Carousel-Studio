@@ -4,6 +4,13 @@ import { handleProxyImage } from './controllers/proxyController.ts';
 import { handleSearchMedia } from './controllers/mediaController.ts';
 import { handleGenerateImage } from './controllers/imageController.ts';
 import { handleGenerateCarousel, handleRefineSlide } from './controllers/generateController.ts';
+import {
+  handleListPosts,
+  handleGetPost,
+  handleSavePost,
+  handleUpdatePostStatus,
+  handleDeletePost,
+} from './controllers/postsController.ts';
 import { getServerConfig, createRateLimiter, securityHeadersMiddleware } from './config.ts';
 
 dotenv.config();
@@ -18,7 +25,7 @@ app.use(securityHeadersMiddleware);
 app.use((req, res, next) => {
   const activeConfig = getServerConfig();
   res.header('Access-Control-Allow-Origin', activeConfig.allowedOrigin);
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header(
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-gemini-key, x-gemini-api-key, x-api-secret'
@@ -71,5 +78,13 @@ app.post(['/api/generate-image', '/generate-image'], generationLimiter, handleGe
 app.post(['/api/generate', '/generate'], generationLimiter, handleGenerateCarousel);
 app.post(['/api/refine-slide', '/refine-slide'], generationLimiter, handleRefineSlide);
 
+// Validated & Posted Carousels Vault Endpoints
+app.get(['/api/posts', '/posts'], handleListPosts);
+app.get(['/api/posts/:id', '/posts/:id'], handleGetPost);
+app.post(['/api/posts', '/posts'], handleSavePost);
+app.patch(['/api/posts/:id/status', '/posts/:id/status'], handleUpdatePostStatus);
+app.delete(['/api/posts/:id', '/posts/:id'], handleDeletePost);
+
 export default app;
 export { app };
+

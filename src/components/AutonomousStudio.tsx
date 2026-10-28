@@ -21,6 +21,7 @@ import {
   Layers,
   LayoutGrid,
   Smartphone,
+  BookmarkCheck,
 } from 'lucide-react';
 import {
   CarouselData,
@@ -32,6 +33,7 @@ import {
   DEFAULT_PALETTES,
   GraphicalElementId,
   ElementLayoutOverride,
+  SavedPostStatus,
 } from '../types.ts';
 import { downloadSingleSlidePng, copySlideToClipboard, downloadAllSlidesZip } from '../lib/canvasExporter.ts';
 import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline.ts';
@@ -89,6 +91,9 @@ interface AutonomousStudioProps {
   onOpenContactSheet?: () => void;
   onOpenPlanInspector?: () => void;
   onOpenPreviewDrawer?: (tab?: 'simulator' | 'polish') => void;
+  onOpenSavedPostsDrawer?: () => void;
+  onSaveValidPost?: (status: SavedPostStatus, allowOverride?: boolean) => Promise<void>;
+  isSavingPost?: boolean;
   onShowToast: (msg: string) => void;
 }
 
@@ -189,6 +194,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   onSelectTheme,
   onOpenContactSheet,
   onOpenPreviewDrawer,
+  onOpenSavedPostsDrawer,
+  onSaveValidPost,
+  isSavingPost = false,
   onShowToast,
 }) => {
   const [promptInput, setPromptInput] = useState('');
@@ -808,6 +816,13 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         },
         carousel.visualOptions
       );
+      if (onSaveValidPost) {
+        try {
+          await onSaveValidPost('posted', overrideExportBlock);
+        } catch {
+          // Non-fatal if background post save fails during ZIP download
+        }
+      }
       onShowToast('All 1080×1920 JPG slides & Metricool bundle exported into ZIP!');
     } catch (err) {
       console.error('ZIP export failed:', err);
@@ -1510,6 +1525,19 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 </button>
               )}
 
+              {onSaveValidPost && (
+                <button
+                  type="button"
+                  disabled={isSavingPost}
+                  onClick={() => onSaveValidPost('validated', overrideExportBlock)}
+                  className="px-2.5 py-2 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-[11px] font-bold text-cyan-200 transition-colors cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50"
+                  title="Validate and save this post to your Saved Posts Vault"
+                >
+                  <BookmarkCheck className="w-3.5 h-3.5 text-cyan-300" />
+                  <span>{carousel.id ? 'Saved' : 'Save Valid'}</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleExportZip}
@@ -1814,6 +1842,15 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                     onCopySlide={handleCopySlide}
                     onExportZip={handleExportZip}
                     onOpenContactSheet={onOpenContactSheet}
+                    onSavePost={
+                      onSaveValidPost
+                        ? (status) => {
+                            onSaveValidPost(status, overrideExportBlock);
+                          }
+                        : undefined
+                    }
+                    isSavingPost={isSavingPost}
+                    onOpenSavedPostsDrawer={onOpenSavedPostsDrawer}
                   />
                 </div>
               </div>

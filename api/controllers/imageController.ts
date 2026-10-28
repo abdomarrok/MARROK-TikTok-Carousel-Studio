@@ -142,7 +142,8 @@ export async function handleGenerateImage(req: Request, res: Response) {
         }
       } catch (modelErr: unknown) {
         const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
-        console.log(`Image model ${model} notice: ${sanitizeLogText(msg, customKey).slice(0, 150)}`);
+        const cleanNotice = sanitizeLogText(msg, customKey).replace(/[{}"]/g, '').slice(0, 120);
+        console.info(`Image model ${model} unavailable (${cleanNotice}); trying next fallback.`);
         if (model === candidateModels[candidateModels.length - 1]) {
           throw modelErr;
         }
@@ -152,10 +153,11 @@ export async function handleGenerateImage(req: Request, res: Response) {
     return res.status(500).json({ error: 'No image data returned from generation models.' });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error('Image generation error:', sanitizeLogText(errMsg, customKey).slice(0, 200));
+    const cleanDetails = sanitizeLogText(errMsg, customKey).replace(/[{}"]/g, '').slice(0, 200);
+    console.info('Image generation models unavailable:', cleanDetails);
     return res.status(500).json({
       error: 'Failed to generate image',
-      details: sanitizeLogText(errMsg, customKey).slice(0, 200),
+      details: cleanDetails,
     });
   }
 }

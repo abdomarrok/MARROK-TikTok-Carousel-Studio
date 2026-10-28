@@ -31,6 +31,81 @@ const GROUNDED_ATTEMPT_TIMEOUT_MS = 12_000;
 const DIRECT_TEXT_TIMEOUT_MS = 18_000;
 const DIRECT_IMAGE_TIMEOUT_MS = 30_000;
 
+const OVERLOAD_COOLDOWN_MS = 60_000;
+const NOT_FOUND_COOLDOWN_MS = 300_000;
+const modelCooldownUntil = new Map<string, number>();
+
+export function resetModelCooldownsForTest(): void {
+  modelCooldownUntil.clear();
+}
+
+function classifyModelError(err: unknown): 'overload' | 'not_found' | 'timeout' | 'other' {
+  const raw = err instanceof Error ? err.message : String(err);
+  const upper = raw.toUpperCase();
+  if (
+    upper.includes('503') ||
+    upper.includes('429') ||
+    upper.includes('UNAVAILABLE') ||
+    upper.includes('RESOURCE_EXHAUSTED') ||
+    upper.includes('HIGH DEMAND') ||
+    upper.includes('OVERLOADED')
+  ) {
+    return 'overload';
+  }
+  if (upper.includes('404') || upper.includes('NOT_FOUND') || upper.includes('NO LONGER AVAILABLE')) {
+    return 'not_found';
+  }
+  if (upper.includes('ABORT') || upper.includes('TIMEOUT') || upper.includes('TIMED OUT')) {
+    return 'timeout';
+  }
+  return 'other';
+}
+
+export function recordModelUnavailable(model: string, err: unknown): void {
+  const kind = classifyModelError(err);
+  if (kind === 'overload') {
+    modelCooldownUntil.set(model, Date.now() + OVERLOAD_COOLDOWN_MS);
+  } else if (kind === 'not_found') {
+    modelCooldownUntil.set(model, Date.now() + NOT_FOUND_COOLDOWN_MS);
+  }
+}
+
+export function getPrioritizedModels(models: string[], excludeInRequest?: Set<string>): string[] {
+  const now = Date.now();
+  const available: string[] = [];
+  const coolingDown: string[] = [];
+  const excluded: string[] = [];
+
+  for (const model of models) {
+    if (excludeInRequest?.has(model)) {
+      excluded.push(model);
+      continue;
+    }
+    const until = modelCooldownUntil.get(model) || 0;
+    if (until > now) {
+      coolingDown.push(model);
+    } else {
+      if (until > 0) modelCooldownUntil.delete(model);
+      available.push(model);
+    }
+  }
+
+  return [...available, ...coolingDown, ...excluded];
+}
+
+export function formatModelFallbackReason(err: unknown, key?: string): string {
+  const kind = classifyModelError(err);
+  if (kind === 'overload') return 'HTTP 503/429 temporary high demand';
+  if (kind === 'not_found') return 'HTTP 404 model unavailable';
+  if (kind === 'timeout') return 'request timeout budget reached';
+  const raw = err instanceof Error ? err.message : String(err);
+  const sanitized = sanitizeLogText(raw, key)
+    .replace(/[{}"]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return sanitized.slice(0, 90) || 'transient generation notice';
+}
+
 /**
  * Maps extracted facts to grounded web sources strictly using groundingSupports/groundingChunks.
  * Never cycles through webSources by index (webSources[i % n]).
@@ -216,13 +291,15 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
         },
       });
 
-      const primaryModel = config.generationModels[0] || 'gemini-2.5-flash';
+      const failedModelsInAttempt = new Set<string>();
+      const prioritizedForGrounded = getPrioritizedModels(config.generationModels);
+      const primaryModel = prioritizedForGrounded[0] || 'gemini-3.8-flash';
 
       // Attempt 1: Single Grounded Attempt (only for short text prompts without images)
       if (!isLongInput && !hasImage && remainingBudgetMs() >= 6000) {
         const timeoutMs = Math.min(GROUNDED_ATTEMPT_TIMEOUT_MS, remainingBudgetMs() - 1000);
         try {
-          console.log(
+          console.info(
             `[AI-Gateway] Trying grounded attempt on ${primaryModel} (${isCustom ? 'custom key' : 'system key'})...`
           );
 
@@ -281,26 +358,30 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
               wasGroundedWithSources = webSources.length > 0;
               jsonResult = parsed;
               successfulModel = primaryModel;
+              modelCooldownUntil.delete(primaryModel);
               break keyLoop;
             }
           }
         } catch (groundingErr: unknown) {
-          const errMsg = groundingErr instanceof Error ? groundingErr.message : String(groundingErr);
-          console.warn(
-            `[AI-Gateway] Grounded attempt failed on ${primaryModel}: ${sanitizeLogText(errMsg, key).slice(0, 120)}`
+          recordModelUnavailable(primaryModel, groundingErr);
+          if (classifyModelError(groundingErr) !== 'timeout') {
+            failedModelsInAttempt.add(primaryModel);
+          }
+          console.info(
+            `[AI-Gateway] Grounded mode on ${primaryModel} unavailable (${formatModelFallbackReason(groundingErr, key)}); cascading to direct schema mode.`
           );
         }
       }
 
-      // Attempt 2: Ungrounded Direct Schema Attempt (with at most 1 fast backup model if primary is unavailable)
-      const directCandidates = config.generationModels.slice(0, 2);
+      // Attempt 2: Ungrounded Direct Schema Attempt across prioritized fallback models
+      const directCandidates = getPrioritizedModels(config.generationModels, failedModelsInAttempt);
       for (const model of directCandidates) {
         if (remainingBudgetMs() < 4000) break;
         const baseTimeout = hasImage ? DIRECT_IMAGE_TIMEOUT_MS : DIRECT_TEXT_TIMEOUT_MS;
         const timeoutMs = Math.min(baseTimeout, remainingBudgetMs() - 500);
 
         try {
-          console.log(
+          console.info(
             `[AI-Gateway] Calling direct schema mode on ${model} (${isCustom ? 'custom key' : 'system key'})...`
           );
 
@@ -328,13 +409,15 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
               jsonResult = parsed;
               successfulModel = model;
               wasGroundedWithSources = false;
+              modelCooldownUntil.delete(model);
               break keyLoop;
             }
           }
         } catch (directErr: unknown) {
-          const directMsg = directErr instanceof Error ? directErr.message : String(directErr);
-          console.warn(
-            `[AI-Gateway] Direct attempt failed on ${model}: ${sanitizeLogText(directMsg, key).slice(0, 120)}`
+          recordModelUnavailable(model, directErr);
+          failedModelsInAttempt.add(model);
+          console.info(
+            `[AI-Gateway] Direct mode on ${model} unavailable (${formatModelFallbackReason(directErr, key)}); trying next fallback.`
           );
         }
       }
@@ -361,7 +444,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     }
 
     // Offline Fallback Synthesizer
-    console.warn('[AI-Gateway] AI attempts exhausted. Activating MARROK offline synthesizer.');
+    console.info('[AI-Gateway] AI attempts exhausted. Activating MARROK offline synthesizer.');
     const synthesizedData = synthesizeCarousel({
       prompt: safePrompt,
       categoryHint: safeCategoryHint,
@@ -382,8 +465,10 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     res.setHeader('X-Marrok-Engine', 'offline');
     return res.json(synthesizedData);
   } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error('[AI-Gateway] Fatal generation error:', sanitizeLogText(errMsg, customKey).slice(0, 150));
+    console.info(
+      '[AI-Gateway] Fallback synthesizer activated due to unexpected controller exception:',
+      formatModelFallbackReason(error, customKey)
+    );
     const fallbackData = synthesizeCarousel({
       prompt: safePrompt,
       categoryHint: safeCategoryHint,
@@ -459,7 +544,8 @@ export async function handleRefineSlide(req: Request, res: Response) {
       },
     });
 
-    for (const model of config.generationModels.slice(0, 2)) {
+    const refineModels = getPrioritizedModels(config.generationModels);
+    for (const model of refineModels) {
       try {
         const response = await activeAi.models.generateContent({
           model,
@@ -489,6 +575,7 @@ arBody: ${arBody}`,
           const cleanText = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
           const parsed = JSON.parse(cleanText);
           if (parsed && typeof parsed.enTitle === 'string' && typeof parsed.enBody === 'string') {
+            modelCooldownUntil.delete(model);
             res.setHeader('X-Marrok-Engine', 'ungrounded');
             res.setHeader('X-Marrok-Model', model);
             return res.json({
@@ -502,8 +589,10 @@ arBody: ${arBody}`,
           }
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[AI-Gateway] Refine failed on ${model}: ${sanitizeLogText(msg, key).slice(0, 100)}`);
+        recordModelUnavailable(model, err);
+        console.info(
+          `[AI-Gateway] Slide refine on ${model} unavailable (${formatModelFallbackReason(err, key)}); trying next fallback.`
+        );
       }
     }
   }

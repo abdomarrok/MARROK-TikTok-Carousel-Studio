@@ -8,6 +8,7 @@ import {
   Undo2,
   Redo2,
   Smartphone,
+  BookmarkCheck,
 } from 'lucide-react';
 import { ThemePalette } from '../types';
 
@@ -18,6 +19,8 @@ interface HeaderProps {
   onOpenContactSheet?: () => void;
   onOpenPlanInspector?: () => void;
   onOpenPreviewDrawer?: (tab?: 'simulator' | 'polish') => void;
+  onOpenSavedPostsDrawer?: () => void;
+  savedPostsCount?: number;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
@@ -32,6 +35,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenContactSheet,
   onOpenPlanInspector,
   onOpenPreviewDrawer,
+  onOpenSavedPostsDrawer,
+  savedPostsCount = 0,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -140,7 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {lastSavedTime && (
             <div className="hidden xl:flex items-center gap-1.5 text-[11px] text-slate-400 font-mono tabular-nums whitespace-nowrap shrink-0">
-              <span>Saved {lastSavedTime}</span>
+              <span>Draft {lastSavedTime}</span>
               {onResetDraft && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -148,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
                     type="button"
                     onClick={onResetDraft}
                     className="text-slate-500 hover:text-rose-400 cursor-pointer transition-colors"
-                    title="Reset to default template"
+                    title="Reset workspace"
                   >
                     Reset
                   </button>
@@ -158,8 +163,23 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </nav>
 
-        {/* Zone 3: Primary Studio Action (Slide-Out Simulator & Tools Drawer) + Mobile Overflow */}
+        {/* Zone 3: Primary Studio Actions (Saved Posts Vault + Preview & Tools Drawer) + Mobile Overflow */}
         <div className="flex items-center gap-2 shrink-0">
+          {onOpenSavedPostsDrawer && (
+            <button
+              type="button"
+              onClick={onOpenSavedPostsDrawer}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-cyan-400/35 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              title="Open Saved & Posted Carousels Vault"
+            >
+              <BookmarkCheck className="w-3.5 h-3.5 text-cyan-300" />
+              <span>Saved Posts</span>
+              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-cyan-400/20 text-cyan-100">
+                {savedPostsCount}
+              </span>
+            </button>
+          )}
+
           {onOpenPreviewDrawer && (
             <button
               type="button"
@@ -169,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Open Slide-Out TikTok Feed Simulator & Per-Slide Polish Tools"
             >
               <Smartphone className="w-3.5 h-3.5" style={{ color: currentPalette.accent }} />
-              <span>Preview & Tools</span>
+              <span className="hidden sm:inline">Preview & Tools</span>
             </button>
           )}
 

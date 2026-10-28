@@ -365,6 +365,7 @@ export function parseCarouselData(
   const id = readString(value, 'id', 200);
   const brand = readString(value, 'brand', 100);
   const brandUrl = readString(value, 'brandUrl', 500);
+  const channel = readString(value, 'channel', 200);
   const firstComment = readString(value, 'firstComment', 5000);
   const shortCaption = readString(value, 'shortCaption', 3000);
   const screenHook = readString(value, 'screenHook', 1000);
@@ -379,6 +380,7 @@ export function parseCarouselData(
   if (id) carousel.id = id;
   if (brand) carousel.brand = brand;
   if (brandUrl) carousel.brandUrl = brandUrl;
+  if (channel) carousel.channel = channel;
   if (firstComment) carousel.firstComment = firstComment;
   if (shortCaption) carousel.shortCaption = shortCaption;
   if (screenHook) carousel.screenHook = screenHook;

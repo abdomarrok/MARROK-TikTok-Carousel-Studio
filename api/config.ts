@@ -8,12 +8,15 @@ export interface ServerConfig {
   apiSharedSecret: string;
   rateLimitRpm: number;
   jsonBodyLimit: string;
+  isVercel: boolean;
+  kvRestUrl: string;
+  kvRestToken: string;
 }
 
 const DEFAULT_GENERATION_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
+  'gemini-3.8-flash',
   'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
 ];
 
 const DEFAULT_IMAGE_MODELS = [
@@ -21,13 +24,39 @@ const DEFAULT_IMAGE_MODELS = [
   'gemini-3.1-flash-lite-image',
 ];
 
-function parseModelList(raw: string | undefined, fallback: string[]): string[] {
+const DEPRECATED_MODEL_MAP: Record<string, string> = {
+  'gemini-2.5-flash': 'gemini-3.8-flash',
+  'gemini-2.5-pro': 'gemini-3.8-flash',
+  'gemini-2.0-flash': 'gemini-3.8-flash',
+  'gemini-1.5-flash': 'gemini-3.8-flash',
+  'gemini-1.5-pro': 'gemini-3.8-flash',
+  'gemini-2.5-flash-lite': 'gemini-3.1-flash-lite',
+  'gemini-2.0-flash-lite': 'gemini-3.1-flash-lite',
+  'gemini-1.5-flash-8b': 'gemini-3.1-flash-lite',
+};
+
+/**
+ * Upgrades deprecated Gemini 1.5/2.0/2.5 model identifiers to active Gemini 3.x models
+ * so existing environment variables on Vercel or local .env files never trigger 404 errors.
+ */
+export function normalizeGenerationModel(model: string): string {
+  const trimmed = model.trim();
+  const lower = trimmed.toLowerCase();
+  return DEPRECATED_MODEL_MAP[lower] || trimmed;
+}
+
+function parseModelList(
+  raw: string | undefined,
+  fallback: string[],
+  normalizeFn?: (m: string) => string
+): string[] {
   if (!raw || typeof raw !== 'string') return fallback;
   const models = raw
     .split(',')
-    .map((m) => m.trim())
+    .map((m) => (normalizeFn ? normalizeFn(m) : m.trim()))
     .filter((m) => /^[a-zA-Z0-9._-]+$/.test(m));
-  return models.length > 0 ? models : fallback;
+  const unique = Array.from(new Set(models));
+  return unique.length > 0 ? unique : fallback;
 }
 
 /**
@@ -36,7 +65,11 @@ function parseModelList(raw: string | undefined, fallback: string[]): string[] {
  */
 export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const geminiApiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.trim() : '';
-  const generationModels = parseModelList(env.GEMINI_GENERATION_MODELS, DEFAULT_GENERATION_MODELS);
+  const generationModels = parseModelList(
+    env.GEMINI_GENERATION_MODELS,
+    DEFAULT_GENERATION_MODELS,
+    normalizeGenerationModel
+  );
   const imageModels = parseModelList(env.GEMINI_IMAGE_MODELS, DEFAULT_IMAGE_MODELS);
   const allowedOrigin = typeof env.ALLOWED_ORIGIN === 'string' && env.ALLOWED_ORIGIN.trim()
     ? env.ALLOWED_ORIGIN.trim()
@@ -48,6 +81,9 @@ export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCon
   const jsonBodyLimit = typeof env.JSON_BODY_LIMIT === 'string' && env.JSON_BODY_LIMIT.trim()
     ? env.JSON_BODY_LIMIT.trim()
     : '4.5mb';
+  const isVercel = Boolean(env.VERCEL || env.VERCEL_ENV);
+  const kvRestUrl = (env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL || '').trim();
+  const kvRestToken = (env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN || '').trim();
 
   return {
     geminiApiKey,
@@ -57,6 +93,9 @@ export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCon
     apiSharedSecret,
     rateLimitRpm,
     jsonBodyLimit,
+    isVercel,
+    kvRestUrl,
+    kvRestToken,
   };
 }
 

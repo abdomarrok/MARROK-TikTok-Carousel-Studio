@@ -1,0 +1,364 @@
+import type {
+  CarouselData,
+  SavedPostRecord,
+  SavedPostStatus,
+  SavedPostStorageEngine,
+} from '../../types.ts';
+import { parseCarouselData } from '../validation/carousel.ts';
+import { sanitizeFullCarousel } from '../textSanitizer.ts';
+
+const IDB_NAME = 'marrok_posts_vault_v1';
+const IDB_STORE = 'saved_posts';
+const IDB_VERSION = 1;
+const FALLBACK_LS_KEY = 'marrok_posts_vault_fallback_v1';
+
+function openVaultDb(): Promise<IDBDatabase | null> {
+  if (typeof window === 'undefined' || !('indexedDB' in window) || !window.indexedDB) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function readLocalVault(): Promise<SavedPostRecord[]> {
+  const db = await openVaultDb();
+  if (db) {
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const items = Array.isArray(req.result) ? (req.result as SavedPostRecord[]) : [];
+          resolve(
+            items.sort(
+              (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            )
+          );
+        };
+        req.onerror = () => resolve([]);
+      } catch {
+        resolve([]);
+      }
+    });
+  }
+
+  try {
+    const raw = localStorage.getItem(FALLBACK_LS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeLocalVault(posts: SavedPostRecord[]): Promise<void> {
+  const sorted = [...posts].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+  const db = await openVaultDb();
+  if (db) {
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const store = tx.objectStore(IDB_STORE);
+        store.clear();
+        for (const post of sorted) {
+          store.put(post);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+    return;
+  }
+
+  try {
+    localStorage.setItem(FALLBACK_LS_KEY, JSON.stringify(sorted));
+  } catch {
+    // Ignore quota errors in fallback mode
+  }
+}
+
+function mergeRecords(
+  serverPosts: SavedPostRecord[],
+  localPosts: SavedPostRecord[]
+): SavedPostRecord[] {
+  const map = new Map<string, SavedPostRecord>();
+  for (const post of localPosts) {
+    if (post && typeof post.id === 'string') {
+      map.set(post.id, post);
+    }
+  }
+  for (const post of serverPosts) {
+    if (!post || typeof post.id !== 'string') continue;
+    const prev = map.get(post.id);
+    if (!prev || new Date(post.updatedAt).getTime() >= new Date(prev.updatedAt).getTime()) {
+      map.set(post.id, post);
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+}
+
+export interface VaultLoadResult {
+  posts: SavedPostRecord[];
+  storageEngine: SavedPostStorageEngine;
+  isCloudPersistent: boolean;
+}
+
+/**
+ * Loads saved validated/posted carousels by reconciling the backend (/api/posts)
+ * and the durable Browser IndexedDB Vault.
+ * If the Vercel serverless /tmp store cold-started, automatically re-hydrates /api/posts
+ * from the browser's IndexedDB Vault.
+ */
+export async function loadVaultPosts(): Promise<VaultLoadResult> {
+  const localPosts = await readLocalVault();
+
+  try {
+    const res = await fetch('/api/posts', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as {
+        posts?: SavedPostRecord[];
+        storageEngine?: SavedPostStorageEngine;
+        isCloudPersistent?: boolean;
+      };
+      const serverPosts = Array.isArray(data.posts) ? data.posts : [];
+      const merged = mergeRecords(serverPosts, localPosts);
+
+      // Persist reconciled set locally
+      await writeLocalVault(merged);
+
+      // If client IndexedDB had posts missing from server (e.g. after Vercel cold start), push them up
+      if (merged.length > serverPosts.length) {
+        fetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ syncPosts: merged }),
+        }).catch(() => {
+          // Non-blocking background sync
+        });
+      }
+
+      return {
+        posts: merged,
+        storageEngine: data.storageEngine || 'vercel-tmp',
+        isCloudPersistent: Boolean(data.isCloudPersistent),
+      };
+    }
+  } catch (err) {
+    console.warn('[PostsVaultClient] Backend unreachable, serving from IndexedDB Vault:', err);
+  }
+
+  return {
+    posts: localPosts,
+    storageEngine: 'browser-vault',
+    isCloudPersistent: false,
+  };
+}
+
+export interface SaveValidPostParams {
+  deck: CarouselData;
+  postStatus?: SavedPostStatus;
+  title?: string;
+  allowOverride?: boolean;
+}
+
+/**
+ * Validates and saves a post as 'validated' or 'posted' via /api/posts
+ * and mirrors it to the Browser IndexedDB Vault.
+ */
+export async function saveValidPost(params: SaveValidPostParams): Promise<SavedPostRecord> {
+  const res = await fetch('/api/posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: params.deck.id,
+      deck: params.deck,
+      postStatus: params.postStatus || 'validated',
+      title: params.title,
+      allowOverride: Boolean(params.allowOverride),
+    }),
+  });
+
+  const payload = await res.json();
+  if (!res.ok) {
+    const errMsg = payload?.error || 'Failed to validate and save post';
+    const details = Array.isArray(payload?.details) ? ` (${payload.details[0]})` : '';
+    throw new Error(`${errMsg}${details}`);
+  }
+
+  const savedPost = payload.post as SavedPostRecord;
+  const currentLocal = await readLocalVault();
+  const updatedLocal = [savedPost, ...currentLocal.filter((p) => p.id !== savedPost.id)];
+  await writeLocalVault(updatedLocal);
+
+  return savedPost;
+}
+
+/**
+ * Toggles a saved post between 'validated' and 'posted'.
+ */
+export async function updateSavedPostStatus(
+  id: string,
+  postStatus: SavedPostStatus
+): Promise<SavedPostRecord> {
+  const currentLocal = await readLocalVault();
+  const existing = currentLocal.find((p) => p.id === id);
+
+  try {
+    const res = await fetch(`/api/posts/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postStatus }),
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as { post: SavedPostRecord };
+      const updatedList = [data.post, ...currentLocal.filter((p) => p.id !== id)];
+      await writeLocalVault(updatedList);
+      return data.post;
+    }
+  } catch {
+    // Fallback to local update if server cold-started
+  }
+
+  if (!existing) {
+    throw new Error('Saved post not found');
+  }
+
+  const nowIso = new Date().toISOString();
+  const updatedRecord: SavedPostRecord = {
+    ...existing,
+    postStatus,
+    updatedAt: nowIso,
+    postedAt: postStatus === 'posted' ? existing.postedAt || nowIso : undefined,
+  };
+  const updatedList = [updatedRecord, ...currentLocal.filter((p) => p.id !== id)];
+  await writeLocalVault(updatedList);
+
+  // Sync updated record back to server
+  fetch('/api/posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ syncPosts: updatedList }),
+  }).catch(() => {});
+
+  return updatedRecord;
+}
+
+/**
+ * Deletes a saved post from both /api/posts and the Browser IndexedDB Vault.
+ */
+export async function deleteSavedPost(id: string): Promise<SavedPostRecord[]> {
+  try {
+    await fetch(`/api/posts/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  } catch {
+    // Continue removing from local vault even if network fails
+  }
+
+  const currentLocal = await readLocalVault();
+  const remaining = currentLocal.filter((p) => p.id !== id);
+  await writeLocalVault(remaining);
+  return remaining;
+}
+
+/**
+ * Downloads the entire Saved Posts Vault as a portable .json backup file.
+ */
+export function exportVaultJson(posts: SavedPostRecord[]): void {
+  const blob = new Blob([JSON.stringify(posts, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const datePart = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `marrok-validated-posts-${datePart}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Imports and validates a .json backup file into both IndexedDB and /api/posts.
+ */
+export async function importVaultJson(jsonText: string): Promise<SavedPostRecord[]> {
+  const raw = JSON.parse(jsonText);
+  const candidates = Array.isArray(raw) ? raw : Array.isArray(raw?.posts) ? raw.posts : [];
+  const validRecords: SavedPostRecord[] = [];
+
+  for (const item of candidates) {
+    if (!item || typeof item !== 'object') continue;
+    const parsedDeck = parseCarouselData(item.deck || item, {
+      minSlides: 3,
+      requireSlideContent: true,
+    });
+    if (!parsedDeck) continue;
+    const sanitized = sanitizeFullCarousel(parsedDeck);
+    const nowIso = new Date().toISOString();
+    const id =
+      (typeof item.id === 'string' && item.id.trim()) ||
+      sanitized.id ||
+      `post_${Math.random().toString(36).slice(2, 10)}`;
+    sanitized.id = id;
+    sanitized.sourceMeta = { ...sanitized.sourceMeta, userReviewed: true };
+
+    validRecords.push({
+      id,
+      title: String(item.title || sanitized.slides[0]?.enTitle || 'Imported Post').slice(0, 160),
+      category: String(item.category || sanitized.category || 'SYSTEMS ARCHITECTURE').slice(0, 120),
+      postStatus: item.postStatus === 'posted' ? 'posted' : 'validated',
+      createdAt: typeof item.createdAt === 'string' ? item.createdAt : nowIso,
+      updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : nowIso,
+      postedAt: typeof item.postedAt === 'string' ? item.postedAt : undefined,
+      creatorHandle: String(item.creatorHandle || sanitized.brand || 'MARROK').slice(0, 100),
+      slideCount: sanitized.slides.length,
+      qaPassed: item.qaPassed !== false,
+      deck: sanitized,
+    });
+  }
+
+  if (validRecords.length === 0) {
+    throw new Error('No valid 3+ slide carousels found in imported JSON file');
+  }
+
+  const currentLocal = await readLocalVault();
+  const merged = mergeRecords(validRecords, currentLocal);
+  await writeLocalVault(merged);
+
+  try {
+    await fetch('/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncPosts: merged }),
+    });
+  } catch {
+    // Non-fatal if offline
+  }
+
+  return merged;
+}

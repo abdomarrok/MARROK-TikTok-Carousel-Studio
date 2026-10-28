@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { AutonomousStudio } from './components/AutonomousStudio';
 import { ThemeCustomizer } from './components/ThemeCustomizer';
@@ -6,14 +6,33 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { ContactSheetModal } from './components/ContactSheetModal';
 import { PlanInspectorModal } from './components/PlanInspectorModal';
 import { PreviewAndToolsDrawer } from './components/studio/PreviewAndToolsDrawer';
-import { CarouselData, DEFAULT_PALETTES, SlideData, ThemePalette } from './types';
+import { SavedPostsDrawer } from './components/studio/SavedPostsDrawer';
+import {
+  CarouselData,
+  DEFAULT_PALETTES,
+  SavedPostRecord,
+  SavedPostStatus,
+  SavedPostStorageEngine,
+  SlideData,
+  ThemePalette,
+} from './types';
 import { DEFAULT_STARTER_DECK } from './lib/presets';
 import { sanitizeFullCarousel, sanitizeSlide } from './lib/textSanitizer';
 import { parseCarouselData } from './lib/validation/carousel';
+import {
+  loadVaultPosts,
+  saveValidPost,
+  updateSavedPostStatus,
+  deleteSavedPost,
+  exportVaultJson,
+  importVaultJson,
+} from './lib/storage/postsVaultClient';
 
 const MAX_HISTORY_STEPS = 30;
 
 export default function App() {
+  const hasRestoredLocalDraftRef = useRef(false);
+
   // Local Draft Persistence (Hydrate from browser localStorage if available)
   const [carousel, setCarousel] = useState<CarouselData>(() => {
     try {
@@ -21,6 +40,12 @@ export default function App() {
       if (saved) {
         const parsed = parseCarouselData(JSON.parse(saved), { minSlides: 3 });
         if (parsed) {
+          const isIdenticalToStarter =
+            parsed.slides[0]?.enTitle === DEFAULT_STARTER_DECK.slides[0]?.enTitle &&
+            !parsed.id;
+          if (!isIdenticalToStarter) {
+            hasRestoredLocalDraftRef.current = true;
+          }
           return sanitizeFullCarousel(parsed);
         }
       }
@@ -35,6 +60,12 @@ export default function App() {
   const [futureHistory, setFutureHistory] = useState<CarouselData[]>([]);
 
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+
+  // Saved & Posted Vault State
+  const [savedPosts, setSavedPosts] = useState<SavedPostRecord[]>([]);
+  const [storageEngine, setStorageEngine] = useState<SavedPostStorageEngine>('vercel-tmp');
+  const [isSavedPostsDrawerOpen, setIsSavedPostsDrawerOpen] = useState(false);
+  const [isSavingPost, setIsSavingPost] = useState(false);
 
   // Palette State
   const initialPaletteKey = carousel.theme || 'teal';
@@ -88,9 +119,34 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3200);
   }, []);
 
+  // Load Saved & Posted Carousels on startup; replace static preset with latest saved post when present
+  useEffect(() => {
+    let mounted = true;
+    loadVaultPosts()
+      .then((res) => {
+        if (!mounted) return;
+        setSavedPosts(res.posts);
+        setStorageEngine(res.storageEngine);
+        if (res.posts.length > 0 && !hasRestoredLocalDraftRef.current) {
+          const latest = res.posts[0].deck;
+          setCarousel(sanitizeFullCarousel(latest));
+          if (latest.theme && DEFAULT_PALETTES[latest.theme]) {
+            setCurrentPalette(DEFAULT_PALETTES[latest.theme]);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load saved posts vault:', err);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // History-aware Carousel State Updater
   const handleUpdateCarousel: React.Dispatch<React.SetStateAction<CarouselData>> = useCallback(
     (updaterOrValue) => {
+      hasRestoredLocalDraftRef.current = true;
       setCarousel((prev) => {
         const next =
           typeof updaterOrValue === 'function'
@@ -169,10 +225,112 @@ export default function App() {
   };
 
   const handleResetDraft = () => {
+    if (savedPosts.length > 0) {
+      const latestSaved = savedPosts[0].deck;
+      handleUpdateCarousel(sanitizeFullCarousel(latestSaved));
+      if (latestSaved.theme && DEFAULT_PALETTES[latestSaved.theme]) {
+        setCurrentPalette(DEFAULT_PALETTES[latestSaved.theme]);
+      }
+      setActiveSlideIndex(0);
+      showToast(`Restored latest saved post: ${savedPosts[0].title.slice(0, 32)}`);
+      return;
+    }
     handleUpdateCarousel(DEFAULT_STARTER_DECK);
     setActiveSlideIndex(0);
     localStorage.removeItem('marrok_deck_draft_v1');
-    showToast('Reset to Scion Architecture starter deck');
+    showToast('Reset to starter deck');
+  };
+
+  // Save Current Carousel as Validated or Posted
+  const handleSaveValidPost = async (
+    status: SavedPostStatus,
+    allowOverride = false
+  ): Promise<void> => {
+    setIsSavingPost(true);
+    try {
+      const savedRecord = await saveValidPost({
+        deck: carousel,
+        postStatus: status,
+        allowOverride,
+      });
+      setSavedPosts((prev) => [savedRecord, ...prev.filter((p) => p.id !== savedRecord.id)]);
+      if (savedRecord.storageEngine) {
+        setStorageEngine(savedRecord.storageEngine);
+      }
+      setCarousel((prev) => ({
+        ...prev,
+        id: savedRecord.id,
+        sourceMeta: {
+          ...prev.sourceMeta,
+          userReviewed: true,
+        },
+      }));
+      showToast(
+        status === 'posted'
+          ? '✓ Saved & marked as POSTED in Vault!'
+          : '✓ Saved as Valid Post in Vault!'
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save valid post';
+      showToast(`⚠️ ${msg}`);
+    } finally {
+      setIsSavingPost(false);
+    }
+  };
+
+  const handleSelectSavedPost = (record: SavedPostRecord) => {
+    const cleanDeck = sanitizeFullCarousel(record.deck);
+    handleUpdateCarousel(cleanDeck);
+    if (cleanDeck.theme && DEFAULT_PALETTES[cleanDeck.theme]) {
+      setCurrentPalette(DEFAULT_PALETTES[cleanDeck.theme]);
+    }
+    setActiveSlideIndex(0);
+    showToast(`Loaded saved post: ${record.title.slice(0, 36)}`);
+  };
+
+  const handleTogglePostStatus = async (id: string, nextStatus: SavedPostStatus) => {
+    try {
+      const updated = await updateSavedPostStatus(id, nextStatus);
+      setSavedPosts((prev) =>
+        [updated, ...prev.filter((p) => p.id !== id)].sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )
+      );
+      showToast(
+        nextStatus === 'posted' ? '✓ Marked post as POSTED' : 'Marked post as Validated'
+      );
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Failed to update post status');
+    }
+  };
+
+  const handleDeleteSavedPost = async (id: string) => {
+    try {
+      const remaining = await deleteSavedPost(id);
+      setSavedPosts(remaining);
+      if (carousel.id === id) {
+        setCarousel((prev) => ({ ...prev, id: undefined }));
+      }
+      showToast('Removed post from Saved Vault');
+    } catch {
+      showToast('Failed to delete saved post');
+    }
+  };
+
+  const handleExportVault = () => {
+    exportVaultJson(savedPosts);
+    showToast(`Exported ${savedPosts.length} saved post(s) as JSON backup`);
+  };
+
+  const handleImportVault = async (file: File) => {
+    try {
+      const text = await file.text();
+      const merged = await importVaultJson(text);
+      setSavedPosts(merged);
+      showToast(`✓ Imported ${merged.length} validated post(s) into Vault`);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Failed to import JSON backup');
+    }
   };
 
   const handleOpenPreviewDrawer = (tab: 'simulator' | 'polish' = 'simulator') => {
@@ -210,6 +368,8 @@ export default function App() {
         onOpenContactSheet={() => setIsContactSheetOpen(true)}
         onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
         onOpenPreviewDrawer={handleOpenPreviewDrawer}
+        onOpenSavedPostsDrawer={() => setIsSavedPostsDrawerOpen(true)}
+        savedPostsCount={savedPosts.length}
         canUndo={pastHistory.length > 0}
         canRedo={futureHistory.length > 0}
         onUndo={handleUndo}
@@ -231,9 +391,29 @@ export default function App() {
           onOpenContactSheet={() => setIsContactSheetOpen(true)}
           onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
           onOpenPreviewDrawer={handleOpenPreviewDrawer}
+          onOpenSavedPostsDrawer={() => setIsSavedPostsDrawerOpen(true)}
+          onSaveValidPost={handleSaveValidPost}
+          isSavingPost={isSavingPost}
           onShowToast={showToast}
         />
       </main>
+
+      {/* Slide-Over Saved & Posted Carousels Vault Drawer */}
+      <SavedPostsDrawer
+        isOpen={isSavedPostsDrawerOpen}
+        onClose={() => setIsSavedPostsDrawerOpen(false)}
+        posts={savedPosts}
+        currentCarousel={carousel}
+        theme={currentPalette}
+        storageEngine={storageEngine}
+        isSaving={isSavingPost}
+        onSaveCurrentPost={(status) => handleSaveValidPost(status, true)}
+        onSelectPost={handleSelectSavedPost}
+        onTogglePostStatus={handleTogglePostStatus}
+        onDeletePost={handleDeleteSavedPost}
+        onExportVault={handleExportVault}
+        onImportVault={handleImportVault}
+      />
 
       {/* Slide-Out Preview & Tools Drawer (TikTok Simulator + Per-Slide Refiner) */}
       <PreviewAndToolsDrawer
@@ -299,4 +479,5 @@ export default function App() {
     </div>
   );
 }
+
 
