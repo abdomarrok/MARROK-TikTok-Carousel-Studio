@@ -119,7 +119,12 @@ export const MotionExportModal: React.FC<MotionExportModalProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
             <Film className="w-4 h-4" style={{ color: theme.accent }} />
-            <h2 className="text-sm font-bold text-white">Export Motion Reel Video</h2>
+            <div>
+              <h2 className="text-sm font-bold text-white">Export Motion Reel Video</h2>
+              <span className="text-[10px] font-mono text-slate-400">
+                {Math.max(2, Math.min(60, reelConfig.duration || 20)).toFixed(0)}s • 1080×1920 • 30fps • {(result?.extension || 'mp4').toUpperCase()}
+              </span>
+            </div>
           </div>
           <button
             type="button"
@@ -149,8 +154,7 @@ export const MotionExportModal: React.FC<MotionExportModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Rendering 1080×1920 frames at 30fps with damped harmonic spring physics and mixing
-              48kHz procedural sound effects.
+              Rendering {Math.max(2, Math.min(60, reelConfig.duration || 20)).toFixed(0)}s • 1080×1920 frames at 30fps with damped harmonic spring physics, 48kHz procedural sound effects, and frame-accurate NLE duration headers.
             </p>
 
             <button
@@ -166,9 +170,14 @@ export const MotionExportModal: React.FC<MotionExportModalProps> = ({
         {/* Done State */}
         {status === 'done' && result && (
           <div className="space-y-3">
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs text-emerald-300 font-semibold">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>1080×1920 Motion Reel & Procedural SFX Ready!</span>
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2 text-xs text-emerald-300 font-semibold">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>1080×1920 Motion Reel Ready!</span>
+              </div>
+              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-200">
+                {(result.durationSec || reelConfig.duration || 20).toFixed(0)}s • .{result.extension.toUpperCase()}
+              </span>
             </div>
 
             <div className="space-y-2">
@@ -180,7 +189,9 @@ export const MotionExportModal: React.FC<MotionExportModalProps> = ({
                   style={{ backgroundColor: theme.accent }}
                 >
                   <Download className="w-4 h-4 stroke-[2.5]" />
-                  <span>Download 1080×1920 Video (.{result.extension})</span>
+                  <span>
+                    Download {(result.durationSec || reelConfig.duration || 20).toFixed(0)}s Video (.{result.extension})
+                  </span>
                 </button>
               )}
 

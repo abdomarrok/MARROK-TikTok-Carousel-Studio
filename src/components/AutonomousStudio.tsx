@@ -357,7 +357,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         reelConfig: nextReel,
       }));
       setSelectedMotionSceneId(nextReel.scenes[0]?.id || null);
-      if (inspectorTab !== 'caption') {
+      if (inspectorTab !== 'caption' && inspectorTab !== 'review') {
         setInspectorTab('copy');
       }
       onShowToast('Switched to 9:16 Motion Reel Studio');
@@ -1855,12 +1855,12 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   type="button"
                   onClick={() => setInspectorTab('copy')}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    inspectorTab !== 'caption'
+                    inspectorTab === 'copy'
                       ? 'bg-white/15 text-white shadow-sm border border-white/15'
                       : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
                   }`}
                 >
-                  <Film className="w-3.5 h-3.5" style={inspectorTab !== 'caption' ? { color: theme.accent } : undefined} />
+                  <Film className="w-3.5 h-3.5" style={inspectorTab === 'copy' ? { color: theme.accent } : undefined} />
                   <span>Motion Studio</span>
                   <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-black/50 text-slate-300">
                     {activeReelConfig.templateId}
@@ -2008,7 +2008,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           {/* Scrollable Tab Viewport */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
             {/* MOTION REEL INSPECTOR */}
-            {activePostFormat === 'reel' && inspectorTab !== 'caption' && (
+            {activePostFormat === 'reel' && inspectorTab === 'copy' && (
               <MotionReelInspector
                 reelConfig={activeReelConfig}
                 theme={theme}
