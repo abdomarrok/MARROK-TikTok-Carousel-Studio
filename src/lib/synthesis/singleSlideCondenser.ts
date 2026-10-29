@@ -166,8 +166,7 @@ export function condenseCarouselToSingleSlide(carousel: CarouselData): CarouselD
     carousel.channel ||
     carousel.sourceMeta?.creator ||
     carousel.sourceMeta?.channel ||
-    carousel.brand ||
-    'MARROK'
+    ''
   ).replace(/^Source:\s*/i, '').trim();
 
   const arCredit = (

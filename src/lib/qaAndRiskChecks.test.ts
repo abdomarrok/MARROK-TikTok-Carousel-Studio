@@ -32,7 +32,9 @@ describe('QA Gate & Platform Risk Checks (Phase 4 & 5)', () => {
     });
     expect(singlePost.postFormat).toBe('single');
     expect(singlePost.slides).toHaveLength(1);
-    expect(singlePost.slides[0].enCredit).toBeTruthy();
+    // PR 3: Credit field must be empty by default
+    expect(singlePost.slides[0].enCredit).toBe('');
+    singlePost.slides[0].enCredit = 'Redis Engineering';
 
     singlePost.sourceMeta = {
       ...singlePost.sourceMeta,
@@ -40,7 +42,7 @@ describe('QA Gate & Platform Risk Checks (Phase 4 & 5)', () => {
       isSearchGrounded: true,
       groundingSources: [{ title: 'Redis Engineering', url: 'https://redis.io' }],
       userReviewed: true,
-      creator: 'MARROK',
+      creator: 'Anthropic Engineering',
     };
 
     const qa = runQAChecks(singlePost, { exportFormat: 'jpg', width: 1080, height: 1920 });
@@ -95,17 +97,61 @@ describe('QA Gate & Platform Risk Checks (Phase 4 & 5)', () => {
   it('returns PASS in runPlatformRiskChecks when grounded, original, and credited', () => {
     const deck = cloneStarterDeck();
     deck.brand = 'MARROK';
-    deck.channel = 'MARROK';
+    deck.channel = 'Anthropic';
     deck.sourceMeta = {
       status: 'verified_live',
       isSearchGrounded: true,
       groundingSources: [{ title: 'Anthropic Scion', url: 'https://www.anthropic.com' }],
       userReviewed: true,
-      creator: 'MARROK',
+      creator: 'Anthropic Engineering',
     };
+    deck.slides[deck.slides.length - 1].enCredit = 'Source: Anthropic Engineering';
     const risk = runPlatformRiskChecks(deck, 'Anthropic Scion architecture breakdown');
     expect(risk.status).toBe('PASS');
     expect(risk.blockCount).toBe(0);
   });
-});
+  it('enforces creator credit rules: brand-only or empty fails on third-party sources, genuine credit passes', () => {
+    const deck = cloneStarterDeck();
+    deck.brand = 'MARROK';
+    deck.sourceMeta = {
+      status: 'verified_live',
+      isSearchGrounded: true,
+      groundingSources: [{ title: 'arXiv:2309.06180', url: 'https://arxiv.org' }],
+      userReviewed: true,
+      creator: '',
+    };
+    deck.slides[deck.slides.length - 1].enCredit = '';
 
+    // Empty credit with third-party source -> BLOCK
+    let risk = runPlatformRiskChecks(deck);
+    expect(risk.items.find((i) => i.id === 'originality')?.status).toBe('BLOCK');
+
+    // Brand-only credit with third-party source -> BLOCK (never consider brand-only as credited)
+    deck.slides[deck.slides.length - 1].enCredit = 'Source: MARROK';
+    risk = runPlatformRiskChecks(deck);
+    expect(risk.items.find((i) => i.id === 'originality')?.status).toBe('BLOCK');
+
+    // Genuine third-party creator credit -> PASS
+    deck.slides[deck.slides.length - 1].enCredit = 'Source: Woosuk Kwon et al. / UC Berkeley';
+    risk = runPlatformRiskChecks(deck);
+    expect(risk.items.find((i) => i.id === 'originality')?.status).toBe('PASS');
+  });
+
+  it('does not trigger false positive copyright BLOCK for "Drake" on technical KV-cache topics, but blocks commercial music references', () => {
+    const kvDeck = cloneStarterDeck();
+    kvDeck.category = 'vLLM KV-Cache & PagedAttention';
+    kvDeck.slides[0].enTitle = 'KV Cache Memory Management';
+    // Developer referencing the ubiquitous Drake compare meme format
+    kvDeck.slides[1].enBody = 'Drake meme: Naive contiguous KV allocation vs PagedAttention virtual blocks.';
+    
+    const kvRisk = runPlatformRiskChecks(kvDeck, 'vLLM KV cache architecture breakdown');
+    expect(kvRisk.items.find((i) => i.id === 'copyright')?.status).toBe('PASS');
+
+    // Commercial music artist reference -> BLOCK
+    const musicDeck = cloneStarterDeck();
+    musicDeck.slides[1].enBody = 'Listening to Drake song while coding.';
+    const musicRisk = runPlatformRiskChecks(musicDeck);
+    expect(musicRisk.items.find((i) => i.id === 'copyright')?.status).toBe('BLOCK');
+    expect(musicRisk.items.find((i) => i.id === 'copyright')?.message).toContain('Drake');
+  });
+});

@@ -28,8 +28,67 @@ export interface RiskReport {
   passCount: number;
 }
 
+
+/**
+ * Detects whether a carousel is derived from an external/third-party source
+ * (URL, YouTube, screenshot, grounding sources, or offline fallback synthesis).
+ */
+export function isThirdPartySource(carousel: CarouselData): boolean {
+  return Boolean(
+    carousel.sourceMeta?.isFallback ||
+      carousel.sourceMeta?.engine === 'offline' ||
+      carousel.sourceMeta?.engine === 'offline-synthesizer' ||
+      carousel.sourceMeta?.inputMode === 'url' ||
+      carousel.sourceMeta?.inputMode === 'youtube' ||
+      carousel.sourceMeta?.inputMode === 'screenshot' ||
+      (carousel.sourceMeta?.groundingSources && carousel.sourceMeta.groundingSources.length > 0) ||
+      (carousel.sourceMeta?.creator && carousel.sourceMeta.creator.trim().length > 0) ||
+      (carousel.sourceMeta?.channel && carousel.sourceMeta.channel.trim().length > 0)
+  );
+}
+
+/**
+ * Returns the effective creator/source attribution text on the deck.
+ */
+export function getAttributionCredit(carousel: CarouselData): string {
+  const ctaSlide = carousel.slides[carousel.slides.length - 1];
+  return (
+    carousel.sourceMeta?.creator ||
+    carousel.sourceMeta?.channel ||
+    carousel.channel ||
+    ctaSlide?.enCredit?.replace(/^Source:\s*/i, '') ||
+    ''
+  ).trim();
+}
+
+/**
+ * Validates that creator credit is non-empty and NOT merely the studio's brand name.
+ * Never considers empty or brand-only values as valid third-party attribution.
+ */
+export function isValidCreatorCredit(carousel: CarouselData): boolean {
+  const credit = getAttributionCredit(carousel);
+  if (!credit) return false;
+  const brand = (carousel.brand || 'MARROK').trim().toLowerCase();
+  const normalized = credit.toLowerCase();
+  if (
+    normalized === brand ||
+    normalized === 'marrok' ||
+    normalized === 'marrok studio' ||
+    normalized === 'source: marrok' ||
+    normalized === 'source:marrok'
+  ) {
+    return false;
+  }
+  return true;
+}
+
+// Franchises and musical artists that trigger commercial copyright restrictions
 const COPYRIGHTED_IP_PATTERN =
-  /\b(spider-?man|batman|superman|naruto|goku|luffy|mickey\s*mouse|pikachu|pokemon|mario|darth\s*vader|harry\s*potter|iron\s*man|avengers|disney|marvel|nintendo|billie\s*eilish|taylor\s*swift|drake|the\s*weeknd|travis\s*scott)\b/i;
+  /\b(spider-?man|batman|superman|naruto|goku|luffy|mickey\s*mouse|pikachu|pokemon|mario|darth\s*vader|harry\s*potter|iron\s*man|avengers|disney|marvel|nintendo|billie\s*eilish|taylor\s*swift|the\s*weeknd|travis\s*scott)\b/i;
+
+// Specifically match Drake in commercial musical artist / rapper context to prevent false positives on KV-cache / technical topics
+const DRAKE_ARTIST_PATTERN =
+  /\b(aubrey\s+drake\s+graham|drake\s+(?:album|song|track|music|tour|concert|rap|rapper|lyrics|ovo|certified\s*lover|her\s*loss|scary\s*hours)|champagnepapi)\b/i;
 
 const RAW_REPOST_PATTERN =
   /\b(tiktok\.com\/@|instagram\.com\/reel|youtube\.com\/shorts|screen\s*recording|repost\s*from|stolen\s*from|full\s*video\s*clip)\b/i;
@@ -52,24 +111,18 @@ function checkOriginality(carousel: CarouselData, rawInput: string = ''): RiskCh
     };
   }
 
-  const ctaSlide = carousel.slides[carousel.slides.length - 1];
-  const hasCreatorCredit = Boolean(
-    (carousel.channel && carousel.channel.trim().length > 0) ||
-      (carousel.brand && carousel.brand.trim().length > 0) ||
-      (carousel.sourceMeta?.creator && carousel.sourceMeta.creator.trim().length > 0) ||
-      (carousel.sourceMeta?.channel && carousel.sourceMeta.channel.trim().length > 0) ||
-      (ctaSlide?.enCredit && ctaSlide.enCredit.trim().length > 0)
-  );
+  const thirdParty = isThirdPartySource(carousel);
+  const hasValidCredit = isValidCreatorCredit(carousel);
 
-  if (!hasCreatorCredit) {
+  if (thirdParty && !hasValidCredit) {
     return {
       id: 'originality',
       label: 'Originality & Attribution',
       status: 'BLOCK',
       message:
         carousel.postFormat === 'single' || carousel.slides.length === 1
-          ? 'Missing creator or channel attribution on the post. Add a creator/channel credit before exporting.'
-          : 'Missing creator or channel attribution on the CTA slide. Add a creator/channel credit before exporting.',
+          ? 'Third-party source requires genuine creator or channel attribution. Add a creator credit before exporting (brand-only name does not qualify).'
+          : 'Third-party source requires genuine creator or channel attribution on the CTA slide. Add a creator credit before exporting (brand-only name does not qualify).',
     };
   }
 
@@ -86,23 +139,41 @@ function checkOriginality(carousel: CarouselData, rawInput: string = ''): RiskCh
     id: 'originality',
     label: 'Originality & Transformation',
     status: 'PASS',
-    message: 'Original technical synthesis with clear creator attribution.',
+    message: thirdParty
+      ? `Original technical synthesis with verified creator attribution ("${getAttributionCredit(carousel)}").`
+      : 'Original technical synthesis.',
   };
 }
 
-function checkCopyright(carousel: CarouselData): RiskCheckItem {
-  const deckText = [
-    carousel.caption,
-    ...carousel.slides.map((s) => `${s.enTitle} ${s.enBody} ${s.arTitle} ${s.arBody} ${s.imagePrompt || ''}`),
+function checkCopyright(carousel: CarouselData, rawInput: string = ''): RiskCheckItem {
+  const combinedText = [
+    rawInput,
+    carousel.caption || '',
+    ...carousel.slides.map(
+      (s) => `${s.enTitle} ${s.enBody} ${s.arTitle} ${s.arBody} ${s.imagePrompt || ''}`
+    ),
   ].join(' ');
 
-  const match = deckText.match(COPYRIGHTED_IP_PATTERN);
+  const generalMatch = combinedText.match(COPYRIGHTED_IP_PATTERN);
+  const drakeMatch = combinedText.match(DRAKE_ARTIST_PATTERN);
+  const match = generalMatch || drakeMatch;
+
   if (match) {
+    const matchedWord = match[0];
+    const matchIndex = match.index || 0;
+    const snippetStart = Math.max(0, matchIndex - 30);
+    const snippetEnd = Math.min(combinedText.length, matchIndex + matchedWord.length + 30);
+    const contextSnippet = combinedText.substring(snippetStart, snippetEnd).trim();
+
+    console.warn(
+      `[RiskChecks:Copyright] Protected IP/artist match detected: "${matchedWord}" at position ${matchIndex}. Context: "...${contextSnippet}..."`
+    );
+
     return {
       id: 'copyright',
       label: 'Copyrighted IP & Audio',
       status: 'BLOCK',
-      message: `Detected reference to protected franchise/artist ("${match[0]}"). Remove copyrighted characters or commercial music references.`,
+      message: `Detected reference to protected franchise/artist ("${matchedWord}"). Remove copyrighted characters or commercial music references.`,
     };
   }
 
@@ -260,7 +331,7 @@ function checkRepetition(carousel: CarouselData): RiskCheckItem {
 export function runPlatformRiskChecks(carousel: CarouselData, rawInput: string = ''): RiskReport {
   const items: RiskCheckItem[] = [
     checkOriginality(carousel, rawInput),
-    checkCopyright(carousel),
+    checkCopyright(carousel, rawInput),
     checkFirstFrameQuality(carousel),
     checkUnverifiedNumericClaims(carousel),
     checkRepetition(carousel),

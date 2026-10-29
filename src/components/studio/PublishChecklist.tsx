@@ -15,6 +15,7 @@ import {
   FileCheck2,
 } from 'lucide-react';
 import { CarouselData, ThemePalette } from '../../types.ts';
+import { isThirdPartySource, getAttributionCredit, isValidCreatorCredit } from '../../lib/riskChecks.ts';
 import { QAReport } from '../../lib/qaChecks.ts';
 import { RiskReport } from '../../lib/riskChecks.ts';
 
@@ -27,7 +28,7 @@ export interface PublishChecklistProps {
   qaReport: QAReport;
   riskReport?: RiskReport;
   overrideExportBlock?: boolean;
-  onToggleOverrideBlock?: () => void;
+  onToggleOverrideBlock?: (confirmedRiskReason?: string) => void;
   onToggleReviewDraft: () => void;
   onRetryWithAi: () => void;
   onUpdateCreator?: (creator: string) => void;
@@ -55,15 +56,9 @@ export function getPublishBlockers(
   qaReport: QAReport,
   riskReport?: RiskReport
 ): PublishBlockersResult {
-  const ctaSlide = carousel.slides[carousel.slides.length - 1];
-  const creatorCredit = (
-    carousel.sourceMeta?.creator ||
-    carousel.sourceMeta?.channel ||
-    carousel.channel ||
-    ctaSlide?.enCredit?.replace(/^Source:\s*/i, '') ||
-    ''
-  ).trim();
-  const hasCreatorCredit = creatorCredit.length > 0;
+  const creatorCredit = getAttributionCredit(carousel);
+  const isThirdParty = isThirdPartySource(carousel);
+  const hasValidCredit = isValidCreatorCredit(carousel);
 
   const engineType =
     carousel.sourceMeta?.engine === 'grounded' || carousel.sourceMeta?.status === 'verified_live'
@@ -82,7 +77,14 @@ export function getPublishBlockers(
 
   const sourcesStatus: 'PASS' | 'WARN' | 'BLOCK' =
     engineType === 'grounded' || isReviewed ? 'PASS' : 'BLOCK';
-  const creditStatus: 'PASS' | 'WARN' | 'BLOCK' = hasCreatorCredit ? 'PASS' : 'BLOCK';
+
+  // Credit is REQUIRED for third-party sources; never show PASS for empty or brand-only
+  const creditStatus: 'PASS' | 'WARN' | 'BLOCK' = hasValidCredit
+    ? 'PASS'
+    : isThirdParty
+    ? 'BLOCK'
+    : 'PASS';
+
   const riskStatus: 'PASS' | 'WARN' | 'BLOCK' =
     riskBlocks.length > 0 ? 'BLOCK' : riskWarns.length > 0 ? 'WARN' : 'PASS';
   const structureStatus: 'PASS' | 'WARN' | 'BLOCK' = qaFailures.length > 0 ? 'BLOCK' : 'PASS';
@@ -96,7 +98,7 @@ export function getPublishBlockers(
   return {
     engineType,
     creatorCredit,
-    hasCreatorCredit,
+    hasCreatorCredit: hasValidCredit,
     sourcesStatus,
     creditStatus,
     riskStatus,
@@ -124,6 +126,7 @@ export const PublishChecklist: React.FC<PublishChecklistProps> = ({
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
   const [copiedCitations, setCopiedCitations] = useState(false);
   const [isEditingCredit, setIsEditingCredit] = useState(false);
+  const [showOverrideConfirmModal, setShowOverrideConfirmModal] = useState(false);
 
   const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
   const {
@@ -258,7 +261,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                   }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{isReviewed ? 'Reviewed (Unmark)' : 'Mark as Reviewed'}</span>
+                  <span>{isReviewed ? 'Reviewed (Unmark)' : 'I reviewed'}</span>
                 </button>
               )}
             </div>
@@ -273,8 +276,10 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                   <div className="text-xs font-bold text-white">2. Creator Credit</div>
                   <div className="text-[11px] text-slate-400 truncate">
                     {hasCreatorCredit
-                      ? `Attributed to ${creatorCredit} (${isSinglePost ? 'Footer' : 'CTA Slide'})`
-                      : 'Required attribution credit before export.'}
+                      ? `Credited: ${creatorCredit} (${isSinglePost ? 'Footer' : 'CTA Slide'})`
+                      : isThirdPartySource(carousel)
+                      ? 'Attribution required for third-party source (brand-only name does not qualify).'
+                      : 'Original MARROK publication (no third-party source).'}
                   </div>
                 </div>
               </div>
@@ -288,12 +293,12 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
               </button>
             </div>
 
-            {(!hasCreatorCredit || isEditingCredit) && (
+            {((!hasCreatorCredit && isThirdPartySource(carousel)) || isEditingCredit) && (
               <input
                 type="text"
                 value={creatorCredit}
                 onChange={(e) => onUpdateCreator?.(e.target.value)}
-                placeholder="Enter creator or channel handle (e.g. MARROK, Anthropic Engineering)"
+                placeholder="Enter creator or channel handle (e.g. Anthropic Engineering, NIST)"
                 className="w-full bg-black/70 border border-white/15 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none transition-all font-mono"
                 autoFocus={!hasCreatorCredit}
               />
@@ -319,7 +324,10 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
             {riskBlocks.length > 0 && onToggleOverrideBlock && (
               <button
                 type="button"
-                onClick={onToggleOverrideBlock}
+                onClick={() => {
+                  if (overrideExportBlock) onToggleOverrideBlock?.();
+                  else setShowOverrideConfirmModal(true);
+                }}
                 className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-[11px] font-semibold cursor-pointer shrink-0"
               >
                 {overrideExportBlock ? 'Override Active' : 'Override Risk'}
@@ -355,7 +363,10 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                 ) : onToggleOverrideBlock ? (
                   <button
                     type="button"
-                    onClick={onToggleOverrideBlock}
+                    onClick={() => {
+                    if (overrideExportBlock) onToggleOverrideBlock?.();
+                    else setShowOverrideConfirmModal(true);
+                  }}
                     className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-[11px] font-semibold cursor-pointer"
                   >
                     {overrideExportBlock ? 'Override Active' : 'Override Limit'}
@@ -373,12 +384,84 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
               <input
                 type="checkbox"
                 checked={overrideExportBlock}
-                onChange={onToggleOverrideBlock}
+                onChange={() => {
+                  if (overrideExportBlock) {
+                    onToggleOverrideBlock();
+                  } else {
+                    setShowOverrideConfirmModal(true);
+                  }
+                }}
                 className="rounded border-white/20 bg-black/60 text-amber-400 focus:ring-0"
               />
               <span>Export anyway (Override warnings)</span>
             </label>
             <span className="text-[11px] font-mono text-slate-500">Bypasses QA gates</span>
+          </div>
+        )}
+
+        {/* BLOCK Confirmation Modal Naming Specific Risks */}
+        {showOverrideConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+            <div className="max-w-md w-full bg-[#0d151e] border border-amber-500/40 rounded-2xl p-5 space-y-4 shadow-2xl">
+              <div className="flex items-center gap-2.5 text-amber-300">
+                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                <h3 className="text-sm font-bold">Confirm Override for Blocking Risks</h3>
+              </div>
+
+              <div className="text-xs text-slate-300 space-y-2">
+                <p>You are overriding the following blocking issue(s):</p>
+                <ul className="space-y-1.5 pl-3 border-l-2 border-amber-500/40">
+                  {sourcesStatus === 'BLOCK' && (
+                    <li className="text-[11px] text-amber-200 font-mono">
+                      • Sources: Unreviewed offline draft requires human review (click "I reviewed")
+                    </li>
+                  )}
+                  {creditStatus === 'BLOCK' && (
+                    <li className="text-[11px] text-amber-200 font-mono">
+                      • Attribution: Third-party source requires valid creator/channel credit
+                    </li>
+                  )}
+                  {riskBlocks.map((r, i) => (
+                    <li key={i} className="text-[11px] text-amber-200 font-mono">
+                      • ${r.label}: ${r.message}
+                    </li>
+                  ))}
+                  {qaFailures.map((f, i) => (
+                    <li key={i} className="text-[11px] text-amber-200 font-mono">
+                      • Structure & Limits: ${f.message}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-slate-400 pt-1">
+                  This override will be permanently recorded in <code>post_metadata.json</code> and the post vault archive.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowOverrideConfirmModal(false)}
+                  className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/10 text-xs font-semibold text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const reasons: string[] = [];
+                    if (sourcesStatus === 'BLOCK') reasons.push('Unreviewed Sources');
+                    if (creditStatus === 'BLOCK') reasons.push('Missing Creator Attribution');
+                    riskBlocks.forEach((r) => reasons.push(`${r.label}: ${r.message}`));
+                    qaFailures.forEach((f) => reasons.push(`Limit: ${f.message}`));
+                    setShowOverrideConfirmModal(false);
+                    onToggleOverrideBlock?.(reasons.join(' | '));
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Confirm Override
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

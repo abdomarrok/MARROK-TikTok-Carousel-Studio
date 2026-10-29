@@ -100,11 +100,19 @@ export async function downloadSingleSlidePng(
  * Spec §9.8: Complete Metricool bundle.
  * Yields via microtask setTimeout(0) between slide renders so the browser UI never freezes.
  */
+export interface ExportOverrideAudit {
+  isOverridden: boolean;
+  reviewedDraftConfirmation?: boolean;
+  confirmedRisk?: string | null;
+  overriddenAt?: string | null;
+}
+
 export async function downloadAllSlidesZip(
   carousel: CarouselData,
   customPalette?: ThemePalette,
   onProgress?: (current: number, total: number) => void,
-  visualOptions?: VisualSystemOptions
+  visualOptions?: VisualSystemOptions,
+  overrideAudit?: ExportOverrideAudit
 ): Promise<void> {
   const zip = new JSZip();
   const total = carousel.slides.length;
@@ -234,6 +242,12 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
     captionVariants: carousel.captionVariants || [],
     hookVariants: carousel.hookVariants || [],
     format: '1080x1920 JPG',
+    overrideAudit: overrideAudit || {
+      isOverridden: false,
+      reviewedDraftConfirmation: false,
+      confirmedRisk: null,
+      overriddenAt: null,
+    },
   };
   zip.file('post_metadata.json', JSON.stringify(metadata, null, 2));
 

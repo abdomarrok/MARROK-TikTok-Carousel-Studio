@@ -1011,7 +1011,7 @@ function buildDeckFromUserPoints(
     arBody: 'شارك برأيك وتجربتك في التعليقات حول تصميم الأنظمة المعمارية والمفاضلات التقنية.',
     ctaText: 'Join discussion  •  شارك برأيك',
     url: brandUrl,
-    enCredit: `${brand} · ${domainCategory}`,
+    enCredit: '',
     arCredit: `${brand} · دراسة هندسية في ${domainCategory}`,
   });
 
@@ -1226,7 +1226,7 @@ function buildContainerStory(subject: string, opts: StoryOptions): SlideData[] {
       arTitle: 'تحصين بيئة الحاويات\nالبرمجية لديك؟',
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · Container Security Spec`,
+      enCredit: '',
       arCredit: `${opts.brand} · دليل أمان الحاويات البرمجية`,
     },
   ];
@@ -1333,7 +1333,7 @@ function buildCacheStory(subject: string, opts: StoryOptions): SlideData[] {
       arTitle: 'تبني طبقات تخزين مؤقت\nعالية السرعة؟',
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · In-Memory Architecture Spec`,
+      enCredit: '',
       arCredit: `${opts.brand} · دليل معمارية قواعد البيانات السريعة`,
     },
   ];
@@ -1440,7 +1440,7 @@ function buildSecurityStory(subject: string, opts: StoryOptions): SlideData[] {
       arTitle: 'تطبيق بنية انعدام الثقة\nفي بيئات العمل لديك؟',
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · Cybersecurity Spec`,
+      enCredit: '',
       arCredit: `${opts.brand} · دليل أمن البنية التحتية`,
     },
   ];
@@ -1547,7 +1547,7 @@ function buildKernelStory(subject: string, opts: StoryOptions): SlideData[] {
       arTitle: 'تبني أدوات مراقبة\nمنخفضة المستوى للنواة؟',
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · Linux Systems Spec`,
+      enCredit: '',
       arCredit: `${opts.brand} · دليل أنظمة Linux المتقدمة`,
     },
   ];
@@ -1654,7 +1654,7 @@ function buildAiStory(subject: string, opts: StoryOptions): SlideData[] {
       arTitle: 'تشغيل نماذج الذكاء\nالاصطناعي على نطاق واسع؟',
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · AI Infrastructure Spec`,
+      enCredit: '',
       arCredit: `${opts.brand} · دليل البنية التحتية لنماذج الذكاء الاصطناعي`,
     },
   ];
@@ -1761,7 +1761,7 @@ function buildDatabaseStory(subject: string, opts: StoryOptions): SlideData[] {
       arTitle: 'تحسين أداء وقدرة\nاستيعاب قواعد البيانات؟',
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · Database Architecture Spec`,
+      enCredit: '',
       arCredit: `${opts.brand} · دليل معمارية قواعد البيانات المتقدمة`,
     },
   ];
@@ -1875,7 +1875,7 @@ function buildComparativeStory(
       arTitle: `تبني أنظمة عالية\nالكفاءة في مشاريعك؟`,
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · Systems Benchmark Report`,
+      enCredit: '',
       arCredit: `${opts.brand} · تقرير مقارنة الأنظمة البرمجية`,
     },
   ];
@@ -1981,7 +1981,7 @@ function buildGeneralSystemsStory(subject: string, opts: StoryOptions): SlideDat
       arTitle: 'تبني حلولاً برمجية\nمتقدمة في مشاريعك؟',
       ctaText: 'DM us  •  رسالة خاصة',
       url: opts.brandUrl,
-      enCredit: `${opts.brand} · ${opts.domainCategory || 'Systems Architecture'}`,
+      enCredit: '',
       arCredit: `${opts.brand} · دراسة هندسية في ${opts.domainCategory || 'معمارية الأنظمة'}`,
     },
   ];

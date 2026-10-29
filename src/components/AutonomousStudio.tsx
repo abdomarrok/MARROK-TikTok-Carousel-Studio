@@ -990,6 +990,19 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const [overrideExportBlock, setOverrideExportBlock] = useState(false);
+  const [confirmedRiskReason, setConfirmedRiskReason] = useState<string | null>(null);
+
+  const handleToggleOverrideBlock = (riskReason?: string) => {
+    setOverrideExportBlock((prev) => {
+      const next = !prev;
+      if (next && riskReason) {
+        setConfirmedRiskReason(riskReason);
+      } else if (!next) {
+        setConfirmedRiskReason(null);
+      }
+      return next;
+    });
+  };
   const isOfflineDraft = Boolean(
     carousel.sourceMeta?.isFallback ||
       carousel.sourceMeta?.engine === 'offline' ||
@@ -1040,13 +1053,20 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     setIsExportingZip(true);
     setExportProgress({ current: 0, total: carousel.slides.length });
     try {
+      const audit = {
+        isOverridden: overrideExportBlock,
+        reviewedDraftConfirmation: isReviewed,
+        confirmedRisk: overrideExportBlock ? confirmedRiskReason : null,
+        overriddenAt: overrideExportBlock ? new Date().toISOString() : null,
+      };
       await downloadAllSlidesZip(
         carousel,
         theme,
         (current, total) => {
           setExportProgress({ current, total });
         },
-        carousel.visualOptions
+        carousel.visualOptions,
+        audit
       );
       if (onSaveValidPost) {
         try {
@@ -2079,7 +2099,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   qaReport={qaReport}
                   riskReport={riskReport}
                   overrideExportBlock={overrideExportBlock}
-                  onToggleOverrideBlock={() => setOverrideExportBlock((prev) => !prev)}
+                  onToggleOverrideBlock={handleToggleOverrideBlock}
                   onToggleReviewDraft={handleToggleReviewDraft}
                   onRetryWithAi={() => handleRunAutonomousPipeline()}
                   onJumpToSlide={(idx: number) => {

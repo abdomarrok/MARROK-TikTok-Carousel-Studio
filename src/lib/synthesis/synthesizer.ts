@@ -138,8 +138,8 @@ export function synthesizeCarousel(input: SynthesisInput): CarouselData {
       enBody: chosen.enBody || hookSlide?.enBody,
       arBody: chosen.arBody || hookSlide?.arBody,
       takeaways: seedSingleSlideTakeaways(chosen, domainCategory),
-      enCredit: chosen.enCredit || ctaCandidate?.enCredit || `Source: ${brand}`,
-      arCredit: chosen.arCredit || ctaCandidate?.arCredit || `المصدر: ${brand}`,
+      enCredit: chosen.enCredit || ctaCandidate?.enCredit || '',
+      arCredit: chosen.arCredit || ctaCandidate?.arCredit || '',
       url: chosen.url || brandUrl || 'marrok.org',
     };
 
