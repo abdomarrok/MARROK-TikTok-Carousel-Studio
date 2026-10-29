@@ -77,10 +77,10 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
               type="button"
               onClick={onOpenPolishDrawer}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-xs font-medium text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
-              title="Open AI Rewrite & Slide QA Tools"
+              title="Open AI Polish & Slide QA Tools"
             >
               <Sparkles className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-              <span>AI Rewrite</span>
+              <span>AI Polish</span>
             </button>
           )}
 

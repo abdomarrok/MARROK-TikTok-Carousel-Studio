@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Copy, Trash2, ArrowLeft, ArrowRight, Layers, LayoutTemplate, Film } from 'lucide-react';
+import { Plus, Copy, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { CarouselData, HookVariant } from '../../types.ts';
 
 interface SlideNavigatorProps {
@@ -12,9 +12,6 @@ interface SlideNavigatorProps {
   onDuplicateSlide: () => void;
   onDeleteSlide: () => void;
   onMoveSlide: (direction: 'left' | 'right') => void;
-  onExpandToCarousel?: () => void;
-  onCondenseToSingleSlide?: () => void;
-  onConvertToMotionReel?: () => void;
   onApplyHookVariant?: (variant: HookVariant) => void;
 }
 
@@ -28,9 +25,6 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   onDuplicateSlide,
   onDeleteSlide,
   onMoveSlide,
-  onExpandToCarousel,
-  onCondenseToSingleSlide,
-  onConvertToMotionReel,
 }) => {
   const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
   const activeSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
@@ -47,30 +41,6 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {onExpandToCarousel && (
-            <button
-              type="button"
-              onClick={onExpandToCarousel}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/10 border border-white/10 text-[10px] font-sans font-semibold text-slate-200 transition-colors cursor-pointer"
-              title="Switch to Multi-Slide Carousel mode / Restore deck"
-            >
-              <Layers className="w-3 h-3 text-cyan-400" />
-              <span>Restore 8 Slides</span>
-            </button>
-          )}
-
-          {onConvertToMotionReel && (
-            <button
-              type="button"
-              onClick={onConvertToMotionReel}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-[10px] font-sans font-semibold text-purple-200 transition-colors cursor-pointer"
-              title="Convert to animated 9:16 Motion Reel video"
-            >
-              <Film className="w-3 h-3 text-purple-400" />
-              <span>Animate Reel</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onToggleSafeZones}
@@ -112,7 +82,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
               title="Duplicate this slide"
             >
               <Copy className="w-3 h-3 text-cyan-400" />
-              <span>Clone</span>
+              <span>Duplicate</span>
             </button>
             <button
               type="button"
@@ -146,30 +116,6 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
-          {onCondenseToSingleSlide && (
-            <button
-              type="button"
-              onClick={onCondenseToSingleSlide}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-sans font-semibold text-emerald-300 transition-colors cursor-pointer"
-              title="Condense entire 8-slide carousel into 1-slide Infographic Poster"
-            >
-              <LayoutTemplate className="w-3 h-3 text-emerald-400" />
-              <span>Poster</span>
-            </button>
-          )}
-
-          {onConvertToMotionReel && (
-            <button
-              type="button"
-              onClick={onConvertToMotionReel}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-[10px] font-sans font-semibold text-purple-200 transition-colors cursor-pointer"
-              title="Convert 8-slide carousel into animated 9:16 Motion Reel"
-            >
-              <Film className="w-3 h-3 text-purple-400" />
-              <span>Reel</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onToggleSafeZones}
@@ -208,5 +154,3 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
     </div>
   );
 };
-
-

@@ -372,14 +372,14 @@ export const ExportBar: React.FC<ExportBarProps> = ({
               type="button"
               onClick={onCopySlide}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-semibold transition-all cursor-pointer"
-              title="Copy Slide to Clipboard"
+              title="Copy Image to Clipboard"
             >
               {copiedType === 'slide' ? (
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
               ) : (
                 <Copy className="w-3.5 h-3.5 text-slate-400" />
               )}
-              <span className="text-[11px]">Copy Slide</span>
+              <span className="text-[11px]">Copy Image</span>
             </button>
 
             {onOpenContactSheet && !isSinglePost && (

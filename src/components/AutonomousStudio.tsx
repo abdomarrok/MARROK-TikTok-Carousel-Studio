@@ -1770,9 +1770,6 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   onDuplicateSlide={handleDuplicateSlide}
                   onDeleteSlide={handleDeleteSlide}
                   onMoveSlide={handleMoveSlide}
-                  onExpandToCarousel={() => handleSwitchPostFormat('carousel')}
-                  onCondenseToSingleSlide={handleCondenseToSingleSlide}
-                  onConvertToMotionReel={() => handleSwitchPostFormat('reel')}
                 />
               </div>
             </>
@@ -1830,7 +1827,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   }`}
                 >
                   <Type className="w-3.5 h-3.5" style={inspectorTab === 'copy' ? { color: theme.accent } : undefined} />
-                  <span>Slide Text</span>
+                  <span>Text</span>
                 </button>
 
                 <button
@@ -2037,7 +2034,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
-                      <span>{copiedType === 'caption' ? 'Copied!' : 'Copy Caption'}</span>
+                      <span>{copiedType === 'caption' ? 'Copied!' : 'Copy Caption Text'}</span>
                     </button>
                   </div>
 
@@ -2211,7 +2208,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                     ) : (
                       <Copy className="w-3.5 h-3.5 text-slate-400" />
                     )}
-                    <span>{copiedType === 'slide' ? 'Copied Slide' : 'Copy Slide'}</span>
+                    <span>{copiedType === 'slide' ? 'Copied Image' : 'Copy Image'}</span>
                   </button>
                 </>
               )}
@@ -2227,30 +2224,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 ) : (
                   <FileText className="w-3.5 h-3.5 text-slate-400" />
                 )}
-                <span>{copiedType === 'caption' ? 'Copied Caption' : 'Copy Caption'}</span>
+                <span>{copiedType === 'caption' ? 'Copied Caption Text' : 'Copy Caption Text'}</span>
               </button>
-
-              {onOpenContactSheet && activePostFormat === 'carousel' && (
-                <button
-                  type="button"
-                  onClick={onOpenContactSheet}
-                  className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                  title="Open All-Slides Contact Sheet"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-                </button>
-              )}
-
-              {onOpenPreviewDrawer && (
-                <button
-                  type="button"
-                  onClick={() => onOpenPreviewDrawer('simulator')}
-                  className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                  title="Open 9:16 TikTok Feed Simulator"
-                >
-                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-                </button>
-              )}
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
