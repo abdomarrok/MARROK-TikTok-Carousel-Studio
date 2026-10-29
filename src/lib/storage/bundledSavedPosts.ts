@@ -1,4 +1,4 @@
-import type { SavedPostRecord } from "../../types.ts";
+import type { SavedPostRecord } from '../../types.ts';
 
 /**
  * Bundled repository seed posts for the Saved & Posted Vault.
@@ -6,6 +6,5982 @@ import type { SavedPostRecord } from "../../types.ts";
  * always resolve it even when runtime `data/saved-posts.json` is not present in git.
  */
 export const BUNDLED_SAVED_POSTS: SavedPostRecord[] = [
+  {
+    "id": "post_26488150-bb6",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T14:03:11.690Z",
+    "updatedAt": "2026-10-29T14:03:11.690Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_26488150-bb6",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_4133299b-b74",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T14:03:11.386Z",
+    "updatedAt": "2026-10-29T14:03:11.386Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_4133299b-b74",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_83086765-22a",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T14:01:54.379Z",
+    "updatedAt": "2026-10-29T14:01:54.379Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_83086765-22a",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_7455d539-dbb",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T14:00:30.005Z",
+    "updatedAt": "2026-10-29T14:00:30.005Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_7455d539-dbb",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_5eff2000-522",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T14:00:29.581Z",
+    "updatedAt": "2026-10-29T14:00:29.581Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_5eff2000-522",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_e19cd4b8-c70",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:59:46.786Z",
+    "updatedAt": "2026-10-29T13:59:46.786Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_e19cd4b8-c70",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_cfb5799d-819",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:59:10.522Z",
+    "updatedAt": "2026-10-29T13:59:10.522Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_cfb5799d-819",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_49190a23-ff8",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:57:57.449Z",
+    "updatedAt": "2026-10-29T13:57:57.449Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_49190a23-ff8",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_ed59bf64-945",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:57:39.856Z",
+    "updatedAt": "2026-10-29T13:57:39.856Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_ed59bf64-945",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_74b7bb77-bce",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:56:58.772Z",
+    "updatedAt": "2026-10-29T13:56:58.772Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_74b7bb77-bce",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_0c3e5a25-768",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:56:57.627Z",
+    "updatedAt": "2026-10-29T13:56:57.627Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_0c3e5a25-768",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_390cfe32-c84",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:55:27.510Z",
+    "updatedAt": "2026-10-29T13:55:27.510Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_390cfe32-c84",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_248282b1-4a3",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:55:18.147Z",
+    "updatedAt": "2026-10-29T13:55:18.147Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_248282b1-4a3",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_df6ce198-f6d",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:52:55.663Z",
+    "updatedAt": "2026-10-29T13:52:55.663Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_df6ce198-f6d",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_60e976c8-4bf",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:52:54.818Z",
+    "updatedAt": "2026-10-29T13:52:54.818Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_60e976c8-4bf",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_d2e6b309-e47",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:44:33.337Z",
+    "updatedAt": "2026-10-29T13:44:33.337Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_d2e6b309-e47",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_8810f071-b3d",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:43:03.620Z",
+    "updatedAt": "2026-10-29T13:43:03.620Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_8810f071-b3d",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_2283ddc1-1b2",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:39:38.269Z",
+    "updatedAt": "2026-10-29T13:39:38.269Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_2283ddc1-1b2",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_879e2a3a-8db",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:38:08.900Z",
+    "updatedAt": "2026-10-29T13:38:08.900Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_879e2a3a-8db",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_f6bb098a-d64",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:36:08.150Z",
+    "updatedAt": "2026-10-29T13:36:08.150Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_f6bb098a-d64",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_e48b9d73-0c8",
+    "title": "Why did Anthropic move beyond Git?",
+    "category": "AI + ENGINEERING",
+    "postStatus": "validated",
+    "createdAt": "2026-10-29T13:36:07.927Z",
+    "updatedAt": "2026-10-29T13:36:07.927Z",
+    "creatorHandle": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "amber",
+      "category": "AI + ENGINEERING",
+      "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "gitMerge",
+          "enTitle": "Why did Anthropic move beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "satIcons": [
+            "server",
+            "database",
+            "gauge",
+            "cpu",
+            "box",
+            "activity"
+          ],
+          "satLabels": [
+            "Virtual FS",
+            "Server Merge",
+            "API VCS",
+            "Changesets",
+            "CI Runners",
+            "Telemetry"
+          ]
+        },
+        {
+          "type": "metric",
+          "metricValue": "100 GB",
+          "metricLabel": "MONOREPO SCALE",
+          "metricDiff": "▲ 25M CI checkouts every day",
+          "metricIcon": "database",
+          "enTitle": "25M checkouts a day.",
+          "arTitle": "25 مليون سحب يومياً",
+          "enBody": "Git mirrors were collapsing under massive AI agent commits, stalling builds and blocking engineer deploys.",
+          "arBody": "كانت خوادم Git تنهار تحت سيل التعديلات المستمر من وكلاء الذكاء الاصطناعي، مما عطّل عمليات البناء."
+        },
+        {
+          "type": "code",
+          "codeSnippet": "$ scion checkout --lazy\n✔ Virtual filesystem mapped (0.4s)\n✔ Changeset: 3 files (0.01% of repo)\n$ scion commit -m \"agent: optimize index\"\n✔ Server-side merge verified (1.2s)",
+          "codeLanguage": "bash",
+          "codeFileName": "scion-cli.sh",
+          "enTitle": "Virtual tree checkout.",
+          "arTitle": "سحب شجرة افتراضية",
+          "enBody": "Instead of cloning the entire 100 GB repo history, Scion streams only the exact files the agent touches.",
+          "arBody": "بدلاً من استنساخ كامل المستودع البالغ 100 جيجابايت، يرسل Scion فقط الملفات التي يلمسها الوكيل البرمجي."
+        },
+        {
+          "type": "compare",
+          "compareLeftTitle": "Traditional Git",
+          "compareLeftBody": "• Full 100 GB clone on every CI job\n• Local merge locks monorepo branch\n• 40% compute wasted on VCS mirrors",
+          "compareRightTitle": "Anthropic Scion",
+          "compareRightBody": "• Lazy virtual checkout in milliseconds\n• API server-side commits without locks\n• 25% of all CI computing reclaimed",
+          "enTitle": "Git vs Scion.",
+          "arTitle": "مقارنة Git مع Scion",
+          "enBody": "Moving from local monolithic checkouts to an API-driven virtual filesystem cut compute overhead by 200x.",
+          "arBody": "الانتقال من الاستنساخ الكامل المحلي إلى نظام ملفات افتراضي مدار بالواجهات البرمجية قلل الهدر بنسبة 200 ضعف."
+        },
+        {
+          "type": "row",
+          "diagramFooter": "VIRTUAL FS: STREAMED • REPO CLONE: ZERO FULL HISTORY",
+          "enTitle": "Server-side engine pipeline.",
+          "arTitle": "محرك يدار خادمياً",
+          "enBody": "Everything is tracked in an object store; merges run server-side so CI runners never wait for branch rebase locks.",
+          "arBody": "كل شيء يدار في مستودع كائنات سحابي؛ وتتم عمليات الدمج خادمياً حتى لا تنتظر بيئات العمل فك أقفال الفروع.",
+          "diagramEdges": [
+            "Lazy Fetch",
+            "Async Land"
+          ],
+          "icons": [
+            {
+              "icon": "code",
+              "label": "API-driven VCS"
+            },
+            {
+              "icon": "server",
+              "label": "Virtual mount"
+            },
+            {
+              "icon": "lock",
+              "label": "Lockless merges"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Virtual Filesystem",
+              "sublabel": "Lazy stream on access",
+              "status": "MOUNTED",
+              "icon": "server"
+            },
+            {
+              "label": "API Engine",
+              "sublabel": "Server-side commit logic",
+              "status": "ORCHESTRATED",
+              "icon": "cpu"
+            },
+            {
+              "label": "Cloud Object Store",
+              "sublabel": "Lockless snapshot storage",
+              "status": "PERSISTED",
+              "icon": "database"
+            }
+          ],
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STRATEGY: TEST-AFTER-MERGE • TEAM BLOCKING: 0 SECONDS",
+          "enTitle": "Test after merge sequence.",
+          "arTitle": "الاختبار بعد الدمج",
+          "enBody": "Scion lands code immediately and tests post-merge, isolating broken commits without stalling the rest of the team.",
+          "arBody": "يدمج Scion الشيفرة فوراً ويختبرها بعد الدمج، مما يعزل التعديلات المعطوبة دون إيقاف باقي الفريق.",
+          "diagramEdges": [
+            "Direct Land",
+            "Post-Merge Test"
+          ],
+          "icons": [
+            {
+              "icon": "terminal",
+              "label": "Agent Commit"
+            },
+            {
+              "icon": "gitMerge",
+              "label": "Speculative Merge"
+            },
+            {
+              "icon": "activity",
+              "label": "Test Runner"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Agent Commit",
+              "sublabel": "API payload dispatched",
+              "status": "LANDED",
+              "icon": "terminal"
+            },
+            {
+              "label": "Speculative Merge",
+              "sublabel": "Applied directly to main",
+              "status": "COMMITTED",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Async Test CI",
+              "sublabel": "Broken builds isolated",
+              "status": "AUDITED",
+              "icon": "activity"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "diagramFooter": "STATUS: PROPRIETARY ANTHROPIC TOOL • GENERAL REPOS STAY ON GIT",
+          "enTitle": "Not a Git killer.",
+          "arTitle": "ليس قاتلاً لنظام Git",
+          "enBody": "Anthropic says Git still suits most repos. Scion needs custom review, search and CI tools, and has no public release.",
+          "arBody": "تقول Anthropic إن Git ما زال مناسباً لمعظم المستودعات؛ يحتاج Scion أدوات مراجعة وبحث مخصصة، ولا إصدار عام له.",
+          "diagramEdges": [
+            "Human Workflow",
+            "Agent Scale"
+          ],
+          "icons": [
+            {
+              "icon": "gitMerge",
+              "label": "General Repos"
+            },
+            {
+              "icon": "robot",
+              "label": "Agent Workloads"
+            },
+            {
+              "icon": "shieldAlert",
+              "label": "Internal Tool"
+            }
+          ],
+          "diagramNodes": [
+            {
+              "label": "Git for General Teams",
+              "sublabel": "Human workflow & tooling",
+              "status": "STANDARD",
+              "icon": "gitMerge"
+            },
+            {
+              "label": "Scion for AI Agents",
+              "sublabel": "25M checkouts · custom infra",
+              "status": "INTERNAL",
+              "icon": "robot"
+            },
+            {
+              "label": "No Public Release",
+              "sublabel": "Proprietary internal system",
+              "status": "CAVEAT",
+              "icon": "shieldAlert"
+            }
+          ],
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Building with AI agents at scale?",
+          "arTitle": "تبني بوكلاء الذكاء\nالاصطناعي على نطاق\nواسع؟",
+          "ctaText": "DM us  •  رسالة خاصة",
+          "url": "marrok.org",
+          "enCredit": "Based on Anthropic's engineering post. The numbers are Anthropic's own.",
+          "arCredit": "مبني على مقال Anthropic الهندسي، والأرقام من Anthropic نفسها."
+        }
+      ],
+      "id": "post_e48b9d73-0c8",
+      "brand": "MARROK",
+      "sourceMeta": {
+        "userReviewed": true
+      },
+      "captionVariants": [
+        {
+          "style": "Executive Bulletins & Hard Metrics",
+          "caption": "Why did Anthropic move beyond Git? A deeper look at Scion 🚀\nلماذا ابتعدت Anthropic عن Git؟ نظرة عميقة على نظام Scion الداخلي\n\nWith AI agents making thousands of pull requests around the clock, traditional Git mirrors broke down under 100 GB repo histories and 25 million daily CI checkouts. Here is what Anthropic built instead:\n\nKey Takeaways / أبرز النقاط:\n• Commits and merges run server-side via API\n• Changesets track only modified files (proportional resource usage)\n• Test-after-merge workflow for high-throughput deployment\n• 200x smaller CPU/memory footprint & 25% of CI computing freed\n\nSource: Anthropic Engineering Blog (\"Scion: Git for AI Agents\")\nRead more at marrok.org\n\n#SoftwareEngineering #Git #Anthropic #AIAgents #DevOps #SystemDesign #SoftwareArchitecture #هندسة_البرمجيات #MARROK #TechInArabic"
+        },
+        {
+          "style": "Narrative Breakdown & Story",
+          "caption": "What happens when AI agents write more code than humans? Git starts melting. 🤖💥\n\nAnthropic hit a wall with traditional Git: 100GB mono-repo history and 25,000,000 CI checkouts every single day. Instead of band-aiding Git, they designed Scion: a server-authoritative VCS built from the ground up for always-online software agents.\n\nThe core lesson? Don't optimize for how humans worked 15 years ago. Design for the agents building right now.\n\nFull breakdown in the slides above.\nSource: Anthropic's Engineering post. Numbers are Anthropic's own.\nLearn more: marrok.org\n\n#AIEngineering #DeveloperTools #GitAlternatives #Anthropic #VCS #CloudArchitecture #SoftwareDesign #MARROK"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Curiosity & Why",
+          "enTitle": "Why did Anthropic\nmove beyond Git?",
+          "arTitle": "السبب وراء ابتعاد\nAnthropic عن Git",
+          "enBody": "A deeper look at Scion.",
+          "arBody": "نظرة أعمق على Scion المعتمد.",
+          "centerIcon": "gitMerge"
+        },
+        {
+          "tag": "Hard Metrics",
+          "enTitle": "100 GB repos &\n25M CI checkouts.",
+          "arTitle": "100 جيجابايت مستودع\nو25 مليون سحب يومياً",
+          "enBody": "When AI agents pushed Git to the breaking point.",
+          "arBody": "حين دفع وكلاء الذكاء الاصطناعي نظام Git إلى حافة الانهيار.",
+          "centerIcon": "database"
+        },
+        {
+          "tag": "The Paradigm Shift",
+          "enTitle": "Git was built for humans.\nScion was built for agents.",
+          "arTitle": "صُمم Git للبشر،\nوصُمم Scion للوكلاء",
+          "enBody": "How always-online AI changes every tooling assumption.",
+          "arBody": "كيف يغير وكلاء الذكاء الاصطناعي كل افتراضات أدوات التطوير.",
+          "centerIcon": "robot"
+        }
+      ]
+    }
+  },
+  {
+    "id": "post_72a7e461-187",
+    "title": "The Evolution of AI Inference Engines.",
+    "category": "AI INFRASTRUCTURE & INFERENCE",
+    "postStatus": "posted",
+    "createdAt": "2026-10-29T11:07:10.564Z",
+    "updatedAt": "2026-10-29T11:07:10.564Z",
+    "postedAt": "2026-10-29T11:07:10.564Z",
+    "creatorHandle": "AI Engineering Research",
+    "slideCount": 8,
+    "qaPassed": false,
+    "deck": {
+      "theme": "node",
+      "category": "AI INFRASTRUCTURE & INFERENCE",
+      "caption": "⚡ كيف تطورت محركات الاستنتاج (Inference Engines)؟\n\nمن Llama.cpp إلى vLLM، شهدت محركات الاستنتاج تحولاً جذرياً منذ 2023 للتعامل مع نماذج LLMs الضخمة.\n\nإليك كيف تعمل هذه المحركات تقنياً:\n🔹 Llama.cpp: استخدام الذاكرة الافتراضية (mmap) لتقليل استهلاك RAM.\n🔹 vLLM: تقنية Paged Attention لمنع هدر الذاكرة في KV Cache.\n🔹 SG Lang: استخدام Radix Attention لمشاركة البادئات المتكررة في الطلبات.\n🔹 Nvidia TensorRT-LLM: التكامل الرأسي بين العتاد والبرمجيات.\n\nما هو المحرك الذي تعتمد عليه في مشاريعك؟ شاركنا تجربتك في التعليقات 👇\n\n🎥 المصدر: The Rise of Modern Inference Engines\n\n#AI #LLM #Inference #MachineLearning #TechEngineering #vLLM #LlamaCpp #Nvidia",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "robot",
+          "stepNumber": "01",
+          "enTitle": "The Evolution of AI Inference Engines.",
+          "arTitle": "تطور محركات استنتاج الذكاء الاصطناعي",
+          "enBody": "How modern engines bridge the gap between LLM complexity and hardware constraints.",
+          "arBody": "كيف تسد المحركات الحديثة الفجوة بين تعقيد نماذج LLM ومحدودية العتاد.",
+          "satLabels": [
+            "KV Cache",
+            "Paged Attention",
+            "Quantization",
+            "Memory Mapping",
+            "Radix Attention",
+            "Continuous Batching"
+          ]
+        },
+        {
+          "type": "row",
+          "stepNumber": "02",
+          "enTitle": "Why LLMs Broke Traditional Inference.",
+          "arTitle": "لماذا فشلت المحركات التقليدية مع LLMs؟",
+          "enBody": "Traditional frameworks like PyTorch focus on training. LLMs require specialized handling of attention and KV cache memory.",
+          "arBody": "تركز أطر العمل التقليدية مثل PyTorch على التدريب. تتطلب نماذج LLM معالجة خاصة لآليات الانتباه وذاكرة KV Cache المعتمد.",
+          "diagramVariant": "stack"
+        },
+        {
+          "type": "row",
+          "stepNumber": "03",
+          "enTitle": "Llamacpp Memory Mapping Efficiency.",
+          "arTitle": "كفاءة الذاكرة عبر mmap",
+          "enBody": "Uses OS memory mapping to stream model weights from SSD to RAM/GPU on-demand, avoiding full eager loading.",
+          "arBody": "يستخدم نظام الذاكرة الافتراضية لبث أوزان النموذج من SSD إلى RAM/GPU عند الطلب، بدلاً من التحميل الكامل.",
+          "diagramVariant": "split"
+        },
+        {
+          "type": "row",
+          "stepNumber": "04",
+          "enTitle": "vLLM Solving KV Cache Fragmentation.",
+          "arTitle": "حل مشكلة تجزئة ذاكرة KV",
+          "enBody": "Paged Attention splits KV cache into fixed-size blocks, similar to OS virtual memory, reducing waste by 60-80%.",
+          "arBody": "تقسم Paged Attention ذاكرة KV إلى كتل ثابتة الحجم، مما يقلل الهدر بنسبة 60-80%.",
+          "diagramVariant": "clusters"
+        },
+        {
+          "type": "row",
+          "stepNumber": "05",
+          "enTitle": "SG Lang Radix Attention Trees.",
+          "arTitle": "أشجار Radix Attention",
+          "enBody": "Caches common prompt prefixes in a tree structure to avoid recomputing KV cache for shared context.",
+          "arBody": "يخزن بادئات الطلبات المشتركة في هيكل شجري لتجنب إعادة حساب ذاكرة KV للسياق المتكرر.",
+          "diagramVariant": "graph"
+        },
+        {
+          "type": "row",
+          "stepNumber": "06",
+          "enTitle": "Nvidia Hardware-Software Synergy.",
+          "arTitle": "تكامل العتاد والبرمجيات",
+          "enBody": "TensorRT-LLM optimizes kernels specifically for Nvidia silicon, maximizing throughput and reducing TCO.",
+          "arBody": "يعمل TensorRT-LLM على تحسين النواة خصيصاً لمعالجات Nvidia، مما يرفع الإنتاجية ويقلل التكلفة.",
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "row",
+          "stepNumber": "07",
+          "enTitle": "Trade-offs and Limitations.",
+          "arTitle": "المقايضات والقيود التقنية",
+          "enBody": "No one-size-fits-all. Lightweight engines lack advanced scheduling; heavy engines require specific hardware.",
+          "arBody": "لا يوجد حل واحد يناسب الجميع. المحركات الخفيفة تفتقر لجدولة متقدمة، والثقيلة تتطلب عتاداً خاصاً.",
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Which engine fits your stack?",
+          "arTitle": "أي محرك يناسب بيئة عملك؟",
+          "enBody": "Choose based on hardware, latency requirements, and batching needs. Join the discussion below.",
+          "arBody": "اختر بناءً على العتاد، متطلبات التأخير، واحتياجات التجميع. شاركنا نقاشك في الأسفل.",
+          "ctaText": "Join discussion • شارك برأيك",
+          "url": "marrok.org"
+        }
+      ],
+      "postFormat": "carousel",
+      "id": "post_72a7e461-187",
+      "brand": "MARROK",
+      "brandUrl": "marrok.org",
+      "firstComment": "Which inference engine are you currently using for your LLM deployments? Let's discuss the trade-offs between vLLM, Llama.cpp, and TensorRT-LLM. https://marrok.org",
+      "shortCaption": "كيف تطورت محركات الاستنتاج (Inference Engines)؟ ⚡\nتحليل تقني لـ Llama.cpp وvLLM وNvidia.",
+      "screenHook": "Why LLMs broke traditional inference engines",
+      "scheduleSlot": "18:00 DZ",
+      "sourceMeta": {
+        "title": "The Rise of Modern Inference Engines",
+        "creator": "AI Engineering Research",
+        "url": "https://youtube.com",
+        "published": "2024",
+        "groundingQueries": [
+          "vLLM Paged Attention memory waste reduction",
+          "SG Lang Radix Attention throughput improvement",
+          "Llama.cpp memory mapping mechanism"
+        ],
+        "groundingSources": [
+          {
+            "title": "vLLM: Easy, Fast, and Cheap LLM Serving",
+            "url": "https://vllm.ai/"
+          },
+          {
+            "title": "SG Lang GitHub",
+            "url": "https://github.com/sgl-project/sglang"
+          }
+        ],
+        "isSearchGrounded": false,
+        "isFallback": false,
+        "engine": "ungrounded",
+        "model": "gemini-3.1-flash-lite",
+        "status": "unverified_draft",
+        "userReviewed": true
+      },
+      "facts": [
+        {
+          "text": "vLLM's Paged Attention reduces memory waste by 60-80%.",
+          "type": "claim",
+          "verified": "unconfirmed",
+          "evidence": "vLLM research paper and documentation"
+        },
+        {
+          "text": "SG Lang's Radix Attention can improve inference throughput up to 6.4x.",
+          "type": "claim",
+          "verified": "unconfirmed",
+          "evidence": "SG Lang project benchmarks"
+        }
+      ],
+      "notesForHuman": [
+        "The 6.4x throughput claim for SG Lang is cited from the project's own benchmarks.",
+        "The 60-80% memory waste reduction for vLLM is a standard claim in their research documentation.",
+        "Ensure the distinction between training frameworks (PyTorch) and inference engines is clear."
+      ],
+      "captionVariants": [
+        {
+          "style": "Bulletins",
+          "caption": "⚡ كيف تطورت محركات الاستنتاج (Inference Engines)؟\n\nمن Llama.cpp إلى vLLM، شهدت محركات الاستنتاج تحولاً جذرياً منذ 2023 للتعامل مع نماذج LLMs الضخمة.\n\nإليك كيف تعمل هذه المحركات تقنياً:\n🔹 Llama.cpp: استخدام الذاكرة الافتراضية (mmap) لتقليل استهلاك RAM.\n🔹 vLLM: تقنية Paged Attention لمنع هدر الذاكرة في KV Cache.\n🔹 SG Lang: استخدام Radix Attention لمشاركة البادئات المتكررة في الطلبات.\n🔹 Nvidia TensorRT-LLM: التكامل الرأسي بين العتاد والبرمجيات.\n\nما هو المحرك الذي تعتمد عليه في مشاريعك؟ شاركنا تجربتك في التعليقات 👇\n\n🎥 المصدر: The Rise of Modern Inference Engines\n\n#AI #LLM #Inference #MachineLearning #TechEngineering #vLLM #LlamaCpp #Nvidia"
+        },
+        {
+          "style": "Narrative",
+          "caption": "تطور الذكاء الاصطناعي يتطلب محركات استنتاج ذكية. 🧠\n\nلم تعد الأطر التقليدية كافية للتعامل مع نماذج LLM. المحركات الحديثة مثل vLLM وLlama.cpp أعادت تعريف كيفية إدارة الذاكرة والإنتاجية.\n\nهل تختار السرعة أم الكفاءة في استهلاك الموارد؟ شاركنا رأيك التقني 👇\n\n#AI #InferenceEngine #LLM #Tech #Engineering"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Technical",
+          "enTitle": "Why LLMs Broke Traditional Inference.",
+          "arTitle": "لماذا فشلت محركات الاستنتاج التقليدية؟",
+          "enBody": "The shift from 2D convolutions to auto-regressive LLMs.",
+          "arBody": "التحول من الالتفافات ثنائية الأبعاد إلى نماذج LLM المعتمد.",
+          "centerIcon": "alertTriangle"
+        },
+        {
+          "tag": "Performance",
+          "enTitle": "6.4x Throughput with Radix Attention.",
+          "arTitle": "زيادة الإنتاجية 6.4 ضعف مع Radix Attention",
+          "enBody": "How modern inference engines optimize shared context.",
+          "arBody": "كيف تحسن محركات الاستنتاج الحديثة السياق المشترك.",
+          "centerIcon": "zap"
+        },
+        {
+          "tag": "Architectural",
+          "enTitle": "The Evolution of Inference Engines.",
+          "arTitle": "تطور محركات استنتاج الذكاء الاصطناعي",
+          "enBody": "From Llama.cpp to Nvidia TensorRT-LLM.",
+          "arBody": "من Llama.cpp إلى Nvidia TensorRT-LLM المعتمد.",
+          "centerIcon": "cpu"
+        }
+      ],
+      "visualOptions": {
+        "showCadReticles": true,
+        "showSparklines": true,
+        "terminalScanlines": true
+      }
+    }
+  },
+  {
+    "id": "post_8acb9671-b15",
+    "title": "Node2Shell RCE in Nodejs via Brotli.",
+    "category": "CYBERSECURITY & DEFENSE",
+    "postStatus": "posted",
+    "createdAt": "2026-10-29T09:19:55.868Z",
+    "updatedAt": "2026-10-29T09:19:55.868Z",
+    "postedAt": "2026-10-29T09:19:55.868Z",
+    "creatorHandle": "Imperva & ELLIO Research",
+    "slideCount": 8,
+    "qaPassed": true,
+    "deck": {
+      "theme": "cyber",
+      "category": "CYBERSECURITY & DEFENSE",
+      "caption": "⚡ ثغرة Node2Shell: تنفيذ كود عن بُعد عبر Brotli.\n\nاكتشف الباحثون ثغرة خطيرة (CVE-2026-111497) في مكتبة فك ضغط Brotli المدمجة في Node.js، مما يسمح للمهاجمين بتنفيذ كود برمجي (RCE) عبر بيانات مضغوطة خبيثة.\n\n🔹 التفاصيل التقنية:\nالثغرة تؤثر على إصدارات Node.js 22.x, 24.x, 26.x.\nتعتمد الاستغلالية على بنية الذاكرة وإصدار الـ Runtime.\nالتحديث إلى الإصدارات المصححة هو الحل الوحيد الموثوق.\n\nهل قمت بتحديث بيئات Node.js لديك؟ شاركنا في التعليقات 👇\n\n🎥 المصدر: Imperva & ELLIO Research\n#CyberSecurity #NodeJS #DevSecOps #InfoSec #Node2Shell",
+      "slides": [
+        {
+          "type": "hub",
+          "centerIcon": "shieldAlert",
+          "diagramFooter": "CADSYSREF // PRODUCTION VERIFIED ARCHITECTURE",
+          "enTitle": "Node2Shell RCE in Nodejs via Brotli.",
+          "arTitle": "ثغرة Node2Shell تنفيذ كود عبر Brotli",
+          "enBody": "A critical vulnerability in the bundled Brotli decoder allows remote code execution on standard Node.js builds.",
+          "arBody": "ثغرة حرجة في مكتبة فك ضغط Brotli المدمجة تسمح بتنفيذ كود برمجي عن بُعد على إصدارات Node.js القياسية.",
+          "ctaText": "Join discussion • شارك برأيك",
+          "url": "marrok.org/security/node2shell",
+          "enCredit": "Imperva & ELLIO Research",
+          "arCredit": "Imperva & ELLIO Research",
+          "satIcons": [
+            "cpu",
+            "database",
+            "server",
+            "lock",
+            "code",
+            "layers"
+          ],
+          "satLabels": [
+            "Brotli Decoder",
+            "Memory Layout",
+            "RCE Vector",
+            "HTTP Middleware",
+            "Runtime Build",
+            "ASLR Bypass"
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "number",
+          "stepNumber": "01",
+          "enTitle": "The Vulnerability Trigger.",
+          "arTitle": "كيف تبدأ الثغرة؟",
+          "enBody": "The flaw occurs when the Brotli decoder encounters malformed stream structures, leading to out-of-bounds memory writes.",
+          "arBody": "تحدث الثغرة عندما يواجه مفكك ضغط Brotli هياكل بيانات غير صالحة، مما يؤدي إلى عمليات كتابة خارج حدود الذاكرة المخصصة."
+        },
+        {
+          "type": "row",
+          "stepLabel": "STEP 02",
+          "enTitle": "Attack Surface Analysis.",
+          "arTitle": "مساحة الهجوم المتاحة",
+          "enBody": "Applications processing untrusted compressed data via fetch() or body-parsing middleware are at highest risk.",
+          "arBody": "التطبيقات التي تعالج بيانات مضغوطة غير موثوقة عبر fetch() أو برمجيات الوسيط (Middleware) هي الأكثر عرضة للخطر.",
+          "icons": [
+            {
+              "icon": "globe",
+              "label": "Untrusted Input"
+            },
+            {
+              "icon": "server",
+              "label": "Node.js Runtime"
+            },
+            {
+              "icon": "shield",
+              "label": "Memory Boundary"
+            }
+          ],
+          "diagramVariant": "topology"
+        },
+        {
+          "type": "code",
+          "codeSnippet": "const express = require('express');\nconst app = express();\n\n// Vulnerable if Brotli is enabled\napp.use(express.json()); \napp.use(express.text());\n\napp.post('/upload', (req, res) => {\n  // Processing compressed body\n});",
+          "codeLanguage": "javascript",
+          "codeFileName": "app.js",
+          "enTitle": "Vulnerable Middleware Path.",
+          "arTitle": "مسار الوسيط البرمجي المعرض للخطر",
+          "enBody": "Express middleware configured for Brotli decompression can inadvertently pass malicious payloads to the vulnerable decoder.",
+          "arBody": "برمجيات Express الوسيطة المهيأة لفك ضغط Brotli قد تمرر حمولات خبيثة إلى المفكك المصاب دون قصد."
+        },
+        {
+          "type": "compare",
+          "stepLabel": "STEP 03",
+          "compareLeftTitle": "Universal Exploit",
+          "compareRightTitle": "Build-Specific Exploit",
+          "enTitle": "Exploitation Requirements.",
+          "arTitle": "متطلبات الاستغلال",
+          "enBody": "Exploitation is not universal; it requires precise build-specific memory offsets and configuration matching.",
+          "arBody": "الاستغلال ليس عالمياً؛ بل يتطلب مطابقة دقيقة لإصدار البناء (Build) وإزاحات الذاكرة المحددة.",
+          "diagramVariant": "split"
+        },
+        {
+          "type": "row",
+          "stepLabel": "STEP 04",
+          "enTitle": "Remediation Strategy.",
+          "arTitle": "استراتيجية المعالجة",
+          "enBody": "Patching the Node.js runtime is the only definitive fix. Temporary WAF rules are insufficient.",
+          "arBody": "تحديث بيئة تشغيل Node.js هو الحل الجذري الوحيد. قواعد جدار حماية تطبيقات الويب (WAF) ليست كافية.",
+          "diagramVariant": "takeaway"
+        },
+        {
+          "type": "row",
+          "stepLabel": "STEP 05",
+          "enTitle": "The Catch Build Sensitivity.",
+          "arTitle": "تنبيه: حساسية إصدارات البناء",
+          "enBody": "Exploits targeting Node.js 24.22.0 failed against 22.x and 26.x builds, proving that runtime diversity hinders universal attacks.",
+          "arBody": "محاولات استغلال Node.js 24.22.0 فشلت ضد إصدارات 22.x و 26.x، مما يثبت أن تنوع بيئات التشغيل يعيق الهجمات الشاملة.",
+          "diagramVariant": "isolation"
+        },
+        {
+          "type": "cta",
+          "enTitle": "Patch your runtimes now.",
+          "arTitle": "حدث بيئات التشغيل الآن",
+          "enBody": "Node2Shell highlights the danger of low-level component vulnerabilities. Check your Node.js versions today.",
+          "arBody": "تُبرز ثغرة Node2Shell خطورة الثغرات في المكونات منخفضة المستوى. تحقق من إصدارات Node.js لديك اليوم.",
+          "ctaText": "Join discussion • شارك برأيك",
+          "url": "marrok.org/security/node2shell"
+        }
+      ],
+      "postFormat": "carousel",
+      "id": "post_8acb9671-b15",
+      "brand": "MARROK",
+      "brandUrl": "marrok.org",
+      "firstComment": "Check the official Node.js security advisory for your specific version line: https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+      "shortCaption": "ثغرة Node2Shell: تنفيذ كود عن بُعد عبر Brotli. حدث إصدارات Node.js فوراً! 🛡️",
+      "screenHook": "Node2Shell: Critical RCE in Node.js",
+      "scheduleSlot": "10:00 DZ",
+      "sourceMeta": {
+        "title": "Node2Shell: Researchers Demonstrate Remote Code Execution in Standard Node.js Builds",
+        "creator": "Imperva & ELLIO Research",
+        "url": "https://www.imperva.com/blog/node2shell-from-brotli-data-to-remote-code-execution/",
+        "published": "October 28, 2026",
+        "groundingQueries": [
+          "CVE-2026-111497 Node.js Brotli RCE",
+          "Node2Shell vulnerability details"
+        ],
+        "groundingSources": [
+          {
+            "title": "The Hacker News",
+            "url": "https://thehackernews.com/2026/10/researchers-demonstrate-node2shell-rce.html"
+          },
+          {
+            "title": "Node.js Security Releases",
+            "url": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases"
+          }
+        ],
+        "isSearchGrounded": false,
+        "isFallback": false,
+        "engine": "ungrounded",
+        "model": "gemini-3.1-flash-lite",
+        "status": "unverified_draft",
+        "userReviewed": true
+      },
+      "facts": [
+        {
+          "text": "CVE-2026-111497 allows RCE in Node.js via malformed Brotli data.",
+          "type": "claim",
+          "verified": "unconfirmed",
+          "evidence": "Node.js Security Advisory October 2026"
+        },
+        {
+          "text": "Exploitation requires build-specific memory offsets.",
+          "type": "claim",
+          "verified": "unconfirmed",
+          "evidence": "ELLIO Research findings"
+        }
+      ],
+      "notesForHuman": [
+        "Verified CVE-2026-111497 as the primary identifier.",
+        "Dropped specific IP addresses and non-essential monitoring tool names to focus on architectural risk.",
+        "Ensured the distinction between 'attempted' and 'successful' exploitation is clear in the narrative."
+      ],
+      "captionVariants": [
+        {
+          "style": "Bulletins",
+          "caption": "⚡ ثغرة Node2Shell: تنفيذ كود عن بُعد عبر Brotli.\n\nاكتشف الباحثون ثغرة خطيرة (CVE-2026-111497) في مكتبة فك ضغط Brotli المدمجة في Node.js، مما يسمح للمهاجمين بتنفيذ كود برمجي (RCE) عبر بيانات مضغوطة خبيثة.\n\n🔹 التفاصيل التقنية:\n- الثغرة تؤثر على إصدارات Node.js 22.x, 24.x, 26.x.\n- تعتمد الاستغلالية على بنية الذاكرة وإصدار الـ Runtime.\n- التحديث إلى الإصدارات المصححة هو الحل الوحيد الموثوق.\n\nهل قمت بتحديث بيئات Node.js لديك؟ شاركنا في التعليقات 👇\n\n🎥 المصدر: Imperva & ELLIO Research\n#CyberSecurity #NodeJS #DevSecOps #InfoSec #Node2Shell"
+        },
+        {
+          "style": "Narrative",
+          "caption": "تنبيه أمني لمطوري Node.js! ⚠️\n\nتم الكشف عن ثغرة Node2Shell التي تسمح بتنفيذ كود عن بُعد (RCE) من خلال استغلال مكتبة Brotli. الثغرة تؤثر على الإصدارات الحديثة وتتطلب تحديثاً فورياً للـ Runtime.\n\nلا تعتمد على جدران الحماية فقط؛ التحديث هو الحل الوحيد. هل واجهت أي نشاط مشبوه في سجلات الخادم لديك؟\n\n#NodeJS #Security #CVE2026 #TechNews"
+        }
+      ],
+      "hookVariants": [
+        {
+          "tag": "Urgent",
+          "enTitle": "Node2Shell: RCE in Node.js.",
+          "arTitle": "ثغرة Node2Shell تنفيذ كود عن بُعد",
+          "enBody": "Critical Brotli decoder flaw discovered.",
+          "arBody": "اكتشاف ثغرة حرجة في مفكك ضغط Brotli المعتمد.",
+          "centerIcon": "alertTriangle"
+        },
+        {
+          "tag": "Technical",
+          "enTitle": "Brotli Decoder Vulnerability.",
+          "arTitle": "ثغرة في مفكك ضغط Brotli",
+          "enBody": "How malformed data triggers RCE.",
+          "arBody": "كيف تؤدي البيانات المشوهة إلى تنفيذ كود.",
+          "centerIcon": "terminal"
+        },
+        {
+          "tag": "Security",
+          "enTitle": "Patch Node.js Immediately.",
+          "arTitle": "حدث Node.js فوراً",
+          "enBody": "CVE-2026-111497 affects 22.x-26.x.",
+          "arBody": "الثغرة CVE-2026-111497 تؤثر على إصدارات 22.x-26.x المعتمد.",
+          "centerIcon": "shieldCheck"
+        }
+      ]
+    }
+  },
   {
     "id": "post_bd34e875-ba6",
     "title": "Securing Open Source in the Age of AI.",
@@ -222,6 +6198,7 @@ export const BUNDLED_SAVED_POSTS: SavedPostRecord[] = [
         }
       ],
       "postFormat": "carousel",
+      "id": "post_bd34e875-ba6",
       "brand": "MARROK",
       "brandUrl": "marrok.org",
       "firstComment": "🔗 Add your primary source link here before publishing.\n\nWhat are your thoughts on this architecture? Share your take below 👇",
@@ -318,8 +6295,7 @@ export const BUNDLED_SAVED_POSTS: SavedPostRecord[] = [
           "arBody": "تجاوز الأساليب القديمة لبناء برمجيات عالية الكفاءة والموثوقية.",
           "centerIcon": "shieldAlert"
         }
-      ],
-      "id": "post_bd34e875-ba6"
+      ]
     }
   },
   {
