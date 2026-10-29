@@ -78,7 +78,9 @@ export function wrapCanvasLines(
 export function drawMarrokReelBackground(
   ctx: CanvasRenderingContext2D,
   config: MotionTemplateConfig,
-  globalTime: number
+  globalTime: number,
+  cameraPanX = 0,
+  cameraZoom = 1
 ): void {
   const b: MotionBrandConfig = { ...DEFAULT_BRAND, ...(config?.brand || {}) };
   const bg = b.bgColor || '#080A12';
@@ -89,19 +91,21 @@ export function drawMarrokReelBackground(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, MOTION_W, MOTION_H);
 
-  // Radial ambient glow centered at (540, 690), radius 720px with subtle breathing
-  const pulse = 0.14 + 0.03 * Math.sin(globalTime * 2.0);
-  const grad = ctx.createRadialGradient(540, 690, 0, 540, 690, 720);
-  grad.addColorStop(0, hexToRgba(accent, pulse));
+  // Radial ambient glow centered at (540, 690), radius 720px with subtle breathing + camera pan parallax
+  const glowCenterX = 540 + cameraPanX * 0.25;
+  const pulse = 0.14 + 0.03 * Math.sin(globalTime * 2.0) + (cameraZoom - 1) * 0.8;
+  const grad = ctx.createRadialGradient(glowCenterX, 690, 0, glowCenterX, 690, 720 * cameraZoom);
+  grad.addColorStop(0, hexToRgba(accent, clamp(pulse, 0.08, 0.28)));
   grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, MOTION_W, MOTION_H);
 
-  // 108px Engineering Grid
+  // 108px Engineering Grid with continuous CAD camera phase shift
+  const gridShiftX = ((cameraPanX * 0.5) % 108 + 108) % 108;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.032)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x <= MOTION_W; x += 108) {
+  for (let x = -108 + gridShiftX; x <= MOTION_W + 108; x += 108) {
     ctx.moveTo(x, 0);
     ctx.lineTo(x, MOTION_H);
   }
@@ -235,14 +239,15 @@ export function drawMarrokReelHeader(
 
 /**
  * 3. Authentic MARROK Pagination & Attribution Footer at y = 1826
- * Renders animated scene progress dots (active pill expands), @MARROK handle, and scene counter.
+ * Renders animated scene progress dots (active pill smoothly morphs across transitions), @MARROK handle, and scene counter.
  */
 export function drawMarrokReelFooter(
   ctx: CanvasRenderingContext2D,
   config: MotionTemplateConfig,
   globalTime: number,
   activeSceneIdx: number,
-  totalScenes: number
+  totalScenes: number,
+  fractionalSceneIdx?: number
 ): void {
   const b: MotionBrandConfig = { ...DEFAULT_BRAND, ...(config?.brand || {}) };
   const accent = b.accentColor || '#6EA0FF';
@@ -250,6 +255,7 @@ export function drawMarrokReelFooter(
   const channel = (config.channel || b.channel || brandName).replace(/^@/, '');
   const count = Math.max(1, totalScenes);
   const currentIdx = Math.max(0, Math.min(count - 1, activeSceneIdx));
+  const fracIdx = fractionalSceneIdx !== undefined ? clamp(fractionalSceneIdx, 0, count - 1) : currentIdx;
 
   const footerY = 1826;
   ctx.save();
@@ -262,32 +268,34 @@ export function drawMarrokReelFooter(
   ctx.textAlign = 'left';
   ctx.fillText(`@${channel}`, SAFE_LEFT, footerY);
 
-  // Center pagination dots with spring-expanded active pill
-  const dotRadius = 5;
-  const activePillW = 30;
+  // Center pagination dots with smooth fractional morphing between scenes
+  const dotDiameter = 10;
+  const activePillExtra = 20;
   const gap = 14;
-  const totalDotsW = (count - 1) * (dotRadius * 2 + gap) + activePillW;
+  const widths: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const proximity = clamp(1 - Math.abs(fracIdx - i), 0, 1);
+    widths.push(dotDiameter + activePillExtra * proximity);
+  }
+  const totalDotsW = widths.reduce((acc, w) => acc + w, 0) + Math.max(0, count - 1) * gap;
   let curX = SAFE_CENTER_X - totalDotsW / 2;
 
   for (let i = 0; i < count; i++) {
-    if (i === currentIdx) {
-      ctx.save();
+    const w = widths[i];
+    const proximity = clamp(1 - Math.abs(fracIdx - i), 0, 1);
+    ctx.save();
+    if (proximity > 0.25) {
       ctx.shadowColor = accent;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.roundRect(curX, footerY - dotRadius, activePillW, dotRadius * 2, dotRadius);
-      ctx.fill();
-      ctx.restore();
-      curX += activePillW + gap;
+      ctx.shadowBlur = 10 * proximity;
+      ctx.fillStyle = hexToRgba(accent, 0.45 + 0.55 * proximity);
     } else {
-      ctx.fillStyle =
-        i < currentIdx ? hexToRgba(accent, 0.45) : 'rgba(255, 255, 255, 0.2)';
-      ctx.beginPath();
-      ctx.arc(curX + dotRadius, footerY, dotRadius, 0, Math.PI * 2);
-      ctx.fill();
-      curX += dotRadius * 2 + gap;
+      ctx.fillStyle = i < fracIdx ? hexToRgba(accent, 0.45) : 'rgba(255, 255, 255, 0.2)';
     }
+    ctx.beginPath();
+    ctx.roundRect(curX, footerY - dotDiameter / 2, w, dotDiameter, dotDiameter / 2);
+    ctx.fill();
+    ctx.restore();
+    curX += w + gap;
   }
 
   // Right scene index / progress stamp

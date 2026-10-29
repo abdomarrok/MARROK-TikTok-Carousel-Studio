@@ -15,13 +15,16 @@ import {
   MotionBrandConfig,
   MotionReelData,
   MotionSceneConfig,
+  MotionSfxProfile,
   MotionTemplateId,
+  MotionTransitionType,
   SlideType,
   ThemePalette,
 } from '../../../types.ts';
 import {
   FONT_OPTIONS,
   MOTION_TEMPLATE_LIST,
+  TRANSITION_OPTIONS,
   getMotionTemplate,
   playProceduralSfxCue,
 } from '../../../lib/motion/index.ts';
@@ -241,10 +244,10 @@ export const MotionReelInspector: React.FC<MotionReelInspectorProps> = ({
       {/* SECTION 1: SCENES TIMELINE EDITOR */}
       {activeSection === 'scenes' && (
         <div className="space-y-2.5" id="scenes-list">
-          <div className="flex items-center justify-between px-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
             <div>
               <span className="text-xs font-bold text-white block">
-                Scene Keyframes & Spring Physics
+                Scene Keyframes, Smart Transitions & Spring Physics
               </span>
               <span className="text-[11px] text-slate-400">
                 Total Duration:{' '}
@@ -255,14 +258,40 @@ export const MotionReelInspector: React.FC<MotionReelInspectorProps> = ({
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={addScene}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/10 border border-white/15 text-xs font-bold text-white transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Add Scene</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-xl border border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Transitions:
+                </span>
+                <select
+                  value={reelConfig.defaultTransition || 'auto'}
+                  onChange={(e) => {
+                    const nextMode = e.target.value as MotionTransitionType;
+                    onChangeReelConfig({
+                      ...reelConfig,
+                      defaultTransition: nextMode,
+                    });
+                  }}
+                  className="bg-transparent text-xs font-bold text-cyan-300 focus:outline-none cursor-pointer"
+                  title="Default transition choreography between consecutive scenes"
+                >
+                  {TRANSITION_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id} className="bg-slate-900 text-white">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={addScene}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/10 border border-white/15 text-xs font-bold text-white transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Add Scene</span>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -315,7 +344,7 @@ export const MotionReelInspector: React.FC<MotionReelInspectorProps> = ({
                   {/* Scene Body Controls */}
                   {isOpen && (
                     <div className="px-3.5 pb-3.5 pt-2 border-t border-white/10 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                         <div>
                           <label className="text-[11px] font-semibold text-slate-300 block mb-1">
                             Slide Graphic Archetype
@@ -332,6 +361,27 @@ export const MotionReelInspector: React.FC<MotionReelInspectorProps> = ({
                             <option value="metric" className="bg-slate-900">Benchmark Metric + Sparkline</option>
                             <option value="code" className="bg-slate-900">Live Terminal Code Card</option>
                             <option value="cta" className="bg-slate-900">MARROK Follow & CTA Card</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                            Entry Transition
+                          </label>
+                          <select
+                            value={scene.transition || 'auto'}
+                            onChange={(e) =>
+                              updateScene(index, {
+                                transition: e.target.value as MotionTransitionType,
+                              })
+                            }
+                            className="w-full px-3 py-1.5 rounded-lg bg-black/70 border border-white/15 focus:border-cyan-400/50 text-xs text-cyan-200 focus:outline-none"
+                          >
+                            {TRANSITION_OPTIONS.map((opt) => (
+                              <option key={opt.id} value={opt.id} className="bg-slate-900 text-white">
+                                {opt.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
 
@@ -711,46 +761,75 @@ export const MotionReelInspector: React.FC<MotionReelInspectorProps> = ({
             </div>
           </div>
 
-          {/* Procedural 48kHz Sound Synthesizer Preview */}
-          <div className="p-4 rounded-xl bg-black/50 border border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
+          {/* Procedural 48kHz Warm Filtered Foley Synthesizer */}
+          <div className="p-4 rounded-xl bg-black/50 border border-white/10 space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-white block">
-                  48kHz Procedural SFX Synthesizer
+                  48kHz Warm Filtered Acoustic Foley Engine
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  Mathematical sound effects synced to scene transitions and mixed into video export
+                  2-pole low-pass & band-pass filtered sound effects matched to slide archetypes and transitions
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  onChangeReelConfig({
-                    ...reelConfig,
-                    sfxEnabled: reelConfig.sfxEnabled === false ? true : false,
-                  })
-                }
-                className={`px-3 py-1 rounded-lg text-xs font-bold border cursor-pointer transition-colors ${
-                  reelConfig.sfxEnabled !== false
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
-                    : 'bg-white/[0.04] border-white/10 text-slate-400'
-                }`}
-              >
-                {reelConfig.sfxEnabled !== false ? 'SFX Active' : 'SFX Muted'}
-              </button>
+              <div className="flex items-center gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
+                {(
+                  [
+                    { id: 'warm-foley', label: 'Warm Foley' },
+                    { id: 'minimal-sub', label: 'Minimal Sub' },
+                    { id: 'silent', label: 'Muted' },
+                  ] as Array<{ id: MotionSfxProfile; label: string }>
+                ).map((mode) => {
+                  const currentProfile: MotionSfxProfile =
+                    reelConfig.sfxEnabled === false
+                      ? 'silent'
+                      : reelConfig.sfxProfile || 'warm-foley';
+                  const isActive = currentProfile === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() =>
+                        onChangeReelConfig({
+                          ...reelConfig,
+                          sfxProfile: mode.id,
+                          sfxEnabled: mode.id !== 'silent',
+                        })
+                      }
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                        isActive
+                          ? mode.id === 'silent'
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {(['click', 'pop', 'thump', 'whoosh'] as const).map((voice) => (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {(
+                [
+                  { voice: 'thump', label: 'Sub Thump', amp: 0.14 },
+                  { voice: 'whoosh', label: 'Air Sweep', amp: 0.12 },
+                  { voice: 'pop', label: 'Matte Pop', amp: 0.12 },
+                  { voice: 'click', label: 'Relay Tick', amp: 0.08 },
+                  { voice: 'chime', label: 'Glass Chime', amp: 0.12 },
+                ] as const
+              ).map(({ voice, label, amp }) => (
                 <button
                   key={voice}
                   type="button"
-                  onClick={() => playProceduralSfxCue(voice, 0.2)}
-                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-white/[0.04] hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                  onClick={() => playProceduralSfxCue(voice, amp)}
+                  className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg bg-white/[0.04] hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
                 >
-                  <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="capitalize">Test {voice}</span>
+                  <Volume2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span className="truncate">{label}</span>
                 </button>
               ))}
             </div>

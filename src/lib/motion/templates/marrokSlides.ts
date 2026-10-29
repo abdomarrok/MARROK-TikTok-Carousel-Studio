@@ -23,6 +23,10 @@ import {
   drawMarrokSurfaceCard,
   drawAnimatedBilingualSlideCopy,
 } from '../marrokSlideChrome.ts';
+import {
+  computeSceneTransitionState,
+  renderWithTransitionLayer,
+} from '../transitions.ts';
 
 const meta: MotionTemplateMeta = {
   id: 'marrok-slides',
@@ -503,106 +507,108 @@ export function drawMarrokSlidesFrame(
   const b: MotionBrandConfig = { ...DEFAULT_BRAND, ...(config?.brand || {}) };
   const scenes = config?.scenes?.length ? config.scenes : defaultConfig(b).scenes;
 
-  g.save();
-  // 1. Authentic MARROK Slide Background (Base + Radial Glow + 108px Grid + CAD Reticles)
-  drawMarrokReelBackground(g, config, globalTime);
+  const transState = computeSceneTransitionState(
+    scenes,
+    globalTime,
+    config?.defaultTransition || 'auto',
+    b.direction || 'rtl'
+  );
 
-  // Find active scene
-  let activeSceneIdx = 0;
-  let activeScene: MotionSceneConfig | null = null;
-  for (let i = 0; i < scenes.length; i++) {
-    const sc = scenes[i];
-    const from = sc.from ?? i * 3.5;
-    const to = sc.to ?? from + 3.5;
-    if (globalTime >= from && globalTime < to) {
-      activeSceneIdx = i;
-      activeScene = sc;
-      break;
-    }
-  }
-  if (!activeScene && scenes.length > 0) {
-    activeSceneIdx = scenes.length - 1;
-    activeScene = scenes[activeSceneIdx];
-  }
+  g.save();
+  // 1. Authentic MARROK Slide Background (Base + Radial Glow + 108px Grid + CAD Reticles + Camera Parallax)
+  drawMarrokReelBackground(
+    g,
+    config,
+    globalTime,
+    transState.cameraPanX,
+    transState.cameraZoom
+  );
 
   // 2. Authentic MARROK Header with Vector Logo Badge + Wordmark + Category Tag
   drawMarrokReelHeader(g, config, globalTime);
 
-  // 3. Active Slide Scene Content (Animated Top Archetype Card + Bilingual Slide Copy)
-  if (activeScene) {
-    const from = activeScene.from ?? activeSceneIdx * 3.5;
-    const t = Math.max(0, globalTime - from);
+  // 3. Render Active + Overlapping Transition Scene Layers
+  transState.layers.forEach((layer) => {
+    const activeScene = layer.scene;
+    renderWithTransitionLayer(g, layer, b.accentColor, (t) => {
+      // Top Graphic Card Zone (y = 216..684)
+      drawAnimatedSlideArchetypeCard(g, activeScene, b, t);
 
-    // Top Graphic Card Zone (y = 216..684)
-    drawAnimatedSlideArchetypeCard(g, activeScene, b, t);
+      // Check if scene.text is pipe-separated staggered items without bilingual bodies
+      if (
+        activeScene.text &&
+        activeScene.text.includes('|') &&
+        !activeScene.enBody &&
+        !activeScene.arBody
+      ) {
+        const items = activeScene.text
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .slice(0, 3);
+        const k = activeScene.springK || 210;
+        const d = activeScene.springD || 22;
 
-    // Check if scene.text is pipe-separated staggered items without bilingual bodies
-    if (
-      activeScene.text &&
-      activeScene.text.includes('|') &&
-      !activeScene.enBody &&
-      !activeScene.arBody
-    ) {
-      const items = activeScene.text
-        .split('|')
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .slice(0, 3);
-      const k = activeScene.springK || 210;
-      const d = activeScene.springD || 22;
+        items.forEach((item, idx) => {
+          const st = t - 0.12 - idx * 0.14;
+          const s = spring(st, k, d);
+          const cardY = 740 + idx * 240;
 
-      items.forEach((item, idx) => {
-        const st = t - 0.12 - idx * 0.14;
-        const s = spring(st, k, d);
-        const cardY = 740 + idx * 240;
+          g.save();
+          g.globalAlpha = clamp(st * 4);
+          g.fillStyle = '#12131C';
+          g.strokeStyle = hexToRgba(b.accentColor, 0.45);
+          g.lineWidth = 2;
+          g.beginPath();
+          g.roundRect(SAFE_LEFT, cardY + (1 - s) * 32, SAFE_WIDTH, 195, 20);
+          g.fill();
+          g.stroke();
 
-        g.save();
-        g.globalAlpha = clamp(st * 4);
-        g.fillStyle = '#12131C';
-        g.strokeStyle = hexToRgba(b.accentColor, 0.45);
-        g.lineWidth = 2;
-        g.beginPath();
-        g.roundRect(SAFE_LEFT, cardY + (1 - s) * 32, SAFE_WIDTH, 195, 20);
-        g.fill();
-        g.stroke();
+          // Left accent bar
+          g.fillStyle = b.accentColor;
+          g.beginPath();
+          g.roundRect(SAFE_LEFT, cardY + 24 + (1 - s) * 32, 6, 147 * clamp(s, 0, 1), 3);
+          g.fill();
 
-        // Left accent bar
-        g.fillStyle = b.accentColor;
-        g.beginPath();
-        g.roundRect(SAFE_LEFT, cardY + 24 + (1 - s) * 32, 6, 147 * clamp(s, 0, 1), 3);
-        g.fill();
+          // Step badge
+          g.direction = 'ltr';
+          g.font = '800 22px "JetBrains Mono", monospace';
+          g.fillStyle = b.accentColor;
+          g.textAlign = 'left';
+          g.fillText(`0${idx + 1} // KEY TAKEAWAY`, SAFE_LEFT + 32, cardY + 58 + (1 - s) * 32);
 
-        // Step badge
-        g.direction = 'ltr';
-        g.font = '800 22px "JetBrains Mono", monospace';
-        g.fillStyle = b.accentColor;
-        g.textAlign = 'left';
-        g.fillText(`0${idx + 1} // KEY TAKEAWAY`, SAFE_LEFT + 32, cardY + 58 + (1 - s) * 32);
-
-        // Item headline
-        const isAr = /[\u0600-\u06FF]/.test(item);
-        g.direction = isAr ? 'rtl' : 'ltr';
-        g.textAlign = isAr ? 'right' : 'left';
-        g.font = isAr
-          ? '800 44px "Cairo", sans-serif'
-          : '800 42px "Plus Jakarta Sans", sans-serif';
-        g.fillStyle = '#FFFFFF';
-        g.fillText(
-          item,
-          isAr ? SAFE_LEFT + SAFE_WIDTH - 32 : SAFE_LEFT + 32,
-          cardY + 132 + (1 - s) * 32,
-          SAFE_WIDTH - 64
-        );
-        g.restore();
-      });
-    } else {
-      // Standard MARROK Bilingual Slide Copy (EN Title + AR Title + EN Body + AR Body)
-      drawAnimatedBilingualSlideCopy(g, activeScene, b, t, 738);
-    }
-  }
+          // Item headline
+          const isAr = /[\u0600-\u06FF]/.test(item);
+          g.direction = isAr ? 'rtl' : 'ltr';
+          g.textAlign = isAr ? 'right' : 'left';
+          g.font = isAr
+            ? '800 44px "Cairo", sans-serif'
+            : '800 42px "Plus Jakarta Sans", sans-serif';
+          g.fillStyle = '#FFFFFF';
+          g.fillText(
+            item,
+            isAr ? SAFE_LEFT + SAFE_WIDTH - 32 : SAFE_LEFT + 32,
+            cardY + 132 + (1 - s) * 32,
+            SAFE_WIDTH - 64
+          );
+          g.restore();
+        });
+      } else {
+        // Standard MARROK Bilingual Slide Copy (EN Title + AR Title + EN Body + AR Body)
+        drawAnimatedBilingualSlideCopy(g, activeScene, b, t, 738);
+      }
+    });
+  });
 
   // 4. Authentic MARROK Pagination & Attribution Footer at y = 1826
-  drawMarrokReelFooter(g, config, globalTime, activeSceneIdx, scenes.length);
+  drawMarrokReelFooter(
+    g,
+    config,
+    globalTime,
+    transState.activeSceneIdx,
+    scenes.length,
+    transState.fractionalSceneIdx
+  );
 
   g.restore();
 }

@@ -53,7 +53,12 @@ export async function exportMotionReelBundle(
 
   const template = getMotionTemplate(templateId);
   const htmlContent = template.toHTML(config);
-  const cues = generateCues(config.scenes || []);
+  const effectiveProfile = includeSfx === false ? 'silent' : config.sfxProfile || 'warm-foley';
+  const cues = generateCues(
+    config.scenes || [],
+    effectiveProfile,
+    config.defaultTransition || 'auto'
+  );
   const { samples, sampleRate } = synthesizeSfxFloat32Buffer(cues, duration);
   const wavBlob = encodeWavBlob(samples, sampleRate);
 

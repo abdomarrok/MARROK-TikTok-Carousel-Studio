@@ -1,23 +1,24 @@
-import { MotionCueItem } from '../../types.ts';
+import { MotionCueItem, MotionSfxType } from '../../types.ts';
 
 export const SFX_SAMPLE_RATE = 48000;
 
-type SfxVoiceType = 'click' | 'pop' | 'thump' | 'whoosh';
-
 /**
- * Exact 48kHz procedural sound effect synthesizer ported 1:1 from abdomarrok/motion-reel/scripts/sfx.mjs
+ * Studio-grade 48kHz procedural acoustic Foley synthesizer with 2-pole State-Variable
+ * Low-Pass / Band-Pass filtering and soft-saturation headroom limiting.
+ *
  * Voices:
- * - click:  0.05s 1800Hz sine decay
- * - pop:    0.15s 600->1500Hz sine pitch sweep
- * - thump:  0.50s 90->30Hz sub-bass drop
- * - whoosh: 0.35s LCG seeded noise envelope
+ * - thump:  0.26s warm sub-bass transition pulse (108->40Hz sine+triangle, 180Hz LPF)
+ * - whoosh: 0.30s warm resonant band-pass air sweep (220->860->280Hz BPF, zero white-noise hiss)
+ * - pop:    0.08s tactile matte UI card lock (440->165Hz damped impulse, 880Hz LPF)
+ * - click:  0.025s micro mechanical relay tick (920Hz damped impulse, 1150Hz LPF)
+ * - chime:  0.38s warm harmonic fifth glass accent (528Hz + 792Hz, 1400Hz LPF)
  */
 export function synthesizeSfxFloat32Buffer(
   cues: MotionCueItem[],
   durationSec = 20
 ): { samples: Float32Array; sampleRate: number } {
   const maxCueTime = cues.length > 0 ? Math.max(...cues.map((c) => c.t)) : 0;
-  const totalSec = Math.max(durationSec, Math.ceil(maxCueTime + 2));
+  const totalSec = Math.max(durationSec, Math.ceil(maxCueTime + 1.5));
   const buf = new Float32Array(Math.ceil(totalSec * SFX_SAMPLE_RATE));
 
   let s = 42;
@@ -26,22 +27,97 @@ export function synthesizeSfxFloat32Buffer(
     return s / 2147483648 - 1;
   };
 
-  const VOICES: Record<SfxVoiceType, [number, (t: number) => number]> = {
-    click: [0.05, (t) => Math.sin(2 * Math.PI * 1800 * t) * Math.exp(-t * 90) * 0.5],
-    pop: [0.15, (t) => Math.sin(2 * Math.PI * (600 + 900 * t) * t) * Math.exp(-t * 30) * 0.4],
-    thump: [0.5, (t) => Math.sin(2 * Math.PI * (90 - 60 * t) * t) * Math.exp(-t * 9) * 0.9],
-    whoosh: [0.35, (t) => noise() * Math.sin(Math.PI * Math.min(1, t / 0.35)) * 0.25],
+  const renderFilteredVoice = (type: MotionSfxType): Float32Array => {
+    const durationMap: Record<MotionSfxType, number> = {
+      click: 0.028,
+      pop: 0.085,
+      thump: 0.26,
+      whoosh: 0.30,
+      chime: 0.38,
+    };
+    const lenSec = durationMap[type] || 0.08;
+    const count = Math.floor(lenSec * SFX_SAMPLE_RATE);
+    const out = new Float32Array(count);
+
+    // 2-pole State Variable Filter state
+    let low = 0;
+    let band = 0;
+
+    for (let i = 0; i < count; i++) {
+      const t = i / SFX_SAMPLE_RATE;
+      const progress = i / Math.max(1, count - 1);
+      let raw = 0;
+      let cutoffHz = 900;
+      let q = 0.75;
+      let useBandpass = false;
+
+      if (type === 'thump') {
+        // Warm sub-bass drop with fast pitch envelope (108Hz -> 40Hz)
+        const phase = 2 * Math.PI * (40 * t + (68 / 14) * (1 - Math.exp(-14 * t)));
+        const env = Math.sin(Math.min(1, t / 0.008) * (Math.PI / 2)) * Math.exp(-t * 13.5);
+        raw = (Math.sin(phase) * 0.8 + Math.sin(phase * 0.5) * 0.35) * env * 0.75;
+        cutoffHz = 185;
+        q = 0.85;
+      } else if (type === 'whoosh') {
+        // Warm band-pass air sweep (no harsh static)
+        const env = Math.pow(Math.sin(Math.PI * progress), 1.6);
+        raw = noise() * env * 0.55;
+        cutoffHz = 220 + 640 * Math.sin(Math.PI * progress);
+        q = 1.9;
+        useBandpass = true;
+      } else if (type === 'pop') {
+        // Tactile matte UI card snap (440Hz -> 165Hz pitch drop)
+        const phase = 2 * Math.PI * (165 * t + (275 / 38) * (1 - Math.exp(-38 * t)));
+        const env = Math.sin(Math.min(1, t / 0.003) * (Math.PI / 2)) * Math.exp(-t * 46);
+        raw = Math.sin(phase) * env * 0.55;
+        cutoffHz = 880;
+        q = 0.9;
+      } else if (type === 'chime') {
+        // Warm harmonic glass fifth (528Hz fundamental + 792Hz fifth)
+        const attack = Math.min(1, t / 0.006);
+        const env = attack * Math.exp(-t * 9.5);
+        const f1 = Math.sin(2 * Math.PI * 528 * t);
+        const f2 = Math.sin(2 * Math.PI * 792 * t) * Math.exp(-t * 14);
+        raw = (f1 * 0.65 + f2 * 0.35) * env * 0.45;
+        cutoffHz = 1400;
+        q = 0.7;
+      } else {
+        // 'click': Micro mechanical relay tick (band-limited, soft impulse)
+        const phase = 2 * Math.PI * (920 - 320 * progress) * t;
+        const env = Math.exp(-t * 155);
+        raw = (Math.sin(phase) * 0.7 + noise() * 0.18 * Math.exp(-t * 260)) * env * 0.42;
+        cutoffHz = 1150;
+        q = 0.8;
+      }
+
+      // Chamberlin 2-pole SVF step
+      const f = Math.min(0.45, 2 * Math.sin((Math.PI * cutoffHz) / SFX_SAMPLE_RATE));
+      const damp = 1 / Math.max(0.5, q);
+      low = low + f * band;
+      const high = raw - low - damp * band;
+      band = f * high + band;
+
+      out[i] = useBandpass ? band : low;
+    }
+
+    return out;
   };
 
   for (const c of cues) {
-    const voice = VOICES[c.type] || VOICES.click;
-    const [len, fn] = voice;
-    const gain = c.amp !== undefined ? Math.min(2, Math.max(0.05, c.amp * 6)) : 1;
+    const voiceSamples = renderFilteredVoice(c.type || 'pop');
+    // Balanced studio headroom (prevents harsh clipping)
+    const gain = c.amp !== undefined ? Math.min(0.85, Math.max(0.015, c.amp * 2.2)) : 0.25;
     const start = Math.max(0, Math.floor(c.t * SFX_SAMPLE_RATE));
-    const maxSamples = Math.floor(len * SFX_SAMPLE_RATE);
 
-    for (let i = 0; i < maxSamples && start + i < buf.length; i++) {
-      buf[start + i] += fn(i / SFX_SAMPLE_RATE) * gain;
+    for (let i = 0; i < voiceSamples.length && start + i < buf.length; i++) {
+      buf[start + i] += voiceSamples[i] * gain;
+    }
+  }
+
+  // Soft-knee saturation limiter across master bus so overlapping cues stay warm
+  for (let i = 0; i < buf.length; i++) {
+    if (buf[i] !== 0) {
+      buf[i] = Math.tanh(buf[i] * 1.1) * 0.88;
     }
   }
 
@@ -49,7 +125,7 @@ export function synthesizeSfxFloat32Buffer(
 }
 
 /**
- * Encodes Float32Array samples into a 16-bit mono WAV Blob (matching scripts/sfx.mjs)
+ * Encodes Float32Array samples into a 16-bit mono WAV Blob
  */
 export function encodeWavBlob(samples: Float32Array, sampleRate = SFX_SAMPLE_RATE): Blob {
   const n = samples.length;
@@ -87,7 +163,9 @@ let sharedAudioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
-  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return null;
   if (!sharedAudioCtx) {
     sharedAudioCtx = new Ctx({ sampleRate: SFX_SAMPLE_RATE });
@@ -99,14 +177,14 @@ function getAudioContext(): AudioContext | null {
 }
 
 /**
- * Plays a single procedural SFX cue immediately via Web Audio API
+ * Plays a single warm filtered procedural SFX cue immediately via Web Audio API
  */
-export function playProceduralSfxCue(type: SfxVoiceType, amp = 0.16): void {
+export function playProceduralSfxCue(type: MotionSfxType, amp = 0.14): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
   try {
-    const { samples, sampleRate } = synthesizeSfxFloat32Buffer([{ t: 0, type, amp }], 0.6);
+    const { samples, sampleRate } = synthesizeSfxFloat32Buffer([{ t: 0, type, amp }], 0.5);
     const audioBuffer = ctx.createBuffer(1, samples.length, sampleRate);
     audioBuffer.getChannelData(0).set(samples);
     const source = ctx.createBufferSource();

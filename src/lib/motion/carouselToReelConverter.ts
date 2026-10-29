@@ -449,6 +449,8 @@ export function convertCarouselToMotionReel(
     duration,
     scenes,
     sfxEnabled: true,
+    sfxProfile: 'warm-foley',
+    defaultTransition: 'auto',
     languageMode,
     category,
     channel,

@@ -22,6 +22,10 @@ import {
   drawMarrokSurfaceCard,
   drawAnimatedBilingualSlideCopy,
 } from '../marrokSlideChrome.ts';
+import {
+  computeSceneTransitionState,
+  renderWithTransitionLayer,
+} from '../transitions.ts';
 
 const meta: MotionTemplateMeta = {
   id: 'kinetic-text',
@@ -124,306 +128,323 @@ export function drawKineticTextFrame(
   const b: MotionBrandConfig = { ...DEFAULT_BRAND, ...(config?.brand || {}) };
   const scenes = config?.scenes?.length ? config.scenes : defaultConfig(b).scenes;
 
+  const transState = computeSceneTransitionState(
+    scenes,
+    globalTime,
+    config?.defaultTransition || 'auto',
+    b.direction || 'rtl'
+  );
+
   g.save();
   // 1. Authentic MARROK Slide Background + Radial Glow + 108px Grid + CAD Reticles
-  drawMarrokReelBackground(g, config, globalTime);
+  drawMarrokReelBackground(
+    g,
+    config,
+    globalTime,
+    transState.cameraPanX,
+    transState.cameraZoom
+  );
   // 2. Authentic MARROK Header with Vector Logo Badge + Wordmark + Category Tag
   drawMarrokReelHeader(g, config, globalTime);
 
   g.direction = b.direction || 'rtl';
   g.textBaseline = 'alphabetic';
 
-  let activeIdx = 0;
+  transState.layers.forEach((layer) => {
+    const sc = layer.scene;
+    const i = layer.index;
 
-  scenes.forEach((sc, i) => {
-    const from = sc.from ?? i * 3;
-    const to = sc.to ?? from + 3;
-    if (globalTime < from || globalTime >= to) return;
-    activeIdx = i;
+    renderWithTransitionLayer(g, layer, b.accentColor, (t) => {
+      const k = sc.springK || 220;
+      const d = sc.springD || 22;
+      const text = sc.text || '';
 
-    const t = globalTime - from;
-    const k = sc.springK || 220;
-    const d = sc.springD || 22;
-    const text = sc.text || '';
+      if (i === 0) {
+        // Scene 1: Kinetic Hook Card + Bilingual Slide Copy
+        const r = rng(12);
+        for (let j = 0; j < 6; j++) {
+          const bx = SAFE_LEFT + r() * (SAFE_WIDTH - 140);
+          const by = 220 + r() * 420;
+          const bw = 40 + r() * 140;
+          const bh = 2 + r() * 3;
+          const bs = spring(t - j * 0.04, 180, 24);
+          g.save();
+          g.globalAlpha = 0.08 * clamp((t - j * 0.04) * 4);
+          g.fillStyle = b.accentColor;
+          g.fillRect(bx, by, bw * bs, bh);
+          g.restore();
+        }
 
-    if (i === 0) {
-      // Scene 1: Kinetic Hook Card + Bilingual Slide Copy
-      const r = rng(12);
-      for (let j = 0; j < 6; j++) {
-        const bx = SAFE_LEFT + r() * (SAFE_WIDTH - 140);
-        const by = 220 + r() * 420;
-        const bw = 40 + r() * 140;
-        const bh = 2 + r() * 3;
-        const bs = spring(t - j * 0.04, 180, 24);
-        g.save();
-        g.globalAlpha = 0.08 * clamp((t - j * 0.04) * 4);
-        g.fillStyle = b.accentColor;
-        g.fillRect(bx, by, bw * bs, bh);
-        g.restore();
-      }
-
-      const cardS = spring(t, 180, 22);
-      drawMarrokSurfaceCard(
-        g,
-        SAFE_LEFT,
-        220,
-        SAFE_WIDTH,
-        440,
-        b.accentColor,
-        b.surfaceColor || '#12131C',
-        b.surfaceBorder || '#252838',
-        'KINETIC_HOOK // 01',
-        'HIGH_PRIORITY',
-        cardS
-      );
-
-      // Central MARROK Vector Badge + Kinetic Headline inside top card
-      drawMarrokVectorBadge(
-        g,
-        SAFE_CENTER_X,
-        355,
-        Math.max(24, 78 * spring(t - 0.06, 220, 18)),
-        b.accentColor,
-        '#0B0C12'
-      );
-
-      const s = spring(t - 0.1, k, d);
-      g.save();
-      g.direction = b.direction;
-      g.globalAlpha = clamp(t * 5);
-      g.fillStyle = b.textColor;
-      g.font = `800 68px "${b.font}", "Cairo", "Plus Jakarta Sans", sans-serif`;
-      g.textAlign = 'center';
-      g.translate(SAFE_CENTER_X, 515);
-      g.scale(0.94 + 0.06 * s, 0.94 + 0.06 * s);
-      g.fillText(text, 0, 0, SAFE_WIDTH - 80);
-      g.restore();
-
-      g.save();
-      g.fillStyle = b.accentColor;
-      const bar = spring(t - 0.12, 200, 22);
-      g.fillRect(SAFE_CENTER_X - 260 * bar, 560, 520 * bar, 10);
-      g.restore();
-
-      drawAnimatedBilingualSlideCopy(g, sc, b, t, 735);
-    } else if (i === 1) {
-      // Scene 2: Architectural Reveal Card + Bilingual Slide Copy
-      const cardS = spring(t - 0.05, 160, 24);
-      drawMarrokSurfaceCard(
-        g,
-        SAFE_LEFT,
-        220,
-        SAFE_WIDTH,
-        440,
-        b.accentColor,
-        b.surfaceColor || '#12131C',
-        b.surfaceBorder || '#252838',
-        'ARCH_REVEAL // 02',
-        'VERIFIED',
-        cardS
-      );
-
-      const s = spring(t - 0.15, k, d);
-      g.save();
-      g.direction = b.direction;
-      g.globalAlpha = clamp((t - 0.15) * 5);
-      g.fillStyle = b.textColor;
-      g.font = `800 64px "${b.font}", "Cairo", sans-serif`;
-      g.textAlign = 'center';
-      g.translate(SAFE_CENTER_X, 455);
-      g.scale(0.96 + 0.04 * s, 0.96 + 0.04 * s);
-      g.fillText(text, 0, 0, SAFE_WIDTH - 90);
-      g.restore();
-
-      g.save();
-      g.fillStyle = b.accentColor;
-      const bar = spring(t - 0.18, 180, 24);
-      g.fillRect(SAFE_LEFT + 70, 530, (SAFE_WIDTH - 140) * bar, 8);
-      g.restore();
-
-      drawAnimatedBilingualSlideCopy(g, sc, b, t, 735);
-    } else if (i === 2) {
-      // Scene 3: Staggered MARROK Takeaway Cards (pipe-separated)
-      const items = text.split('|');
-      items.forEach((txt, idx) => {
-        const st = t - idx * 0.15;
-        const s = spring(st, k, d);
-        const cardY = 250 + idx * 290;
-
+        const cardS = spring(t, 180, 22);
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          cardY,
+          220,
           SAFE_WIDTH,
-          245,
+          440,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          `PILLAR // 0${idx + 1}`,
-          `STAGE_${idx + 1}`,
-          clamp(s, 0, 1)
+          'KINETIC_HOOK // 01',
+          'HIGH_PRIORITY',
+          cardS
         );
 
+        // Central MARROK Vector Badge + Kinetic Headline inside top card
+        drawMarrokVectorBadge(
+          g,
+          SAFE_CENTER_X,
+          355,
+          Math.max(24, 78 * spring(t - 0.06, 220, 18)),
+          b.accentColor,
+          '#0B0C12'
+        );
+
+        const s = spring(t - 0.1, k, d);
         g.save();
         g.direction = b.direction;
-        g.globalAlpha = clamp(st * 4);
-        g.translate(SAFE_CENTER_X, cardY + 145);
-        g.scale(0.92 + 0.08 * s, 0.92 + 0.08 * s);
+        g.globalAlpha = clamp(t * 5);
+        g.fillStyle = b.textColor;
+        g.font = `800 68px "${b.font}", "Cairo", "Plus Jakarta Sans", sans-serif`;
+        g.textAlign = 'center';
+        g.translate(SAFE_CENTER_X, 515);
+        g.scale(0.94 + 0.06 * s, 0.94 + 0.06 * s);
+        g.fillText(text, 0, 0, SAFE_WIDTH - 80);
+        g.restore();
+
+        g.save();
+        g.fillStyle = b.accentColor;
+        const bar = spring(t - 0.12, 200, 22);
+        g.fillRect(SAFE_CENTER_X - 260 * bar, 560, 520 * bar, 10);
+        g.restore();
+
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 735);
+      } else if (i === 1) {
+        // Scene 2: Architectural Reveal Card + Bilingual Slide Copy
+        const cardS = spring(t - 0.05, 160, 24);
+        drawMarrokSurfaceCard(
+          g,
+          SAFE_LEFT,
+          220,
+          SAFE_WIDTH,
+          440,
+          b.accentColor,
+          b.surfaceColor || '#12131C',
+          b.surfaceBorder || '#252838',
+          'ARCH_REVEAL // 02',
+          'VERIFIED',
+          cardS
+        );
+
+        const s = spring(t - 0.15, k, d);
+        g.save();
+        g.direction = b.direction;
+        g.globalAlpha = clamp((t - 0.15) * 5);
+        g.fillStyle = b.textColor;
+        g.font = `800 64px "${b.font}", "Cairo", sans-serif`;
+        g.textAlign = 'center';
+        g.translate(SAFE_CENTER_X, 455);
+        g.scale(0.96 + 0.04 * s, 0.96 + 0.04 * s);
+        g.fillText(text, 0, 0, SAFE_WIDTH - 90);
+        g.restore();
+
+        g.save();
+        g.fillStyle = b.accentColor;
+        const bar = spring(t - 0.18, 180, 24);
+        g.fillRect(SAFE_LEFT + 70, 530, (SAFE_WIDTH - 140) * bar, 8);
+        g.restore();
+
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 735);
+      } else if (i === 2) {
+        // Scene 3: Staggered MARROK Takeaway Cards (pipe-separated)
+        const items = text.split('|');
+        items.forEach((txt, idx) => {
+          const st = t - idx * 0.15;
+          const s = spring(st, k, d);
+          const cardY = 250 + idx * 290;
+
+          drawMarrokSurfaceCard(
+            g,
+            SAFE_LEFT,
+            cardY,
+            SAFE_WIDTH,
+            245,
+            b.accentColor,
+            b.surfaceColor || '#12131C',
+            b.surfaceBorder || '#252838',
+            `PILLAR // 0${idx + 1}`,
+            `STAGE_${idx + 1}`,
+            clamp(s, 0, 1)
+          );
+
+          g.save();
+          g.direction = b.direction;
+          g.globalAlpha = clamp(st * 4);
+          g.translate(SAFE_CENTER_X, cardY + 145);
+          g.scale(0.92 + 0.08 * s, 0.92 + 0.08 * s);
+          g.fillStyle = b.textColor;
+          g.font = `800 62px "${b.font}", "Cairo", sans-serif`;
+          g.textAlign = 'center';
+          g.fillText(txt.trim(), 0, 0, SAFE_WIDTH - 90);
+
+          g.fillStyle = b.accentColor;
+          g.fillRect(-180 * s, 38, 360 * s, 7);
+          g.restore();
+        });
+
+        if (sc.enTitle || sc.arTitle) {
+          drawAnimatedBilingualSlideCopy(g, sc, b, t, 1160);
+        }
+      } else if (i === 3) {
+        // Scene 4: Authentic MARROK Vector Brand Focus Lockup
+        const cardS = spring(t, 180, 22);
+        drawMarrokSurfaceCard(
+          g,
+          SAFE_LEFT,
+          240,
+          SAFE_WIDTH,
+          660,
+          b.accentColor,
+          b.surfaceColor || '#12131C',
+          b.surfaceBorder || '#252838',
+          'BRAND_IDENTITY // MARROK',
+          'CORE_ENGINE',
+          cardS
+        );
+
+        const logoScale = spring(t - 0.08, 220, 18);
+        g.save();
+        g.shadowColor = b.accentColor;
+        g.shadowBlur = 32;
+        drawMarrokVectorBadge(
+          g,
+          SAFE_CENTER_X,
+          460,
+          Math.max(32, 168 * logoScale),
+          b.accentColor,
+          '#0B0C12'
+        );
+        g.restore();
+
+        const s = spring(t - 0.14, k, d);
+        g.save();
+        g.direction = 'ltr';
+        g.globalAlpha = clamp((t - 0.1) * 5);
+        g.fillStyle = b.textColor;
+        g.font = `800 112px "Plus Jakarta Sans", "${b.font}", sans-serif`;
+        g.textAlign = 'center';
+        g.translate(SAFE_CENTER_X, 710);
+        g.scale(0.96 + 0.04 * s, 0.96 + 0.04 * s);
+        g.fillText(text || b.name, 0, 0, SAFE_WIDTH - 80);
+        g.fillStyle = b.accentColor;
+        g.fillRect(-240 * s, 42, 480 * s, 10);
+        g.restore();
+
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 960);
+      } else if (i === 4) {
+        // Scene 5: Domain Tagline Card + Bilingual Copy
+        const cardS = spring(t, 180, 22);
+        drawMarrokSurfaceCard(
+          g,
+          SAFE_LEFT,
+          240,
+          SAFE_WIDTH,
+          440,
+          b.accentColor,
+          b.surfaceColor || '#12131C',
+          b.surfaceBorder || '#252838',
+          'DOMAIN_SPEC // 05',
+          b.name || 'MARROK',
+          cardS
+        );
+
+        const s = spring(t - 0.1, k, d);
+        g.save();
+        g.direction = 'ltr';
+        g.globalAlpha = clamp((t - 0.1) * 5);
+        g.fillStyle = b.textColor;
+        g.font = `800 72px "Plus Jakarta Sans", "${b.font}", sans-serif`;
+        g.textAlign = 'center';
+        g.translate(SAFE_CENTER_X, 445);
+        g.scale(0.96 + 0.04 * s, 0.96 + 0.04 * s);
+        g.fillText(text, 0, 0, SAFE_WIDTH - 80);
+        g.restore();
+
+        g.save();
+        g.fillStyle = b.accentColor;
+        const bar = spring(t - 0.2, 180, 22);
+        g.fillRect(SAFE_CENTER_X - 300 * bar, 505, 600 * bar, 8);
+        g.restore();
+
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 745);
+      } else {
+        // Scene 6: Call to Action Slide Lockup with MARROK Vector Badge
+        const cardS = spring(t, 180, 22);
+        drawMarrokSurfaceCard(
+          g,
+          SAFE_LEFT,
+          230,
+          SAFE_WIDTH,
+          520,
+          b.accentColor,
+          b.surfaceColor || '#12131C',
+          b.surfaceBorder || '#252838',
+          'CTA_LOCKUP // FOLLOW',
+          `@${(b.name || 'MARROK').toUpperCase()}`,
+          cardS
+        );
+
+        drawMarrokVectorBadge(
+          g,
+          SAFE_CENTER_X,
+          375,
+          Math.max(24, 104 * spring(t - 0.08, 220, 18)),
+          b.accentColor,
+          '#0B0C12'
+        );
+
+        const s1 = spring(t - 0.12, k, d);
+        g.save();
+        g.direction = b.direction;
+        g.globalAlpha = clamp((t - 0.1) * 5);
         g.fillStyle = b.textColor;
         g.font = `800 62px "${b.font}", "Cairo", sans-serif`;
         g.textAlign = 'center';
-        g.fillText(txt.trim(), 0, 0, SAFE_WIDTH - 90);
-
-        g.fillStyle = b.accentColor;
-        g.fillRect(-180 * s, 38, 360 * s, 7);
+        g.translate(SAFE_CENTER_X, 535);
+        g.scale(0.96 + 0.04 * s1, 0.96 + 0.04 * s1);
+        g.fillText(text, 0, 0, SAFE_WIDTH - 80);
         g.restore();
-      });
 
-      if (sc.enTitle || sc.arTitle) {
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 1160);
+        const btnS = spring(t - 0.35, 200, 22);
+        g.save();
+        g.globalAlpha = clamp((t - 0.35) * 4);
+        g.fillStyle = b.accentColor;
+        const bw = 480 * clamp(btnS, 0.2, 1);
+        const bh = 72;
+        g.beginPath();
+        g.roundRect(SAFE_CENTER_X - bw / 2, 595, bw, bh, 16);
+        g.fill();
+        g.fillStyle = b.bgColor || '#080A12';
+        g.direction = 'ltr';
+        g.font = '800 30px "Plus Jakarta Sans", sans-serif';
+        g.textAlign = 'center';
+        g.fillText(`FOLLOW @${(b.name || 'MARROK').toUpperCase()} →`, SAFE_CENTER_X, 642, bw - 32);
+        g.restore();
+
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 810);
       }
-    } else if (i === 3) {
-      // Scene 4: Authentic MARROK Vector Brand Focus Lockup
-      const cardS = spring(t, 180, 22);
-      drawMarrokSurfaceCard(
-        g,
-        SAFE_LEFT,
-        240,
-        SAFE_WIDTH,
-        660,
-        b.accentColor,
-        b.surfaceColor || '#12131C',
-        b.surfaceBorder || '#252838',
-        'BRAND_IDENTITY // MARROK',
-        'CORE_ENGINE',
-        cardS
-      );
-
-      const logoScale = spring(t - 0.08, 220, 18);
-      g.save();
-      g.shadowColor = b.accentColor;
-      g.shadowBlur = 32;
-      drawMarrokVectorBadge(
-        g,
-        SAFE_CENTER_X,
-        460,
-        Math.max(32, 168 * logoScale),
-        b.accentColor,
-        '#0B0C12'
-      );
-      g.restore();
-
-      const s = spring(t - 0.14, k, d);
-      g.save();
-      g.direction = 'ltr';
-      g.globalAlpha = clamp((t - 0.1) * 5);
-      g.fillStyle = b.textColor;
-      g.font = `800 112px "Plus Jakarta Sans", "${b.font}", sans-serif`;
-      g.textAlign = 'center';
-      g.translate(SAFE_CENTER_X, 710);
-      g.scale(0.96 + 0.04 * s, 0.96 + 0.04 * s);
-      g.fillText(text || b.name, 0, 0, SAFE_WIDTH - 80);
-      g.fillStyle = b.accentColor;
-      g.fillRect(-240 * s, 42, 480 * s, 10);
-      g.restore();
-
-      drawAnimatedBilingualSlideCopy(g, sc, b, t, 960);
-    } else if (i === 4) {
-      // Scene 5: Domain Tagline Card + Bilingual Copy
-      const cardS = spring(t, 180, 22);
-      drawMarrokSurfaceCard(
-        g,
-        SAFE_LEFT,
-        240,
-        SAFE_WIDTH,
-        440,
-        b.accentColor,
-        b.surfaceColor || '#12131C',
-        b.surfaceBorder || '#252838',
-        'DOMAIN_SPEC // 05',
-        b.name || 'MARROK',
-        cardS
-      );
-
-      const s = spring(t - 0.1, k, d);
-      g.save();
-      g.direction = 'ltr';
-      g.globalAlpha = clamp((t - 0.1) * 5);
-      g.fillStyle = b.textColor;
-      g.font = `800 72px "Plus Jakarta Sans", "${b.font}", sans-serif`;
-      g.textAlign = 'center';
-      g.translate(SAFE_CENTER_X, 445);
-      g.scale(0.96 + 0.04 * s, 0.96 + 0.04 * s);
-      g.fillText(text, 0, 0, SAFE_WIDTH - 80);
-      g.restore();
-
-      g.save();
-      g.fillStyle = b.accentColor;
-      const bar = spring(t - 0.2, 180, 22);
-      g.fillRect(SAFE_CENTER_X - 300 * bar, 505, 600 * bar, 8);
-      g.restore();
-
-      drawAnimatedBilingualSlideCopy(g, sc, b, t, 745);
-    } else {
-      // Scene 6: Call to Action Slide Lockup with MARROK Vector Badge
-      const cardS = spring(t, 180, 22);
-      drawMarrokSurfaceCard(
-        g,
-        SAFE_LEFT,
-        230,
-        SAFE_WIDTH,
-        520,
-        b.accentColor,
-        b.surfaceColor || '#12131C',
-        b.surfaceBorder || '#252838',
-        'CTA_LOCKUP // FOLLOW',
-        `@${(b.name || 'MARROK').toUpperCase()}`,
-        cardS
-      );
-
-      drawMarrokVectorBadge(
-        g,
-        SAFE_CENTER_X,
-        375,
-        Math.max(24, 104 * spring(t - 0.08, 220, 18)),
-        b.accentColor,
-        '#0B0C12'
-      );
-
-      const s1 = spring(t - 0.12, k, d);
-      g.save();
-      g.direction = b.direction;
-      g.globalAlpha = clamp((t - 0.1) * 5);
-      g.fillStyle = b.textColor;
-      g.font = `800 62px "${b.font}", "Cairo", sans-serif`;
-      g.textAlign = 'center';
-      g.translate(SAFE_CENTER_X, 535);
-      g.scale(0.96 + 0.04 * s1, 0.96 + 0.04 * s1);
-      g.fillText(text, 0, 0, SAFE_WIDTH - 80);
-      g.restore();
-
-      const btnS = spring(t - 0.35, 200, 22);
-      g.save();
-      g.globalAlpha = clamp((t - 0.35) * 4);
-      g.fillStyle = b.accentColor;
-      const bw = 480 * clamp(btnS, 0.2, 1);
-      const bh = 72;
-      g.beginPath();
-      g.roundRect(SAFE_CENTER_X - bw / 2, 595, bw, bh, 16);
-      g.fill();
-      g.fillStyle = b.bgColor || '#080A12';
-      g.direction = 'ltr';
-      g.font = '800 30px "Plus Jakarta Sans", sans-serif';
-      g.textAlign = 'center';
-      g.fillText(`FOLLOW @${(b.name || 'MARROK').toUpperCase()} →`, SAFE_CENTER_X, 642, bw - 32);
-      g.restore();
-
-      drawAnimatedBilingualSlideCopy(g, sc, b, t, 810);
-    }
+    });
   });
 
   // 3. Authentic MARROK Pagination & Attribution Footer
-  drawMarrokReelFooter(g, config, globalTime, activeIdx, scenes.length);
+  drawMarrokReelFooter(
+    g,
+    config,
+    globalTime,
+    transState.activeSceneIdx,
+    scenes.length,
+    transState.fractionalSceneIdx
+  );
 
   g.restore();
 }

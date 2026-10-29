@@ -110,8 +110,12 @@ export const MotionReelViewport: React.FC<MotionReelViewportProps> = ({
       }
 
       // Check procedural SFX cues crossed between prevTime and nextTime
-      if (cfg.sfxEnabled !== false) {
-        const cues = generateCues(cfg.scenes || []);
+      if (cfg.sfxEnabled !== false && cfg.sfxProfile !== 'silent') {
+        const cues = generateCues(
+          cfg.scenes || [],
+          cfg.sfxProfile || 'warm-foley',
+          cfg.defaultTransition || 'auto'
+        );
         cues.forEach((cue, idx) => {
           if (cue.t >= prevTime && cue.t < nextTime && !firedCuesRef.current.has(idx)) {
             firedCuesRef.current.add(idx);

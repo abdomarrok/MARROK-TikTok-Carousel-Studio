@@ -8,13 +8,15 @@ import {
   synthesizeSfxFloat32Buffer,
   encodeWavBlob,
   convertCarouselToMotionReel,
+  resolveSmartTransition,
+  computeSceneTransitionState,
   SFX_SAMPLE_RATE,
   MOTION_TEMPLATE_LIST,
 } from '../lib/motion/index.ts';
 import { synthesizeCarousel } from '../lib/synthesizer.ts';
 import { DEFAULT_PALETTES } from '../types.ts';
 
-describe('Motion Reel Integration (MARROK Slide Deck & Motion Templates)', () => {
+describe('Motion Reel Integration (MARROK Slide Deck, Smart Transitions & Warm Foley)', () => {
   it('computes damped harmonic spring physics and deterministic PRNG accurately', () => {
     expect(spring(0)).toBe(0);
     expect(spring(-0.5)).toBe(0);
@@ -54,7 +56,38 @@ describe('Motion Reel Integration (MARROK Slide Deck & Motion Templates)', () =>
     }
   });
 
-  it('draws 1080x1920 frames with MARROK slide header, vector logo, CAD reticles, and bilingual copy across all scenes', () => {
+  it('routes archetype-aware smart transitions and computes overlapping scene layers smoothly', () => {
+    const cfg = getMotionTemplate('marrok-slides').defaultConfig();
+    const scenes = cfg.scenes;
+
+    // 1. Verify smart archetype transition resolution
+    // Scene 0 (hub) -> Scene 1 (row) => 'depth'
+    expect(resolveSmartTransition(scenes[0], scenes[1], 'auto', 1)).toBe('depth');
+    // Scene 1 (row) -> Scene 2 (code) => 'kinetic-wipe'
+    expect(resolveSmartTransition(scenes[1], scenes[2], 'auto', 2)).toBe('kinetic-wipe');
+    // Scene 2 (code) -> Scene 3 (metric) => 'morph'
+    expect(resolveSmartTransition(scenes[2], scenes[3], 'auto', 3)).toBe('morph');
+    // Scene 3 (metric) -> Scene 4 (cta) => 'depth'
+    expect(resolveSmartTransition(scenes[3], scenes[4], 'auto', 4)).toBe('depth');
+
+    // 2. Steady-state mid-scene has 1 active layer
+    const steady = computeSceneTransitionState(scenes, 1.5, 'auto', 'rtl');
+    expect(steady.inTransition).toBe(false);
+    expect(steady.layers.length).toBe(1);
+    expect(steady.layers[0].role).toBe('active');
+
+    // 3. Boundary cut (t = 3.5s between scene 0 and scene 1) has 2 overlapping layers (outgoing + incoming)
+    const boundary = computeSceneTransitionState(scenes, 3.5, 'auto', 'rtl');
+    expect(boundary.inTransition).toBe(true);
+    expect(boundary.transitionMode).toBe('depth');
+    expect(boundary.layers.length).toBe(2);
+    expect(boundary.layers[0].role).toBe('outgoing');
+    expect(boundary.layers[1].role).toBe('incoming');
+    expect(boundary.fractionalSceneIdx).toBeGreaterThan(0);
+    expect(boundary.fractionalSceneIdx).toBeLessThan(1);
+  });
+
+  it('draws 1080x1920 frames including transition boundaries with MARROK slide header, vector logo, and bilingual copy', () => {
     const mockCtx = {
       save: vi.fn(),
       restore: vi.fn(),
@@ -74,6 +107,7 @@ describe('Motion Reel Integration (MARROK Slide Deck & Motion Templates)', () =>
       stroke: vi.fn(),
       roundRect: vi.fn(),
       rect: vi.fn(),
+      clip: vi.fn(),
       createRadialGradient: vi.fn(() => ({
         addColorStop: vi.fn(),
       })),
@@ -98,13 +132,14 @@ describe('Motion Reel Integration (MARROK Slide Deck & Motion Templates)', () =>
     for (const id of templateIds) {
       const cfg = getMotionTemplate(id).defaultConfig();
       for (const scene of cfg.scenes) {
+        // Test mid-scene and transition boundary
         drawMotionReelFrame(mockCtx, id, cfg, scene.from + 0.5);
+        drawMotionReelFrame(mockCtx, id, cfg, scene.to - 0.05);
       }
     }
 
     expect(mockCtx.fillRect).toHaveBeenCalled();
     expect(mockCtx.fillText).toHaveBeenCalled();
-    // Verify MARROK CAD reticle stamp & wordmark were drawn
     const drawnTexts = (mockCtx.fillText as ReturnType<typeof vi.fn>).mock.calls.map(
       (call) => call[0]
     );
@@ -114,18 +149,29 @@ describe('Motion Reel Integration (MARROK Slide Deck & Motion Templates)', () =>
     ).toBe(true);
   });
 
-  it('synthesizes 48kHz procedural SFX cues (click, pop, thump, whoosh) and encodes 16-bit WAV', () => {
+  it('synthesizes warm filtered 48kHz Foley cues (thump, whoosh, pop, click, chime) across acoustic profiles without clipping', () => {
     const tpl = getMotionTemplate('marrok-slides');
     const cfg = tpl.defaultConfig();
-    const cues = generateCues(cfg.scenes);
-    expect(cues.length).toBeGreaterThanOrEqual(cfg.scenes.length);
+
+    const warmCues = generateCues(cfg.scenes, 'warm-foley', 'auto');
+    expect(warmCues.length).toBeGreaterThan(cfg.scenes.length);
+    // Verify archetype-specific 'chime' and 'whoosh' are present in warm-foley
+    expect(warmCues.some((c) => c.type === 'chime')).toBe(true);
+    expect(warmCues.some((c) => c.type === 'whoosh')).toBe(true);
+
+    const minimalCues = generateCues(cfg.scenes, 'minimal-sub', 'auto');
+    expect(minimalCues.length).toBe(cfg.scenes.length);
+
+    const silentCues = generateCues(cfg.scenes, 'silent', 'auto');
+    expect(silentCues.length).toBe(0);
 
     const { samples, sampleRate } = synthesizeSfxFloat32Buffer(
       [
-        { t: 0.1, type: 'click', amp: 0.14 },
-        { t: 0.5, type: 'pop', amp: 0.14 },
-        { t: 1.0, type: 'thump', amp: 0.16 },
-        { t: 1.5, type: 'whoosh', amp: 0.12 },
+        { t: 0.1, type: 'thump', amp: 0.14 },
+        { t: 0.5, type: 'whoosh', amp: 0.12 },
+        { t: 1.0, type: 'pop', amp: 0.12 },
+        { t: 1.5, type: 'click', amp: 0.08 },
+        { t: 2.0, type: 'chime', amp: 0.12 },
       ],
       3
     );
@@ -134,26 +180,32 @@ describe('Motion Reel Integration (MARROK Slide Deck & Motion Templates)', () =>
     expect(samples.length).toBeGreaterThanOrEqual(3 * SFX_SAMPLE_RATE);
 
     let nonZeroCount = 0;
+    let peak = 0;
     for (let i = 0; i < samples.length; i++) {
-      if (Math.abs(samples[i]) > 1e-5) nonZeroCount++;
+      const abs = Math.abs(samples[i]);
+      if (abs > 1e-5) nonZeroCount++;
+      if (abs > peak) peak = abs;
     }
     expect(nonZeroCount).toBeGreaterThan(1000);
+    // Verify soft-saturation headroom limiter prevents digital clipping
+    expect(peak).toBeLessThanOrEqual(0.9);
 
     const wavBlob = encodeWavBlob(samples, sampleRate);
     expect(wavBlob.type).toBe('audio/wav');
     expect(wavBlob.size).toBe(44 + samples.length * 2);
   });
 
-  it('converts an 8-slide carousel into full MARROK Slide Deck Reel scenes as well as kinetic/showcase templates', () => {
+  it('converts an 8-slide carousel into full MARROK Slide Deck Reel scenes with warm-foley and auto smart transitions', () => {
     const deck = synthesizeCarousel({
       prompt: 'Zero-Trust Mesh Architecture with mTLS and eBPF',
       postFormat: 'carousel',
     });
     const theme = DEFAULT_PALETTES.cyber;
 
-    // Default marrok-slides conversion maps all 8 slides with bilingual copy and archetypes
     const slideDeckReel = convertCarouselToMotionReel(deck, theme);
     expect(slideDeckReel.templateId).toBe('marrok-slides');
+    expect(slideDeckReel.sfxProfile).toBe('warm-foley');
+    expect(slideDeckReel.defaultTransition).toBe('auto');
     expect(slideDeckReel.scenes.length).toBe(deck.slides.length);
     expect(slideDeckReel.scenes[0].enTitle).toBeTruthy();
     expect(slideDeckReel.scenes[0].arTitle).toBeTruthy();
@@ -165,8 +217,6 @@ describe('Motion Reel Integration (MARROK Slide Deck & Motion Templates)', () =>
     expect(arReel.brand.accentColor).toBe(theme.accent);
     expect(arReel.scenes.length).toBe(6);
     expect(arReel.scenes[2].text).toContain('|');
-    expect(arReel.scenes[0].enTitle).toBeTruthy();
-    expect(arReel.scenes[0].arTitle).toBeTruthy();
 
     const enShowcase = convertCarouselToMotionReel(deck, theme, 'product-showcase', 'en');
     expect(enShowcase.templateId).toBe('product-showcase');

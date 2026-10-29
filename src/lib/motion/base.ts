@@ -4,8 +4,11 @@ import {
   MotionTemplateConfig,
   MotionTemplateMeta,
   MotionCueItem,
+  MotionSfxProfile,
+  MotionTransitionType,
 } from '../../types.ts';
 import { MARROK_CHROME_SCRIPT } from './marrokSlideChrome.ts';
+import { resolveSmartTransition } from './transitions.ts';
 
 export const MOTION_W = 1080;
 export const MOTION_H = 1920;
@@ -160,11 +163,36 @@ ${scenesCode}
 function draw(t) {
   drawMarrokChrome(g, CONFIG, t);
   let activeIdx = 0;
+  const halfWin = 0.21;
   for (let i = 0; i < SCENES.length; i++) {
     const s = SCENES[i];
     if (t >= s.from && t < s.to) {
       activeIdx = i;
-      s.draw(t - s.from);
+    }
+    if (t >= s.from - halfWin && t < s.to + halfWin) {
+      let alpha = 1;
+      let scale = 1;
+      let dy = 0;
+      if (i > 0 && t < s.from + halfWin) {
+        const p = easeInOutCubic(clamp((t - (s.from - halfWin)) / (halfWin * 2), 0, 1));
+        alpha = p;
+        scale = 0.96 + 0.04 * p;
+        dy = (1 - p) * 28;
+      } else if (i < SCENES.length - 1 && t >= s.to - halfWin) {
+        const p = easeInOutCubic(clamp((t - (s.to - halfWin)) / (halfWin * 2), 0, 1));
+        alpha = 1 - p;
+        scale = 1 - 0.04 * p;
+        dy = -p * 24;
+      }
+      if (alpha > 0.01) {
+        g.save();
+        g.globalAlpha = alpha;
+        g.translate(540, 860 + dy);
+        g.scale(scale, scale);
+        g.translate(-540, -860);
+        s.draw(Math.max(0, t - s.from));
+        g.restore();
+      }
     }
   }
   drawMarrokFooter(g, CONFIG, t, activeIdx, SCENES.length);
@@ -177,15 +205,93 @@ if (!navigator.webdriver) {
 </script>`;
 }
 
-export function generateCues(scenes: MotionSceneConfig[]): MotionCueItem[] {
+/**
+ * Generates context-aware, warm low-pass filtered Foley cues synchronized to each scene's
+ * transition style (`morph`, `depth`, `kinetic-wipe`, `whip-pan`) and slide archetype
+ * (`hub`, `row`, `number`, `metric`, `code`, `compare`, `cta`).
+ */
+export function generateCues(
+  scenes: MotionSceneConfig[],
+  sfxProfile: MotionSfxProfile = 'warm-foley',
+  defaultTransition: MotionTransitionType = 'auto'
+): MotionCueItem[] {
+  if (!scenes || scenes.length === 0 || sfxProfile === 'silent') {
+    return [];
+  }
+
   const cues: MotionCueItem[] = [];
-  for (const scene of scenes) {
-    cues.push({ t: scene.from + 0.1, type: 'click', amp: 0.14 });
-    if (scene.to - scene.from >= 2.5) {
-      cues.push({ t: scene.from + 0.5, type: 'whoosh', amp: 0.12 });
+
+  for (let i = 0; i < scenes.length; i++) {
+    const scene = scenes[i];
+    const prevScene = i > 0 ? scenes[i - 1] : undefined;
+    const from = scene.from ?? i * 3.5;
+    const to = scene.to ?? from + 3.5;
+    const dur = Math.max(0.5, to - from);
+    const transMode = resolveSmartTransition(prevScene, scene, defaultTransition, i);
+
+    // 1. Scene Transition Entry Cue
+    if (i === 0) {
+      // Soft sub-bass pulse on initial reel start
+      cues.push({ t: Number((from + 0.04).toFixed(3)), type: 'thump', amp: 0.11 });
+    } else if (transMode === 'kinetic-wipe' || transMode === 'whip-pan') {
+      // Warm band-pass air sweep aligned with transition overlap
+      cues.push({ t: Number(Math.max(0, from - 0.08).toFixed(3)), type: 'whoosh', amp: 0.09 });
+    } else if (transMode === 'depth') {
+      // Deep Z-space sub-thump + gentle air movement
+      cues.push({ t: Number(Math.max(0, from - 0.05).toFixed(3)), type: 'thump', amp: 0.12 });
+    } else {
+      // 'morph': Subtle matte UI card morph pulse
+      cues.push({ t: Number(Math.max(0, from - 0.03).toFixed(3)), type: 'pop', amp: 0.08 });
+    }
+
+    // Minimal-sub profile emits only the transition pulse above
+    if (sfxProfile === 'minimal-sub') {
+      continue;
+    }
+
+    // 2. Archetype-Aware Micro-Events ('warm-foley' profile)
+    const slideType = scene.slideType || (i === 0 ? 'hub' : i === scenes.length - 1 ? 'cta' : 'row');
+    const isStaggeredPipe = (scene.text || '').includes('|') && !scene.enBody && !scene.arBody;
+
+    if (isStaggeredPipe && dur >= 2.0) {
+      // 3 staggered takeaway cards snapping into place
+      const itemCount = Math.min(3, (scene.text || '').split('|').filter(Boolean).length);
+      for (let k = 0; k < itemCount; k++) {
+        const popTime = from + 0.16 + k * 0.16;
+        if (popTime < to - 0.2) {
+          cues.push({ t: Number(popTime.toFixed(3)), type: 'pop', amp: 0.075 });
+        }
+      }
+    } else if (slideType === 'hub' && dur >= 1.8) {
+      // Central hub lock + orbital node pop
+      cues.push({ t: Number((from + 0.24).toFixed(3)), type: 'pop', amp: 0.085 });
+      if (dur >= 2.6) {
+        cues.push({ t: Number((from + 0.46).toFixed(3)), type: 'click', amp: 0.05 });
+      }
+    } else if (slideType === 'code' && dur >= 1.8) {
+      // Soft mechanical terminal relay ticks as code lines type in
+      cues.push({ t: Number((from + 0.20).toFixed(3)), type: 'click', amp: 0.055 });
+      cues.push({ t: Number((from + 0.36).toFixed(3)), type: 'click', amp: 0.05 });
+      if (dur >= 2.5) {
+        cues.push({ t: Number((from + 0.54).toFixed(3)), type: 'pop', amp: 0.07 });
+      }
+    } else if (slideType === 'metric' && dur >= 1.8) {
+      // Telemetry counter ticks finishing with a harmonic chime lock
+      cues.push({ t: Number((from + 0.18).toFixed(3)), type: 'click', amp: 0.05 });
+      cues.push({ t: Number((from + 0.32).toFixed(3)), type: 'click', amp: 0.055 });
+      if (dur >= 2.2) {
+        cues.push({ t: Number((from + 0.48).toFixed(3)), type: 'chime', amp: 0.085 });
+      }
+    } else if (slideType === 'cta' && dur >= 1.8) {
+      // Closing @MARROK badge lockup with warm harmonic fifth chime
+      cues.push({ t: Number((from + 0.28).toFixed(3)), type: 'chime', amp: 0.095 });
+    } else if (dur >= 2.0) {
+      // Standard architectural row / pipeline stage lock
+      cues.push({ t: Number((from + 0.24).toFixed(3)), type: 'pop', amp: 0.075 });
     }
   }
-  return cues;
+
+  return cues.sort((a, b) => a.t - b.t);
 }
 
 export interface MotionTemplateDefinition {

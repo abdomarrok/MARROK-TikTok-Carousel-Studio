@@ -160,6 +160,17 @@ export type MotionTemplateId =
   | 'brand-intro'
   | 'product-showcase';
 
+export type MotionTransitionType =
+  | 'auto'
+  | 'morph'
+  | 'depth'
+  | 'kinetic-wipe'
+  | 'whip-pan';
+
+export type MotionSfxType = 'click' | 'pop' | 'thump' | 'whoosh' | 'chime';
+
+export type MotionSfxProfile = 'warm-foley' | 'minimal-sub' | 'silent';
+
 export interface MotionBrandConfig {
   name: string;
   accentColor: string;
@@ -182,6 +193,7 @@ export interface MotionSceneConfig {
   to: number;
   springK: number;
   springD: number;
+  transition?: MotionTransitionType;
   // Rich MARROK slide fields so every scene can render like an animated MARROK slide
   slideType?: SlideType;
   enTitle?: string;
@@ -203,6 +215,8 @@ export interface MotionTemplateConfig {
   category?: string;
   channel?: string;
   showCadReticles?: boolean;
+  defaultTransition?: MotionTransitionType;
+  sfxProfile?: MotionSfxProfile;
 }
 
 export interface MotionTemplateMeta {
@@ -215,7 +229,7 @@ export interface MotionTemplateMeta {
 
 export interface MotionCueItem {
   t: number;
-  type: 'click' | 'pop' | 'thump' | 'whoosh';
+  type: MotionSfxType;
   amp: number;
 }
 
@@ -225,6 +239,8 @@ export interface MotionReelData {
   duration: number;
   scenes: MotionSceneConfig[];
   sfxEnabled?: boolean;
+  sfxProfile?: MotionSfxProfile;
+  defaultTransition?: MotionTransitionType;
   languageMode?: 'ar' | 'en' | 'bilingual';
   category?: string;
   channel?: string;
