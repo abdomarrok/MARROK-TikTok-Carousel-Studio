@@ -1,24 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Grid,
-  FileCheck2,
   MoreVertical,
   X,
   RotateCcw,
   Undo2,
   Redo2,
-  Smartphone,
   BookmarkCheck,
+  Check,
 } from 'lucide-react';
-import { ThemePalette } from '../types';
+import { ThemePalette } from '../types.ts';
 
 interface HeaderProps {
   currentPalette: ThemePalette;
   onOpenThemeCustomizer: () => void;
   onOpenApiKeyModal?: () => void;
   onOpenContactSheet?: () => void;
-  onOpenPlanInspector?: () => void;
-  onOpenPreviewDrawer?: (tab?: 'simulator' | 'polish') => void;
   onOpenSavedPostsDrawer?: () => void;
   savedPostsCount?: number;
   canUndo?: boolean;
@@ -27,14 +24,15 @@ interface HeaderProps {
   onRedo?: () => void;
   lastSavedTime?: string | null;
   onResetDraft?: () => void;
+  deckStatus?: 'draft' | 'ready' | 'posted';
+  onSaveToVault?: () => void;
+  isSavingPost?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentPalette,
   onOpenThemeCustomizer,
   onOpenContactSheet,
-  onOpenPlanInspector,
-  onOpenPreviewDrawer,
   onOpenSavedPostsDrawer,
   savedPostsCount = 0,
   canUndo = false,
@@ -43,6 +41,9 @@ export const Header: React.FC<HeaderProps> = ({
   onRedo,
   lastSavedTime,
   onResetDraft,
+  deckStatus = 'draft',
+  onSaveToVault,
+  isSavingPost = false,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
           </a>
         </div>
 
-        {/* Zone 2: Clean Workspace Navigation & History Controls */}
+        {/* Zone 2: Workspace Navigation & History Controls */}
         <nav className="hidden md:flex items-center gap-5 text-xs font-medium text-slate-400">
           {(onUndo || onRedo) && (
             <div className="flex items-center gap-1 pr-3 border-r border-white/10">
@@ -118,18 +119,6 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {onOpenPlanInspector && (
-            <button
-              type="button"
-              onClick={onOpenPlanInspector}
-              className="hover:text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
-              title="Inspect Plan & Verified Facts"
-            >
-              <FileCheck2 className="w-3.5 h-3.5 text-teal-400" />
-              <span>Verified Claims</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onOpenThemeCustomizer}
@@ -163,33 +152,51 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </nav>
 
-        {/* Zone 3: Primary Studio Actions (Saved Posts Vault + Preview & Tools Drawer) + Mobile Overflow */}
+        {/* Zone 3: Primary Studio Actions (One Save to Vault button + Saved Posts Vault Drawer) */}
         <div className="flex items-center gap-2 shrink-0">
-          {onOpenSavedPostsDrawer && (
+          {onSaveToVault && (
             <button
               type="button"
-              onClick={onOpenSavedPostsDrawer}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-cyan-400/35 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-              title="Open Saved & Posted Carousels Vault"
+              disabled={isSavingPost}
+              onClick={onSaveToVault}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 ${
+                deckStatus === 'posted'
+                  ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25'
+                  : deckStatus === 'ready'
+                  ? 'border-teal-400/40 bg-teal-500/20 text-teal-200 hover:bg-teal-500/30'
+                  : 'border-white/15 bg-white/[0.06] text-slate-300 hover:bg-white/[0.12] hover:text-white'
+              }`}
+              title={`Save current deck to Vault (Status: ${deckStatus.toUpperCase()})`}
             >
-              <BookmarkCheck className="w-3.5 h-3.5 text-cyan-300" />
-              <span>Saved Posts</span>
-              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-cyan-400/20 text-cyan-100">
-                {savedPostsCount}
+              {deckStatus === 'posted' ? (
+                <Check className="w-3.5 h-3.5 text-emerald-300" />
+              ) : (
+                <BookmarkCheck
+                  className="w-3.5 h-3.5"
+                  style={{ color: deckStatus === 'ready' ? currentPalette.accent : undefined }}
+                />
+              )}
+              <span>
+                {deckStatus === 'posted'
+                  ? 'Posted'
+                  : deckStatus === 'ready'
+                  ? 'Save to Vault · Ready'
+                  : 'Save to Vault · Draft'}
               </span>
             </button>
           )}
 
-          {onOpenPreviewDrawer && (
+          {onOpenSavedPostsDrawer && (
             <button
               type="button"
-              onClick={() => onOpenPreviewDrawer('simulator')}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] transition-colors cursor-pointer whitespace-nowrap shrink-0"
-              style={{ borderColor: `${currentPalette.accent}50` }}
-              title="Open Slide-Out TikTok Feed Simulator & Per-Slide Polish Tools"
+              onClick={onOpenSavedPostsDrawer}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              title="Open Saved & Posted Carousels Vault"
             >
-              <Smartphone className="w-3.5 h-3.5" style={{ color: currentPalette.accent }} />
-              <span className="hidden sm:inline">Preview & Tools</span>
+              <span>Saved Posts</span>
+              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-white/10 text-white">
+                {savedPostsCount}
+              </span>
             </button>
           )}
 
@@ -265,20 +272,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
 
-                {onOpenPlanInspector && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenPlanInspector();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <FileCheck2 className="w-4 h-4 text-teal-400 shrink-0" />
-                    <span>Inspect Plan & Facts</span>
-                  </button>
-                )}
-
                 {lastSavedTime && (
                   <div className="pt-1.5 mt-1 border-t border-white/10 px-3 py-1 flex items-center justify-between text-[11px] text-slate-400 font-mono tabular-nums">
                     <span>Saved {lastSavedTime}</span>
@@ -305,4 +298,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-

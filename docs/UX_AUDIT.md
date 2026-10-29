@@ -55,6 +55,55 @@ A creator provides **ONE input** (topic, text, screenshot, or link) and produces
 
 ---
 
+## State Machine & Readiness State Diagram
+
+The lifecycle of a deck follows 8 discrete states with a single authoritative status label displayed in the UI:
+
+```mermaid
+stateDiagram-v2
+    [*] --> OfflineDraft: Local Synthesizer Fallback
+    [*] --> AIUngrounded: Gemini Schema (No Search Tool)
+    [*] --> AIGrounded: Gemini with Google Search
+
+    OfflineDraft --> Reviewed: Creator confirms technical claims
+    AIUngrounded --> Reviewed: Creator confirms technical claims
+    AIGrounded --> Reviewed: Auto-reviewed (Live Sources Verified)
+
+    OfflineDraft --> Blocked: Missing Credit / Limit Failure / Risk Block
+    AIUngrounded --> Blocked: Missing Credit / Limit Failure / Risk Block
+    AIGrounded --> Blocked: Missing Credit / Limit Failure / Risk Block
+
+    Reviewed --> Ready: All 4 Checks PASS (or Override enabled)
+    Blocked --> Ready: Issues resolved or Override enabled
+
+    Ready --> Saved: Click "Save to Vault"
+    Ready --> Posted: Click "Export ZIP" / Marked as Posted
+    Saved --> Posted: Click "Export ZIP" / Marked as Posted
+    Posted --> [*]
+
+    note right of OfflineDraft: Status: "Offline Synthesizer"
+    note right of AIUngrounded: Status: "Ungrounded AI Draft"
+    note right of AIGrounded: Status: "Search Grounded"
+    note right of Reviewed: Status: "Reviewed"
+    note right of Blocked: Status: "Blocked (Actions Needed)"
+    note right of Ready: Status: "Ready to Publish"
+    note right of Saved: Status: "Saved to Vault"
+    note right of Posted: Status: "Posted"
+```
+
+| State | Transition Trigger | Condition to Advance | Single Authoritative UI Status Label |
+|---|---|---|---|
+| **Offline draft** | Local generation fallback | Requires human fact review | `Offline Synthesizer` |
+| **AI ungrounded** | LLM schema generation | Requires human fact review | `Ungrounded AI Draft` |
+| **AI grounded** | LLM + Google Search | Auto-passes source review if sources present | `Search Grounded` |
+| **Reviewed** | Creator clicks `Mark as Reviewed` | Ready if credit, risk, and limits pass | `Reviewed` |
+| **Blocked** | Any of 4 checklist items fails | Blocked until resolved or override checked | `Blocked (Actions Needed)` |
+| **Ready** | All 4 checklist items PASS or override active | Primary Export button enabled | `Ready to Publish` |
+| **Saved** | Creator clicks `Save to Vault` | Persisted in backend / IndexedDB vault | `Saved to Vault` |
+| **Posted** | Creator exports bundle or marks posted | Finalized publication state | `Posted` |
+
+---
+
 ## B. Complete UI & Status Inventory (Step 1)
 
 | # | Element Label / Indicator | Icon | Location | Component (`file:line`) | What It Does | Enabled / Disabled Condition | State Read / Written |

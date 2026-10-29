@@ -209,26 +209,21 @@ export const SavedPostsDrawer: React.FC<SavedPostsDrawerProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => onSaveCurrentPost('validated')}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-cyan-400/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-200 font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300" />
-              <span>{activePostRecord ? 'Update Valid Post' : 'Save as Valid Post'}</span>
-            </button>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-slate-400">
+              Vault Status: <span className="font-bold uppercase text-white">{activePostRecord?.postStatus || 'Draft (Unsaved)'}</span>
+            </span>
 
             <button
               type="button"
-              disabled={isSaving}
+              disabled={isSaving || activePostRecord?.postStatus === 'posted'}
               onClick={() => onSaveCurrentPost('posted')}
-              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs text-slate-950 transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl font-bold text-xs text-slate-950 transition-all shadow-md cursor-pointer disabled:opacity-50"
               style={{ backgroundColor: theme.accent }}
+              title="Mark this deck as published/posted to social channels"
             >
               <Send className="w-3.5 h-3.5 text-slate-950" />
-              <span>{activePostRecord?.postStatus === 'posted' ? 'Update Posted Deck' : 'Save & Mark Posted'}</span>
+              <span>{activePostRecord?.postStatus === 'posted' ? 'Marked as Posted ✓' : 'Mark as Posted'}</span>
             </button>
           </div>
         </div>

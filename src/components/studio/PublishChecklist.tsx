@@ -1,0 +1,471 @@
+import React, { useState } from 'react';
+import {
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowRight,
+  ExternalLink,
+  Globe,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  FileCheck2,
+} from 'lucide-react';
+import { CarouselData, ThemePalette } from '../../types.ts';
+import { QAReport } from '../../lib/qaChecks.ts';
+import { RiskReport } from '../../lib/riskChecks.ts';
+
+export interface PublishChecklistProps {
+  carousel: CarouselData;
+  currentSlideIndex: number;
+  theme: ThemePalette;
+  isOfflineDraft: boolean;
+  isReviewed: boolean;
+  qaReport: QAReport;
+  riskReport?: RiskReport;
+  overrideExportBlock?: boolean;
+  onToggleOverrideBlock?: () => void;
+  onToggleReviewDraft: () => void;
+  onRetryWithAi: () => void;
+  onUpdateCreator?: (creator: string) => void;
+  onJumpToSlide?: (slideIndex: number) => void;
+  onShowToast?: (msg: string) => void;
+}
+
+
+export interface PublishBlockersResult {
+  engineType: 'grounded' | 'offline' | 'ungrounded';
+  creatorCredit: string;
+  hasCreatorCredit: boolean;
+  sourcesStatus: 'PASS' | 'WARN' | 'BLOCK';
+  creditStatus: 'PASS' | 'WARN' | 'BLOCK';
+  riskStatus: 'PASS' | 'WARN' | 'BLOCK';
+  structureStatus: 'PASS' | 'WARN' | 'BLOCK';
+  blockersCount: number;
+  isReady: boolean;
+}
+
+export function getPublishBlockers(
+  carousel: CarouselData,
+  isOfflineDraft: boolean,
+  isReviewed: boolean,
+  qaReport: QAReport,
+  riskReport?: RiskReport
+): PublishBlockersResult {
+  const ctaSlide = carousel.slides[carousel.slides.length - 1];
+  const creatorCredit = (
+    carousel.sourceMeta?.creator ||
+    carousel.sourceMeta?.channel ||
+    carousel.channel ||
+    ctaSlide?.enCredit?.replace(/^Source:\s*/i, '') ||
+    ''
+  ).trim();
+  const hasCreatorCredit = creatorCredit.length > 0;
+
+  const engineType =
+    carousel.sourceMeta?.engine === 'grounded' || carousel.sourceMeta?.status === 'verified_live'
+      ? 'grounded'
+      : carousel.sourceMeta?.isFallback ||
+        carousel.sourceMeta?.engine === 'offline' ||
+        carousel.sourceMeta?.engine === 'offline-synthesizer'
+      ? 'offline'
+      : 'ungrounded';
+
+  const qaFailures = qaReport.results.filter(
+    (r) => r.severity === 'fail' && r.id !== 'fallback-draft-blocker'
+  );
+  const riskBlocks = (riskReport?.items || []).filter((i) => i.status === 'BLOCK');
+  const riskWarns = (riskReport?.items || []).filter((i) => i.status === 'WARN');
+
+  const sourcesStatus: 'PASS' | 'WARN' | 'BLOCK' =
+    engineType === 'grounded' || isReviewed ? 'PASS' : 'BLOCK';
+  const creditStatus: 'PASS' | 'WARN' | 'BLOCK' = hasCreatorCredit ? 'PASS' : 'BLOCK';
+  const riskStatus: 'PASS' | 'WARN' | 'BLOCK' =
+    riskBlocks.length > 0 ? 'BLOCK' : riskWarns.length > 0 ? 'WARN' : 'PASS';
+  const structureStatus: 'PASS' | 'WARN' | 'BLOCK' = qaFailures.length > 0 ? 'BLOCK' : 'PASS';
+
+  const blockersCount =
+    (sourcesStatus === 'BLOCK' ? 1 : 0) +
+    (creditStatus === 'BLOCK' ? 1 : 0) +
+    (riskStatus === 'BLOCK' ? 1 : 0) +
+    (structureStatus === 'BLOCK' ? 1 : 0);
+
+  return {
+    engineType,
+    creatorCredit,
+    hasCreatorCredit,
+    sourcesStatus,
+    creditStatus,
+    riskStatus,
+    structureStatus,
+    blockersCount,
+    isReady: blockersCount === 0,
+  };
+}
+
+export const PublishChecklist: React.FC<PublishChecklistProps> = ({
+  carousel,
+  theme,
+  isOfflineDraft,
+  isReviewed,
+  qaReport,
+  riskReport,
+  overrideExportBlock = false,
+  onToggleOverrideBlock,
+  onToggleReviewDraft,
+  onRetryWithAi,
+  onUpdateCreator,
+  onJumpToSlide,
+  onShowToast,
+}) => {
+  const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
+  const [copiedCitations, setCopiedCitations] = useState(false);
+  const [isEditingCredit, setIsEditingCredit] = useState(false);
+
+  const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
+  const {
+    engineType,
+    creatorCredit,
+    hasCreatorCredit,
+    sourcesStatus,
+    creditStatus,
+    riskStatus,
+    structureStatus,
+    blockersCount,
+  } = getPublishBlockers(carousel, isOfflineDraft, isReviewed, qaReport, riskReport);
+
+  const needsHumanReview = (isOfflineDraft || engineType !== 'grounded') && !isReviewed;
+  const qaFailures = qaReport.results.filter(
+    (r) => r.severity === 'fail' && r.id !== 'fallback-draft-blocker'
+  );
+  const riskBlocks = (riskReport?.items || []).filter((i) => i.status === 'BLOCK');
+  const riskWarns = (riskReport?.items || []).filter((i) => i.status === 'WARN');
+  const isReady = blockersCount === 0 || overrideExportBlock;
+
+  const handleCopyCitations = () => {
+    const sources = carousel.sourceMeta?.groundingSources || [];
+    const facts = carousel.facts || [];
+    const text = `MARROK SOURCES & CITATIONS REPORT
+Topic: ${carousel.category}
+Engine: ${engineType}
+${sources.length > 0 ? `\nSOURCES:\n${sources.map((s) => `• ${s.title}: ${s.url}`).join('\n')}` : ''}
+${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.toUpperCase()}] ${f.text}`).join('\n')}` : ''}`;
+    navigator.clipboard.writeText(text);
+    setCopiedCitations(true);
+    setTimeout(() => setCopiedCitations(false), 2000);
+    onShowToast?.('Copied sources & citations to clipboard!');
+  };
+
+  const renderBadge = (status: 'PASS' | 'WARN' | 'BLOCK') => {
+    if (status === 'PASS') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          PASS
+        </span>
+      );
+    }
+    if (status === 'WARN') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+          WARN
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+        BLOCK
+      </span>
+    );
+  };
+
+  return (
+    <div className="w-full space-y-4">
+      {/* ONE "Ready to publish" checklist */}
+      <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 space-y-4 shadow-xl">
+        {/* Card Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            {isReady ? (
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+            )}
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+              Ready to Publish Checklist
+            </h3>
+            <span className="text-[11px] text-slate-400 hidden sm:inline">
+              · {isSinglePost ? '1-Slide Poster' : `${carousel.slides.length}-Slide Carousel`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-[11px] font-mono font-bold ${
+                isReady ? 'text-emerald-300' : 'text-amber-300'
+              }`}
+            >
+              {isReady
+                ? overrideExportBlock && blockersCount > 0
+                  ? 'Override Active'
+                  : 'All Checks Passed'
+                : `${blockersCount} Action(s) Needed`}
+            </span>
+          </div>
+        </div>
+
+        {/* The 4 Standard Checklist Items */}
+        <div className="space-y-3">
+          {/* ITEM 1: Sources reviewed */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-black/40 border border-white/5">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="pt-0.5">{renderBadge(sourcesStatus)}</div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-white">1. Sources Reviewed</div>
+                <div className="text-[11px] text-slate-400 truncate">
+                  {engineType === 'grounded'
+                    ? 'Verified live via Google Search grounding sources.'
+                    : isReviewed
+                    ? 'Draft copy and technical claims confirmed by creator.'
+                    : isOfflineDraft
+                    ? 'Offline draft — verify claims before publishing.'
+                    : 'Generated without live web search — review technical claims.'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center pl-8 sm:pl-0">
+              {isOfflineDraft && !isReviewed && (
+                <button
+                  type="button"
+                  onClick={onRetryWithAi}
+                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-[11px] font-semibold cursor-pointer transition-all flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Retry AI</span>
+                </button>
+              )}
+              {engineType !== 'grounded' && (
+                <button
+                  type="button"
+                  onClick={onToggleReviewDraft}
+                  className={`px-3 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1 ${
+                    isReviewed
+                      ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-200'
+                      : 'bg-amber-500 hover:bg-amber-400 border-amber-400 text-slate-950 font-extrabold shadow-sm'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isReviewed ? 'Reviewed (Unmark)' : 'Mark as Reviewed'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ITEM 2: Creator credit */}
+          <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-black/40 border border-white/5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {renderBadge(creditStatus)}
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white">2. Creator Credit</div>
+                  <div className="text-[11px] text-slate-400 truncate">
+                    {hasCreatorCredit
+                      ? `Attributed to ${creatorCredit} (${isSinglePost ? 'Footer' : 'CTA Slide'})`
+                      : 'Required attribution credit before export.'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsEditingCredit(!isEditingCredit)}
+                className="text-[11px] text-cyan-300 hover:text-white font-medium cursor-pointer shrink-0"
+              >
+                {isEditingCredit ? 'Done' : hasCreatorCredit ? 'Edit' : 'Add Credit'}
+              </button>
+            </div>
+
+            {(!hasCreatorCredit || isEditingCredit) && (
+              <input
+                type="text"
+                value={creatorCredit}
+                onChange={(e) => onUpdateCreator?.(e.target.value)}
+                placeholder="Enter creator or channel handle (e.g. MARROK, Anthropic Engineering)"
+                className="w-full bg-black/70 border border-white/15 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none transition-all font-mono"
+                autoFocus={!hasCreatorCredit}
+              />
+            )}
+          </div>
+
+          {/* ITEM 3: Platform risk */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-black/40 border border-white/5">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="pt-0.5">{renderBadge(riskStatus)}</div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-white">3. Platform Risk & Safety</div>
+                <div className="text-[11px] text-slate-400 truncate">
+                  {riskBlocks.length > 0
+                    ? `${riskBlocks[0].label}: ${riskBlocks[0].message}`
+                    : riskWarns.length > 0
+                    ? `${riskWarns[0].label}: ${riskWarns[0].message}`
+                    : 'Originality, audio/IP, and first-frame retention checks passed.'}
+                </div>
+              </div>
+            </div>
+
+            {riskBlocks.length > 0 && onToggleOverrideBlock && (
+              <button
+                type="button"
+                onClick={onToggleOverrideBlock}
+                className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-[11px] font-semibold cursor-pointer shrink-0"
+              >
+                {overrideExportBlock ? 'Override Active' : 'Override Risk'}
+              </button>
+            )}
+          </div>
+
+          {/* ITEM 4: Structure & limits */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-black/40 border border-white/5">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="pt-0.5">{renderBadge(structureStatus)}</div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-white">4. Structure & Limits</div>
+                <div className="text-[11px] text-slate-400 truncate">
+                  {qaFailures.length > 0
+                    ? `${qaFailures[0].message}${qaFailures.length > 1 ? ` (+${qaFailures.length - 1} more)` : ''}`
+                    : '1080×1920 safe zones, line heights, and character limits passed.'}
+                </div>
+              </div>
+            </div>
+
+            {qaFailures.length > 0 && (
+              <div className="shrink-0 self-end sm:self-center">
+                {qaFailures[0].slideIndex !== undefined && onJumpToSlide ? (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToSlide(qaFailures[0].slideIndex!)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-cyan-200 text-[11px] font-semibold cursor-pointer"
+                  >
+                    <span>Fix Slide {qaFailures[0].slideIndex + 1}</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                ) : onToggleOverrideBlock ? (
+                  <button
+                    type="button"
+                    onClick={onToggleOverrideBlock}
+                    className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-[11px] font-semibold cursor-pointer"
+                  >
+                    {overrideExportBlock ? 'Override Active' : 'Override Limit'}
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Override Toggle (shown only when blocked) */}
+        {!isReady && onToggleOverrideBlock && (
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs text-amber-200 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={overrideExportBlock}
+                onChange={onToggleOverrideBlock}
+                className="rounded border-white/20 bg-black/60 text-amber-400 focus:ring-0"
+              />
+              <span>Export anyway (Override warnings)</span>
+            </label>
+            <span className="text-[11px] font-mono text-slate-500">Bypasses QA gates</span>
+          </div>
+        )}
+      </div>
+
+      {/* Collapsible Sources & Citations Section */}
+      <div className="rounded-2xl border border-white/10 bg-slate-950/60 overflow-hidden shadow-lg">
+        <button
+          type="button"
+          onClick={() => setIsSourcesExpanded(!isSourcesExpanded)}
+          className="w-full flex items-center justify-between p-3.5 hover:bg-white/[0.02] transition-colors cursor-pointer text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span className="text-xs font-bold text-white">Sources & Grounded Citations</span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
+              {carousel.sourceMeta?.groundingSources?.length || 0} Sources
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-slate-400">
+            {isSourcesExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
+        </button>
+
+        {isSourcesExpanded && (
+          <div className="p-4 pt-1 border-t border-white/5 space-y-3 animate-fade-in text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">
+                Grounding sources and claims mapped during synthesis:
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyCitations}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 font-semibold cursor-pointer"
+              >
+                {copiedCitations ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                <span>{copiedCitations ? 'Copied' : 'Copy Citations'}</span>
+              </button>
+            </div>
+
+            {/* Source URLs */}
+            {(carousel.sourceMeta?.groundingSources || []).length > 0 ? (
+              <div className="space-y-1.5">
+                {(carousel.sourceMeta?.groundingSources || []).map((source, i) => (
+                  <a
+                    key={i}
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between p-2 rounded-lg bg-black/40 hover:bg-white/5 border border-white/5 text-slate-300 hover:text-white transition-colors group"
+                  >
+                    <span className="truncate pr-2">{source.title || source.url}</span>
+                    <ExternalLink className="w-3 h-3 shrink-0 text-slate-500 group-hover:text-cyan-400" />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-400 italic">
+                No web search sources attached. Deck generated via local synthesizer or ungrounded model.
+              </p>
+            )}
+
+            {/* Extracted Facts */}
+            {(carousel.facts || []).length > 0 && (
+              <div className="pt-2 border-t border-white/5 space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-300 block">Verified Technical Claims:</span>
+                {(carousel.facts || []).map((fact, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2 rounded-lg bg-black/30 border border-white/5 text-[11px] text-slate-300"
+                  >
+                    <div className="font-semibold text-white">• {fact.text}</div>
+                    {fact.evidence && (
+                      <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
+                        Evidence: {fact.evidence}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Backwards compatibility export
+export const ExportBar = PublishChecklist;

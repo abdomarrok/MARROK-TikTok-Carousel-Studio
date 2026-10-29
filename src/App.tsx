@@ -4,8 +4,6 @@ import { AutonomousStudio } from './components/AutonomousStudio';
 import { ThemeCustomizer } from './components/ThemeCustomizer';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ContactSheetModal } from './components/ContactSheetModal';
-import { PlanInspectorModal } from './components/PlanInspectorModal';
-import { PreviewAndToolsDrawer } from './components/studio/PreviewAndToolsDrawer';
 import { SavedPostsDrawer } from './components/studio/SavedPostsDrawer';
 import {
   CarouselData,
@@ -19,6 +17,9 @@ import {
 import { DEFAULT_STARTER_DECK } from './lib/presets';
 import { sanitizeFullCarousel, sanitizeSlide } from './lib/textSanitizer';
 import { parseCarouselData } from './lib/validation/carousel';
+import { runQAChecks } from './lib/qaChecks';
+import { runPlatformRiskChecks } from './lib/riskChecks';
+import { getPublishBlockers } from './components/studio/index.ts';
 import {
   loadVaultPosts,
   saveValidPost,
@@ -116,9 +117,6 @@ export default function App() {
   const [isThemeCustomizerOpen, setIsThemeCustomizerOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
-  const [isPlanInspectorOpen, setIsPlanInspectorOpen] = useState(false);
-  const [isPreviewDrawerOpen, setIsPreviewDrawerOpen] = useState(false);
-  const [previewDrawerTab, setPreviewDrawerTab] = useState<'simulator' | 'polish'>('simulator');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -356,30 +354,22 @@ export default function App() {
     }
   };
 
-  const handleOpenPreviewDrawer = (tab: 'simulator' | 'polish' = 'simulator') => {
-    setPreviewDrawerTab(tab);
-    setIsPreviewDrawerOpen(true);
-  };
-
-  const handleUpdateSingleSlideFromDrawer = (
-    slideIndex: number,
-    updater: (prevSlide: SlideData) => SlideData,
-    actionLabel?: string
-  ) => {
-    handleUpdateCarousel((prev) => {
-      if (slideIndex < 0 || slideIndex >= prev.slides.length) return prev;
-      const newSlides = [...prev.slides];
-      const updated = updater(newSlides[slideIndex]);
-      newSlides[slideIndex] = sanitizeSlide(updated, slideIndex, prev.slides.length);
-      return {
-        ...prev,
-        slides: newSlides,
-      };
-    });
-    if (actionLabel) {
-      showToast(actionLabel);
-    }
-  };
+  // Derived Deck Status: posted | ready | draft
+  const qaReport = runQAChecks(carousel);
+  const riskReport = runPlatformRiskChecks(carousel);
+  const isReviewed = Boolean(carousel.sourceMeta?.userReviewed);
+  const isOfflineDraft = Boolean(
+    carousel.sourceMeta?.isFallback ||
+    carousel.sourceMeta?.engine === 'offline' ||
+    carousel.sourceMeta?.engine === 'offline-synthesizer'
+  );
+  const blockers = getPublishBlockers(carousel, isOfflineDraft, isReviewed, qaReport, riskReport);
+  const isPosted = savedPosts.find((p) => p.id === carousel.id)?.postStatus === 'posted';
+  const deckStatus: 'posted' | 'ready' | 'draft' = isPosted
+    ? 'posted'
+    : blockers.isReady
+    ? 'ready'
+    : 'draft';
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden text-[#CDD5D9] flex flex-col font-jakarta selection:bg-white/20 transition-colors duration-300 bg-[#080d11]">
@@ -389,8 +379,9 @@ export default function App() {
         onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         onOpenContactSheet={() => setIsContactSheetOpen(true)}
-        onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
-        onOpenPreviewDrawer={handleOpenPreviewDrawer}
+        deckStatus={deckStatus}
+        onSaveToVault={() => handleSaveValidPost(deckStatus === 'posted' ? 'posted' : 'validated', true)}
+        isSavingPost={isSavingPost}
         onOpenSavedPostsDrawer={() => {
           refreshVaultPosts(false);
           setIsSavedPostsDrawerOpen(true);
@@ -415,8 +406,6 @@ export default function App() {
           onSelectTheme={handleSelectPalette}
           onOpenThemeCustomizer={() => setIsThemeCustomizerOpen(true)}
           onOpenContactSheet={() => setIsContactSheetOpen(true)}
-          onOpenPlanInspector={() => setIsPlanInspectorOpen(true)}
-          onOpenPreviewDrawer={handleOpenPreviewDrawer}
           onOpenSavedPostsDrawer={() => {
             refreshVaultPosts(false);
             setIsSavedPostsDrawerOpen(true);
@@ -444,18 +433,6 @@ export default function App() {
         onImportVault={handleImportVault}
       />
 
-      {/* Slide-Out Preview & Tools Drawer (TikTok Simulator + Per-Slide Refiner) */}
-      <PreviewAndToolsDrawer
-        isOpen={isPreviewDrawerOpen}
-        initialTab={previewDrawerTab}
-        onClose={() => setIsPreviewDrawerOpen(false)}
-        carousel={carousel}
-        currentSlideIndex={activeSlideIndex}
-        theme={currentPalette}
-        onSelectSlide={setActiveSlideIndex}
-        onUpdateSlide={handleUpdateSingleSlideFromDrawer}
-        onShowToast={showToast}
-      />
 
       {/* Theme Customizer & Color Palette Studio Modal */}
       <ThemeCustomizer
@@ -490,13 +467,7 @@ export default function App() {
         onShowToast={showToast}
       />
 
-      {/* Plan & Fact Verification Inspector Modal */}
-      <PlanInspectorModal
-        isOpen={isPlanInspectorOpen}
-        onClose={() => setIsPlanInspectorOpen(false)}
-        carousel={carousel}
-        theme={currentPalette}
-      />
+
 
       {/* Floating Toast Notification */}
       {toastMessage && (

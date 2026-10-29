@@ -1,12 +1,15 @@
 import React from 'react';
 import { Plus, Copy, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { CarouselData, HookVariant } from '../../types.ts';
+import { StageOverlayMode } from './ViewportCanvas.tsx';
 
 interface SlideNavigatorProps {
   carousel: CarouselData;
   currentSlideIndex: number;
-  showSafeZones: boolean;
-  onToggleSafeZones: () => void;
+  showSafeZones?: boolean;
+  stageOverlayMode?: StageOverlayMode;
+  onSetStageOverlayMode?: (mode: StageOverlayMode) => void;
+  onToggleSafeZones?: () => void;
   onSelectSlide: (index: number) => void;
   onAddSlide: () => void;
   onDuplicateSlide: () => void;
@@ -19,6 +22,8 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   carousel,
   currentSlideIndex,
   showSafeZones,
+  stageOverlayMode,
+  onSetStageOverlayMode,
   onToggleSafeZones,
   onSelectSlide,
   onAddSlide,
@@ -28,6 +33,54 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
 }) => {
   const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
   const activeSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
+  const overlayMode: StageOverlayMode = stageOverlayMode || (showSafeZones ? 'safe' : 'clean');
+
+  const handleSelectMode = (mode: StageOverlayMode) => {
+    if (onSetStageOverlayMode) {
+      onSetStageOverlayMode(mode);
+    } else if (onToggleSafeZones) {
+      onToggleSafeZones();
+    }
+  };
+
+  const renderStageToggle = () => (
+    <div className="flex items-center gap-0.5 bg-black/70 border border-white/10 rounded-lg p-0.5 text-[10px] font-sans">
+      <button
+        type="button"
+        onClick={() => handleSelectMode('clean')}
+        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+          overlayMode === 'clean' ? 'bg-white/20 text-white font-bold' : 'text-slate-400 hover:text-white'
+        }`}
+        title="Clean preview without overlay"
+      >
+        Clean
+      </button>
+      <button
+        type="button"
+        onClick={() => handleSelectMode('safe')}
+        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+          overlayMode === 'safe'
+            ? 'bg-rose-500/25 text-rose-300 font-bold border border-rose-500/40'
+            : 'text-slate-400 hover:text-white'
+        }`}
+        title="Highlight TikTok safe zone margins"
+      >
+        Safe zones
+      </button>
+      <button
+        type="button"
+        onClick={() => handleSelectMode('tiktok')}
+        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+          overlayMode === 'tiktok'
+            ? 'bg-cyan-500/25 text-cyan-200 font-bold border border-cyan-500/40'
+            : 'text-slate-400 hover:text-white'
+        }`}
+        title="Simulate realistic TikTok feed icons and chrome"
+      >
+        TikTok UI
+      </button>
+    </div>
+  );
 
   if (isSinglePost) {
     return (
@@ -40,26 +93,14 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onToggleSafeZones}
-            className={`text-[10px] font-sans font-semibold px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
-              showSafeZones
-                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                : 'bg-white/[0.03] text-slate-400 border-white/10 hover:text-slate-200'
-            }`}
-          >
-            Safe Zones
-          </button>
-        </div>
+        <div className="flex items-center gap-1.5">{renderStageToggle()}</div>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-[360px] space-y-1.5">
-      {/* Top Bar: Slide Count, Management Actions & Safe Zones Toggle */}
+      {/* Top Bar: Slide Count, Management Actions & Stage Mode Switcher */}
       <div className="flex items-center justify-between text-xs text-slate-400 px-0.5">
         <div className="flex items-center gap-2 font-mono tabular-nums">
           <span className="text-[11px]">
@@ -115,19 +156,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onToggleSafeZones}
-            className={`text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded-md border cursor-pointer transition-colors ${
-              showSafeZones
-                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                : 'bg-white/[0.03] text-slate-400 border-white/10 hover:text-slate-200'
-            }`}
-          >
-            Safe
-          </button>
-        </div>
+        <div className="flex items-center gap-1">{renderStageToggle()}</div>
       </div>
 
       {/* Storyboard Strip */}

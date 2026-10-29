@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Move, RotateCcw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Move, RotateCcw, X, Heart, MessageCircle, Bookmark, Share2, Music2, Search } from 'lucide-react';
 import { CarouselData, GraphicalElementId, ElementLayoutOverride, ThemePalette } from '../../types.ts';
 import { renderSlideToCanvas } from '../../lib/canvasExporter.ts';
 import { computeSlideElementBounds, findSlideElementAtPoint, ElementBounds } from '../../lib/canvas/layoutBounds.ts';
 import { clampElementDrag } from '../../lib/canvas/layoutAwareness.ts';
 
+export type StageOverlayMode = 'clean' | 'safe' | 'tiktok';
+
 interface ViewportCanvasProps {
+  stageOverlayMode?: StageOverlayMode;
+  onSetStageOverlayMode?: (mode: StageOverlayMode) => void;
   carousel: CarouselData;
   currentSlideIndex: number;
   theme: ThemePalette;
@@ -24,6 +28,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   currentSlideIndex,
   theme,
   showSafeZones,
+  stageOverlayMode,
+  onSetStageOverlayMode,
   onPreviousSlide,
   onNextSlide,
   canvasRef: externalCanvasRef,
@@ -46,6 +52,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   const renderSequenceRef = useRef(0);
 
   const currentSlide = carousel.slides[currentSlideIndex];
+  const overlayMode: StageOverlayMode = stageOverlayMode || (showSafeZones ? 'safe' : 'clean');
+  const creatorHandle = (carousel.sourceMeta?.creator || carousel.channel || carousel.brand || 'marrok').toLowerCase().replace(/\s+/g, '');
   const currentOverride = (selectedElementId && currentSlide?.layoutOverrides?.[selectedElementId]) || null;
   const currentDx = currentOverride?.dx ?? 0;
   const currentDy = currentOverride?.dy ?? 0;
@@ -437,7 +445,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       )}
 
       {/* TikTok Feed Safe Zone Simulator Overlay */}
-      {showSafeZones && (
+      {overlayMode === 'safe' && (
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-mono text-[9px] select-none">
           {/* Top 9.4% Safe Zone (Status & Search) */}
           <div className="h-[9.4%] bg-rose-500/20 border-b border-rose-500/40 flex items-center justify-between px-3 text-rose-300">
@@ -464,6 +472,78 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
               <span>@username</span>
             </div>
             <span className="text-[8px] text-rose-400/80">TikTok Captions & Audio Track Area</span>
+          </div>
+        </div>
+      )}
+
+      {overlayMode === 'tiktok' && (
+        <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-sans select-none overflow-hidden">
+          {/* Top TikTok Navigation Bar */}
+          <div className="pt-3 px-3 flex items-center justify-between text-white/90 drop-shadow-md z-10">
+            <span className="text-[11px] font-semibold text-white/50">LIVE</span>
+            <div className="flex items-center gap-3 text-xs font-bold">
+              <span className="text-white/60">Following</span>
+              <span className="text-white border-b-2 border-white pb-0.5">For You</span>
+            </div>
+            <Search className="w-4 h-4 text-white" />
+          </div>
+
+          {/* Center Bounding Area */}
+          <div className="flex-1 mx-2 border border-dashed border-white/20 rounded-lg flex items-center justify-end p-1">
+            {/* Right-Side TikTok Action Column */}
+            <div className="flex flex-col items-center gap-2.5 text-white pr-1 pb-1 z-10">
+              <div className="relative mb-1">
+                <div className="w-8 h-8 rounded-full bg-slate-800 border-2 border-white overflow-hidden flex items-center justify-center">
+                  <span className="font-bold text-[10px] text-cyan-300">
+                    {(carousel.brand || 'M')[0].toUpperCase()}
+                  </span>
+                </div>
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                  +
+                </div>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
+                  <Heart className="w-4 h-4 fill-white text-white" />
+                </div>
+                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">38.4K</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
+                  <MessageCircle className="w-4 h-4 fill-white text-white" />
+                </div>
+                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">482</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
+                  <Bookmark className="w-4 h-4 fill-white text-white" />
+                </div>
+                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">1.9K</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
+                  <Share2 className="w-4 h-4 fill-white text-white" />
+                </div>
+                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">924</span>
+              </div>
+              <div className="w-7 h-7 rounded-full bg-slate-900 border-2 border-slate-700 flex items-center justify-center mt-0.5 animate-spin" style={{ animationDuration: '6s' }}>
+                <Music2 className="w-3.5 h-3.5 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom TikTok Caption & Marquee Bar */}
+          <div className="p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-white space-y-1 z-10">
+            <div className="font-bold text-xs tracking-tight">
+              @{creatorHandle}
+            </div>
+            <p className="text-[11px] text-white/90 line-clamp-2 leading-snug font-sans">
+              {carousel.slides[currentSlideIndex]?.enTitle || carousel.caption?.slice(0, 60) || 'MARROK engineering breakthrough...'}
+            </p>
+            <div className="flex items-center gap-1.5 text-[10px] text-white/75 font-mono">
+              <Music2 className="w-3 h-3 text-white" />
+              <span>original sound - @{creatorHandle}</span>
+            </div>
           </div>
         </div>
       )}
