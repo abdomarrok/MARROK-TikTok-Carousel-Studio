@@ -165,21 +165,24 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
   const renderBadge = (status: 'PASS' | 'WARN' | 'BLOCK') => {
     if (status === 'PASS') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-          PASS
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+          <span>PASS</span>
         </span>
       );
     }
     if (status === 'WARN') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-          WARN
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+          <span>WARN</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-        BLOCK
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+        <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+        <span>BLOCK</span>
       </span>
     );
   };
@@ -199,14 +202,14 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
             <h3 className="text-xs font-bold uppercase tracking-wider text-white">
               Ready to Publish Checklist
             </h3>
-            <span className="text-[11px] text-slate-400 hidden sm:inline">
+            <span className="text-xs text-slate-400 hidden sm:inline">
               · {isSinglePost ? '1-Slide Poster' : `${carousel.slides.length}-Slide Carousel`}
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             <span
-              className={`text-[11px] font-mono font-bold ${
+              className={`text-xs font-mono font-bold ${
                 isReady ? 'text-emerald-300' : 'text-amber-300'
               }`}
             >
@@ -227,7 +230,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
               <div className="pt-0.5">{renderBadge(sourcesStatus)}</div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-white">1. Sources Reviewed</div>
-                <div className="text-[11px] text-slate-400 truncate">
+                <div className="text-xs text-slate-400 truncate">
                   {engineType === 'grounded'
                     ? 'Verified live via Google Search grounding sources.'
                     : isReviewed
@@ -244,7 +247,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                 <button
                   type="button"
                   onClick={onRetryWithAi}
-                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-[11px] font-semibold cursor-pointer transition-all flex items-center gap-1"
+                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1"
                 >
                   <RefreshCw className="w-3 h-3" />
                   <span>Retry AI</span>
@@ -254,7 +257,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                 <button
                   type="button"
                   onClick={onToggleReviewDraft}
-                  className={`px-3 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1 ${
+                  className={`px-3 py-2 min-h-[44px] rounded-lg border text-xs font-bold cursor-pointer transition-all flex items-center gap-1 ${
                     isReviewed
                       ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-200'
                       : 'bg-amber-500 hover:bg-amber-400 border-amber-400 text-slate-950 font-extrabold shadow-sm'
@@ -274,7 +277,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                 {renderBadge(creditStatus)}
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white">2. Creator Credit</div>
-                  <div className="text-[11px] text-slate-400 truncate">
+                  <div className="text-xs text-slate-400 truncate">
                     {hasCreatorCredit
                       ? `Credited: ${creatorCredit} (${isSinglePost ? 'Footer' : 'CTA Slide'})`
                       : isThirdPartySource(carousel)
@@ -287,7 +290,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
               <button
                 type="button"
                 onClick={() => setIsEditingCredit(!isEditingCredit)}
-                className="text-[11px] text-cyan-300 hover:text-white font-medium cursor-pointer shrink-0"
+                className="text-xs text-cyan-300 hover:text-white font-medium cursor-pointer shrink-0"
               >
                 {isEditingCredit ? 'Done' : hasCreatorCredit ? 'Edit' : 'Add Credit'}
               </button>
@@ -311,7 +314,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
               <div className="pt-0.5">{renderBadge(riskStatus)}</div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-white">3. Platform Risk & Safety</div>
-                <div className="text-[11px] text-slate-400 truncate">
+                <div className="text-xs text-slate-400 truncate">
                   {riskBlocks.length > 0
                     ? `${riskBlocks[0].label}: ${riskBlocks[0].message}`
                     : riskWarns.length > 0
@@ -328,7 +331,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                   if (overrideExportBlock) onToggleOverrideBlock?.();
                   else setShowOverrideConfirmModal(true);
                 }}
-                className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-[11px] font-semibold cursor-pointer shrink-0"
+                className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs font-semibold cursor-pointer shrink-0"
               >
                 {overrideExportBlock ? 'Override Active' : 'Override Risk'}
               </button>
@@ -341,7 +344,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
               <div className="pt-0.5">{renderBadge(structureStatus)}</div>
               <div className="min-w-0">
                 <div className="text-xs font-bold text-white">4. Structure & Limits</div>
-                <div className="text-[11px] text-slate-400 truncate">
+                <div className="text-xs text-slate-400 truncate">
                   {qaFailures.length > 0
                     ? `${qaFailures[0].message}${qaFailures.length > 1 ? ` (+${qaFailures.length - 1} more)` : ''}`
                     : '1080×1920 safe zones, line heights, and character limits passed.'}
@@ -355,7 +358,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                   <button
                     type="button"
                     onClick={() => onJumpToSlide(qaFailures[0].slideIndex!)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-cyan-200 text-[11px] font-semibold cursor-pointer"
+                    className="flex items-center gap-1 px-3 py-2 min-h-[44px] rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-cyan-200 text-xs font-semibold cursor-pointer"
                   >
                     <span>Fix Slide {qaFailures[0].slideIndex + 1}</span>
                     <ArrowRight className="w-3 h-3" />
@@ -367,7 +370,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                     if (overrideExportBlock) onToggleOverrideBlock?.();
                     else setShowOverrideConfirmModal(true);
                   }}
-                    className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-[11px] font-semibold cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs font-semibold cursor-pointer"
                   >
                     {overrideExportBlock ? 'Override Active' : 'Override Limit'}
                   </button>
@@ -395,7 +398,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
               />
               <span>Export anyway (Override warnings)</span>
             </label>
-            <span className="text-[11px] font-mono text-slate-500">Bypasses QA gates</span>
+            <span className="text-xs font-mono text-slate-500">Bypasses QA gates</span>
           </div>
         )}
 
@@ -412,27 +415,27 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                 <p>You are overriding the following blocking issue(s):</p>
                 <ul className="space-y-1.5 pl-3 border-l-2 border-amber-500/40">
                   {sourcesStatus === 'BLOCK' && (
-                    <li className="text-[11px] text-amber-200 font-mono">
+                    <li className="text-xs text-amber-200 font-mono">
                       • Sources: Unreviewed offline draft requires human review (click "I reviewed")
                     </li>
                   )}
                   {creditStatus === 'BLOCK' && (
-                    <li className="text-[11px] text-amber-200 font-mono">
+                    <li className="text-xs text-amber-200 font-mono">
                       • Attribution: Third-party source requires valid creator/channel credit
                     </li>
                   )}
                   {riskBlocks.map((r, i) => (
-                    <li key={i} className="text-[11px] text-amber-200 font-mono">
+                    <li key={i} className="text-xs text-amber-200 font-mono">
                       • ${r.label}: ${r.message}
                     </li>
                   ))}
                   {qaFailures.map((f, i) => (
-                    <li key={i} className="text-[11px] text-amber-200 font-mono">
+                    <li key={i} className="text-xs text-amber-200 font-mono">
                       • Structure & Limits: ${f.message}
                     </li>
                   ))}
                 </ul>
-                <p className="text-[11px] text-slate-400 pt-1">
+                <p className="text-xs text-slate-400 pt-1">
                   This override will be permanently recorded in <code>post_metadata.json</code> and the post vault archive.
                 </p>
               </div>
@@ -476,7 +479,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4 text-cyan-400 shrink-0" />
             <span className="text-xs font-bold text-white">Sources & Grounded Citations</span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
+            <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
               {carousel.sourceMeta?.groundingSources?.length || 0} Sources
             </span>
           </div>
@@ -489,13 +492,13 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
         {isSourcesExpanded && (
           <div className="p-4 pt-1 border-t border-white/5 space-y-3 animate-fade-in text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">
+              <span className="text-xs text-slate-400">
                 Grounding sources and claims mapped during synthesis:
               </span>
               <button
                 type="button"
                 onClick={handleCopyCitations}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-slate-200 font-semibold cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-200 font-semibold cursor-pointer"
               >
                 {copiedCitations ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                 <span>{copiedCitations ? 'Copied' : 'Copy Citations'}</span>
@@ -519,7 +522,7 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
                 ))}
               </div>
             ) : (
-              <p className="text-[11px] text-slate-400 italic">
+              <p className="text-xs text-slate-400 italic">
                 No web search sources attached. Deck generated via local synthesizer or ungrounded model.
               </p>
             )}
@@ -527,15 +530,15 @@ ${facts.length > 0 ? `\nFACTS:\n${facts.map((f, i) => `${i + 1}. [${f.verified.t
             {/* Extracted Facts */}
             {(carousel.facts || []).length > 0 && (
               <div className="pt-2 border-t border-white/5 space-y-1.5">
-                <span className="text-[11px] font-bold text-slate-300 block">Verified Technical Claims:</span>
+                <span className="text-xs font-bold text-slate-300 block">Verified Technical Claims:</span>
                 {(carousel.facts || []).map((fact, idx) => (
                   <div
                     key={idx}
-                    className="p-2 rounded-lg bg-black/30 border border-white/5 text-[11px] text-slate-300"
+                    className="p-2 rounded-lg bg-black/30 border border-white/5 text-xs text-slate-300"
                   >
                     <div className="font-semibold text-white">• {fact.text}</div>
                     {fact.evidence && (
-                      <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
+                      <div className="text-xs text-slate-400 mt-0.5 font-mono">
                         Evidence: {fact.evidence}
                       </div>
                     )}

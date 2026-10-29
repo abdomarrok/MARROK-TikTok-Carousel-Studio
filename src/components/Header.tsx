@@ -8,6 +8,7 @@ import {
   Redo2,
   BookmarkCheck,
   Check,
+  FileEdit,
 } from 'lucide-react';
 import { ThemePalette } from '../types.ts';
 
@@ -133,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {lastSavedTime && (
-            <div className="hidden xl:flex items-center gap-1.5 text-[11px] text-slate-400 font-mono tabular-nums whitespace-nowrap shrink-0">
+            <div className="hidden xl:flex items-center gap-1.5 text-xs text-slate-400 font-mono tabular-nums whitespace-nowrap shrink-0">
               <span>Draft {lastSavedTime}</span>
               {onResetDraft && (
                 <>
@@ -159,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               disabled={isSavingPost}
               onClick={onSaveToVault}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 ${
+              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-xs font-bold rounded-xl border transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50 ${
                 deckStatus === 'posted'
                   ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25'
                   : deckStatus === 'ready'
@@ -169,19 +170,24 @@ export const Header: React.FC<HeaderProps> = ({
               title={`Save current deck to Vault (Status: ${deckStatus.toUpperCase()})`}
             >
               {deckStatus === 'posted' ? (
-                <Check className="w-3.5 h-3.5 text-emerald-300" />
-              ) : (
+                <Check className="w-4 h-4 text-emerald-300" />
+              ) : deckStatus === 'ready' ? (
                 <BookmarkCheck
-                  className="w-3.5 h-3.5"
-                  style={{ color: deckStatus === 'ready' ? currentPalette.accent : undefined }}
+                  className="w-4 h-4"
+                  style={{ color: currentPalette.accent }}
                 />
+              ) : (
+                <FileEdit className="w-4 h-4 text-slate-400" />
               )}
-              <span>
+              <span className="hidden sm:inline">
                 {deckStatus === 'posted'
                   ? 'Posted'
                   : deckStatus === 'ready'
                   ? 'Save to Vault · Ready'
                   : 'Save to Vault · Draft'}
+              </span>
+              <span className="sm:hidden">
+                {deckStatus === 'posted' ? 'Posted' : 'Save'}
               </span>
             </button>
           )}
@@ -190,11 +196,13 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenSavedPostsDrawer}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-xs font-bold rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
               title="Open Saved & Posted Carousels Vault"
+              aria-label="Open Saved Posts Vault"
             >
-              <span>Saved Posts</span>
-              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-mono bg-white/10 text-white">
+              <span className="hidden sm:inline">Saved Posts</span>
+              <span className="sm:hidden">Vault</span>
+              <span className="px-1.5 py-0.2 rounded-md text-xs font-mono bg-white/10 text-white">
                 {savedPostsCount}
               </span>
             </button>
@@ -273,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
 
                 {lastSavedTime && (
-                  <div className="pt-1.5 mt-1 border-t border-white/10 px-3 py-1 flex items-center justify-between text-[11px] text-slate-400 font-mono tabular-nums">
+                  <div className="pt-1.5 mt-1 border-t border-white/10 px-3 py-1 flex items-center justify-between text-xs text-slate-400 font-mono tabular-nums">
                     <span>Saved {lastSavedTime}</span>
                     {onResetDraft && (
                       <button
@@ -282,7 +290,7 @@ export const Header: React.FC<HeaderProps> = ({
                           onResetDraft();
                           setIsMobileMenuOpen(false);
                         }}
-                        className="text-[10px] text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-xs text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <RotateCcw className="w-2.5 h-2.5" />
                         <span>Reset</span>

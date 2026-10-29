@@ -99,7 +99,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
       {/* Slide 1 Hook Variants Bar */}
       {currentSlideIndex === 0 && hookVariants && hookVariants.length > 0 && onApplyHookVariant && (
         <div className="pb-3 border-b border-white/[0.06] space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex items-center justify-between text-xs text-slate-400">
             <span className="font-semibold text-slate-300">Slide 1 Viral Hook Presets</span>
             <span>Click to apply</span>
           </div>
@@ -112,10 +112,10 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
                 className="px-2.5 py-1.5 rounded-lg text-left bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 transition-colors cursor-pointer group"
                 title={v.enTitle}
               >
-                <div className="text-[10px] font-mono font-bold uppercase truncate" style={{ color: theme.accent }}>
+                <div className="text-xs font-mono font-bold uppercase truncate" style={{ color: theme.accent }}>
                   {v.tag}
                 </div>
-                <div className="text-[11px] text-slate-300 group-hover:text-white truncate">
+                <div className="text-xs text-slate-300 group-hover:text-white truncate">
                   {v.enTitle}
                 </div>
               </button>
@@ -135,14 +135,14 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             <label className="text-xs font-semibold text-slate-200 flex items-center gap-2">
               <span>{isCtaSlide ? 'Call-to-Action Question (English)' : 'English Headline'}</span>
               {selectedElementId === 'titleBlock' && (
-                <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+                <span className="text-xs font-mono text-cyan-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Selected on Canvas</span>
                 </span>
               )}
             </label>
             <span
-              className={`text-[11px] font-mono tabular-nums ${
+              className={`text-xs font-mono tabular-nums ${
                 enTitleLen > enTitleLimit ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
@@ -167,7 +167,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
         >
           <div className="flex items-center justify-between">
             <span
-              className={`text-[11px] font-mono tabular-nums ${
+              className={`text-xs font-mono tabular-nums ${
                 arTitleLen > limits.arTitle ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
@@ -175,7 +175,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             </span>
             <label className="text-xs font-semibold text-slate-200 flex items-center gap-2 font-cairo">
               {selectedElementId === 'arabicTitleBlock' && (
-                <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1 font-sans">
+                <span className="text-xs font-mono text-cyan-400 flex items-center gap-1 font-sans">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Selected</span>
                 </span>
@@ -186,6 +186,8 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           <input
             type="text"
             dir="rtl"
+            lang="ar"
+            aria-label="Arabic Headline"
             value={currentSlide.arTitle || ''}
             onFocus={() => onSelectElement?.('arabicTitleBlock')}
             onClick={() => onSelectElement?.('arabicTitleBlock')}
@@ -208,7 +210,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
               CTA Pill Button Text
             </label>
             {selectedElementId === 'ctaButton' && (
-              <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+              <span className="text-xs font-mono text-cyan-400 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" />
                 <span>Selected</span>
               </span>
@@ -237,14 +239,14 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             <label className="text-xs font-semibold text-slate-200 flex items-center gap-2">
               <span>Technical Mechanism & Details (English)</span>
               {selectedElementId === 'bodyBlock' && (
-                <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+                <span className="text-xs font-mono text-cyan-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Selected on Canvas</span>
                 </span>
               )}
             </label>
             <span
-              className={`text-[11px] font-mono tabular-nums ${
+              className={`text-xs font-mono tabular-nums ${
                 enBodyLen > limits.enBody ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
@@ -269,7 +271,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
         >
           <div className="flex items-center justify-between">
             <span
-              className={`text-[11px] font-mono tabular-nums ${
+              className={`text-xs font-mono tabular-nums ${
                 arBodyLen > limits.arBody ? 'text-amber-400 font-bold' : 'text-slate-400'
               }`}
             >
@@ -277,7 +279,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             </span>
             <label className="text-xs font-semibold text-slate-200 flex items-center gap-2 font-cairo">
               {selectedElementId === 'arabicBodyBlock' && (
-                <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1 font-sans">
+                <span className="text-xs font-mono text-cyan-400 flex items-center gap-1 font-sans">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Selected</span>
                 </span>
@@ -288,6 +290,8 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           <textarea
             rows={3}
             dir="rtl"
+            lang="ar"
+            aria-label="Arabic Body Text"
             value={currentSlide.arBody || ''}
             onFocus={() => onSelectElement?.('arabicBodyBlock')}
             onClick={() => onSelectElement?.('arabicBodyBlock')}
@@ -310,7 +314,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
               <ListChecks className="w-4 h-4" style={{ color: theme.accent }} />
               <span>Key Engineering Takeaways (Max 3 Points)</span>
               {selectedElementId === 'takeawaysBlock' && (
-                <span className="text-[10px] font-mono text-cyan-400 flex items-center gap-1">
+                <span className="text-xs font-mono text-cyan-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Selected</span>
                 </span>
@@ -321,7 +325,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => onUpdateField('takeaways', seedSingleSlideTakeaways(currentSlide))}
-                  className="px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-mono font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  className="px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-xs font-mono font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
                 >
                   Seed 3 Points
                 </button>
@@ -340,7 +344,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
                       },
                     ]);
                   }}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-[11px] font-mono font-medium text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-xs font-mono font-medium text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   <span>Add Point</span>
@@ -362,7 +366,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
                   className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-2 hover:border-white/20 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono font-bold" style={{ color: theme.accent }}>
+                    <span className="text-xs font-mono font-bold" style={{ color: theme.accent }}>
                       TAKEAWAY #{tIdx + 1}
                     </span>
                     {(currentSlide.takeaways?.length || 0) > 1 && (
@@ -383,8 +387,8 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
                   {/* English Takeaway */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-slate-400 font-mono">English Point</span>
-                      <span className={`text-[10px] font-mono ${enLen > limitEn ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
+                      <span className="text-xs text-slate-400 font-mono">English Point</span>
+                      <span className={`text-xs font-mono ${enLen > limitEn ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
                         {enLen} / {limitEn}
                       </span>
                     </div>
@@ -405,14 +409,16 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
                   {/* Arabic Takeaway */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className={`text-[10px] font-mono ${arLen > limitAr ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
+                      <span className={`text-xs font-mono ${arLen > limitAr ? 'text-amber-400 font-bold' : 'text-slate-500'}`}>
                         {arLen} / {limitAr}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-cairo">الخلاصة بالعربية</span>
+                      <span className="text-xs text-slate-400 font-cairo">الخلاصة بالعربية</span>
                     </div>
                     <input
                       type="text"
                       dir="rtl"
+                      lang="ar"
+                      aria-label={`Arabic Takeaway #${tIdx + 1}`}
                       value={t.ar || ''}
                       onFocus={() => onSelectElement?.('takeawaysBlock')}
                       onChange={(e) => {
@@ -439,7 +445,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <span className="text-[10px] text-slate-400 font-mono block mb-1">Source / Author (English)</span>
+              <span className="text-xs text-slate-400 font-mono block mb-1">Source / Author (English)</span>
               <input
                 type="text"
                 value={currentSlide.enCredit || ''}
@@ -449,13 +455,16 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
               />
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 font-mono block mb-1">Creator / Brand Handle</span>
+              <span className="text-xs text-slate-400 font-mono block mb-1">Source / Author (Arabic)</span>
               <input
                 type="text"
+                dir="rtl"
+                lang="ar"
+                aria-label="Source Author in Arabic"
                 value={currentSlide.arCredit || ''}
                 onChange={(e) => onUpdateField('arCredit', e.target.value)}
-                placeholder="e.g. MARROK"
-                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
+                placeholder="المصدر أو المؤلف بالعربية"
+                className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-cairo text-right focus:outline-none"
               />
             </div>
           </div>

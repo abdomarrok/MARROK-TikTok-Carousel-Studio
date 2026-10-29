@@ -229,6 +229,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   const [showSafeZones, setShowSafeZones] = useState(false);
   const [stageOverlayMode, setStageOverlayMode] = useState<StageOverlayMode>('safe');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [copiedType, setCopiedType] = useState<'caption' | 'slide' | null>(null);
   const [isExportingZip, setIsExportingZip] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
@@ -291,6 +292,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   // Mobile Studio Segmented Mode Switcher ('canvas' | 'editor')
   const [mobileStudioTab, setMobileStudioTab] = useState<'canvas' | 'editor'>('canvas');
+  const isSheetOpen = isMobileSheetOpen || mobileStudioTab === 'editor';
 
   // Motion Reel Studio States
   const [selectedMotionSceneId, setSelectedMotionSceneId] = useState<string | null>(null);
@@ -1805,12 +1807,46 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           )}
         </div>
 
-        {/* Right Column: Clean Tabbed Inspector + Persistent Unified Delivery Bar */}
+        {/* Mobile Backdrop for Bottom Sheet */}
+        {isSheetOpen && (
+          <div
+            className="lg:hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-xs transition-opacity"
+            onClick={() => {
+              setIsMobileSheetOpen(false);
+              setMobileStudioTab('canvas');
+            }}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Right Column (Desktop) & Slide-Up Bottom Sheet (Mobile) */}
         <div
-          className={`lg:col-span-7 flex-col lg:h-full lg:min-h-0 bg-[#0b1118]/90 border border-white/10 rounded-2xl overflow-hidden shadow-2xl ${
-            mobileStudioTab === 'canvas' ? 'hidden lg:flex' : 'flex'
-          }`}
+          role="region"
+          aria-label="Slide Inspector and Content Editor"
+          className={`lg:col-span-7 flex flex-col bg-[#0b1118] border-white/10 overflow-hidden shadow-2xl transition-transform duration-300 ${
+            isSheetOpen
+              ? 'fixed inset-x-0 bottom-0 z-50 h-[85vh] rounded-t-3xl border-t translate-y-0'
+              : 'fixed inset-x-0 bottom-0 z-50 h-[85vh] rounded-t-3xl border-t translate-y-full pointer-events-none'
+          } lg:static lg:inset-auto lg:z-auto lg:h-full lg:min-h-0 lg:rounded-2xl lg:border lg:translate-y-0 lg:pointer-events-auto`}
         >
+          {/* Mobile Bottom Sheet Header Grab Bar */}
+          <div className="lg:hidden flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/10 bg-black/50 shrink-0">
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+              Slide {currentSlideIndex + 1} Inspector
+            </span>
+            <div className="w-12 h-1.5 rounded-full bg-white/25" />
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileSheetOpen(false);
+                setMobileStudioTab('canvas');
+              }}
+              className="p-2 rounded-xl text-slate-400 hover:text-white flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+              aria-label="Close inspector bottom sheet"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
           {/* Inspector Top Tab Bar */}
           <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 border-b border-white/10 bg-black/40 shrink-0 overflow-x-auto">
             {activePostFormat === 'reel' ? (
@@ -1833,6 +1869,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
                 <button
                   type="button"
+                  data-testid="tab-caption"
                   onClick={() => setInspectorTab('caption')}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     inspectorTab === 'caption'
@@ -1841,7 +1878,30 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" style={inspectorTab === 'caption' ? { color: theme.accent } : undefined} />
-                  <span>Caption & QA</span>
+                  <span>Caption</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="tab-review"
+                  onClick={() => setInspectorTab('review')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab === 'review'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" style={inspectorTab === 'review' ? { color: theme.accent } : undefined} />
+                  <span>Review</span>
+                  {blockersCount > 0 ? (
+                    <span className="text-xs font-mono tabular-nums px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {blockersCount}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-mono uppercase px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      PASS
+                    </span>
+                  )}
                 </button>
               </div>
             ) : (
@@ -1895,6 +1955,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
                 <button
                   type="button"
+                  data-testid="tab-caption"
                   onClick={() => setInspectorTab('caption')}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     inspectorTab === 'caption'
@@ -1903,9 +1964,29 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" style={inspectorTab === 'caption' ? { color: theme.accent } : undefined} />
-                  <span>Caption & QA</span>
-                  {(!qaReport.canExport || (isOfflineDraft && !isReviewed)) && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span>Caption</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="tab-review"
+                  onClick={() => setInspectorTab('review')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    inspectorTab === 'review'
+                      ? 'bg-white/15 text-white shadow-sm border border-white/15'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" style={inspectorTab === 'review' ? { color: theme.accent } : undefined} />
+                  <span>Review</span>
+                  {blockersCount > 0 ? (
+                    <span className="text-xs font-mono tabular-nums px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {blockersCount}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-mono uppercase px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      PASS
+                    </span>
                   )}
                 </button>
               </div>
@@ -2364,7 +2445,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
         </div>
       </div>
 
-      {/* Sticky Mobile Bottom Navigation Bar (Visible only on < lg) */}
+      {/* ONE Fixed Mobile Bottom Bar (WCAG 2.1 AAA >= 44px Touch Targets) */}
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#080d11]/95 border-t border-white/10 px-3 py-2 backdrop-blur-md flex items-center justify-between gap-2 shadow-2xl">
         {activePostFormat === 'carousel' && (
           <>
@@ -2372,53 +2453,85 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               type="button"
               onClick={() => changeSlide((prev) => Math.max(0, prev - 1))}
               disabled={currentSlideIndex === 0}
-              className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
-              title="Previous Slide"
+              className="p-2 min-h-[44px] min-w-[44px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0 focus-visible:ring-2 focus-visible:ring-cyan-400"
+              aria-label="Previous Slide"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
 
             <button
               type="button"
-              onClick={onOpenContactSheet}
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 min-h-[38px] rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-slate-200 active:bg-white/10 cursor-pointer"
-              title="Jump to Contact Sheet"
+              onClick={() => {
+                setIsMobileSheetOpen(true);
+                setMobileStudioTab('editor');
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 min-h-[44px] rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-slate-200 active:bg-white/10 cursor-pointer focus-visible:ring-2 focus-visible:ring-cyan-400"
+              aria-label={`Slide ${currentSlideIndex + 1} of ${carousel.slides.length}. Tap to open inspector`}
             >
               <span>Slide</span>
               <span style={{ color: theme.accent }}>{currentSlideIndex + 1}</span>
               <span className="text-slate-400">/ {carousel.slides.length}</span>
+              <span className="text-xs uppercase font-sans px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 ml-1">
+                Edit
+              </span>
             </button>
 
             <button
               type="button"
               onClick={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
               disabled={currentSlideIndex === carousel.slides.length - 1}
-              className="p-2 min-h-[38px] min-w-[38px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0"
-              title="Next Slide"
+              className="p-2 min-h-[44px] min-w-[44px] rounded-xl bg-white/[0.05] border border-white/10 text-white disabled:opacity-25 active:bg-white/15 cursor-pointer flex items-center justify-center shrink-0 focus-visible:ring-2 focus-visible:ring-cyan-400"
+              aria-label="Next Slide"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </>
         )}
 
         {activePostFormat === 'single' && (
-          <div className="flex-1 text-xs font-mono text-slate-300 px-2">
-            Single-Slide Post · 1080×1920
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsMobileSheetOpen(true)}
+            className="flex-1 min-h-[44px] flex items-center justify-center gap-1 text-xs font-mono text-slate-200 bg-white/[0.04] border border-white/10 rounded-xl px-2 cursor-pointer"
+            aria-label="Single-Slide Post. Tap to inspect."
+          >
+            <span>Single-Slide Post · 1080×1920</span>
+            <span className="text-xs uppercase font-sans px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 ml-1">Edit</span>
+          </button>
         )}
 
         {activePostFormat === 'reel' && (
-          <div className="flex-1 text-xs font-mono text-slate-300 px-2">
-            Motion Reel · {activeReelConfig.duration.toFixed(1)}s · 1080×1920
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsMobileSheetOpen(true)}
+            className="flex-1 min-h-[44px] flex items-center justify-center gap-1 text-xs font-mono text-slate-200 bg-white/[0.04] border border-white/10 rounded-xl px-2 cursor-pointer"
+            aria-label="Motion Reel. Tap to inspect."
+          >
+            <span>Motion Reel · {activeReelConfig.duration.toFixed(1)}s</span>
+            <span className="text-xs uppercase font-sans px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 ml-1">Edit</span>
+          </button>
         )}
 
+        {/* Mobile More Actions Menu */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsMoreMenuOpen((prev) => !prev)}
+            className="p-2 min-h-[44px] min-w-[44px] rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 active:bg-white/15 flex items-center justify-center cursor-pointer focus-visible:ring-2 focus-visible:ring-cyan-400"
+            aria-label="More slide actions"
+            aria-expanded={isMoreMenuOpen}
+          >
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Primary Action Button (>= 44px touch target) */}
         <button
           type="button"
           onClick={() => {
             if (isBlocked) {
               setInspectorTab('review');
-              setMobileStudioTab('editor');
+              setIsMobileSheetOpen(true);
               onShowToast(`⚠️ ${blockersCount} item${blockersCount > 1 ? 's' : ''} need attention in Review before export`);
               return;
             }
@@ -2441,7 +2554,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             }
           }}
           disabled={isExportingZip}
-          className={`flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-xl font-bold text-xs transition-all shadow-md cursor-pointer shrink-0 ${
+          className={`flex items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl font-bold text-xs transition-all shadow-md cursor-pointer shrink-0 focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             isBlocked
               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
               : 'text-slate-950 active:scale-95'
@@ -2456,15 +2569,20 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               ? 'Download 1080×1920 JPG'
               : 'Export Metricool ZIP'
           }
+          aria-label={
+            isBlocked
+              ? `${blockersCount} items need attention before publishing. Tap to review.`
+              : 'Export Post Bundle'
+          }
         >
           {isExportingZip ? (
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            <RefreshCw className="w-4 h-4 animate-spin" />
           ) : isBlocked ? (
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
           ) : activePostFormat === 'reel' ? (
-            <Film className="w-3.5 h-3.5 stroke-[2.5]" />
+            <Film className="w-4 h-4 stroke-[2.5]" />
           ) : (
-            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+            <Download className="w-4 h-4 stroke-[2.5]" />
           )}
           <span>
             {isBlocked
