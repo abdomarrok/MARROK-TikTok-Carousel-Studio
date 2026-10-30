@@ -36,10 +36,13 @@ export const MotionExportModal: React.FC<MotionExportModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<MotionVideoExportResult | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const reelConfigRef = useRef<MotionReelData>(reelConfig);
+  reelConfigRef.current = reelConfig;
 
   useEffect(() => {
     if (!isOpen) return;
 
+    const activeConfig = reelConfigRef.current;
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setStatus('running');
@@ -48,9 +51,9 @@ export const MotionExportModal: React.FC<MotionExportModalProps> = ({
     setErrorMessage(null);
     setResult(null);
 
-    exportMotionReelBundle(reelConfig.templateId, reelConfig, {
+    exportMotionReelBundle(activeConfig.templateId, activeConfig, {
       fps: 30,
-      includeSfx: reelConfig.sfxEnabled !== false,
+      includeSfx: activeConfig.sfxEnabled !== false,
       signal: controller.signal,
       onProgress: (pct, stg) => {
         setPercent(pct);
@@ -77,7 +80,7 @@ export const MotionExportModal: React.FC<MotionExportModalProps> = ({
     return () => {
       controller.abort();
     };
-  }, [isOpen, reelConfig]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

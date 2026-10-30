@@ -1,11 +1,5 @@
 import type { CarouselData, GraphicalElementId, SlideData } from '../../types.ts';
-import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
-  SAFE_TEXT_WIDTH_TITLE,
-  SAFE_TEXT_WIDTH_BODY,
-  SAFE_TEXT_CENTER_X,
-} from './constants.ts';
+import { getCanvasDimensionSpec } from './constants.ts';
 import { computeSlideLayoutAwareness } from './layoutAwareness.ts';
 
 export interface ElementBounds {
@@ -22,15 +16,16 @@ export interface ElementBounds {
 }
 
 /**
- * Computes exact 1080x1920 pixel coordinates and percentage bounds
- * for all interactive elements on a slide, powered by the non-overlapping
- * Slide Layout Awareness Engine.
+ * Computes exact pixel coordinates and percentage bounds
+ * for all interactive elements on a slide across any active dimension preset,
+ * powered by the non-overlapping Slide Layout Awareness Engine.
  */
 export function computeSlideElementBounds(
   slide: SlideData,
   carousel?: CarouselData
 ): Record<GraphicalElementId, ElementBounds> {
   const bounds: Partial<Record<GraphicalElementId, ElementBounds>> = {};
+  const spec = getCanvasDimensionSpec(carousel?.dimensionPreset);
   const layout = computeSlideLayoutAwareness(slide, carousel);
 
   const toPct = (val: number, total: number) => `${((val / total) * 100).toFixed(2)}%`;
@@ -49,10 +44,10 @@ export function computeSlideElementBounds(
     y,
     width,
     height,
-    leftPct: toPct(x, CANVAS_WIDTH),
-    topPct: toPct(y, CANVAS_HEIGHT),
-    widthPct: toPct(width, CANVAS_WIDTH),
-    heightPct: toPct(height, CANVAS_HEIGHT),
+    leftPct: toPct(x, spec.width),
+    topPct: toPct(y, spec.height),
+    widthPct: toPct(width, spec.width),
+    heightPct: toPct(height, spec.height),
   });
 
   // 1. Header Badge
@@ -119,9 +114,9 @@ export function computeSlideElementBounds(
     bounds.titleBlock = makeBound(
       'titleBlock',
       'English Headline',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2 + layout.titleBlock.dx,
+      spec.safeTextCenterX - spec.safeTextWidthTitle / 2 + layout.titleBlock.dx,
       layout.titleBlock.top,
-      SAFE_TEXT_WIDTH_TITLE,
+      spec.safeTextWidthTitle,
       layout.titleBlock.height
     );
   }
@@ -130,9 +125,9 @@ export function computeSlideElementBounds(
     bounds.arabicTitleBlock = makeBound(
       'arabicTitleBlock',
       'Arabic Headline',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2 + layout.arabicTitleBlock.dx,
+      spec.safeTextCenterX - spec.safeTextWidthTitle / 2 + layout.arabicTitleBlock.dx,
       layout.arabicTitleBlock.top,
-      SAFE_TEXT_WIDTH_TITLE,
+      spec.safeTextWidthTitle,
       layout.arabicTitleBlock.height
     );
   }
@@ -141,9 +136,9 @@ export function computeSlideElementBounds(
     bounds.bodyBlock = makeBound(
       'bodyBlock',
       'English Technical Details',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_BODY / 2 + layout.bodyBlock.dx,
+      spec.safeTextCenterX - spec.safeTextWidthBody / 2 + layout.bodyBlock.dx,
       layout.bodyBlock.top,
-      SAFE_TEXT_WIDTH_BODY,
+      spec.safeTextWidthBody,
       layout.bodyBlock.height
     );
   }
@@ -152,9 +147,9 @@ export function computeSlideElementBounds(
     bounds.arabicBodyBlock = makeBound(
       'arabicBodyBlock',
       'Arabic Technical Details',
-      SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_BODY / 2 + layout.arabicBodyBlock.dx,
+      spec.safeTextCenterX - spec.safeTextWidthBody / 2 + layout.arabicBodyBlock.dx,
       layout.arabicBodyBlock.top,
-      SAFE_TEXT_WIDTH_BODY,
+      spec.safeTextWidthBody,
       layout.arabicBodyBlock.height
     );
   }
@@ -174,13 +169,13 @@ export function computeSlideElementBounds(
 }
 
 /**
- * Accurately finds the graphical element clicked in 1080x1920 coordinates.
+ * Accurately finds the graphical element clicked in canvas coordinates.
  */
 export function findSlideElementAtPoint(
   canvasX: number,
   canvasY: number,
   boundsMap: Record<GraphicalElementId, ElementBounds>,
-  overrides?: Record<string, { dx?: number; dy?: number; scale?: number }>
+  _overrides?: Record<string, { dx?: number; dy?: number; scale?: number }>
 ): GraphicalElementId | null {
   const pad = 14;
 
@@ -201,21 +196,13 @@ export function findSlideElementAtPoint(
     const bound = boundsMap[id];
     if (!bound) continue;
 
-    const override = overrides?.[id];
-    const dx = override?.dx ?? 0;
-    const dy = override?.dy ?? 0;
-    const scale = override?.scale ?? 1;
+    const scale = _overrides?.[id]?.scale ?? 1;
 
-    // Note: bounds from computeSlideLayoutAwareness already incorporate dx and dy for text & cards!
-    // But if overrides are passed separately, ensure we do not double count
-    const hasAlreadyShifted = bound.x !== SAFE_TEXT_CENTER_X - SAFE_TEXT_WIDTH_TITLE / 2 && bound.id.includes('Block');
-    const effDx = hasAlreadyShifted ? 0 : dx;
-    const effDy = hasAlreadyShifted ? 0 : dy;
-
-    const left = bound.x + effDx - (bound.width * (scale - 1)) / 2 - pad;
-    const right = bound.x + effDx + bound.width + (bound.width * (scale - 1)) / 2 + pad;
-    const top = bound.y + effDy - (bound.height * (scale - 1)) / 2 - pad;
-    const bottom = bound.y + effDy + bound.height + (bound.height * (scale - 1)) / 2 + pad;
+    // Bounds from computeSlideLayoutAwareness already incorporate dx and dy for text & cards
+    const left = bound.x - (bound.width * (scale - 1)) / 2 - pad;
+    const right = bound.x + bound.width + (bound.width * (scale - 1)) / 2 + pad;
+    const top = bound.y - (bound.height * (scale - 1)) / 2 - pad;
+    const bottom = bound.y + bound.height + (bound.height * (scale - 1)) / 2 + pad;
 
     if (canvasX >= left && canvasX <= right && canvasY >= top && canvasY <= bottom) {
       return id;
@@ -224,3 +211,4 @@ export function findSlideElementAtPoint(
 
   return null;
 }
+

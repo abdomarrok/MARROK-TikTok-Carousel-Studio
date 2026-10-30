@@ -621,6 +621,16 @@ function checkMarkdownAndPunctuation(slide: SlideData, idx: number): QACheckResu
         message: `Slide ${idx + 1} ${field} has broken punctuation (e.g. ' .', '..', or '.:'). Clean up punctuation.`,
       });
     }
+
+    if (/\bshady\s+ai\b/i.test(text)) {
+      results.push({
+        id: `non-standard-term-shady-ai-${idx}-${field}`,
+        severity: 'warn',
+        slideIndex: idx,
+        field,
+        message: `Slide ${idx + 1} ${field} uses "Shady AI", which is not a standard industry term ("Shadow AI" is). Verify the source claim before posting.`,
+      });
+    }
   }
 
   return results;

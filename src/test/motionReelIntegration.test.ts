@@ -76,18 +76,21 @@ describe('Motion Reel Integration (MARROK Slide Deck, Smart Transitions & Warm F
     expect(steady.layers.length).toBe(1);
     expect(steady.layers[0].role).toBe('active');
 
-    // 3. Boundary cut (t = 3.5s between scene 0 and scene 1) has 2 overlapping layers (outgoing + incoming)
-    const boundary = computeSceneTransitionState(scenes, 3.5, 'auto', 'rtl');
-    expect(boundary.inTransition).toBe(true);
-    expect(boundary.transitionMode).toBe('depth');
-    expect(boundary.layers.length).toBe(2);
-    expect(boundary.layers[0].role).toBe('outgoing');
-    expect(boundary.layers[1].role).toBe('incoming');
-    expect(boundary.fractionalSceneIdx).toBeGreaterThan(0);
-    expect(boundary.fractionalSceneIdx).toBeLessThan(1);
+    // 3. Sequential exit (t = 4.4s before 4.5s boundary) and entry (t = 4.6s after 4.5s boundary) never overlap
+    const outgoingExit = computeSceneTransitionState(scenes, 4.4, 'auto', 'rtl');
+    expect(outgoingExit.inTransition).toBe(true);
+    expect(outgoingExit.transitionMode).toBe('depth');
+    expect(outgoingExit.layers.length).toBe(1);
+    expect(outgoingExit.layers[0].role).toBe('outgoing');
+
+    const incomingEntry = computeSceneTransitionState(scenes, 4.6, 'auto', 'rtl');
+    expect(incomingEntry.inTransition).toBe(true);
+    expect(incomingEntry.transitionMode).toBe('depth');
+    expect(incomingEntry.layers.length).toBe(1);
+    expect(incomingEntry.layers[0].role).toBe('incoming');
   });
 
-  it('draws 1080x1920 frames including transition boundaries with MARROK slide header, vector logo, and bilingual copy', () => {
+  it('draws 1080x1920 frames including transition boundaries with MARROK slide header, vector logo, and bilingual copy without internal CAD noise', () => {
     const mockCtx = {
       save: vi.fn(),
       restore: vi.fn(),
@@ -144,9 +147,13 @@ describe('Motion Reel Integration (MARROK Slide Deck, Smart Transitions & Warm F
       (call) => call[0]
     );
     expect(drawnTexts).toContain('MARROK');
+    expect(drawnTexts).toContain('@MARROK');
     expect(
       drawnTexts.some((t: string) => String(t).includes('SYS_REF // 1080x1920.CAD_SAFE'))
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      drawnTexts.some((t: string) => String(t).includes('MARROK_ARCH //'))
+    ).toBe(false);
   });
 
   it('synthesizes warm filtered 48kHz Foley cues (thump, whoosh, pop, click, chime) across acoustic profiles without clipping', () => {
@@ -160,7 +167,8 @@ describe('Motion Reel Integration (MARROK Slide Deck, Smart Transitions & Warm F
     expect(warmCues.some((c) => c.type === 'whoosh')).toBe(true);
 
     const minimalCues = generateCues(cfg.scenes, 'minimal-sub', 'auto');
-    expect(minimalCues.length).toBe(cfg.scenes.length);
+    expect(minimalCues.length).toBeGreaterThanOrEqual(cfg.scenes.length);
+    expect(minimalCues.some((c) => c.type === 'whoosh')).toBe(true);
 
     const silentCues = generateCues(cfg.scenes, 'silent', 'auto');
     expect(silentCues.length).toBe(0);
@@ -187,8 +195,8 @@ describe('Motion Reel Integration (MARROK Slide Deck, Smart Transitions & Warm F
       if (abs > peak) peak = abs;
     }
     expect(nonZeroCount).toBeGreaterThan(1000);
-    // Verify soft-saturation headroom limiter prevents digital clipping
-    expect(peak).toBeLessThanOrEqual(0.9);
+    // Verify soft-saturation headroom limiter keeps true peak strictly under -1 dBTP (<= 0.85)
+    expect(peak).toBeLessThanOrEqual(0.851);
 
     const wavBlob = encodeWavBlob(samples, sampleRate);
     expect(wavBlob.type).toBe('audio/wav');

@@ -5,6 +5,30 @@ export interface FitTextOptions {
   ellipsis?: boolean;
 }
 
+const MAX_TEXT_LAYOUT_CACHE_ENTRIES = 512;
+const wrapLinesCache = new Map<string, string[]>();
+const fitTextCache = new Map<string, { fontSize: number; lines: string[]; lineHeight: number }>();
+
+function setBoundedCache<T>(cache: Map<string, T>, key: string, value: T): void {
+  if (cache.has(key)) {
+    cache.delete(key);
+  } else if (cache.size >= MAX_TEXT_LAYOUT_CACHE_ENTRIES) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey);
+    }
+  }
+  cache.set(key, value);
+}
+
+function getContextProbeMetric(ctx: CanvasRenderingContext2D): number {
+  try {
+    return Math.round((ctx.measureText('MW0').width || 0) * 100);
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Wraps text to fit within maxWidth, respecting newlines,
  * preserving NBSP-bound metrics (e.g., "510 GB", "10 ms"),
@@ -16,6 +40,12 @@ export function wrapTextLines(
   maxWidth: number
 ): string[] {
   if (!rawText) return [];
+
+  const cacheKey = `${ctx.font || ''}|${maxWidth}|${getContextProbeMetric(ctx)}|${rawText}`;
+  const cached = wrapLinesCache.get(cacheKey);
+  if (cached) {
+    return [...cached];
+  }
 
   // Protect units and metrics from being split across lines (e.g. "510 GB", "10 ms")
   let textWithNbsp = rawText
@@ -100,7 +130,8 @@ export function wrapTextLines(
     }
   }
 
-  return lines;
+  setBoundedCache(wrapLinesCache, cacheKey, lines);
+  return [...lines];
 }
 
 /**
@@ -157,6 +188,19 @@ export function fitTextInBox(
   }
 
   const cleanText = text.trim();
+  ctx.font = `${fontWeight} ${initialFontSize}px ${fontFamily}`;
+  const probeMetric = getContextProbeMetric(ctx);
+  const cacheKey = `${cleanText}|${maxWidth}|${initialFontSize}|${fontFamily}|${fontWeight}|${maxLines}|${minFontSize}|${lineHeightFactor}|${ellipsis ? 1 : 0}|${probeMetric}`;
+  const cached = fitTextCache.get(cacheKey);
+  if (cached) {
+    ctx.font = `${fontWeight} ${cached.fontSize}px ${fontFamily}`;
+    return {
+      fontSize: cached.fontSize,
+      lines: [...cached.lines],
+      lineHeight: cached.lineHeight,
+    };
+  }
+
   let currentSize = initialFontSize;
 
   if (maxLines === 1) {
@@ -164,7 +208,9 @@ export function fitTextInBox(
       ctx.font = `${fontWeight} ${currentSize}px ${fontFamily}`;
       const width = ctx.measureText(cleanText).width;
       if (width <= maxWidth) {
-        return { fontSize: currentSize, lines: [cleanText], lineHeight: currentSize * lineHeightFactor };
+        const result = { fontSize: currentSize, lines: [cleanText], lineHeight: currentSize * lineHeightFactor };
+        setBoundedCache(fitTextCache, cacheKey, result);
+        return { fontSize: result.fontSize, lines: [...result.lines], lineHeight: result.lineHeight };
       }
       currentSize -= 0.5;
     }
@@ -172,7 +218,9 @@ export function fitTextInBox(
     // If still overflows at minFontSize, truncate with ellipsis
     ctx.font = `${fontWeight} ${minFontSize}px ${fontFamily}`;
     const truncated = ellipsis ? truncateTextToWidth(ctx, cleanText, maxWidth) : cleanText;
-    return { fontSize: minFontSize, lines: [truncated], lineHeight: minFontSize * lineHeightFactor };
+    const result = { fontSize: minFontSize, lines: [truncated], lineHeight: minFontSize * lineHeightFactor };
+    setBoundedCache(fitTextCache, cacheKey, result);
+    return { fontSize: result.fontSize, lines: [...result.lines], lineHeight: result.lineHeight };
   }
 
   // Multi-line wrap with font-size scale down if needed
@@ -180,7 +228,9 @@ export function fitTextInBox(
     ctx.font = `${fontWeight} ${currentSize}px ${fontFamily}`;
     const wrapped = wrapTextLines(ctx, cleanText, maxWidth);
     if (wrapped.length <= maxLines) {
-      return { fontSize: currentSize, lines: wrapped, lineHeight: currentSize * lineHeightFactor };
+      const result = { fontSize: currentSize, lines: wrapped, lineHeight: currentSize * lineHeightFactor };
+      setBoundedCache(fitTextCache, cacheKey, result);
+      return { fontSize: result.fontSize, lines: [...result.lines], lineHeight: result.lineHeight };
     }
     currentSize -= 1;
   }
@@ -203,5 +253,7 @@ export function fitTextInBox(
     }
   }
 
-  return { fontSize: minFontSize, lines: wrapped, lineHeight: Math.round(minFontSize * lineHeightFactor) };
+  const result = { fontSize: minFontSize, lines: wrapped, lineHeight: Math.round(minFontSize * lineHeightFactor) };
+  setBoundedCache(fitTextCache, cacheKey, result);
+  return { fontSize: result.fontSize, lines: [...result.lines], lineHeight: result.lineHeight };
 }

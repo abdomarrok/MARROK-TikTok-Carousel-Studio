@@ -381,6 +381,25 @@ export function getMarrokLogoSvg(accentColor = '#364bde', options?: { bg?: strin
   </svg>`.trim();
 }
 
+let cachedMarrokLogoPaths2D: {
+  pMain: Path2D;
+  pRight: Path2D;
+  pAccent: Path2D;
+  pFrame: Path2D;
+} | null = null;
+
+function getMarrokLogoPaths2D() {
+  if (!cachedMarrokLogoPaths2D && typeof Path2D !== 'undefined') {
+    cachedMarrokLogoPaths2D = {
+      pMain: new Path2D(MARROK_LOGO_PATHS.pathMain),
+      pRight: new Path2D(MARROK_LOGO_PATHS.pathRightBottom),
+      pAccent: new Path2D(MARROK_LOGO_PATHS.pathAccent),
+      pFrame: new Path2D(MARROK_LOGO_PATHS.pathLeftFrame),
+    };
+  }
+  return cachedMarrokLogoPaths2D;
+}
+
 /**
  * Renders the authentic MARROK vector logo badge directly using Path2D vector geometry.
  * Completely synchronous with zero image latency, scaled from true dead-center (353.8, 383.45).
@@ -417,19 +436,15 @@ export function drawMarrokVectorBadge(
   ctx.scale(scale, scale);
   ctx.translate(-MARROK_LOGO_PATHS.center.x, -MARROK_LOGO_PATHS.center.y);
 
-  if (typeof Path2D !== 'undefined') {
-    const pMain = new Path2D(MARROK_LOGO_PATHS.pathMain);
-    const pRight = new Path2D(MARROK_LOGO_PATHS.pathRightBottom);
-    const pAccent = new Path2D(MARROK_LOGO_PATHS.pathAccent);
-    const pFrame = new Path2D(MARROK_LOGO_PATHS.pathLeftFrame);
-
+  const paths = getMarrokLogoPaths2D();
+  if (paths) {
     ctx.fillStyle = '#FFFFFF';
-    ctx.fill(pMain);
-    ctx.fill(pRight);
-    ctx.fill(pFrame);
+    ctx.fill(paths.pMain);
+    ctx.fill(paths.pRight);
+    ctx.fill(paths.pFrame);
 
     ctx.fillStyle = accentColor;
-    ctx.fill(pAccent);
+    ctx.fill(paths.pAccent);
   } else {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(262, 289, 182, 185);

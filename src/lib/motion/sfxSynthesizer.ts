@@ -1,6 +1,11 @@
 import { MotionCueItem, MotionSfxType } from '../../types.ts';
 
 export const SFX_SAMPLE_RATE = 48000;
+/**
+ * Strict -1 dBTP true-peak safety ceiling (10^(-1.4 / 20) ≈ 0.851, strictly below -1.0 dBTP = 0.89125)
+ * to prevent inter-sample clipping after AAC/Opus encoding or D/A reconstruction.
+ */
+export const MAX_TRUE_PEAK_LINEAR = 0.85;
 
 /**
  * Studio-grade 48kHz procedural acoustic Foley synthesizer with 2-pole State-Variable
@@ -114,10 +119,11 @@ export function synthesizeSfxFloat32Buffer(
     }
   }
 
-  // Soft-knee saturation limiter across master bus so overlapping cues stay warm
+  // Soft-knee saturation limiter across master bus so overlapping cues stay warm and strictly < -1 dBTP
   for (let i = 0; i < buf.length; i++) {
     if (buf[i] !== 0) {
-      buf[i] = Math.tanh(buf[i] * 1.1) * 0.88;
+      const saturated = Math.tanh(buf[i] * 1.05) * MAX_TRUE_PEAK_LINEAR;
+      buf[i] = Math.max(-MAX_TRUE_PEAK_LINEAR, Math.min(MAX_TRUE_PEAK_LINEAR, saturated));
     }
   }
 
@@ -152,7 +158,8 @@ export function encodeWavBlob(samples: Float32Array, sampleRate = SFX_SAMPLE_RAT
   view.setUint32(40, n * 2, true);
 
   for (let i = 0; i < n; i++) {
-    const clamped = Math.round(Math.max(-1, Math.min(1, samples[i])) * 32767);
+    const safeSample = Math.max(-MAX_TRUE_PEAK_LINEAR, Math.min(MAX_TRUE_PEAK_LINEAR, samples[i]));
+    const clamped = Math.round(safeSample * 32767);
     view.setInt16(44 + i * 2, clamped, true);
   }
 

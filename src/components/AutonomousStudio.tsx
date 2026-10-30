@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import {
   Sparkles,
   MoreHorizontal,
@@ -43,8 +43,14 @@ import {
   SavedPostStatus,
   MotionReelData,
   MotionTemplateId,
+  CanvasDimensionPreset,
 } from '../types.ts';
-import { downloadSingleSlidePng, copySlideToClipboard, downloadAllSlidesZip } from '../lib/canvasExporter.ts';
+import {
+  downloadSingleSlidePng,
+  copySlideToClipboard,
+  downloadAllSlidesZip,
+  getCanvasDimensionSpec,
+} from '../lib/canvasExporter.ts';
 import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline.ts';
 import { sanitizeSlide } from '../lib/textSanitizer.ts';
 import { seedSlideArchetypeData, synthesizeCarousel, condenseCarouselToSingleSlide } from '../lib/synthesizer.ts';
@@ -60,8 +66,6 @@ import {
   encodeWavBlob,
   triggerBlobDownload,
 } from '../lib/motion/index.ts';
-import { SlideImageStudio } from './SlideImageStudio.tsx';
-import { MediaSearchModal } from './MediaSearchModal.tsx';
 import {
   ViewportCanvas,
   SlideNavigator,
@@ -74,8 +78,19 @@ import {
   ElementInspector,
   MotionReelViewport,
   MotionReelInspector,
-  MotionExportModal,
+  compressImageClientSide,
+  useStudioShortcutsAndClipboard,
 } from './studio/index.ts';
+
+const SlideImageStudio = lazy(() =>
+  import('./SlideImageStudio.tsx').then((m) => ({ default: m.SlideImageStudio }))
+);
+const MediaSearchModal = lazy(() =>
+  import('./MediaSearchModal.tsx').then((m) => ({ default: m.MediaSearchModal }))
+);
+const MotionExportModal = lazy(() =>
+  import('./studio/motion/MotionExportModal.tsx').then((m) => ({ default: m.MotionExportModal }))
+);
 
 function deriveTopicHashtags(carousel: CarouselData): string[] {
   const captionMatches = (carousel.caption || '').match(/#[A-Za-z0-9_\u0600-\u06FF]+/g);
@@ -157,56 +172,6 @@ const DOMAIN_CATEGORIES = [
   { id: 'KUBERNETES & CLOUD', label: 'Cloud & K8s' },
   { id: 'DISTRIBUTED SYSTEMS', label: 'Distributed Systems' },
 ];
-
-/**
- * Client-side image compressor:
- * Downscales large screenshots to max 1280px JPEG (~150KB) for fast transmission
- */
-function compressImageClientSide(file: File): Promise<{ base64: string; mimeType: string; sizeKb: number }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const maxDim = 1280;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas context not available'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
-        const sizeKb = Math.round((compressedBase64.length * 3) / 4 / 1024);
-        resolve({
-          base64: compressedBase64,
-          mimeType: 'image/jpeg',
-          sizeKb,
-        });
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   carousel,
@@ -311,6 +276,17 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       : carousel.postFormat === 'single' || carousel.slides.length === 1
       ? 'single'
       : 'carousel';
+
+  const activeDimensionSpec = getCanvasDimensionSpec(carousel.dimensionPreset);
+
+  const handleSelectDimensionPreset = (preset: CanvasDimensionPreset) => {
+    const nextSpec = getCanvasDimensionSpec(preset);
+    applyDeckUpdate((prev) => ({
+      ...prev,
+      dimensionPreset: preset,
+    }));
+    onShowToast(`Switched canvas to ${nextSpec.label} (${nextSpec.width}×${nextSpec.height})`);
+  };
 
   const activeReelConfig: MotionReelData =
     carousel.reelConfig || convertCarouselToMotionReel(carousel, theme, 'marrok-slides', 'bilingual');
@@ -514,24 +490,6 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     onShowToast(`Applied ${elementId} layout to all ${carousel.slides.length} slides`);
   };
 
-  // Keyboard navigation (Left / Right arrows)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-      if (e.key === 'ArrowLeft') {
-        changeSlide((prev) => Math.max(0, prev - 1));
-      } else if (e.key === 'ArrowRight') {
-        changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1));
-      } else if (e.key === 'Escape' && isExpanded) {
-        setIsExpanded(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [carousel.slides.length, isExpanded]);
-
   // Smart Dock Text input with auto-expansion when pasting or typing long material (> 200 chars)
   const handlePromptChange = (val: string) => {
     setPromptInput(val);
@@ -541,7 +499,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   // Image Upload with client-side downscaling
-  const handleImageFile = async (file: File) => {
+  const handleImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       onShowToast('Please select a valid image file (PNG, JPG, WebP).');
       return;
@@ -572,7 +530,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       };
       reader.readAsDataURL(file);
     }
-  };
+  }, [onShowToast]);
 
   const handleSelectDemoImage = async (imagePath: string, title: string) => {
     try {
@@ -596,28 +554,25 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     }
   };
 
-  // Global Clipboard Screenshot Ingestion (Ctrl+V anywhere in app)
-  useEffect(() => {
-    const handleGlobalPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+  const handlePasteImageFromClipboard = useCallback(
+    (file: File) => {
+      handleImageFile(file);
+      onShowToast('📋 Screenshot attached directly from clipboard!');
+    },
+    [handleImageFile, onShowToast]
+  );
 
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/')) {
-          const file = items[i].getAsFile();
-          if (file) {
-            e.preventDefault();
-            handleImageFile(file);
-            onShowToast('📋 Screenshot attached directly from clipboard!');
-            return;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('paste', handleGlobalPaste);
-    return () => window.removeEventListener('paste', handleGlobalPaste);
+  const handleCollapseExpanded = useCallback(() => {
+    setIsExpanded(false);
   }, []);
+
+  useStudioShortcutsAndClipboard({
+    slidesCount: carousel.slides.length,
+    isExpanded,
+    onCollapseExpanded: handleCollapseExpanded,
+    onChangeSlide: changeSlide,
+    onPasteImageFile: handlePasteImageFromClipboard,
+  });
 
   const handleClearDock = () => {
     setPromptInput('');
@@ -1026,7 +981,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       : { label: 'Ungrounded AI', cls: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300' };
 
   // 1-Click Export ZIP with QA & Platform Safety Gate
-  const handleExportZip = async () => {
+  const handleExportZip = async (exportMode: 'active' | 'dual' = 'active') => {
     const ctaSlide = carousel.slides[carousel.slides.length - 1];
     const hasCreatorCredit = Boolean(
       (
@@ -1053,7 +1008,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       onShowToast(`⚠️ Exporting with advisory warnings...`);
     }
     setIsExportingZip(true);
-    setExportProgress({ current: 0, total: carousel.slides.length });
+    const totalCount = exportMode === 'dual' ? carousel.slides.length * 2 : carousel.slides.length;
+    setExportProgress({ current: 0, total: totalCount });
     try {
       const audit = {
         isOverridden: overrideExportBlock,
@@ -1068,7 +1024,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           setExportProgress({ current, total });
         },
         carousel.visualOptions,
-        audit
+        audit,
+        exportMode
       );
       if (onSaveValidPost) {
         try {
@@ -1077,7 +1034,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
           // Non-fatal if background post save fails during ZIP download
         }
       }
-      onShowToast('All 1080×1920 JPG slides & Metricool bundle exported into ZIP!');
+      onShowToast(
+        exportMode === 'dual'
+          ? 'Dual Pack (TikTok 9:16 + Instagram 4:5) & Metricool bundle exported into ZIP!'
+          : `All ${activeDimensionSpec.width}×${activeDimensionSpec.height} (${activeDimensionSpec.shortLabel}) JPG slides & Metricool bundle exported into ZIP!`
+      );
     } catch (err) {
       console.error('ZIP export failed:', err);
       onShowToast('Failed to export ZIP file.');
@@ -1753,6 +1714,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               reelConfig={activeReelConfig}
               theme={theme}
               selectedSceneId={selectedMotionSceneId}
+              isExporting={isMotionExportOpen}
               onSelectScene={(sceneId) => setSelectedMotionSceneId(sceneId)}
               onToggleSfx={() => {
                 applyDeckUpdate((prev) => ({
@@ -1778,6 +1740,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   currentSlideIndex={currentSlideIndex}
                   theme={theme}
                   showSafeZones={showSafeZones}
+                  stageOverlayMode={stageOverlayMode}
+                  onSetStageOverlayMode={setStageOverlayMode}
                   onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
                   onPreviousSlide={() => changeSlide((prev) => Math.max(0, prev - 1))}
                   onNextSlide={() => changeSlide((prev) => Math.min(carousel.slides.length - 1, prev + 1))}
@@ -1795,7 +1759,10 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   carousel={carousel}
                   currentSlideIndex={currentSlideIndex}
                   showSafeZones={showSafeZones}
+                  stageOverlayMode={stageOverlayMode}
+                  onSetStageOverlayMode={setStageOverlayMode}
                   onToggleSafeZones={() => setShowSafeZones(!showSafeZones)}
+                  onSelectDimensionPreset={handleSelectDimensionPreset}
                   onSelectSlide={(idx) => changeSlide(idx)}
                   onAddSlide={handleAddSlide}
                   onDuplicateSlide={handleDuplicateSlide}
@@ -2074,32 +2041,34 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 />
 
                 {imageStudioTargetIndex !== null && carousel.slides[imageStudioTargetIndex] && (
-                  <SlideImageStudio
-                    slideIndex={imageStudioTargetIndex}
-                    slide={carousel.slides[imageStudioTargetIndex]}
-                    theme={theme}
-                    onApplyImage={(targetIndex, imageUrl, prompt, model) => {
-                      applyDeckUpdate((prev) => {
-                        if (targetIndex < 0 || targetIndex >= prev.slides.length) return prev;
-                        const newSlides = [...prev.slides];
-                        newSlides[targetIndex] = sanitizeSlide(
-                          {
-                            ...newSlides[targetIndex],
-                            imageUrl,
-                            imagePrompt: prompt,
-                            imageModel: model,
-                          },
-                          targetIndex,
-                          prev.slides.length
-                        );
-                        return { ...prev, slides: newSlides };
-                      });
-                      setImageStudioTargetIndex(null);
-                      onShowToast(`Applied AI diagram to Slide ${targetIndex + 1}`);
-                    }}
-                    onClose={() => setImageStudioTargetIndex(null)}
-                    onShowToast={onShowToast}
-                  />
+                  <Suspense fallback={null}>
+                    <SlideImageStudio
+                      slideIndex={imageStudioTargetIndex}
+                      slide={carousel.slides[imageStudioTargetIndex]}
+                      theme={theme}
+                      onApplyImage={(targetIndex, imageUrl, prompt, model) => {
+                        applyDeckUpdate((prev) => {
+                          if (targetIndex < 0 || targetIndex >= prev.slides.length) return prev;
+                          const newSlides = [...prev.slides];
+                          newSlides[targetIndex] = sanitizeSlide(
+                            {
+                              ...newSlides[targetIndex],
+                              imageUrl,
+                              imagePrompt: prompt,
+                              imageModel: model,
+                            },
+                            targetIndex,
+                            prev.slides.length
+                          );
+                          return { ...prev, slides: newSlides };
+                        });
+                        setImageStudioTargetIndex(null);
+                        onShowToast(`Applied AI diagram to Slide ${targetIndex + 1}`);
+                      }}
+                      onClose={() => setImageStudioTargetIndex(null)}
+                      onShowToast={onShowToast}
+                    />
+                  </Suspense>
                 )}
               </div>
             )}
@@ -2223,7 +2192,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             {/* Format & Dimensions Meta */}
             <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
               <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-white/10 text-slate-300">
-                1080×1920
+                {activePostFormat === 'reel'
+                  ? '1080×1920'
+                  : `${activeDimensionSpec.width}×${activeDimensionSpec.height} · ${activeDimensionSpec.shortLabel}`}
               </span>
               {activePostFormat === 'carousel' && (
                 <span>Slide {currentSlideIndex + 1} of {carousel.slides.length}</span>
@@ -2244,7 +2215,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   type="button"
                   onClick={() => setIsMoreMenuOpen((prev) => !prev)}
                   className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
-                  title="More actions (Copy Image, Copy Caption, JPG, Contact Sheet)"
+                  title="More actions (Copy Image, Copy Caption, JPG, Dual Pack, Contact Sheet)"
                 >
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
@@ -2255,7 +2226,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                       className="fixed inset-0 z-40"
                       onClick={() => setIsMoreMenuOpen(false)}
                     />
-                    <div className="absolute right-0 bottom-full mb-2 w-52 bg-[#0d151e] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 text-xs">
+                    <div className="absolute right-0 bottom-full mb-2 w-60 bg-[#0d151e] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 text-xs">
                       <button
                         type="button"
                         onClick={() => {
@@ -2295,19 +2266,33 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                             carousel,
                             currentSlideIndex,
                             activePostFormat === 'single'
-                              ? `MARROK_Post_1080x1920.jpg`
-                              : `MARROK_Slide_${currentSlideIndex + 1}.jpg`,
+                              ? `MARROK_Post_${activeDimensionSpec.width}x${activeDimensionSpec.height}.jpg`
+                              : `MARROK_Slide_${currentSlideIndex + 1}_${activeDimensionSpec.width}x${activeDimensionSpec.height}.jpg`,
                             theme,
                             carousel.visualOptions
                           );
                           setIsMoreMenuOpen(false);
-                          onShowToast(`Downloaded Slide ${currentSlideIndex + 1} JPG`);
+                          onShowToast(`Downloaded Slide ${currentSlideIndex + 1} (${activeDimensionSpec.width}×${activeDimensionSpec.height}) JPG`);
                         }}
                         className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-slate-200 transition-colors text-left cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Download Slide JPG</span>
+                        <span>Download Slide JPG ({activeDimensionSpec.shortLabel})</span>
                       </button>
+
+                      {activePostFormat === 'carousel' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMoreMenuOpen(false);
+                            handleExportZip('dual');
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-slate-200 transition-colors text-left cursor-pointer"
+                        >
+                          <Smartphone className="w-3.5 h-3.5 text-pink-400" />
+                          <span>Export Dual Pack (TikTok + IG 4:5)</span>
+                        </button>
+                      )}
 
                       {activePostFormat !== 'single' && (
                         <button
@@ -2400,18 +2385,18 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                     downloadSingleSlidePng(
                       carousel,
                       0,
-                      `MARROK_Single_Post_1080x1920.jpg`,
+                      `MARROK_Single_Post_${activeDimensionSpec.width}x${activeDimensionSpec.height}.jpg`,
                       theme,
                       carousel.visualOptions
                     );
                     if (onSaveValidPost) {
                       onSaveValidPost('posted', overrideExportBlock).catch(() => {});
                     }
-                    onShowToast('Downloaded 1080×1920 Single-Slide Post JPG!');
+                    onShowToast(`Downloaded ${activeDimensionSpec.width}×${activeDimensionSpec.height} Single-Slide Post JPG!`);
                   }}
                   className="py-1.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                   style={{ backgroundColor: theme.accent }}
-                  title="Download standalone 1080×1920 JPG post"
+                  title={`Download standalone ${activeDimensionSpec.width}×${activeDimensionSpec.height} JPG post`}
                 >
                   <Download className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>Download JPG</span>
@@ -2419,11 +2404,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               ) : (
                 <button
                   type="button"
-                  onClick={handleExportZip}
+                  onClick={() => handleExportZip('active')}
                   disabled={isExportingZip}
                   className="py-1.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-950 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                   style={{ backgroundColor: theme.accent }}
-                  title="Download all 1080×1920 slides + Metricool bundle ZIP"
+                  title={`Download all ${activeDimensionSpec.width}×${activeDimensionSpec.height} slides + Metricool bundle ZIP`}
                 >
                   {isExportingZip && exportProgress ? (
                     <>
@@ -2495,7 +2480,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             className="flex-1 min-h-[44px] flex items-center justify-center gap-1 text-xs font-mono text-slate-200 bg-white/[0.04] border border-white/10 rounded-xl px-2 cursor-pointer"
             aria-label="Single-Slide Post. Tap to inspect."
           >
-            <span>Single-Slide Post · 1080×1920</span>
+            <span>Single-Slide Post · {activeDimensionSpec.width}×{activeDimensionSpec.height}</span>
             <span className="text-xs uppercase font-sans px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 ml-1">Edit</span>
           </button>
         )}
@@ -2541,16 +2526,16 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               downloadSingleSlidePng(
                 carousel,
                 0,
-                'MARROK_Single_Post_1080x1920.jpg',
+                `MARROK_Single_Post_${activeDimensionSpec.width}x${activeDimensionSpec.height}.jpg`,
                 theme,
                 carousel.visualOptions
               );
               if (onSaveValidPost) {
                 onSaveValidPost('posted', overrideExportBlock).catch(() => {});
               }
-              onShowToast('Downloaded 1080×1920 Single-Slide Post JPG!');
+              onShowToast(`Downloaded ${activeDimensionSpec.width}×${activeDimensionSpec.height} Single-Slide Post JPG!`);
             } else {
-              handleExportZip();
+              handleExportZip('active');
             }
           }}
           disabled={isExportingZip}
@@ -2597,28 +2582,34 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       </div>
 
       {/* Motion Reel Export Modal */}
-      <MotionExportModal
-        isOpen={isMotionExportOpen}
-        reelConfig={activeReelConfig}
-        theme={theme}
-        onClose={() => setIsMotionExportOpen(false)}
-        onShowToast={onShowToast}
-      />
+      {isMotionExportOpen && (
+        <Suspense fallback={null}>
+          <MotionExportModal
+            isOpen={isMotionExportOpen}
+            reelConfig={activeReelConfig}
+            theme={theme}
+            onClose={() => setIsMotionExportOpen(false)}
+            onShowToast={onShowToast}
+          />
+        </Suspense>
+      )}
 
       {/* Media Search Modal */}
       {mediaModalTarget && (
-        <MediaSearchModal
-          isOpen={Boolean(mediaModalTarget)}
-          theme={theme}
-          onClose={() => setMediaModalTarget(null)}
-          title={mediaModalTarget.title || 'Search Web Media'}
-          initialQuery={mediaModalTarget.initialQuery}
-          onSelectUrl={(url: string) => {
-            handleUpdateCurrentSlide('imageUrl', url);
-            setMediaModalTarget(null);
-            onShowToast('Applied web visual to slide');
-          }}
-        />
+        <Suspense fallback={null}>
+          <MediaSearchModal
+            isOpen={Boolean(mediaModalTarget)}
+            theme={theme}
+            onClose={() => setMediaModalTarget(null)}
+            title={mediaModalTarget.title || 'Search Web Media'}
+            initialQuery={mediaModalTarget.initialQuery}
+            onSelectUrl={(url: string) => {
+              handleUpdateCurrentSlide('imageUrl', url);
+              setMediaModalTarget(null);
+              onShowToast('Applied web visual to slide');
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );

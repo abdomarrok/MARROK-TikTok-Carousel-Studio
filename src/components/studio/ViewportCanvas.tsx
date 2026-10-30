@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Move, RotateCcw, X, Heart, MessageCircle, Bookmark, Share2, Music2, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Move, RotateCcw, X, Heart, MessageCircle, Bookmark, Share2, Music2, Search, Send, MoreHorizontal } from 'lucide-react';
 import { CarouselData, GraphicalElementId, ElementLayoutOverride, ThemePalette } from '../../types.ts';
-import { renderSlideToCanvas } from '../../lib/canvasExporter.ts';
+import { renderSlideToCanvas, getCanvasDimensionSpec } from '../../lib/canvasExporter.ts';
 import { computeSlideElementBounds, findSlideElementAtPoint, ElementBounds } from '../../lib/canvas/layoutBounds.ts';
 import { clampElementDrag } from '../../lib/canvas/layoutAwareness.ts';
 
@@ -29,7 +29,6 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   theme,
   showSafeZones,
   stageOverlayMode,
-  onSetStageOverlayMode,
   onPreviousSlide,
   onNextSlide,
   canvasRef: externalCanvasRef,
@@ -46,8 +45,10 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   const initialOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const [mobileNudgeStep, setMobileNudgeStep] = useState<number>(5);
 
+  const spec = getCanvasDimensionSpec(carousel.dimensionPreset);
   const prevIndexRef = useRef(currentSlideIndex);
   const prevArchetypeRef = useRef(carousel.slides[currentSlideIndex]?.type);
+  const prevPresetRef = useRef(spec.id);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renderSequenceRef = useRef(0);
 
@@ -91,8 +92,10 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
 
     const isIndexChange = prevIndexRef.current !== currentSlideIndex;
     const isArchetypeChange = prevArchetypeRef.current !== currentSlide.type;
+    const isPresetChange = prevPresetRef.current !== spec.id;
     prevIndexRef.current = currentSlideIndex;
     prevArchetypeRef.current = currentSlide.type;
+    prevPresetRef.current = spec.id;
 
     const renderSequence = ++renderSequenceRef.current;
 
@@ -124,7 +127,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       }
     };
 
-    if (isIndexChange || isArchetypeChange) {
+    if (isIndexChange || isArchetypeChange || isPresetChange) {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       executeRender();
     } else {
@@ -136,7 +139,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       isMounted = false;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [carousel, currentSlideIndex, theme, activeCanvasRef]);
+  }, [carousel, currentSlideIndex, theme, activeCanvasRef, spec.id]);
 
   // Accurate hit-testing on Canvas click
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -144,8 +147,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     const rect = activeCanvasRef.current.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
-    const canvasX = ((e.clientX - rect.left) / rect.width) * 1080;
-    const canvasY = ((e.clientY - rect.top) / rect.height) * 1920;
+    const canvasX = ((e.clientX - rect.left) / rect.width) * spec.width;
+    const canvasY = ((e.clientY - rect.top) / rect.height) * spec.height;
 
     const hitId = findSlideElementAtPoint(canvasX, canvasY, boundsMap, currentSlide?.layoutOverrides);
     onSelectElement(hitId);
@@ -157,8 +160,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     const rect = activeCanvasRef.current.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
-    const canvasX = ((e.clientX - rect.left) / rect.width) * 1080;
-    const canvasY = ((e.clientY - rect.top) / rect.height) * 1920;
+    const canvasX = ((e.clientX - rect.left) / rect.width) * spec.width;
+    const canvasY = ((e.clientY - rect.top) / rect.height) * spec.height;
 
     const hitId = findSlideElementAtPoint(canvasX, canvasY, boundsMap, currentSlide?.layoutOverrides);
     setHoveredElementId(hitId);
@@ -183,8 +186,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     const rect = activeCanvasRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0 || rect.height === 0) return;
 
-    const scaleX = 1080 / rect.width;
-    const scaleY = 1920 / rect.height;
+    const scaleX = spec.width / rect.width;
+    const scaleY = spec.height / rect.height;
 
     const deltaX = Math.round((e.clientX - dragStartRef.current.x) * scaleX);
     const deltaY = Math.round((e.clientY - dragStartRef.current.y) * scaleY);
@@ -254,12 +257,17 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
 
   // Check if HUD pill should render inside box or above
   const isPillInside = activeBounds && (activeBounds.y < 140 || selectedElementId === 'headerBadge');
+  const topSafePct = `${((spec.headerY / spec.height) * 100).toFixed(1)}%`;
+  const bottomSafePct = `${(((spec.height - spec.safeFooterCeilingY) / spec.height) * 100).toFixed(1)}%`;
 
   return (
     <div
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-h-[min(480px,calc(100vh-255px))] aspect-[9/16] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none group"
+      data-testid="viewport-stage-container"
+      data-dimension-preset={spec.id}
+      style={{ aspectRatio: `${spec.width} / ${spec.height}` }}
+      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-w-[min(380px,92vw)] max-h-[min(480px,calc(100vh-255px))] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none group transition-all duration-200"
     >
       <canvas
         ref={activeCanvasRef}
@@ -360,7 +368,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
         </div>
       )}
 
-      {/* Top Floating Keyboard Shortcut Hint (Non-obtrusive, leaves slide body text 100% visible) */}
+      {/* Top Floating Keyboard Shortcut Hint */}
       {selectedElementId && (
         <div className="hidden sm:flex absolute top-2 right-2 bg-black/85 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-0.5 text-[8px] font-mono text-slate-300 shadow-xl items-center gap-1.5 pointer-events-none whitespace-nowrap z-20">
           <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: theme.accent }} />
@@ -372,7 +380,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
         </div>
       )}
 
-      {/* Mobile Precision Nudge Bar (Visible when element selected on mobile screens) */}
+      {/* Mobile Precision Nudge Bar */}
       {selectedElementId && (
         <div className="sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/90 backdrop-blur-md border border-white/25 rounded-2xl p-1 shadow-2xl z-30 touch-manipulation">
           <button
@@ -444,54 +452,90 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
         </div>
       )}
 
-      {/* TikTok Feed Safe Zone Simulator Overlay */}
+      {/* Platform Safe Zone Simulator Overlay */}
       {overlayMode === 'safe' && (
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-mono text-[9px] select-none">
-          {/* Top 9.4% Safe Zone (Status & Search) */}
-          <div className="h-[9.4%] bg-rose-500/20 border-b border-rose-500/40 flex items-center justify-between px-3 text-rose-300">
-            <span>TOP 180px MARGIN</span>
-            <span>[Search / For You]</span>
+          {/* Top Safe Zone */}
+          <div
+            style={{ height: topSafePct }}
+            className="bg-rose-500/20 border-b border-rose-500/40 flex items-center justify-between px-3 text-rose-300"
+          >
+            <span>TOP {spec.headerY}px SAFE</span>
+            <span>{spec.shortLabel} ({spec.width}×{spec.height})</span>
           </div>
 
           {/* Center Content Bounding Box */}
-          <div className="flex-1 mx-3 border-2 border-dashed border-rose-400/40 rounded-lg flex items-center justify-between p-2">
-            <span className="text-rose-400/70 rotate-90 origin-left text-[8px] tracking-wider">SAFE BOUNDARY</span>
-            {/* Right-side TikTok Icons HUD Indicator */}
-            <div className="h-full flex flex-col justify-end items-center gap-2 text-rose-300/80 pr-1 pb-4 text-[10px]">
-              <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">♥</div>
-              <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">💬</div>
-              <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">★</div>
-              <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">↗</div>
-            </div>
+          <div className="flex-1 mx-3 border-2 border-dashed border-rose-400/40 rounded-lg flex items-center justify-between p-2 relative">
+            <span className="text-rose-400/70 rotate-90 origin-left text-[8px] tracking-wider">
+              {spec.safeMarginLeft}px..{spec.safeMarginRight}px SAFE
+            </span>
+
+            {/* 3:4 Profile Grid Crop Indicator on IG 4:5 */}
+            {spec.id === 'ig-4:5' && (
+              <div className="absolute inset-y-0 left-[3.5%] right-[3.5%] border-x border-dotted border-amber-400/40 flex items-start justify-center pt-1">
+                <span className="text-[7px] text-amber-300/80 bg-black/60 px-1 rounded">
+                  IG 3:4 Grid Crop Safe
+                </span>
+              </div>
+            )}
+
+            {/* Right-side Interaction Rail Indicator (for 9:16 TikTok / IG Reels) */}
+            {spec.aspectRatioLabel === '9:16' && (
+              <div className="h-full flex flex-col justify-end items-center gap-2 text-rose-300/80 pr-1 pb-2 text-[10px]">
+                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">♥</div>
+                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">💬</div>
+                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">★</div>
+                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">↗</div>
+              </div>
+            )}
           </div>
 
-          {/* Bottom 16.7% Safe Zone (Caption & Audio) */}
-          <div className="h-[16.7%] bg-rose-500/20 border-t border-rose-500/40 flex flex-col justify-center px-3 text-rose-300 space-y-0.5">
+          {/* Bottom Safe Zone */}
+          <div
+            style={{ height: bottomSafePct }}
+            className="bg-rose-500/20 border-t border-rose-500/40 flex flex-col justify-center px-3 text-rose-300 space-y-0.5"
+          >
             <div className="flex justify-between">
-              <span>BOTTOM 320px MARGIN</span>
-              <span>@username</span>
+              <span>CEILING y≤{spec.safeFooterCeilingY}px</span>
+              <span>@{creatorHandle}</span>
             </div>
-            <span className="text-[8px] text-rose-400/80">TikTok Captions & Audio Track Area</span>
+            <span className="text-[8px] text-rose-400/80">
+              {spec.platform === 'tiktok'
+                ? 'TikTok Photo Mode Dots, Caption & Sound Drawer'
+                : spec.id === 'ig-9:16'
+                ? 'Instagram Reels Caption & Audio Bar'
+                : 'Instagram Carousel Pagination & Action Bar'}
+            </span>
           </div>
         </div>
       )}
 
-      {overlayMode === 'tiktok' && (
+      {/* Realistic Social Platform UI Overlay (TikTok Photo Mode OR Instagram Feed / Reels) */}
+      {overlayMode === 'tiktok' && spec.platform === 'tiktok' && (
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-sans select-none overflow-hidden">
-          {/* Top TikTok Navigation Bar */}
-          <div className="pt-3 px-3 flex items-center justify-between text-white/90 drop-shadow-md z-10">
-            <span className="text-[11px] font-semibold text-white/50">LIVE</span>
-            <div className="flex items-center gap-3 text-xs font-bold">
-              <span className="text-white/60">Following</span>
-              <span className="text-white border-b-2 border-white pb-0.5">For You</span>
+          {/* Top TikTok Navigation Bar + Photo Mode Counter Pill */}
+          <div className="pt-2.5 px-3 space-y-1.5 z-10">
+            <div className="flex items-center justify-between text-white/90 drop-shadow-md">
+              <span className="text-[11px] font-semibold text-white/50">LIVE</span>
+              <div className="flex items-center gap-3 text-xs font-bold">
+                <span className="text-white/60">Following</span>
+                <span className="text-white border-b-2 border-white pb-0.5">For You</span>
+              </div>
+              <Search className="w-4 h-4 text-white" />
             </div>
-            <Search className="w-4 h-4 text-white" />
+            {carousel.slides.length > 1 && (
+              <div className="flex justify-end">
+                <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-[9px] font-mono font-bold text-white/90 border border-white/15">
+                  {currentSlideIndex + 1}/{carousel.slides.length}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Center Bounding Area */}
-          <div className="flex-1 mx-2 border border-dashed border-white/20 rounded-lg flex items-center justify-end p-1">
+          <div className="flex-1 mx-2 flex items-end justify-end p-1">
             {/* Right-Side TikTok Action Column */}
-            <div className="flex flex-col items-center gap-2.5 text-white pr-1 pb-1 z-10">
+            <div className="flex flex-col items-center gap-2 text-white pr-0.5 pb-1 z-10">
               <div className="relative mb-1">
                 <div className="w-8 h-8 rounded-full bg-slate-800 border-2 border-white overflow-hidden flex items-center justify-center">
                   <span className="font-bold text-[10px] text-cyan-300">
@@ -532,17 +576,61 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
             </div>
           </div>
 
-          {/* Bottom TikTok Caption & Marquee Bar */}
-          <div className="p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-white space-y-1 z-10">
-            <div className="font-bold text-xs tracking-tight">
-              @{creatorHandle}
+          {/* Bottom TikTok Photo Mode Dots + Caption & Sound Drawer */}
+          <div className="p-3 pt-2 bg-gradient-to-t from-black/95 via-black/70 to-transparent text-white space-y-1 z-10">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-xs tracking-tight">@{creatorHandle}</span>
+              <span className="px-1.5 py-0.2 rounded bg-white/15 text-[8px] font-semibold text-white/85">Photo</span>
             </div>
-            <p className="text-[11px] text-white/90 line-clamp-2 leading-snug font-sans">
-              {carousel.slides[currentSlideIndex]?.enTitle || carousel.caption?.slice(0, 60) || 'MARROK engineering breakthrough...'}
+            <p className="text-[10px] text-white/90 line-clamp-2 leading-snug font-sans">
+              {carousel.slides[currentSlideIndex]?.enTitle || carousel.caption?.slice(0, 60) || 'MARROK engineering breakdown...'}
             </p>
-            <div className="flex items-center gap-1.5 text-[10px] text-white/75 font-mono">
+            <div className="flex items-center gap-1.5 text-[9px] text-white/75 font-mono">
               <Music2 className="w-3 h-3 text-white" />
               <span>original sound - @{creatorHandle}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {overlayMode === 'tiktok' && spec.platform === 'instagram' && (
+        <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-sans select-none overflow-hidden">
+          {/* Top Instagram Feed / Reels Header */}
+          <div className="pt-2.5 px-3 flex items-center justify-between text-white drop-shadow-md z-10 bg-gradient-to-b from-black/70 to-transparent pb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-fuchsia-600 p-0.5">
+                <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-[9px] font-bold text-white">
+                  {(carousel.brand || 'M')[0].toUpperCase()}
+                </div>
+              </div>
+              <div className="leading-tight">
+                <div className="text-[10px] font-bold text-white">{creatorHandle}</div>
+                <div className="text-[8px] text-white/70">{spec.shortLabel} · Original Audio</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {carousel.slides.length > 1 && (
+                <span className="px-2 py-0.5 rounded-full bg-black/70 border border-white/15 text-[9px] font-mono font-bold text-white">
+                  {currentSlideIndex + 1}/{carousel.slides.length}
+                </span>
+              )}
+              <MoreHorizontal className="w-4 h-4 text-white/80" />
+            </div>
+          </div>
+
+          {/* Bottom Instagram Action Bar (Feed Post vs Reels) */}
+          <div className="px-3 py-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent text-white space-y-1 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Heart className="w-4 h-4 text-white" />
+                <MessageCircle className="w-4 h-4 text-white" />
+                <Send className="w-4 h-4 text-white" />
+              </div>
+              <Bookmark className="w-4 h-4 text-white" />
+            </div>
+            <div className="text-[9px] text-white/85 truncate">
+              <span className="font-bold mr-1">{creatorHandle}</span>
+              <span>{carousel.slides[currentSlideIndex]?.enTitle || carousel.category}</span>
             </div>
           </div>
         </div>
@@ -570,3 +658,4 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     </div>
   );
 };
+

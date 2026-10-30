@@ -11,22 +11,43 @@ export const SAFE_RIGHT = 945;
 export const SAFE_WIDTH = SAFE_RIGHT - SAFE_LEFT; // 863px
 export const SAFE_CENTER_X = (SAFE_LEFT + SAFE_RIGHT) / 2; // 513.5px
 
+const MAX_RGBA_CACHE_ENTRIES = 256;
+const rgbaCache = new Map<string, string>();
+
+const MAX_MOTION_WRAP_CACHE_ENTRIES = 512;
+const motionWrapCache = new Map<string, string[]>();
+
 export function hexToRgba(hex: string, alpha: number): string {
+  const quantizedAlpha = Math.round(alpha * 1000) / 1000;
+  const cacheKey = `${hex || ''}|${quantizedAlpha}`;
+  const cached = rgbaCache.get(cacheKey);
+  if (cached) return cached;
+
   const clean = (hex || '#6EA0FF').replace('#', '').trim();
+  let result: string;
   if (clean.length === 3) {
     const r = parseInt(clean[0] + clean[0], 16) || 110;
     const g = parseInt(clean[1] + clean[1], 16) || 160;
     const b = parseInt(clean[2] + clean[2], 16) || 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    result = `rgba(${r}, ${g}, ${b}, ${quantizedAlpha})`;
+  } else {
+    const r = parseInt(clean.slice(0, 2), 16) || 110;
+    const g = parseInt(clean.slice(2, 4), 16) || 160;
+    const b = parseInt(clean.slice(4, 6), 16) || 255;
+    result = `rgba(${r}, ${g}, ${b}, ${quantizedAlpha})`;
   }
-  const r = parseInt(clean.slice(0, 2), 16) || 110;
-  const g = parseInt(clean.slice(2, 4), 16) || 160;
-  const b = parseInt(clean.slice(4, 6), 16) || 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+  if (rgbaCache.size >= MAX_RGBA_CACHE_ENTRIES) {
+    const oldestKey = rgbaCache.keys().next().value;
+    if (oldestKey !== undefined) rgbaCache.delete(oldestKey);
+  }
+  rgbaCache.set(cacheKey, result);
+  return result;
 }
 
 /**
  * Word-wraps text into lines that fit within maxWidth on the given Canvas 2D context.
+ * Uses a bounded LRU cache keyed by font, maxWidth, maxLines, and context metric probe.
  */
 export function wrapCanvasLines(
   ctx: CanvasRenderingContext2D,
@@ -36,6 +57,20 @@ export function wrapCanvasLines(
 ): string[] {
   const cleaned = (text || '').trim();
   if (!cleaned) return [];
+
+  let probeWidth = 0;
+  try {
+    probeWidth = Math.round((ctx.measureText('MW0').width || 0) * 100);
+  } catch {
+    probeWidth = 0;
+  }
+
+  const cacheKey = `${ctx.font || ''}|${maxWidth}|${maxLines}|${probeWidth}|${cleaned}`;
+  const cached = motionWrapCache.get(cacheKey);
+  if (cached) {
+    return [...cached];
+  }
+
   const words = cleaned.split(/\s+/);
   const lines: string[] = [];
   let currentLine = '';
@@ -68,7 +103,90 @@ export function wrapCanvasLines(
     lines.push(currentLine);
   }
 
-  return lines.slice(0, maxLines);
+  const finalLines = lines.slice(0, maxLines);
+  if (motionWrapCache.has(cacheKey)) {
+    motionWrapCache.delete(cacheKey);
+  } else if (motionWrapCache.size >= MAX_MOTION_WRAP_CACHE_ENTRIES) {
+    const oldestKey = motionWrapCache.keys().next().value;
+    if (oldestKey !== undefined) motionWrapCache.delete(oldestKey);
+  }
+  motionWrapCache.set(cacheKey, finalLines);
+  return [...finalLines];
+}
+
+// Offscreen cache for static 1080x1920 grid + CAD reticles overlay when cameraPanX is quantized
+const MAX_GRID_CACHE_ENTRIES = 8;
+const offscreenGridCache = new Map<string, OffscreenCanvas>();
+
+function getCachedOffscreenGridOverlay(
+  gridShiftQuantized: number,
+  showCadReticles: boolean
+): OffscreenCanvas | null {
+  if (typeof OffscreenCanvas === 'undefined') return null;
+  const key = `${gridShiftQuantized}|${showCadReticles ? 1 : 0}`;
+  const existing = offscreenGridCache.get(key);
+  if (existing) return existing;
+
+  try {
+    const offscreen = new OffscreenCanvas(MOTION_W, MOTION_H);
+    const oCtx = offscreen.getContext('2d');
+    if (!oCtx) return null;
+
+    oCtx.strokeStyle = 'rgba(255, 255, 255, 0.032)';
+    oCtx.lineWidth = 1;
+    oCtx.beginPath();
+    for (let x = -108 + gridShiftQuantized; x <= MOTION_W + 108; x += 108) {
+      oCtx.moveTo(x, 0);
+      oCtx.lineTo(x, MOTION_H);
+    }
+    for (let y = 0; y <= MOTION_H; y += 108) {
+      oCtx.moveTo(0, y);
+      oCtx.lineTo(MOTION_W, y);
+    }
+    oCtx.stroke();
+
+    if (showCadReticles) {
+      const crosshairs = [
+        { x: 60, y: 195 },
+        { x: 945, y: 195 },
+        { x: 60, y: 1710 },
+        { x: 945, y: 1710 },
+      ];
+      oCtx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      oCtx.lineWidth = 1.5;
+      const arm = 8;
+      oCtx.beginPath();
+      for (const pt of crosshairs) {
+        oCtx.moveTo(pt.x - arm, pt.y);
+        oCtx.lineTo(pt.x + arm, pt.y);
+        oCtx.moveTo(pt.x, pt.y - arm);
+        oCtx.lineTo(pt.x, pt.y + arm);
+      }
+      oCtx.stroke();
+
+      oCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      oCtx.lineWidth = 1;
+      oCtx.beginPath();
+      for (let y = 324; y <= 1620; y += 216) {
+        oCtx.moveTo(941, y);
+        oCtx.lineTo(949, y);
+      }
+      for (let x = 162; x <= 864; x += 216) {
+        oCtx.moveTo(x, 1706);
+        oCtx.lineTo(x, 1714);
+      }
+      oCtx.stroke();
+    }
+
+    if (offscreenGridCache.size >= MAX_GRID_CACHE_ENTRIES) {
+      const oldestKey = offscreenGridCache.keys().next().value;
+      if (oldestKey !== undefined) offscreenGridCache.delete(oldestKey);
+    }
+    offscreenGridCache.set(key, offscreen);
+    return offscreen;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -100,8 +218,18 @@ export function drawMarrokReelBackground(
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, MOTION_W, MOTION_H);
 
-  // 108px Engineering Grid with continuous CAD camera phase shift
   const gridShiftX = ((cameraPanX * 0.5) % 108 + 108) % 108;
+  const gridShiftQuantized = Math.round(gridShiftX * 2) / 2;
+  const showCadReticles = config.showCadReticles !== false;
+  const cachedGrid = getCachedOffscreenGridOverlay(gridShiftQuantized, showCadReticles);
+
+  if (cachedGrid && typeof ctx.drawImage === 'function') {
+    ctx.drawImage(cachedGrid, 0, 0);
+    ctx.restore();
+    return;
+  }
+
+  // Fallback direct batched path rendering (e.g. non-OffscreenCanvas or test mocks)
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.032)';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -115,8 +243,7 @@ export function drawMarrokReelBackground(
   }
   ctx.stroke();
 
-  // CAD Reticles & Safe Zone Boundary Ticks
-  if (config.showCadReticles !== false) {
+  if (showCadReticles) {
     const crosshairs = [
       { x: 60, y: 195 },
       { x: 945, y: 195 },
@@ -126,38 +253,28 @@ export function drawMarrokReelBackground(
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
     ctx.lineWidth = 1.5;
     const arm = 8;
+    ctx.beginPath();
     for (const pt of crosshairs) {
-      ctx.beginPath();
       ctx.moveTo(pt.x - arm, pt.y);
       ctx.lineTo(pt.x + arm, pt.y);
       ctx.moveTo(pt.x, pt.y - arm);
       ctx.lineTo(pt.x, pt.y + arm);
-      ctx.stroke();
     }
+    ctx.stroke();
 
-    // Subtle right & bottom safe-zone ticks
+    // Subtle right & bottom safe-zone ticks batched into single path
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1;
+    ctx.beginPath();
     for (let y = 324; y <= 1620; y += 216) {
-      ctx.beginPath();
       ctx.moveTo(941, y);
       ctx.lineTo(949, y);
-      ctx.stroke();
     }
     for (let x = 162; x <= 864; x += 216) {
-      ctx.beginPath();
       ctx.moveTo(x, 1706);
       ctx.lineTo(x, 1714);
-      ctx.stroke();
     }
-
-    // Technical Coordinate Stamp
-    ctx.direction = 'ltr';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.font = '600 13px "JetBrains Mono", "Plus Jakarta Sans", monospace';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-    ctx.fillText('SYS_REF // 1080x1920.CAD_SAFE // MOTION_REEL', 76, 199);
+    ctx.stroke();
   }
 
   ctx.restore();
@@ -238,24 +355,21 @@ export function drawMarrokReelHeader(
 }
 
 /**
- * 3. Authentic MARROK Pagination & Attribution Footer at y = 1826
- * Renders animated scene progress dots (active pill smoothly morphs across transitions), @MARROK handle, and scene counter.
+ * 3. Authentic MARROK Attribution & Single Smooth Progress Bar Footer
+ * Renders @MARROK handle and a single smooth bottom progress bar inside the safe zone (no redundant dots or counters).
  */
 export function drawMarrokReelFooter(
   ctx: CanvasRenderingContext2D,
   config: MotionTemplateConfig,
   globalTime: number,
-  activeSceneIdx: number,
-  totalScenes: number,
-  fractionalSceneIdx?: number
+  _activeSceneIdx = 0,
+  _totalScenes = 1,
+  _fractionalSceneIdx?: number
 ): void {
   const b: MotionBrandConfig = { ...DEFAULT_BRAND, ...(config?.brand || {}) };
   const accent = b.accentColor || '#6EA0FF';
   const brandName = (b.name || 'MARROK').toUpperCase();
   const channel = (config.channel || b.channel || brandName).replace(/^@/, '');
-  const count = Math.max(1, totalScenes);
-  const currentIdx = Math.max(0, Math.min(count - 1, activeSceneIdx));
-  const fracIdx = fractionalSceneIdx !== undefined ? clamp(fractionalSceneIdx, 0, count - 1) : currentIdx;
 
   const footerY = 1826;
   ctx.save();
@@ -263,67 +377,35 @@ export function drawMarrokReelFooter(
   ctx.textBaseline = 'middle';
 
   // Left handle watermark
-  ctx.font = '600 25px "Plus Jakarta Sans", "Outfit", sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.font = '600 26px "Plus Jakarta Sans", "Outfit", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
   ctx.textAlign = 'left';
   ctx.fillText(`@${channel}`, SAFE_LEFT, footerY);
 
-  // Center pagination dots with smooth fractional morphing between scenes
-  const dotDiameter = 10;
-  const activePillExtra = 20;
-  const gap = 14;
-  const widths: number[] = [];
-  for (let i = 0; i < count; i++) {
-    const proximity = clamp(1 - Math.abs(fracIdx - i), 0, 1);
-    widths.push(dotDiameter + activePillExtra * proximity);
-  }
-  const totalDotsW = widths.reduce((acc, w) => acc + w, 0) + Math.max(0, count - 1) * gap;
-  let curX = SAFE_CENTER_X - totalDotsW / 2;
-
-  for (let i = 0; i < count; i++) {
-    const w = widths[i];
-    const proximity = clamp(1 - Math.abs(fracIdx - i), 0, 1);
-    ctx.save();
-    if (proximity > 0.25) {
-      ctx.shadowColor = accent;
-      ctx.shadowBlur = 10 * proximity;
-      ctx.fillStyle = hexToRgba(accent, 0.45 + 0.55 * proximity);
-    } else {
-      ctx.fillStyle = i < fracIdx ? hexToRgba(accent, 0.45) : 'rgba(255, 255, 255, 0.2)';
-    }
-    ctx.beginPath();
-    ctx.roundRect(curX, footerY - dotDiameter / 2, w, dotDiameter, dotDiameter / 2);
-    ctx.fill();
-    ctx.restore();
-    curX += w + gap;
-  }
-
-  // Right scene index / progress stamp
-  const sceneNum = String(currentIdx + 1).padStart(2, '0');
-  const totalNum = String(count).padStart(2, '0');
-  ctx.font = '700 22px "JetBrains Mono", "Plus Jakarta Sans", monospace';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
-  ctx.textAlign = 'right';
-  ctx.fillText(`${sceneNum} / ${totalNum}`, SAFE_RIGHT, footerY);
-
-  // Subtle bottom progress bar inside safe zone at y = 1862
+  // Single smooth bottom progress bar inside safe zone at y = 1858
   const duration = Math.max(1, config.duration || 20);
   const progress = clamp(globalTime / duration, 0, 1);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
   ctx.beginPath();
-  ctx.roundRect(SAFE_LEFT, 1862, SAFE_WIDTH, 4, 2);
+  ctx.roundRect(SAFE_LEFT, 1858, SAFE_WIDTH, 6, 3);
   ctx.fill();
 
-  ctx.fillStyle = accent;
-  ctx.beginPath();
-  ctx.roundRect(SAFE_LEFT, 1862, SAFE_WIDTH * progress, 4, 2);
-  ctx.fill();
+  if (progress > 0.002) {
+    ctx.save();
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.roundRect(SAFE_LEFT, 1858, Math.max(8, SAFE_WIDTH * progress), 6, 3);
+    ctx.fill();
+    ctx.restore();
+  }
 
   ctx.restore();
 }
 
 /**
- * 4. MARROK Elevated Surface Card with Technical Corner Reticles & Top Micro-Bar
+ * 4. MARROK Elevated Surface Card (Persistent Diagram Frame without internal debug labels)
  */
 export function drawMarrokSurfaceCard(
   ctx: CanvasRenderingContext2D,
@@ -334,17 +416,19 @@ export function drawMarrokSurfaceCard(
   accent: string,
   surfaceColor = '#12131C',
   surfaceBorder = '#252838',
-  leftMicroLabel = 'SYS_MODULE // 01',
-  rightMicroLabel = 'LIVE_SYNC',
+  _leftMicroLabel = '',
+  _rightMicroLabel = '',
   revealProgress = 1
 ): void {
   const s = clamp(revealProgress, 0, 1);
   if (s <= 0.01) return;
 
   ctx.save();
-  const slideOffsetY = (1 - s) * 36;
-  ctx.translate(0, slideOffsetY);
-  ctx.globalAlpha = s;
+  if (s < 0.999) {
+    const slideOffsetY = (1 - s) * 24;
+    ctx.translate(0, slideOffsetY);
+    ctx.globalAlpha = s;
+  }
 
   // Card dark surface fill
   ctx.fillStyle = surfaceColor;
@@ -361,7 +445,7 @@ export function drawMarrokSurfaceCard(
     y + h / 2,
     Math.max(w, h) * 0.65
   );
-  innerGrad.addColorStop(0, hexToRgba(accent, 0.1));
+  innerGrad.addColorStop(0, hexToRgba(accent, 0.12));
   innerGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = innerGrad;
   ctx.beginPath();
@@ -373,53 +457,37 @@ export function drawMarrokSurfaceCard(
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 24);
+  ctx.fill();
   ctx.stroke();
 
   // Glowing top accent bar
   ctx.fillStyle = accent;
   ctx.beginPath();
-  ctx.roundRect(x + 32, y, Math.max(40, (w - 64) * s), 3.5, 2);
+  ctx.roundRect(x + 32, y, Math.max(40, (w - 64) * s), 4, 2);
   ctx.fill();
-
-  // Top micro-header bar inside card
-  ctx.direction = 'ltr';
-  ctx.textBaseline = 'middle';
-  ctx.font = '700 16px "JetBrains Mono", "Plus Jakarta Sans", monospace';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-  ctx.textAlign = 'left';
-  ctx.fillText(leftMicroLabel, x + 28, y + 30);
-
-  // Right status pill
-  ctx.textAlign = 'right';
-  ctx.fillStyle = accent;
-  ctx.fillText(rightMicroLabel, x + w - 28, y + 30);
-
-  // Divider line below micro-header
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(x + 24, y + 52);
-  ctx.lineTo(x + w - 24, y + 52);
-  ctx.stroke();
 
   ctx.restore();
 }
 
+function easeOutReveal(t: number, delaySec: number, durationSec = 0.15): number {
+  const raw = clamp((t - delaySec) / Math.max(0.01, durationSec), 0, 1);
+  return 1 - Math.pow(1 - raw, 3);
+}
+
 /**
  * 5. Animated Bilingual Slide Copy Block (EN Title + AR Title + EN Body + AR Body)
- * Matches MARROK's static slide typography hierarchy with spring-physics reveals.
+ * Staggers English Title, Arabic Title, and Body ~3 frames apart with an ease-out curve
+ * so body copy reaches 100% opacity within <= 0.25s at high-contrast 42px/44px typography.
  */
 export function drawAnimatedBilingualSlideCopy(
   ctx: CanvasRenderingContext2D,
   scene: MotionSceneConfig,
   brand: MotionBrandConfig,
   t: number,
-  startY = 740
+  startY = 920
 ): void {
   const accent = brand.accentColor || '#6EA0FF';
   const textColor = brand.textColor || '#FFFFFF';
-  const k = scene.springK || 220;
-  const d = scene.springD || 22;
 
   // Determine English & Arabic titles/bodies with smart fallbacks from scene.text
   const hasArabicChars = /[\u0600-\u06FF]/.test(scene.text || '');
@@ -440,137 +508,116 @@ export function drawAnimatedBilingualSlideCopy(
   ctx.save();
   ctx.textBaseline = 'alphabetic';
 
-  // 1. Step / Archetype Tag Pill
-  const tagSpring = spring(t - 0.04, k, d);
-  const stepTag = scene.stepNumber
-    ? `SLIDE ${scene.stepNumber} // ${(scene.slideType || 'ARCH').toUpperCase()}`
-    : `${(scene.label || 'KEYNOTE').toUpperCase()} // ${(scene.slideType || 'SLIDE').toUpperCase()}`;
-
-  ctx.save();
-  ctx.direction = 'ltr';
-  ctx.globalAlpha = clamp(t * 5);
-  ctx.font = '800 20px "JetBrains Mono", "Plus Jakarta Sans", monospace';
-  const tagW = Math.min(SAFE_WIDTH, ctx.measureText(stepTag).width + 36);
-  ctx.fillStyle = hexToRgba(accent, 0.14);
-  ctx.strokeStyle = hexToRgba(accent, 0.45);
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(SAFE_LEFT, cursorY - 28, tagW * clamp(tagSpring, 0.2, 1), 38, 10);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = accent;
-  ctx.textAlign = 'left';
-  ctx.fillText(stepTag, SAFE_LEFT + 18, cursorY - 2);
-  ctx.restore();
-
-  cursorY += 56;
-
-  // 2. English Headline (Plus Jakarta Sans 800, LTR, White)
+  // 1. English Headline (Plus Jakarta Sans 800, 52px, LTR, White, 0.00s..0.15s ease-out)
   if (enTitle) {
+    const enEase = easeOutReveal(t, 0.0, 0.15);
     ctx.save();
     ctx.direction = 'ltr';
     ctx.textAlign = 'left';
-    ctx.font = '800 48px "Plus Jakarta Sans", "Outfit", sans-serif';
+    ctx.font = '800 52px "Plus Jakarta Sans", "Outfit", sans-serif';
     const enLines = wrapCanvasLines(ctx, enTitle.toUpperCase(), SAFE_WIDTH, 2);
 
-    enLines.forEach((line, lineIdx) => {
-      const lt = t - 0.08 - lineIdx * 0.06;
-      const ls = spring(lt, k, d);
+    enLines.forEach((line) => {
       ctx.save();
-      ctx.globalAlpha = clamp(lt * 5);
-      ctx.translate(SAFE_LEFT, cursorY + (1 - ls) * 28);
-      ctx.scale(0.96 + 0.04 * ls, 0.96 + 0.04 * ls);
+      ctx.globalAlpha = enEase;
+      ctx.translate(SAFE_LEFT, cursorY + (1 - enEase) * 14);
       ctx.fillStyle = textColor;
       ctx.fillText(line, 0, 0, SAFE_WIDTH);
       ctx.restore();
-      cursorY += 58;
+      cursorY += 64;
     });
     ctx.restore();
   }
 
   cursorY += 12;
 
-  // 3. Arabic Headline (Cairo 800, RTL, Accent Color)
+  // 2. Arabic Headline (Cairo 800, 50px, RTL, Accent Color, +1.5 frames / 0.05s..0.20s ease-out)
   if (arTitle) {
+    const arEase = easeOutReveal(t, 0.05, 0.15);
     ctx.save();
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
-    ctx.font = '800 46px "Cairo", "Noto Sans Arabic", sans-serif';
+    ctx.font = '800 50px "Cairo", "Noto Sans Arabic", sans-serif';
     const arLines = wrapCanvasLines(ctx, arTitle, SAFE_WIDTH, 2);
 
-    arLines.forEach((line, lineIdx) => {
-      const lt = t - 0.16 - lineIdx * 0.06;
-      const ls = spring(lt, k, d);
+    arLines.forEach((line) => {
       ctx.save();
-      ctx.globalAlpha = clamp(lt * 5);
-      ctx.translate(SAFE_RIGHT, cursorY + (1 - ls) * 28);
-      ctx.scale(0.96 + 0.04 * ls, 0.96 + 0.04 * ls);
+      ctx.globalAlpha = arEase;
+      ctx.translate(SAFE_RIGHT, cursorY + (1 - arEase) * 14);
       ctx.fillStyle = accent;
       ctx.fillText(line, 0, 0, SAFE_WIDTH);
       ctx.restore();
-      cursorY += 60;
+      cursorY += 66;
     });
     ctx.restore();
   }
 
-  // 4. Expanding Accent Divider Line between Headlines and Body
-  const divSpring = spring(t - 0.22, 190, 22);
+  // 3. Expanding Accent Divider Line between Headlines and Body (0.08s..0.22s ease-out)
+  const divEase = easeOutReveal(t, 0.08, 0.14);
   ctx.save();
   ctx.fillStyle = accent;
-  ctx.globalAlpha = clamp((t - 0.2) * 4) * 0.85;
+  ctx.globalAlpha = divEase * 0.9;
   ctx.beginPath();
-  ctx.roundRect(SAFE_LEFT, cursorY - 18, SAFE_WIDTH * clamp(divSpring, 0, 1), 5, 2.5);
+  ctx.roundRect(SAFE_LEFT, cursorY - 20, Math.max(8, SAFE_WIDTH * divEase), 5, 2.5);
   ctx.fill();
   ctx.restore();
 
-  cursorY += 26;
+  cursorY += 36;
 
-  // 5. English Body Copy (LTR, left accent guide bar)
+  // 4. English Body Copy (500 42px Plus Jakarta Sans, #F1F5F9 high-contrast, +3 frames / 0.10s..0.25s ease-out)
+  const bodyEase = easeOutReveal(t, 0.10, 0.15); // Reaches 100% opacity at t = 0.25s
   if (enBody) {
-    const bt = t - 0.26;
-    const bs = spring(bt, k, d);
     ctx.save();
     ctx.direction = 'ltr';
     ctx.textAlign = 'left';
-    ctx.font = '500 29px "Plus Jakarta Sans", "Outfit", sans-serif';
-    const bodyLines = wrapCanvasLines(ctx, enBody, SAFE_WIDTH - 28, 3);
-    const blockH = bodyLines.length * 40;
+    ctx.font = '500 42px "Plus Jakarta Sans", "Outfit", sans-serif';
+    const bodyLines = wrapCanvasLines(ctx, enBody, SAFE_WIDTH - 32, 3);
+    const lineH = 56;
+    const blockH = bodyLines.length * lineH;
 
-    ctx.globalAlpha = clamp(bt * 4);
-    ctx.fillStyle = hexToRgba(accent, 0.65);
+    ctx.globalAlpha = bodyEase;
+    ctx.fillStyle = hexToRgba(accent, 0.85);
     ctx.beginPath();
-    ctx.roundRect(SAFE_LEFT, cursorY - 26, 5, Math.max(12, blockH * bs), 2.5);
+    ctx.roundRect(SAFE_LEFT, cursorY - 36, 6, Math.max(16, (blockH - 8) * bodyEase), 3);
     ctx.fill();
 
-    ctx.fillStyle = '#B8BeCA';
+    ctx.fillStyle = '#F1F5F9';
     bodyLines.forEach((line, idx) => {
-      ctx.fillText(line, SAFE_LEFT + 22, cursorY + idx * 40 + (1 - bs) * 20, SAFE_WIDTH - 28);
+      ctx.fillText(
+        line,
+        SAFE_LEFT + 26,
+        cursorY + idx * lineH + (1 - bodyEase) * 12,
+        SAFE_WIDTH - 32
+      );
     });
     ctx.restore();
-    cursorY += blockH + 28;
+    cursorY += blockH + 34;
   }
 
-  // 6. Arabic Body Copy (RTL, right accent guide bar)
-  if (arBody && cursorY <= 1620) {
-    const bt = t - 0.34;
-    const bs = spring(bt, k, d);
+  // 5. Arabic Body Copy (600 44px Cairo, #FFFFFF bright high-contrast, reaches 100% opacity by t = 0.25s)
+  if (arBody && cursorY <= 1720) {
     ctx.save();
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
-    ctx.font = '600 31px "Cairo", "Noto Sans Arabic", sans-serif';
-    const arBodyLines = wrapCanvasLines(ctx, arBody, SAFE_WIDTH - 28, 3);
-    const blockH = arBodyLines.length * 44;
+    ctx.font = '600 44px "Cairo", "Noto Sans Arabic", sans-serif';
+    const arBodyLines = wrapCanvasLines(ctx, arBody, SAFE_WIDTH - 32, 3);
+    const lineH = 60;
+    const blockH = arBodyLines.length * lineH;
 
-    ctx.globalAlpha = clamp(bt * 4);
+    ctx.globalAlpha = bodyEase;
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.roundRect(SAFE_RIGHT - 5, cursorY - 28, 5, Math.max(12, blockH * bs), 2.5);
+    ctx.roundRect(SAFE_RIGHT - 6, cursorY - 38, 6, Math.max(16, (blockH - 8) * bodyEase), 3);
     ctx.fill();
 
-    ctx.fillStyle = '#DCE0EA';
+    ctx.fillStyle = '#FFFFFF';
     arBodyLines.forEach((line, idx) => {
-      ctx.fillText(line, SAFE_RIGHT - 22, cursorY + idx * 44 + (1 - bs) * 20, SAFE_WIDTH - 28);
+      ctx.fillText(
+        line,
+        SAFE_RIGHT - 26,
+        cursorY + idx * lineH + (1 - bodyEase) * 12,
+        SAFE_WIDTH - 32
+      );
     });
     ctx.restore();
   }
@@ -580,7 +627,7 @@ export function drawAnimatedBilingualSlideCopy(
 
 /**
  * Self-contained JS helper injected into standalone HTML exports so exported .html files
- * render the exact same MARROK vector logo, radial glow, 108px grid, CAD reticles, header, and footer.
+ * render the exact same MARROK vector logo, radial glow, 108px grid, CAD reticles, header, and single progress bar footer.
  */
 export const MARROK_CHROME_SCRIPT = `
 const MARROK_LOGO_PATHS = ${JSON.stringify(MARROK_LOGO_PATHS)};
@@ -650,13 +697,6 @@ function drawMarrokChrome(ctx, config, globalTime) {
     ctx.stroke();
   }
 
-  ctx.direction = 'ltr';
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = '600 13px monospace';
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.textAlign = 'left';
-  ctx.fillText('SYS_REF // 1080x1920.CAD_SAFE // MOTION_REEL', 76, 199);
-
   // Header Badge + MARROK Logo
   ctx.save();
   ctx.shadowColor = accent;
@@ -668,24 +708,26 @@ function drawMarrokChrome(ctx, config, globalTime) {
   ctx.restore();
   drawMarrokVectorBadge(ctx, 98, 128, 32, accent, 'transparent');
 
-  ctx.font = '800 28px "Plus Jakarta Sans", sans-serif';
+  ctx.direction = 'ltr';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = '800 38px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left';
-  ctx.fillText(brandName, 128, 140);
+  ctx.fillText(brandName, 126, 142);
   const bw = ctx.measureText(brandName).width;
   ctx.fillStyle = accent;
   ctx.beginPath();
-  ctx.arc(128 + bw + 12, 131, 4.5, 0, Math.PI * 2);
+  ctx.arc(126 + bw + 12, 129, 7, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.font = '700 25px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '400 30px "Plus Jakarta Sans", sans-serif';
   ctx.fillStyle = '#A0A5B1';
   ctx.textAlign = 'right';
   ctx.fillText(category, 945, 140);
   ctx.restore();
 }
 
-function drawMarrokFooter(ctx, config, globalTime, activeIdx, totalCount) {
+function drawMarrokFooter(ctx, config, globalTime) {
   const b = config.brand || {};
   const accent = b.accentColor || '#6EA0FF';
   const brandName = (b.name || 'MARROK').toUpperCase();
@@ -693,29 +735,23 @@ function drawMarrokFooter(ctx, config, globalTime, activeIdx, totalCount) {
   ctx.save();
   ctx.direction = 'ltr';
   ctx.textBaseline = 'middle';
-  ctx.font = '600 25px "Plus Jakarta Sans", sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '600 26px "Plus Jakarta Sans", sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
   ctx.textAlign = 'left';
   ctx.fillText('@' + brandName, 82, footerY);
 
-  const count = Math.max(1, totalCount || 1);
-  const dotR = 5, pillW = 30, gap = 14;
-  const totalW = (count - 1) * (dotR * 2 + gap) + pillW;
-  let curX = 513.5 - totalW / 2;
-  for (let i = 0; i < count; i++) {
-    if (i === activeIdx) {
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.roundRect(curX, footerY - dotR, pillW, dotR * 2, dotR);
-      ctx.fill();
-      curX += pillW + gap;
-    } else {
-      ctx.fillStyle = i < activeIdx ? hexToRgba(accent, 0.45) : 'rgba(255,255,255,0.2)';
-      ctx.beginPath();
-      ctx.arc(curX + dotR, footerY, dotR, 0, Math.PI * 2);
-      ctx.fill();
-      curX += dotR * 2 + gap;
-    }
+  const duration = Math.max(1, config.duration || 20);
+  const progress = clamp(globalTime / duration, 0, 1);
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.beginPath();
+  ctx.roundRect(82, 1858, 863, 6, 3);
+  ctx.fill();
+
+  if (progress > 0.002) {
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.roundRect(82, 1858, Math.max(8, 863 * progress), 6, 3);
+    ctx.fill();
   }
   ctx.restore();
 }

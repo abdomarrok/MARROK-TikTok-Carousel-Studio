@@ -4,7 +4,13 @@ import {
   fixWebmDurationBytes,
   fixVideoBlobDuration,
   pickSupportedVideoMimeType,
+  computeSceneTransitionState,
+  generateCues,
+  synthesizeSfxFloat32Buffer,
+  MAX_TRUE_PEAK_LINEAR,
+  convertCarouselToMotionReel,
 } from '../motion/index.ts';
+import { CarouselData, DEFAULT_PALETTES } from '../../types.ts';
 
 function makeMp4Box(type: string, payload: Uint8Array): Uint8Array {
   const size = 8 + payload.length;
@@ -200,4 +206,95 @@ describe('Motion Reel Video Export Duration & MP4 Priority', () => {
       globalThis.MediaRecorder = originalMediaRecorder;
     }
   });
+
+  it('enforces sequential non-overlapping scene transitions (0.2s exit, 0.3s entry, never 2 slides at once)', () => {
+    const scenes = [
+      { id: 's1', label: 'S1', text: 'Slide 1', from: 0, to: 4.5, springK: 200, springD: 18, transition: 'auto' as const },
+      { id: 's2', label: 'S2', text: 'Slide 2', from: 4.5, to: 9.0, springK: 200, springD: 18, transition: 'depth' as const },
+      { id: 's3', label: 'S3', text: 'Slide 3', from: 9.0, to: 13.5, springK: 200, springD: 18, transition: 'kinetic-wipe' as const },
+    ];
+
+    // Sample across the entire 13.5s timeline at 30fps
+    for (let frame = 0; frame < 13.5 * 30; frame++) {
+      const t = frame / 30;
+      const state = computeSceneTransitionState(scenes, t);
+      expect(state.layers).toHaveLength(1);
+    }
+
+    // Just before cut at 4.4s (within 0.2s exit window of s1): only s1 is visible, exiting
+    const exitState = computeSceneTransitionState(scenes, 4.4);
+    expect(exitState.layers).toHaveLength(1);
+    expect(exitState.layers[0].index).toBe(0);
+    expect(exitState.layers[0].alpha).toBeLessThan(1);
+
+    // Just after cut at 4.6s (within 0.3s entry window of s2): only s2 is visible, entering
+    const entryState = computeSceneTransitionState(scenes, 4.6);
+    expect(entryState.layers).toHaveLength(1);
+    expect(entryState.layers[0].index).toBe(1);
+    expect(entryState.layers[0].alpha).toBeGreaterThan(0);
+  });
+
+  it('places a short whoosh cue on every scene transition and keeps audio peak strictly under -1 dBTP', () => {
+    const scenes = [
+      { id: 's1', label: 'S1', text: 'Slide 1', from: 0, to: 4.5, springK: 200, springD: 18, transition: 'auto' as const },
+      { id: 's2', label: 'S2', text: 'Slide 2', from: 4.5, to: 9.0, springK: 200, springD: 18, transition: 'auto' as const },
+      { id: 's3', label: 'S3', text: 'Slide 3', from: 9.0, to: 13.5, springK: 200, springD: 18, transition: 'auto' as const },
+    ];
+    const cues = generateCues(scenes);
+    const whooshes = cues.filter((c) => c.type === 'whoosh');
+    // Every scene boundary (s2 at 4.5s, s3 at 9.0s) has a transition whoosh
+    expect(whooshes.length).toBeGreaterThanOrEqual(2);
+
+    const { samples } = synthesizeSfxFloat32Buffer(cues, 13.5);
+    let maxPeak = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const abs = Math.abs(samples[i]);
+      if (abs > maxPeak) maxPeak = abs;
+    }
+    // -1.0 dBTP = 10^(-1/20) = 0.89125; MAX_TRUE_PEAK_LINEAR = 0.85 (-1.41 dBTP)
+    expect(maxPeak).toBeLessThanOrEqual(MAX_TRUE_PEAK_LINEAR + 1e-5);
+    expect(maxPeak).toBeLessThan(0.89125);
+  });
+
+  it('assigns 4.5s per slide and condenses long body text in convertCarouselToMotionReel()', () => {
+    const sampleCarousel: CarouselData = {
+      theme: 'cyber',
+      category: 'AI Security & Governance',
+      postFormat: 'carousel',
+      caption: 'Caption',
+      slides: [
+        {
+          type: 'hub',
+          enTitle: 'IS YOUR APPROVED AI ACTUALLY SAFE?',
+          arTitle: 'هل الذكاء الاصطناعي المعتمد آمن؟',
+          enBody:
+            'Enterprise teams often assume an approved AI vendor means complete data governance, but shadow integrations and over-permissioned tokens create massive blind spots.',
+          arBody:
+            'تفترض الفرق المؤسسية غالباً أن اعتماد مزود الذكاء الاصطناعي يعني حوكمة كاملة للبيانات، لكن التكاملات الخفية والصلاحيات الواسعة تخلق ثغرات خطيرة للغاية.',
+        },
+        {
+          type: 'row',
+          enTitle: 'THE CATCH: APPROVAL IS NOT CONTROL.',
+          arTitle: 'المشكلة: الاعتماد ليس تحكماً.',
+          enBody: 'Short body line.',
+          arBody: 'نص قصير وواضح.',
+        },
+        {
+          type: 'cta',
+          enTitle: 'AUDIT YOUR AI STACK TODAY',
+          arTitle: 'افحص بنيتك الذكية اليوم',
+          enBody: 'Visit marrok.org for full governance guides.',
+          arBody: 'زر marrok.org لدليل الحوكمة الشامل.',
+        },
+      ],
+    };
+
+    const reel = convertCarouselToMotionReel(sampleCarousel, DEFAULT_PALETTES.cyber, 'marrok-slides');
+    expect(reel.scenes).toHaveLength(3);
+    expect(reel.duration).toBe(13.5);
+    expect(reel.scenes[0].to - reel.scenes[0].from).toBe(4.5);
+    expect((reel.scenes[0].enBody || '').length).toBeLessThanOrEqual(110);
+    expect((reel.scenes[0].arBody || '').length).toBeLessThanOrEqual(115);
+  });
 });
+

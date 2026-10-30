@@ -163,36 +163,39 @@ ${scenesCode}
 function draw(t) {
   drawMarrokChrome(g, CONFIG, t);
   let activeIdx = 0;
-  const halfWin = 0.21;
   for (let i = 0; i < SCENES.length; i++) {
     const s = SCENES[i];
     if (t >= s.from && t < s.to) {
       activeIdx = i;
+      break;
     }
-    if (t >= s.from - halfWin && t < s.to + halfWin) {
-      let alpha = 1;
-      let scale = 1;
-      let dy = 0;
-      if (i > 0 && t < s.from + halfWin) {
-        const p = easeInOutCubic(clamp((t - (s.from - halfWin)) / (halfWin * 2), 0, 1));
-        alpha = p;
-        scale = 0.96 + 0.04 * p;
-        dy = (1 - p) * 28;
-      } else if (i < SCENES.length - 1 && t >= s.to - halfWin) {
-        const p = easeInOutCubic(clamp((t - (s.to - halfWin)) / (halfWin * 2), 0, 1));
-        alpha = 1 - p;
-        scale = 1 - 0.04 * p;
-        dy = -p * 24;
-      }
-      if (alpha > 0.01) {
-        g.save();
-        g.globalAlpha = alpha;
-        g.translate(540, 860 + dy);
-        g.scale(scale, scale);
-        g.translate(-540, -860);
-        s.draw(Math.max(0, t - s.from));
-        g.restore();
-      }
+  }
+  const s = SCENES[activeIdx];
+  if (s) {
+    const exitWin = 0.20;
+    const entryWin = 0.30;
+    let alpha = 1;
+    let scale = 1;
+    let dy = 0;
+    if (activeIdx < SCENES.length - 1 && t >= s.to - exitWin) {
+      const p = Math.pow(clamp((t - (s.to - exitWin)) / exitWin, 0, 1), 3);
+      alpha = 1 - p;
+      scale = 1 - 0.015 * p;
+      dy = -16 * p;
+    } else if (activeIdx > 0 && t < s.from + entryWin) {
+      const p = easeOutCubic(clamp((t - s.from) / entryWin, 0, 1));
+      alpha = p;
+      scale = 0.985 + 0.015 * p;
+      dy = (1 - p) * 16;
+    }
+    if (alpha > 0.01) {
+      g.save();
+      g.globalAlpha = alpha;
+      g.translate(540, 860 + dy);
+      g.scale(scale, scale);
+      g.translate(-540, -860);
+      s.draw(Math.max(0, t - s.from));
+      g.restore();
     }
   }
   drawMarrokFooter(g, CONFIG, t, activeIdx, SCENES.length);
@@ -224,27 +227,24 @@ export function generateCues(
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
     const prevScene = i > 0 ? scenes[i - 1] : undefined;
-    const from = scene.from ?? i * 3.5;
-    const to = scene.to ?? from + 3.5;
+    const from = scene.from ?? i * 4.5;
+    const to = scene.to ?? from + 4.5;
     const dur = Math.max(0.5, to - from);
     const transMode = resolveSmartTransition(prevScene, scene, defaultTransition, i);
 
-    // 1. Scene Transition Entry Cue
+    // 1. Scene Transition Entry Cue — short whoosh on every transition between slides
     if (i === 0) {
       // Soft sub-bass pulse on initial reel start
       cues.push({ t: Number((from + 0.04).toFixed(3)), type: 'thump', amp: 0.11 });
-    } else if (transMode === 'kinetic-wipe' || transMode === 'whip-pan') {
-      // Warm band-pass air sweep aligned with transition overlap
-      cues.push({ t: Number(Math.max(0, from - 0.08).toFixed(3)), type: 'whoosh', amp: 0.09 });
-    } else if (transMode === 'depth') {
-      // Deep Z-space sub-thump + gentle air movement
-      cues.push({ t: Number(Math.max(0, from - 0.05).toFixed(3)), type: 'thump', amp: 0.12 });
     } else {
-      // 'morph': Subtle matte UI card morph pulse
-      cues.push({ t: Number(Math.max(0, from - 0.03).toFixed(3)), type: 'pop', amp: 0.08 });
+      // Short warm band-pass whoosh on every scene transition cut
+      cues.push({ t: Number(Math.max(0, from - 0.08).toFixed(3)), type: 'whoosh', amp: 0.11 });
+      if (transMode === 'depth') {
+        cues.push({ t: Number(Math.max(0, from + 0.02).toFixed(3)), type: 'thump', amp: 0.08 });
+      }
     }
 
-    // Minimal-sub profile emits only the transition pulse above
+    // Minimal-sub profile emits only the transition cues above
     if (sfxProfile === 'minimal-sub') {
       continue;
     }

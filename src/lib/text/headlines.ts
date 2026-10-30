@@ -158,10 +158,15 @@ export function enforceHeadlineSpecRule(
   let endingPunc = isDirectQuestion ? '?' : '.';
   if (trimmed.endsWith('!')) endingPunc = '!';
 
-  // Clean markdown, symbols, and remove ALL colons (preserve compound hyphens like Zero-Trust)
-  const clean = stripMarkdown(rawHeadline)
-    .replace(/[:;]+/g, ' ')
-    .replace(/[.?!،؟…]+/g, '')
+  // Clean markdown and symbols; preserve mid-headline colons on content slides while removing colons on hook/CTA slides
+  const baseClean = stripMarkdown(rawHeadline)
+    .replace(/;+/g, ' ')
+    .replace(/[.?!،؟…]+/g, '');
+  const clean = (
+    isHook || isCta
+      ? baseClean.replace(/:+/g, ' ')
+      : baseClean.replace(/\s*:\s*/g, ': ').replace(/^:\s*|\s*:$/g, '')
+  )
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -173,10 +178,11 @@ export function enforceHeadlineSpecRule(
   }
 
   if (words.length === 1) {
-    if (isNonSemanticFileName(words[0])) {
+    const singleWord = words[0].replace(/:+$/, '');
+    if (isNonSemanticFileName(singleWord)) {
       return isCta ? `${fallbackSubject} at scale?` : `${fallbackSubject}, explained${endingPunc}`;
     }
-    return isCta ? `${words[0]} at scale?` : `${words[0]}, explained${endingPunc}`;
+    return isCta ? `${singleWord} at scale?` : `${singleWord}, explained${endingPunc}`;
   }
 
   const maxWords = isHook ? 8 : isCta ? 8 : 8;
@@ -187,7 +193,8 @@ export function enforceHeadlineSpecRule(
     picked.pop();
   }
 
-  return `${picked.join(' ')}${endingPunc}`;
+  const joined = picked.join(' ').replace(/:+$/, '').trim();
+  return `${joined}${endingPunc}`;
 }
 
 /**

@@ -1,10 +1,19 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { Header } from './components/Header';
 import { AutonomousStudio } from './components/AutonomousStudio';
-import { ThemeCustomizer } from './components/ThemeCustomizer';
-import { ApiKeyModal } from './components/ApiKeyModal';
-import { ContactSheetModal } from './components/ContactSheetModal';
-import { SavedPostsDrawer } from './components/studio/SavedPostsDrawer';
+
+const ThemeCustomizer = lazy(() =>
+  import('./components/ThemeCustomizer').then((m) => ({ default: m.ThemeCustomizer }))
+);
+const ApiKeyModal = lazy(() =>
+  import('./components/ApiKeyModal').then((m) => ({ default: m.ApiKeyModal }))
+);
+const ContactSheetModal = lazy(() =>
+  import('./components/ContactSheetModal').then((m) => ({ default: m.ContactSheetModal }))
+);
+const SavedPostsDrawer = lazy(() =>
+  import('./components/studio/SavedPostsDrawer').then((m) => ({ default: m.SavedPostsDrawer }))
+);
 import {
   CarouselData,
   DEFAULT_PALETTES,
@@ -417,55 +426,70 @@ export default function App() {
       </main>
 
       {/* Slide-Over Saved & Posted Carousels Vault Drawer */}
-      <SavedPostsDrawer
-        isOpen={isSavedPostsDrawerOpen}
-        onClose={() => setIsSavedPostsDrawerOpen(false)}
-        posts={savedPosts}
-        currentCarousel={carousel}
-        theme={currentPalette}
-        storageEngine={storageEngine}
-        isSaving={isSavingPost}
-        onSaveCurrentPost={(status) => handleSaveValidPost(status, true)}
-        onSelectPost={handleSelectSavedPost}
-        onTogglePostStatus={handleTogglePostStatus}
-        onDeletePost={handleDeleteSavedPost}
-        onExportVault={handleExportVault}
-        onImportVault={handleImportVault}
-      />
-
+      {isSavedPostsDrawerOpen && (
+        <Suspense fallback={null}>
+          <SavedPostsDrawer
+            isOpen={isSavedPostsDrawerOpen}
+            onClose={() => setIsSavedPostsDrawerOpen(false)}
+            posts={savedPosts}
+            currentCarousel={carousel}
+            theme={currentPalette}
+            storageEngine={storageEngine}
+            isSaving={isSavingPost}
+            onSaveCurrentPost={(status) => handleSaveValidPost(status, true)}
+            onSelectPost={handleSelectSavedPost}
+            onTogglePostStatus={handleTogglePostStatus}
+            onDeletePost={handleDeleteSavedPost}
+            onExportVault={handleExportVault}
+            onImportVault={handleImportVault}
+          />
+        </Suspense>
+      )}
 
       {/* Theme Customizer & Color Palette Studio Modal */}
-      <ThemeCustomizer
-        currentPalette={currentPalette}
-        onSelectPalette={handleSelectPalette}
-        isOpen={isThemeCustomizerOpen}
-        onClose={() => setIsThemeCustomizerOpen(false)}
-        onShowToast={showToast}
-      />
+      {isThemeCustomizerOpen && (
+        <Suspense fallback={null}>
+          <ThemeCustomizer
+            currentPalette={currentPalette}
+            onSelectPalette={handleSelectPalette}
+            isOpen={isThemeCustomizerOpen}
+            onClose={() => setIsThemeCustomizerOpen(false)}
+            onShowToast={showToast}
+          />
+        </Suspense>
+      )}
 
       {/* Gemini API Key Configuration Modal */}
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => setIsApiKeyModalOpen(false)}
-        onKeyUpdated={(key) => {
-          showToast(key ? 'Custom Gemini API key active' : 'Using default environment key');
-        }}
-        onShowToast={showToast}
-      />
+      {isApiKeyModalOpen && (
+        <Suspense fallback={null}>
+          <ApiKeyModal
+            isOpen={isApiKeyModalOpen}
+            onClose={() => setIsApiKeyModalOpen(false)}
+            onKeyUpdated={(key) => {
+              showToast(key ? 'Custom Gemini API key active' : 'Using default environment key');
+            }}
+            onShowToast={showToast}
+          />
+        </Suspense>
+      )}
 
       {/* Full Deck Contact Sheet Modal */}
-      <ContactSheetModal
-        isOpen={isContactSheetOpen}
-        onClose={() => setIsContactSheetOpen(false)}
-        carousel={carousel}
-        theme={currentPalette}
-        onSelectSlide={(idx) => {
-          setActiveSlideIndex(idx);
-          setIsContactSheetOpen(false);
-          showToast(`Jumped to Slide ${idx + 1}`);
-        }}
-        onShowToast={showToast}
-      />
+      {isContactSheetOpen && (
+        <Suspense fallback={null}>
+          <ContactSheetModal
+            isOpen={isContactSheetOpen}
+            onClose={() => setIsContactSheetOpen(false)}
+            carousel={carousel}
+            theme={currentPalette}
+            onSelectSlide={(idx) => {
+              setActiveSlideIndex(idx);
+              setIsContactSheetOpen(false);
+              showToast(`Jumped to Slide ${idx + 1}`);
+            }}
+            onShowToast={showToast}
+          />
+        </Suspense>
+      )}
 
 
 

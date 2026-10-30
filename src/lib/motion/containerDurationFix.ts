@@ -58,13 +58,22 @@ function readMp4BoxHeader(bytes: Uint8Array, offset: number, limit: number): Mp4
  * Patches `mvhd`, `tkhd`, `mdhd`, `elst`, and `mehd` duration fields inside an MP4 / fMP4 byte buffer
  * so that video editors (CapCut, TikTok, QuickTime, iOS/Android) read the exact full timeline duration.
  */
-export function fixMp4DurationBytes(input: Uint8Array, durationSec: number): Uint8Array {
+export function fixMp4DurationBytes(
+  input: Uint8Array,
+  durationSec: number,
+  inPlace = false
+): Uint8Array {
   if (!Number.isFinite(durationSec) || durationSec <= 0 || input.length < 16) {
     return input;
   }
 
-  const bytes = new Uint8Array(input.length);
-  bytes.set(input);
+  let bytes: Uint8Array;
+  if (inPlace) {
+    bytes = input;
+  } else {
+    bytes = new Uint8Array(input.length);
+    bytes.set(input);
+  }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
   let movieTimescale = 1000;
@@ -462,7 +471,17 @@ export async function fixVideoBlobDuration(blob: Blob, durationSec: number): Pro
     if (isWebm) {
       patched = fixWebmDurationBytes(rawBytes, durationSec);
     } else if (isMp4) {
-      patched = fixMp4DurationBytes(rawBytes, durationSec);
+      patched = fixMp4DurationBytes(rawBytes, durationSec, true);
+    }
+
+    if (
+      patched.buffer instanceof ArrayBuffer &&
+      patched.byteOffset === 0 &&
+      patched.byteLength === patched.buffer.byteLength
+    ) {
+      return new Blob([patched.buffer], {
+        type: blob.type || (isWebm ? 'video/webm' : 'video/mp4'),
+      });
     }
 
     const bufferCopy = new ArrayBuffer(patched.byteLength);

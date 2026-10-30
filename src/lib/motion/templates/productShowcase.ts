@@ -157,154 +157,153 @@ export function drawProductShowcaseFrame(
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          460,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'BOTTLENECK_DIAGNOSTIC // 01',
-          'ALERT_HOOK',
-          spring(t, 180, 22)
+          '',
+          '',
+          1
         );
 
         g.save();
-        g.globalAlpha = clamp((t - 0.15) * 4) * 0.16;
+        g.globalAlpha = clamp((t - 0.08) * 5) * 0.16;
         g.fillStyle = b.accentColor;
-        g.font = `900 320px "Plus Jakarta Sans", "${b.font}", sans-serif`;
+        g.font = `900 360px "Plus Jakarta Sans", "${b.font}", sans-serif`;
         g.textAlign = 'center';
-        const qs = spring(t - 0.15, 140, 22);
-        g.translate(SAFE_CENTER_X, 565);
+        const qs = spring(t - 0.08, 140, 22);
+        g.translate(SAFE_CENTER_X, 645);
         g.scale(0.82 + 0.18 * qs, 0.82 + 0.18 * qs);
         g.fillText('?', 0, 0);
         g.restore();
 
-        const s = spring(t - 0.06, k, d);
+        const s = spring(t - 0.04, k, d);
         g.save();
         g.direction = b.direction;
         g.globalAlpha = clamp(t * 6);
         g.fillStyle = b.textColor;
-        g.font = `800 66px "${b.font}", "Cairo", sans-serif`;
+        g.font = `800 68px "${b.font}", "Cairo", sans-serif`;
         g.textAlign = 'center';
-        g.translate(SAFE_CENTER_X, 465);
+        g.translate(SAFE_CENTER_X, 535);
         g.scale(0.92 + 0.08 * s, 0.92 + 0.08 * s);
         g.fillText(text, 0, 0, SAFE_WIDTH - 80);
         g.restore();
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 745);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       } else if (i === 1) {
         // Scene 2: UI Architecture Card Assembly + Bilingual Copy
-        const cardS = spring(t - 0.06, k, d);
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          470,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'UI_ASSEMBLY // 02',
-          'LIVE_KERNEL',
-          cardS
+          '',
+          '',
+          1
         );
 
-        const cx = SAFE_LEFT + 36;
-        const cy = 290;
-        const barS = spring(t - 0.16, 200, 22);
+        const cx = SAFE_LEFT + 44;
+        const cy = 275;
+        const barS = spring(t - 0.08, 200, 22);
         g.save();
         for (let j = 0; j < 3; j++) {
           g.fillStyle = j === 0 ? '#f87171' : j === 1 ? '#fbbf24' : '#4ade80';
-          g.globalAlpha = clamp((t - 0.18 - j * 0.05) * 4) * 0.75;
+          g.globalAlpha = clamp((t - 0.08 - j * 0.04) * 5) * 0.8;
           g.beginPath();
-          g.arc(cx + 18 + j * 22, cy + 16, 5.5 * barS, 0, Math.PI * 2);
+          g.arc(cx + 18 + j * 24, cy + 16, 6.5 * barS, 0, Math.PI * 2);
           g.fill();
         }
         g.restore();
 
         const r = rng(11);
-        for (let j = 0; j < 4; j++) {
-          const elS = spring(t - 0.22 - j * 0.08, 220, 20);
-          const elY = cy + 62 + j * 76;
+        for (let j = 0; j < 5; j++) {
+          const elS = spring(t - 0.12 - j * 0.05, 220, 20);
+          const elY = cy + 68 + j * 94;
           g.save();
-          g.globalAlpha = clamp((t - 0.22 - j * 0.08) * 4);
+          g.globalAlpha = clamp((t - 0.12 - j * 0.05) * 5);
           if (j === 0) {
             g.fillStyle = b.accentColor;
             g.beginPath();
-            g.roundRect(cx + 18, elY, 480 * elS, 14, 7);
+            g.roundRect(cx + 18, elY, 520 * elS, 18, 9);
             g.fill();
           } else {
-            g.fillStyle = 'rgba(255,255,255,0.08)';
-            const elW = 280 + r() * 440;
+            g.fillStyle = 'rgba(255,255,255,0.09)';
+            const elW = 320 + r() * 420;
             g.beginPath();
-            g.roundRect(cx + 18, elY, elW * elS, 36, 10);
+            g.roundRect(cx + 18, elY, elW * elS, 48, 12);
             g.fill();
           }
           g.restore();
         }
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 755);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       } else if (i === 2) {
         // Scene 3: Staggered Feature Cards (pipe-separated)
         const items = text.split('|');
         items.forEach((txt, idx) => {
-          const st = t - idx * 0.2;
+          const st = t - idx * 0.1;
           const s = spring(st, k, d);
-          const y = 240 + idx * 280;
+          const y = 230 + idx * 215;
 
           drawMarrokSurfaceCard(
             g,
             SAFE_LEFT,
             y,
             SAFE_WIDTH,
-            235,
+            195,
             b.accentColor,
             b.surfaceColor || '#12131C',
             b.surfaceBorder || '#252838',
-            `MECHANISM // 0${idx + 1}`,
-            'ACTIVE',
-            clamp(s, 0, 1)
+            '',
+            '',
+            1
           );
 
           g.save();
           g.direction = b.direction;
-          g.globalAlpha = clamp(st * 4);
+          g.globalAlpha = clamp(st * 5);
           g.fillStyle = b.textColor;
-          g.font = `800 58px "${b.font}", "Cairo", sans-serif`;
+          g.font = `800 56px "${b.font}", "Cairo", sans-serif`;
           g.textAlign = 'center';
-          g.fillText(txt.trim(), SAFE_CENTER_X, y + 145, SAFE_WIDTH - 90);
+          g.fillText(txt.trim(), SAFE_CENTER_X, y + 115, SAFE_WIDTH - 90);
           g.restore();
         });
 
         if (sc.enTitle || sc.arTitle) {
-          drawAnimatedBilingualSlideCopy(g, sc, b, t, 1120);
+          drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
         }
       } else if (i === 3) {
         // Scene 4: 200x Metric Benchmark Card + 3 Sub-KPIs + Bilingual Copy
-        const s = spring(t - 0.08, k, d);
+        const s = spring(t - 0.04, k, d);
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          490,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'BENCHMARK_METRIC // 04',
-          'VERIFIED_GAIN',
-          spring(t, 180, 22)
+          '',
+          '',
+          1
         );
 
         g.save();
         g.shadowColor = b.accentColor;
-        g.shadowBlur = 24;
+        g.shadowBlur = 28;
         g.globalAlpha = clamp(t * 5);
         g.fillStyle = b.accentColor;
-        g.font = `900 164px "Plus Jakarta Sans", "${b.font}", sans-serif`;
+        g.font = `900 180px "Plus Jakarta Sans", "${b.font}", sans-serif`;
         g.textAlign = 'center';
-        g.translate(SAFE_CENTER_X, 465);
-        g.scale(0.9 + 0.1 * s, 0.9 + 0.1 * s);
+        g.translate(SAFE_CENTER_X, 510);
+        g.scale(0.92 + 0.08 * s, 0.92 + 0.08 * s);
         g.fillText(sc.metricValue || text || '200x', 0, 0, SAFE_WIDTH - 80);
         g.restore();
 
@@ -314,78 +313,78 @@ export function drawProductShowcaseFrame(
           ['0 leaks', 'Isolation'],
         ];
         kpiLabels.forEach(([val, lbl], j) => {
-          const ms = spring(t - 0.25 - j * 0.1, 200, 22);
+          const ms = spring(t - 0.12 - j * 0.06, 200, 22);
           const boxW = 248;
           const mx = SAFE_LEFT + 36 + j * (boxW + 23);
           g.save();
           g.direction = 'ltr';
-          g.globalAlpha = clamp((t - 0.25 - j * 0.1) * 4);
-          g.fillStyle = hexToRgba(b.accentColor, 0.1);
-          g.strokeStyle = hexToRgba(b.accentColor, 0.35);
+          g.globalAlpha = clamp((t - 0.12 - j * 0.06) * 5);
+          g.fillStyle = hexToRgba(b.accentColor, 0.12);
+          g.strokeStyle = hexToRgba(b.accentColor, 0.4);
           g.lineWidth = 1.5;
           g.beginPath();
-          g.roundRect(mx, 555, boxW * clamp(ms, 0.2, 1), 112, 14);
+          g.roundRect(mx, 645, boxW * clamp(ms, 0.2, 1), 135, 16);
           g.fill();
           g.stroke();
 
           g.fillStyle = b.textColor;
-          g.font = '800 32px "JetBrains Mono", monospace';
+          g.font = '800 36px "JetBrains Mono", monospace';
           g.textAlign = 'center';
-          g.fillText(val, mx + boxW / 2, 604);
+          g.fillText(val, mx + boxW / 2, 704);
 
-          g.fillStyle = '#A0A5B1';
-          g.font = '600 20px "Plus Jakarta Sans", sans-serif';
-          g.fillText(lbl.toUpperCase(), mx + boxW / 2, 642);
+          g.fillStyle = '#E2E8F0';
+          g.font = '600 22px "Plus Jakarta Sans", sans-serif';
+          g.fillText(lbl.toUpperCase(), mx + boxW / 2, 750);
           g.restore();
         });
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 775);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       } else {
         // Scene 5: CTA Card with MARROK Vector Badge
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          490,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'CTA_LOCKUP // 05',
-          `@${(b.name || 'MARROK').toUpperCase()}`,
-          spring(t, 180, 22)
+          '',
+          '',
+          1
         );
 
-        const s1 = spring(t - 0.08, k, d);
+        const s1 = spring(t - 0.04, k, d);
         g.save();
         g.shadowColor = b.accentColor;
-        g.shadowBlur = 28;
+        g.shadowBlur = 32;
         drawMarrokVectorBadge(
           g,
           SAFE_CENTER_X,
-          375,
-          Math.max(28, 120 * s1),
+          425,
+          Math.max(32, 144 * s1),
           b.accentColor,
           '#0B0C12'
         );
         g.restore();
 
-        const btnS = spring(t - 0.25, 200, 22);
+        const btnS = spring(t - 0.12, 200, 22);
         g.save();
-        g.globalAlpha = clamp((t - 0.25) * 4);
+        g.globalAlpha = clamp((t - 0.12) * 5);
         g.fillStyle = b.accentColor;
-        const bw = 560 * clamp(btnS, 0.2, 1);
-        const bh = 82;
+        const bw = 580 * clamp(btnS, 0.2, 1);
+        const bh = 88;
         g.beginPath();
-        g.roundRect(SAFE_CENTER_X - bw / 2, 540, bw, bh, 16);
+        g.roundRect(SAFE_CENTER_X - bw / 2, 620, bw, bh, 20);
         g.fill();
         g.fillStyle = b.bgColor || '#080A12';
         g.font = `800 36px "${b.font}", "Cairo", sans-serif`;
         g.textAlign = 'center';
-        g.fillText(text || b.name, SAFE_CENTER_X, 594, bw - 40);
+        g.fillText(text || b.name, SAFE_CENTER_X, 676, bw - 40);
         g.restore();
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 775);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       }
     });
   });

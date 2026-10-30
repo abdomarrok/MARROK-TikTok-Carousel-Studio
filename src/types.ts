@@ -154,6 +154,13 @@ export interface PostSourceMeta {
 
 export type PostFormat = 'carousel' | 'single' | 'reel';
 
+export type CanvasDimensionPreset =
+  | 'tiktok-9:16'
+  | 'ig-4:5'
+  | 'ig-3:4'
+  | 'ig-1:1'
+  | 'ig-9:16';
+
 export type MotionTemplateId =
   | 'marrok-slides'
   | 'kinetic-text'
@@ -250,6 +257,7 @@ export interface MotionReelData {
 export interface CarouselData {
   id?: string;
   postFormat?: PostFormat;
+  dimensionPreset?: CanvasDimensionPreset;
   theme: string;
   category: string;
   brand?: string;    // Brand wordmark / watermark (defaults to 'MARROK' or creator handle)

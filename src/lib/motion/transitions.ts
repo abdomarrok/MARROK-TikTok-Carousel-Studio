@@ -4,7 +4,9 @@ import {
   SlideType,
 } from '../../types.ts';
 
-export const TRANSITION_WINDOW = 0.42; // 420ms smooth overlap window across scene cuts
+export const EXIT_DURATION = 0.20; // 200ms outgoing content exit (never overlaps incoming slide)
+export const ENTRY_DURATION = 0.30; // 300ms incoming content entry (never overlaps outgoing slide)
+export const TRANSITION_WINDOW = EXIT_DURATION + ENTRY_DURATION;
 
 export type ConcreteTransitionMode = Exclude<MotionTransitionType, 'auto'>;
 
@@ -20,7 +22,7 @@ export interface SceneRenderLayer {
   clipProgress?: number; // [0..1] for kinetic-wipe scanline clip
   clipMode?: 'outgoing' | 'incoming';
   transitionMode: ConcreteTransitionMode;
-  transitionProgress: number; // 0 when not transitioning, 0..1 during overlap
+  transitionProgress: number; // 0 when not transitioning, 0..1 during exit/entry
 }
 
 export interface SceneTransitionFrameState {
@@ -36,9 +38,14 @@ export interface SceneTransitionFrameState {
 
 const clamp = (x: number, a = 0, b = 1): number => Math.min(b, Math.max(a, x));
 
-function easeInOutCubic(t: number): number {
+function easeOutCubic(t: number): number {
   const c = clamp(t, 0, 1);
-  return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2;
+  return 1 - Math.pow(1 - c, 3);
+}
+
+function easeInCubic(t: number): number {
+  const c = clamp(t, 0, 1);
+  return c * c * c;
 }
 
 function inferSlideArchetype(scene?: MotionSceneConfig, idx = 0): SlideType {
@@ -113,9 +120,9 @@ export function resolveSmartTransition(
 }
 
 /**
- * Computes the active and overlapping transition layers for any timestamp `globalTime`.
- * Eliminates 0ms hard cuts by creating a smooth cross-choreographed overlap window (`±TRANSITION_WINDOW / 2`)
- * around each scene boundary.
+ * Computes the single active scene layer for any timestamp `globalTime`.
+ * Uses a strictly sequential transition (0.20s exit of outgoing content followed by
+ * 0.30s entry of incoming content) so two slides are NEVER rendered on screen at once.
  */
 export function computeSceneTransitionState(
   scenes: MotionSceneConfig[],
@@ -139,8 +146,8 @@ export function computeSceneTransitionState(
   // Locate primary scene index
   let activeIdx = scenes.length - 1;
   for (let i = 0; i < scenes.length; i++) {
-    const from = scenes[i].from ?? i * 3.5;
-    const to = scenes[i].to ?? from + 3.5;
+    const from = scenes[i].from ?? i * 4.5;
+    const to = scenes[i].to ?? from + 4.5;
     if (globalTime >= from && globalTime < to) {
       activeIdx = i;
       break;
@@ -151,59 +158,50 @@ export function computeSceneTransitionState(
   }
 
   const currentScene = scenes[activeIdx];
-  const curFrom = currentScene.from ?? activeIdx * 3.5;
-  const curTo = currentScene.to ?? curFrom + 3.5;
+  const curFrom = currentScene.from ?? activeIdx * 4.5;
+  const curTo = currentScene.to ?? curFrom + 4.5;
   const curDur = Math.max(0.8, curTo - curFrom);
-  const halfWin = Math.min(TRANSITION_WINDOW / 2, curDur * 0.25);
+  const exitWin = Math.min(EXIT_DURATION, curDur * 0.25);
+  const entryWin = Math.min(ENTRY_DURATION, curDur * 0.30);
 
   const dirSign = direction === 'rtl' ? -1 : 1;
+  const localTime = Math.max(0, globalTime - curFrom);
 
-  // Check if we are in the overlap window with the NEXT scene (near curTo)
-  if (activeIdx < scenes.length - 1 && globalTime >= curTo - halfWin) {
+  // 1. Outgoing Exit Phase (final 0.20s of currentScene before nextScene starts)
+  if (activeIdx < scenes.length - 1 && globalTime >= curTo - exitWin) {
     const nextScene = scenes[activeIdx + 1];
-    const nextFrom = nextScene.from ?? curTo;
     const mode = resolveSmartTransition(currentScene, nextScene, defaultTransition, activeIdx + 1);
-    // Raw progress across [curTo - halfWin .. curTo + halfWin] -> here we are in the first half [0 .. 0.5]
-    const rawP = clamp((globalTime - (curTo - halfWin)) / (halfWin * 2), 0, 1);
-    const p = easeInOutCubic(rawP);
+    const rawExit = clamp((globalTime - (curTo - exitWin)) / exitWin, 0, 1);
+    const p = easeInCubic(rawExit);
 
-    return buildOverlapState(
+    return buildExitState(
       currentScene,
       activeIdx,
-      Math.max(0, globalTime - curFrom),
-      nextScene,
-      activeIdx + 1,
-      Math.max(0.02, globalTime - nextFrom + halfWin),
+      localTime,
       mode,
       p,
-      dirSign,
-      activeIdx
+      dirSign
     );
   }
 
-  // Check if we are in the second half of the overlap window with the PREVIOUS scene (just after curFrom)
-  if (activeIdx > 0 && globalTime < curFrom + halfWin) {
+  // 2. Incoming Entry Phase (first 0.30s of currentScene after prevScene exited)
+  if (activeIdx > 0 && globalTime < curFrom + entryWin) {
     const prevScene = scenes[activeIdx - 1];
-    const prevFrom = prevScene.from ?? (activeIdx - 1) * 3.5;
     const mode = resolveSmartTransition(prevScene, currentScene, defaultTransition, activeIdx);
-    const rawP = clamp((globalTime - (curFrom - halfWin)) / (halfWin * 2), 0, 1);
-    const p = easeInOutCubic(rawP);
+    const rawEntry = clamp((globalTime - curFrom) / entryWin, 0, 1);
+    const p = easeOutCubic(rawEntry);
 
-    return buildOverlapState(
-      prevScene,
-      activeIdx - 1,
-      Math.max(0, globalTime - prevFrom),
+    return buildEntryState(
       currentScene,
       activeIdx,
-      Math.max(0.02, globalTime - curFrom + halfWin),
+      localTime,
       mode,
       p,
-      dirSign,
-      activeIdx
+      dirSign
     );
   }
 
-  // Standard steady-state single scene
+  // 3. Standard steady-state single scene hold
   return {
     activeSceneIdx: activeIdx,
     fractionalSceneIdx: activeIdx,
@@ -221,7 +219,7 @@ export function computeSceneTransitionState(
       {
         scene: currentScene,
         index: activeIdx,
-        localTime: Math.max(0, globalTime - curFrom),
+        localTime,
         role: 'active',
         alpha: 1,
         scale: 1,
@@ -234,145 +232,105 @@ export function computeSceneTransitionState(
   };
 }
 
-function buildOverlapState(
+function buildExitState(
   outScene: MotionSceneConfig,
   outIdx: number,
   outLocalTime: number,
+  mode: ConcreteTransitionMode,
+  p: number,
+  dirSign: number
+): SceneTransitionFrameState {
+  const alpha = clamp(1 - p, 0, 1);
+  let scale = 1 - p * 0.015;
+  let offsetX = 0;
+  let offsetY = -p * 16;
+  let cameraPanX = 0;
+  let cameraZoom = 1;
+
+  if (mode === 'depth') {
+    scale = 1 - p * 0.04;
+    offsetY = -p * 20;
+    cameraZoom = 1 + p * 0.012;
+  } else if (mode === 'whip-pan') {
+    offsetX = -p * 120 * dirSign;
+    offsetY = 0;
+    cameraPanX = -p * 36 * dirSign;
+  }
+
+  const outLayer: SceneRenderLayer = {
+    scene: outScene,
+    index: outIdx,
+    localTime: outLocalTime,
+    role: 'outgoing',
+    alpha,
+    scale,
+    offsetX,
+    offsetY,
+    transitionMode: mode,
+    transitionProgress: p * 0.4,
+  };
+
+  return {
+    activeSceneIdx: outIdx,
+    fractionalSceneIdx: outIdx + p * 0.4,
+    inTransition: true,
+    transitionMode: mode,
+    transitionProgress: p * 0.4,
+    cameraPanX,
+    cameraZoom,
+    layers: [outLayer],
+  };
+}
+
+function buildEntryState(
   inScene: MotionSceneConfig,
   inIdx: number,
   inLocalTime: number,
   mode: ConcreteTransitionMode,
   p: number,
-  dirSign: number,
-  primaryIdx: number
+  dirSign: number
 ): SceneTransitionFrameState {
-  let outLayer: SceneRenderLayer;
-  let inLayer: SceneRenderLayer;
+  const alpha = clamp(p, 0, 1);
+  let scale = 0.985 + p * 0.015;
+  let offsetX = 0;
+  let offsetY = (1 - p) * 16;
   let cameraPanX = 0;
   let cameraZoom = 1;
 
   if (mode === 'depth') {
-    // Outgoing scene recedes into Z-depth while incoming scene emerges from foreground
-    outLayer = {
-      scene: outScene,
-      index: outIdx,
-      localTime: outLocalTime,
-      role: 'outgoing',
-      alpha: clamp(1 - p * 1.15, 0, 1),
-      scale: 1 - p * 0.12,
-      offsetX: 0,
-      offsetY: -p * 36,
-      transitionMode: mode,
-      transitionProgress: p,
-    };
-    inLayer = {
-      scene: inScene,
-      index: inIdx,
-      localTime: inLocalTime,
-      role: 'incoming',
-      alpha: clamp((p - 0.08) * 1.15, 0, 1),
-      scale: 1.08 - (1 - p) * 0.08,
-      offsetX: 0,
-      offsetY: (1 - p) * 44,
-      transitionMode: mode,
-      transitionProgress: p,
-    };
-    cameraZoom = 1 + Math.sin(p * Math.PI) * 0.025;
+    scale = 1.04 - p * 0.04;
+    offsetY = (1 - p) * 20;
+    cameraZoom = 1 + (1 - p) * 0.012;
   } else if (mode === 'whip-pan') {
-    // Continuous CAD blueprint whip-pan across horizontal axis
-    const panDist = 920 * dirSign;
-    outLayer = {
-      scene: outScene,
-      index: outIdx,
-      localTime: outLocalTime,
-      role: 'outgoing',
-      alpha: clamp(1 - p * 1.1, 0, 1),
-      scale: 1 - Math.sin(p * Math.PI) * 0.04,
-      offsetX: -p * panDist,
-      offsetY: 0,
-      transitionMode: mode,
-      transitionProgress: p,
-    };
-    inLayer = {
-      scene: inScene,
-      index: inIdx,
-      localTime: inLocalTime,
-      role: 'incoming',
-      alpha: clamp(p * 1.15, 0, 1),
-      scale: 1 - Math.sin(p * Math.PI) * 0.04,
-      offsetX: (1 - p) * panDist,
-      offsetY: 0,
-      transitionMode: mode,
-      transitionProgress: p,
-    };
-    cameraPanX = -p * 108 * dirSign;
-  } else if (mode === 'kinetic-wipe') {
-    // Glowing blueprint laser scanline wipe from top to bottom of the safe zone
-    outLayer = {
-      scene: outScene,
-      index: outIdx,
-      localTime: outLocalTime,
-      role: 'outgoing',
-      alpha: clamp(1 - p * 0.35, 0, 1),
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0,
-      clipProgress: p,
-      clipMode: 'outgoing',
-      transitionMode: mode,
-      transitionProgress: p,
-    };
-    inLayer = {
-      scene: inScene,
-      index: inIdx,
-      localTime: inLocalTime,
-      role: 'incoming',
-      alpha: 1,
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0,
-      clipProgress: p,
-      clipMode: 'incoming',
-      transitionMode: mode,
-      transitionProgress: p,
-    };
-  } else {
-    // 'morph': Shared surface card morphs seamlessly while inner schematic & copy cross-dissolve with gentle vertical drift
-    outLayer = {
-      scene: outScene,
-      index: outIdx,
-      localTime: outLocalTime,
-      role: 'outgoing',
-      alpha: clamp(1 - p * 1.18, 0, 1),
-      scale: 1 - p * 0.03,
-      offsetX: 0,
-      offsetY: -p * 24,
-      transitionMode: 'morph',
-      transitionProgress: p,
-    };
-    inLayer = {
-      scene: inScene,
-      index: inIdx,
-      localTime: inLocalTime,
-      role: 'incoming',
-      alpha: clamp((p - 0.05) * 1.12, 0, 1),
-      scale: 0.97 + p * 0.03,
-      offsetX: 0,
-      offsetY: (1 - p) * 24,
-      transitionMode: 'morph',
-      transitionProgress: p,
-    };
+    offsetX = (1 - p) * 120 * dirSign;
+    offsetY = 0;
+    cameraPanX = -(1 - p) * 36 * dirSign;
   }
 
+  const inLayer: SceneRenderLayer = {
+    scene: inScene,
+    index: inIdx,
+    localTime: inLocalTime,
+    role: 'incoming',
+    alpha,
+    scale,
+    offsetX,
+    offsetY,
+    clipProgress: mode === 'kinetic-wipe' ? p : undefined,
+    clipMode: mode === 'kinetic-wipe' ? 'incoming' : undefined,
+    transitionMode: mode,
+    transitionProgress: 0.4 + p * 0.6,
+  };
+
   return {
-    activeSceneIdx: primaryIdx,
-    fractionalSceneIdx: outIdx + p,
+    activeSceneIdx: inIdx,
+    fractionalSceneIdx: inIdx - (1 - p) * 0.6,
     inTransition: true,
     transitionMode: mode,
-    transitionProgress: p,
+    transitionProgress: 0.4 + p * 0.6,
     cameraPanX,
     cameraZoom,
-    layers: [outLayer, inLayer],
+    layers: [inLayer],
   };
 }
 

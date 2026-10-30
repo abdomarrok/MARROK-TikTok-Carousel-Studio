@@ -1,16 +1,6 @@
-import { CarouselData, DEFAULT_PALETTES, SlideData, THEME_CONFIGS, ThemePalette, VisualSystemOptions } from '../../types.ts';
+import { CarouselData, DEFAULT_PALETTES, THEME_CONFIGS, ThemePalette, VisualSystemOptions } from '../../types.ts';
 import { seedSlideArchetypeData } from '../synthesis/archetypes.ts';
-import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
-  SAFE_MARGIN_LEFT,
-  SAFE_MARGIN_RIGHT,
-  SAFE_TEXT_CENTER_X,
-  SAFE_TEXT_WIDTH_TITLE,
-  SAFE_TEXT_WIDTH_BODY,
-  SAFE_FOOTER_CEILING_Y,
-} from './constants.ts';
-import { fitTextInBox } from './textLayout.ts';
+import { getCanvasDimensionSpec } from './constants.ts';
 import { computeSlideLayoutAwareness } from './layoutAwareness.ts';
 import {
   drawBaseBackground,
@@ -34,7 +24,8 @@ import {
 } from './archetypes/index.ts';
 
 /**
- * Render a single MARROK slide at 1080x1920 to an offscreen or provided canvas.
+ * Render a single MARROK slide to an offscreen or provided canvas at the active dimension preset
+ * (TikTok 9:16 1080x1920, Instagram 4:5 1080x1350, Instagram 3:4 1080x1440, Instagram 1:1 1080x1080, or IG Reels 9:16).
  * Note: Pure read-only projection of state; does not re-sanitize or mutate text during drawing.
  */
 export async function renderSlideToCanvas(
@@ -49,9 +40,10 @@ export async function renderSlideToCanvas(
     await document.fonts.ready;
   }
 
+  const spec = getCanvasDimensionSpec(carousel.dimensionPreset);
   const canvas = targetCanvas || document.createElement('canvas');
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
+  canvas.width = spec.width;
+  canvas.height = spec.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get 2D canvas context');
 
@@ -77,17 +69,17 @@ export async function renderSlideToCanvas(
   };
 
   // 1. Solid Base Background
-  drawBaseBackground(ctx, theme);
+  drawBaseBackground(ctx, theme, spec);
 
   // 2. Radial Gradient Glow
-  drawRadialGlow(ctx, theme);
+  drawRadialGlow(ctx, theme, spec);
 
   // 3. Engineering Grid Lines
-  drawEngineeringGrid(ctx, theme);
+  drawEngineeringGrid(ctx, theme, spec);
 
   // 3b. Canvas Background CAD Reticles
   if (options.showCadReticles) {
-    drawCadReticles(ctx, theme);
+    drawCadReticles(ctx, theme, spec);
   }
 
   // 4. Header: Top-Left Authentic MARROK Vector Badge + Brand Wordmark + Category Tag
@@ -98,61 +90,85 @@ export async function renderSlideToCanvas(
     if (headerOverride.scale && headerOverride.scale !== 1) {
       ctx.scale(headerOverride.scale, headerOverride.scale);
     }
-    drawHeader(ctx, carousel, theme, categoryTag);
+    drawHeader(ctx, carousel, theme, categoryTag, spec);
     ctx.restore();
   } else {
-    drawHeader(ctx, carousel, theme, categoryTag);
+    drawHeader(ctx, carousel, theme, categoryTag, spec);
   }
 
   // 5. Render Archetype Specific Graphics & Layouts
-  let yGraphicEnd = 670;
+  let yGraphicEnd = Math.round(670 * spec.graphicScale + spec.graphicOffsetY);
   const graphicOverride = slide.layoutOverrides?.graphicCard;
-  ctx.save();
-  if (graphicOverride) {
-    const cx = CANVAS_WIDTH / 2;
-    const cy = 460;
-    ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
-    const s = graphicOverride.scale ?? 1;
-    ctx.scale(s, s);
-    ctx.translate(-cx, -cy);
-    if (graphicOverride.opacity !== undefined) {
-      ctx.globalAlpha *= Math.max(0, Math.min(1, graphicOverride.opacity));
+
+  if (slide.type === 'cta') {
+    ctx.save();
+    if (graphicOverride) {
+      const cx = spec.width / 2;
+      const cy = Math.round(420 * spec.graphicScale + spec.graphicOffsetY);
+      ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
+      const s = graphicOverride.scale ?? 1;
+      ctx.scale(s, s);
+      ctx.translate(-cx, -cy);
+      if (graphicOverride.opacity !== undefined) {
+        ctx.globalAlpha *= Math.max(0, Math.min(1, graphicOverride.opacity));
+      }
     }
-  }
-
-  if (slide.type === 'hub') {
-    yGraphicEnd = await drawHubSlide(ctx, slide, theme, options);
-  } else if (slide.type === 'row') {
-    yGraphicEnd = await drawRowSlide(ctx, slide, theme, options, slideIndex);
-  } else if (slide.type === 'number') {
-    yGraphicEnd = await drawNumberSlide(ctx, slide, theme, options, slideIndex);
-  } else if (slide.type === 'metric') {
-    yGraphicEnd = await drawMetricSlide(ctx, slide, theme, options);
-  } else if (slide.type === 'code') {
-    yGraphicEnd = await drawCodeSlide(ctx, slide, theme, options);
-  } else if (slide.type === 'compare') {
-    yGraphicEnd = await drawCompareSlide(ctx, slide, theme, options);
-  } else if (slide.type === 'image') {
-    yGraphicEnd = await drawImageSlide(ctx, slide, theme, options);
-  } else if (slide.type === 'poster') {
-    yGraphicEnd = await drawPosterSlide(ctx, slide, theme, options);
-  } else if (slide.type === 'cta') {
     yGraphicEnd = await drawCtaSlide(ctx, slide, carousel, theme, options, themeMode);
-  }
-  ctx.restore();
+    ctx.restore();
+  } else {
+    ctx.save();
+    if (graphicOverride) {
+      const cx = spec.width / 2;
+      const cy = Math.round(460 * spec.graphicScale + spec.graphicOffsetY);
+      ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
+      const s = graphicOverride.scale ?? 1;
+      ctx.scale(s, s);
+      ctx.translate(-cx, -cy);
+      if (graphicOverride.opacity !== undefined) {
+        ctx.globalAlpha *= Math.max(0, Math.min(1, graphicOverride.opacity));
+      }
+    }
+    if (spec.graphicScale !== 1 || spec.graphicOffsetX !== 0 || spec.graphicOffsetY !== 0) {
+      ctx.translate(spec.graphicOffsetX, spec.graphicOffsetY);
+      ctx.scale(spec.graphicScale, spec.graphicScale);
+    }
 
-  // 6. Non-Overlapping Layout-Aware Text Rendering (for hub, row, metric, code, and compare slides)
+    let rawGraphicEnd = 670;
+    if (slide.type === 'hub') {
+      rawGraphicEnd = await drawHubSlide(ctx, slide, theme, options);
+    } else if (slide.type === 'row') {
+      rawGraphicEnd = await drawRowSlide(ctx, slide, theme, options, slideIndex);
+    } else if (slide.type === 'number') {
+      rawGraphicEnd = await drawNumberSlide(ctx, slide, theme, options, slideIndex);
+    } else if (slide.type === 'metric') {
+      rawGraphicEnd = await drawMetricSlide(ctx, slide, theme, options);
+    } else if (slide.type === 'code') {
+      rawGraphicEnd = await drawCodeSlide(ctx, slide, theme, options);
+    } else if (slide.type === 'compare') {
+      rawGraphicEnd = await drawCompareSlide(ctx, slide, theme, options);
+    } else if (slide.type === 'image') {
+      rawGraphicEnd = await drawImageSlide(ctx, slide, theme, options);
+    } else if (slide.type === 'poster') {
+      rawGraphicEnd = await drawPosterSlide(ctx, slide, theme, options);
+    }
+    yGraphicEnd = Math.round(rawGraphicEnd * spec.graphicScale + spec.graphicOffsetY);
+    ctx.restore();
+  }
+
+  // 6. Non-Overlapping Layout-Aware Text Rendering (for hub, row, number, metric, code, compare, image, poster)
   if (slide.type !== 'cta') {
     const layout = computeSlideLayoutAwareness(slide, carousel);
     const graphicBottom = layout.graphicCard ? layout.graphicCard.effectiveBottom : yGraphicEnd;
+    const ceilingY = spec.safeFooterCeilingY;
+    const textCenterX = spec.safeTextCenterX;
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(
-      SAFE_MARGIN_LEFT,
+      spec.safeMarginLeft - 24,
       graphicBottom,
-      SAFE_MARGIN_RIGHT - SAFE_MARGIN_LEFT,
-      Math.max(0, SAFE_FOOTER_CEILING_Y - graphicBottom)
+      spec.safeContentWidth + 48,
+      Math.max(0, ceilingY - graphicBottom + 12)
     );
     ctx.clip();
 
@@ -166,8 +182,8 @@ export async function renderSlideToCanvas(
       ctx.textBaseline = 'alphabetic';
       let lineY = tb.firstBaselineY;
       for (const line of tb.lines) {
-        if (lineY + tb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + tb.dx, lineY);
+        if (lineY + tb.lineHeight * 0.7 > ceilingY + 8) break;
+        ctx.fillText(line, textCenterX + tb.dx, lineY);
         lineY += tb.lineHeight;
       }
       ctx.restore();
@@ -184,8 +200,8 @@ export async function renderSlideToCanvas(
       ctx.textBaseline = 'alphabetic';
       let lineY = atb.firstBaselineY;
       for (const line of atb.lines) {
-        if (lineY + atb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + atb.dx, lineY);
+        if (lineY + atb.lineHeight * 0.7 > ceilingY + 8) break;
+        ctx.fillText(line, textCenterX + atb.dx, lineY);
         lineY += atb.lineHeight;
       }
       ctx.restore();
@@ -202,8 +218,8 @@ export async function renderSlideToCanvas(
       ctx.textBaseline = 'alphabetic';
       let lineY = bb.firstBaselineY;
       for (const line of bb.lines) {
-        if (lineY + bb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + bb.dx, lineY);
+        if (lineY + bb.lineHeight * 0.7 > ceilingY + 8) break;
+        ctx.fillText(line, textCenterX + bb.dx, lineY);
         lineY += bb.lineHeight;
       }
       ctx.restore();
@@ -220,8 +236,8 @@ export async function renderSlideToCanvas(
       ctx.textBaseline = 'alphabetic';
       let lineY = abb.firstBaselineY;
       for (const line of abb.lines) {
-        if (lineY + abb.lineHeight * 0.7 > SAFE_FOOTER_CEILING_Y) break;
-        ctx.fillText(line, SAFE_TEXT_CENTER_X + abb.dx, lineY);
+        if (lineY + abb.lineHeight * 0.7 > ceilingY + 8) break;
+        ctx.fillText(line, textCenterX + abb.dx, lineY);
         lineY += abb.lineHeight;
       }
       ctx.restore();
@@ -236,7 +252,8 @@ export async function renderSlideToCanvas(
   }
 
   // 7. Pagination Footer (Dots on multi-slide carousels; standalone attribution bar on single-slide posts)
-  drawPaginationFooter(ctx, slideIndex, totalSlides, theme, carousel, slide);
+  drawPaginationFooter(ctx, slideIndex, totalSlides, theme, carousel, slide, spec);
 
   return canvas;
 }
+

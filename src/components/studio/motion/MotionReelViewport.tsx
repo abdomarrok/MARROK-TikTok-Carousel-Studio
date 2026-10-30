@@ -21,6 +21,7 @@ interface MotionReelViewportProps {
   reelConfig: MotionReelData;
   theme: ThemePalette;
   selectedSceneId?: string | null;
+  isExporting?: boolean;
   onSelectScene?: (sceneId: string) => void;
   onToggleSfx?: () => void;
   onSyncFromCarousel?: () => void;
@@ -42,6 +43,7 @@ export const MotionReelViewport: React.FC<MotionReelViewportProps> = ({
   reelConfig,
   theme,
   selectedSceneId,
+  isExporting = false,
   onSelectScene,
   onToggleSfx,
   onSyncFromCarousel,
@@ -57,6 +59,7 @@ export const MotionReelViewport: React.FC<MotionReelViewportProps> = ({
   const lastTsRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(true);
+  const isExportingRef = useRef<boolean>(isExporting);
   const speedRef = useRef<number>(1);
   const reelConfigRef = useRef<MotionReelData>(reelConfig);
   const themeRef = useRef<ThemePalette>(theme);
@@ -65,7 +68,8 @@ export const MotionReelViewport: React.FC<MotionReelViewportProps> = ({
   reelConfigRef.current = reelConfig;
   themeRef.current = theme;
   speedRef.current = speed;
-  isPlayingRef.current = isPlaying;
+  isExportingRef.current = isExporting;
+  isPlayingRef.current = isPlaying && !isExporting;
 
   const duration = Math.max(1, reelConfig.duration || 20);
 
@@ -95,7 +99,7 @@ export const MotionReelViewport: React.FC<MotionReelViewportProps> = ({
     lastTsRef.current = performance.now();
 
     const loop = (ts: number) => {
-      if (!isPlayingRef.current) return;
+      if (!isPlayingRef.current || isExportingRef.current) return;
       const dt = (ts - lastTsRef.current) / 1000;
       lastTsRef.current = ts;
 
@@ -134,19 +138,23 @@ export const MotionReelViewport: React.FC<MotionReelViewportProps> = ({
   }, [renderAtTime]);
 
   useEffect(() => {
-    renderAtTime(timeRef.current);
-  }, [reelConfig, renderAtTime]);
+    if (!isExporting) {
+      renderAtTime(timeRef.current);
+    }
+  }, [reelConfig, isExporting, renderAtTime]);
 
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && !isExporting) {
       startLoop();
+    } else if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
     }
     return () => {
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [isPlaying, startLoop]);
+  }, [isPlaying, isExporting, startLoop]);
 
   const togglePlay = () => {
     const next = !isPlaying;

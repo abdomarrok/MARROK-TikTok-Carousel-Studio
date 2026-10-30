@@ -1,9 +1,9 @@
 import { CarouselData, DEFAULT_PALETTES, ThemePalette, VisualSystemOptions } from '../../types.ts';
+import { getCanvasDimensionSpec } from './constants.ts';
 import { renderSlideToCanvas } from './renderSlide.ts';
-import JSZip from 'jszip';
 
 /**
- * Direct Browser Copy: Copy 1080x1920 slide image directly to system clipboard
+ * Direct Browser Copy: Copy slide image directly to system clipboard at active dimension preset
  */
 export async function copySlideToClipboard(
   carousel: CarouselData,
@@ -76,7 +76,7 @@ export async function shareSlide(
 }
 
 /**
- * Trigger immediate download of single slide as JPG (TikTok requires JPG, not PNG)
+ * Trigger immediate download of single slide as JPG at active dimension preset
  */
 export async function downloadSingleSlidePng(
   carousel: CarouselData,
@@ -85,19 +85,21 @@ export async function downloadSingleSlidePng(
   customPalette?: ThemePalette,
   visualOptions?: VisualSystemOptions
 ): Promise<void> {
+  const spec = getCanvasDimensionSpec(carousel.dimensionPreset);
   const canvas = await renderSlideToCanvas(carousel, slideIndex, undefined, customPalette, visualOptions);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
   const a = document.createElement('a');
   a.href = dataUrl;
-  a.download = filename || `MARROK_Slide_${slideIndex + 1}_${carousel.theme}.jpg`;
+  a.download =
+    filename || `MARROK_Slide_${slideIndex + 1}_${spec.width}x${spec.height}_${carousel.theme}.jpg`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
 
 /**
- * 1-click Download All Slides as ZIP containing high-resolution 1080x1920 JPGs
- * Spec §9.8: Complete Metricool bundle.
+ * 1-click Download All Slides as ZIP containing high-resolution JPGs
+ * Spec §9.8: Complete Metricool bundle for TikTok & Instagram.
  * Yields via microtask setTimeout(0) between slide renders so the browser UI never freezes.
  */
 export interface ExportOverrideAudit {
@@ -112,13 +114,19 @@ export async function downloadAllSlidesZip(
   customPalette?: ThemePalette,
   onProgress?: (current: number, total: number) => void,
   visualOptions?: VisualSystemOptions,
-  overrideAudit?: ExportOverrideAudit
+  overrideAudit?: ExportOverrideAudit,
+  exportMode: 'active' | 'dual' = 'active'
 ): Promise<void> {
+  const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   const total = carousel.slides.length;
+  const spec = getCanvasDimensionSpec(carousel.dimensionPreset);
+  const totalSteps = exportMode === 'dual' ? total * 2 : total;
+  let stepCounter = 0;
 
   for (let i = 0; i < total; i++) {
-    if (onProgress) onProgress(i + 1, total);
+    stepCounter += 1;
+    if (onProgress) onProgress(stepCounter, totalSteps);
     // Microtask yielding to keep browser UI responsive and allow progress re-renders
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -126,6 +134,31 @@ export async function downloadAllSlidesZip(
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
     if (blob) {
       zip.file(`slide${i + 1}.jpg`, blob);
+      if (exportMode === 'dual') {
+        const primaryFolder = spec.id === 'ig-4:5' ? 'instagram-4x5' : 'tiktok-9x16';
+        zip.file(`${primaryFolder}/slide${i + 1}.jpg`, blob);
+      }
+    }
+  }
+
+  if (exportMode === 'dual') {
+    const secondaryPreset = spec.id === 'ig-4:5' ? 'tiktok-9:16' : 'ig-4:5';
+    const secondaryFolder = secondaryPreset === 'ig-4:5' ? 'instagram-4x5' : 'tiktok-9x16';
+    const secondaryCarousel: CarouselData = {
+      ...carousel,
+      dimensionPreset: secondaryPreset,
+    };
+
+    for (let i = 0; i < total; i++) {
+      stepCounter += 1;
+      if (onProgress) onProgress(stepCounter, totalSteps);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const canvas = await renderSlideToCanvas(secondaryCarousel, i, undefined, customPalette, visualOptions);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      if (blob) {
+        zip.file(`${secondaryFolder}/slide${i + 1}.jpg`, blob);
+      }
     }
   }
 
@@ -168,6 +201,7 @@ export async function downloadAllSlidesZip(
   // 2. Serialized CarouselData + active theme and visualOptions
   const carouselManifest = {
     ...carousel,
+    dimensionPreset: spec.id,
     activePalette: customPalette || DEFAULT_PALETTES[carousel.theme] || null,
     visualOptions: visualOptions || carousel.visualOptions || {
       showCadReticles: true,
@@ -175,9 +209,12 @@ export async function downloadAllSlidesZip(
       terminalScanlines: true,
     },
     exportedAt: new Date().toISOString(),
-    generator: 'MARROK TikTok Carousel Studio',
-    targetPlatform: 'Metricool / TikTok 9:16',
-    format: '1080x1920 JPG (Safe-Zone Compliant)',
+    generator: 'MARROK TikTok & Instagram Carousel Studio',
+    targetPlatform:
+      exportMode === 'dual'
+        ? 'Metricool Dual Pack (TikTok 9:16 + Instagram 4:5)'
+        : `Metricool / ${spec.label}`,
+    format: `${spec.width}x${spec.height} JPG (${spec.aspectRatioLabel} Safe-Zone Compliant)`,
     totalSlides: total,
     slideFiles: Array.from({ length: total }, (_, i) => `slide${i + 1}.jpg`),
   };
@@ -225,9 +262,12 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
   // Structured Post Metadata JSON
   const metadata = {
     exportedAt: new Date().toISOString(),
-    generator: 'MARROK TikTok Carousel Studio',
+    generator: 'MARROK TikTok & Instagram Carousel Studio',
     category: carousel.category,
     theme: carousel.theme,
+    dimensionPreset: spec.id,
+    dimensions: { width: spec.width, height: spec.height, aspectRatio: spec.aspectRatioLabel },
+    exportMode,
     totalSlides: carousel.slides.length,
     brand: carousel.brand,
     brandUrl: carousel.brandUrl,
@@ -241,7 +281,7 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
     screenHook: carousel.screenHook,
     captionVariants: carousel.captionVariants || [],
     hookVariants: carousel.hookVariants || [],
-    format: '1080x1920 JPG',
+    format: `${spec.width}x${spec.height} JPG (${spec.aspectRatioLabel})`,
     overrideAudit: overrideAudit || {
       isOverridden: false,
       reviewedDraftConfirmation: false,
@@ -252,26 +292,27 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
   zip.file('post_metadata.json', JSON.stringify(metadata, null, 2));
 
   // Quick Creator Publishing Guide
-  const readme = `MARROK TIKTOK & METRICOOL PUBLISHING BUNDLE
-=============================================
+  const readme = `MARROK TIKTOK, INSTAGRAM & METRICOOL PUBLISHING BUNDLE
+=======================================================
 Deck: ${carousel.category} (${carousel.slides.length} slides)
 Theme: ${carousel.theme}
+Dimension Preset: ${spec.label}${exportMode === 'dual' ? ' + Dual Pack (TikTok 9:16 & Instagram 4:5)' : ''}
 Search Grounded: ${carousel.sourceMeta?.isSearchGrounded ? 'YES (Google Search)' : 'Autonomous Synthesizer'}
 Created: ${new Date().toLocaleString()}
 
 FILES IN THIS METRICOOL PACKAGE:
-- slide1.jpg to slide${total}.jpg (1080x1920 9:16 high-res JPGs, Safe-Zone compliant)
-- caption-bilingual.txt (Metricool ready bilingual copy with hook, CTA, and hashtags)
+- slide1.jpg to slide${total}.jpg (${spec.width}x${spec.height} ${spec.aspectRatioLabel} high-res JPGs, Safe-Zone compliant)
+${exportMode === 'dual' ? `- tiktok-9x16/slide1.jpg..slide${total}.jpg (1080x1920 TikTok Photo Mode)\n- instagram-4x5/slide1.jpg..slide${total}.jpg (1080x1350 Instagram Portrait Carousel)\n` : ''}- caption-bilingual.txt (Metricool ready bilingual copy with hook, CTA, and hashtags)
 - carousel-manifest.json (Complete serialized CarouselData schema for archiving and re-import)
-- caption.txt (Bilingual TikTok post caption with hashtags and verification block)
+- caption.txt (Bilingual post caption with hashtags and verification block)
 - claims_citations.txt (Audit log of all verified numbers, benchmarks, and source links)
 - first_comment.txt (Pinned first comment to drive engagement and save rate)
-- short_caption.txt (Clean 2-line version for TikTok quick post)
+- short_caption.txt (Clean 2-line version for quick post)
 - post_metadata.json (Machine-readable post schema with grounding metadata)
 
-HOW TO PUBLISH TO METRICOOL / TIKTOK:
+HOW TO PUBLISH TO METRICOOL / TIKTOK / INSTAGRAM:
 1. Open Metricool -> New Post -> Select TikTok / Instagram.
-2. Drag and drop slide1.jpg through slide${total}.jpg.
+2. Drag and drop slide1.jpg through slide${total}.jpg (or select from tiktok-9x16 / instagram-4x5 folders).
 3. Open 'caption-bilingual.txt', copy all and paste into post caption.
 4. Schedule or publish immediately!
 `;
@@ -281,7 +322,8 @@ HOW TO PUBLISH TO METRICOOL / TIKTOK:
   const url = URL.createObjectURL(content);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `MARROK_${carousel.category.replace(/[^a-zA-Z0-9]/g, '_')}_Carousel.zip`;
+  const suffix = exportMode === 'dual' ? 'DualPack' : spec.shortLabel.replace(/[^a-zA-Z0-9]/g, '_');
+  a.download = `MARROK_${carousel.category.replace(/[^a-zA-Z0-9]/g, '_')}_${suffix}_Carousel.zip`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -298,12 +340,13 @@ export async function downloadContactSheetJpg(
   onProgress?: (current: number, total: number) => void,
   visualOptions?: VisualSystemOptions
 ): Promise<void> {
+  const spec = getCanvasDimensionSpec(carousel.dimensionPreset);
   const total = carousel.slides.length;
   const cols = total <= 4 ? total : total <= 8 ? 4 : 5;
   const rows = Math.ceil(total / cols);
 
   const sW = 360;
-  const sH = 640;
+  const sH = Math.round((sW * spec.height) / spec.width);
   const gap = 32;
   const headerH = 120;
   const pad = 40;
@@ -329,7 +372,7 @@ export async function downloadContactSheetJpg(
   mctx.fillStyle = '#9BA5AB';
   mctx.font = '500 20px "Plus Jakarta Sans", monospace';
   mctx.fillText(
-    `Deck: ${carousel.category}   •   Theme: ${carousel.theme}   •   ${total} Slides (1080×1920 9:16)   •   Format: JPG Q95`,
+    `Deck: ${carousel.category}   •   Theme: ${carousel.theme}   •   ${total} Slides (${spec.width}×${spec.height} ${spec.aspectRatioLabel})   •   Format: JPG Q95`,
     pad,
     pad + 74
   );
@@ -346,7 +389,7 @@ export async function downloadContactSheetJpg(
     const y = pad + headerH + r * (sH + gap);
 
     const slideCanvas = await renderSlideToCanvas(carousel, i, undefined, customPalette, visualOptions);
-    mctx.drawImage(slideCanvas, 0, 0, 1080, 1920, x, y, sW, sH);
+    mctx.drawImage(slideCanvas, 0, 0, spec.width, spec.height, x, y, sW, sH);
 
     // Slide border & index tag
     mctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
@@ -363,8 +406,9 @@ export async function downloadContactSheetJpg(
   const dataUrl = master.toDataURL('image/jpeg', 0.95);
   const a = document.createElement('a');
   a.href = dataUrl;
-  a.download = `MARROK_ContactSheet_${carousel.category.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+  a.download = `MARROK_ContactSheet_${carousel.category.replace(/[^a-zA-Z0-9]/g, '_')}_${spec.shortLabel.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 }
+

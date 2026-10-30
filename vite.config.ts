@@ -25,6 +25,9 @@ export default defineConfig(() => {
             if (/[\\/]node_modules[\\/]jszip[\\/]/.test(id)) {
               return 'vendor-zip';
             }
+            if (/[\\/]node_modules[\\/]mp4-muxer[\\/]/.test(id)) {
+              return 'vendor-mp4';
+            }
           },
         },
       },

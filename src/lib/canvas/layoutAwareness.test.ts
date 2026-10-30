@@ -7,8 +7,8 @@ import {
   MIN_GAP_TITLE_TO_BODY,
   MIN_GAP_BODIES,
 } from './layoutAwareness.ts';
-import { SlideData } from '../../types.ts';
-import { SAFE_FOOTER_CEILING_Y } from './constants.ts';
+import { CarouselData, SlideData, CanvasDimensionPreset } from '../../types.ts';
+import { SAFE_FOOTER_CEILING_Y, getCanvasDimensionSpec } from './constants.ts';
 
 describe('Slide Layout Awareness Engine', () => {
   it('strictly guarantees positive clearance between graphic card and English title', () => {
@@ -60,7 +60,7 @@ describe('Slide Layout Awareness Engine', () => {
     expect(layout.bodyBlock!.top - layout.arabicTitleBlock!.bottom).toBeGreaterThanOrEqual(MIN_GAP_TITLE_TO_BODY);
     expect(layout.arabicBodyBlock!.top - layout.bodyBlock!.bottom).toBeGreaterThanOrEqual(MIN_GAP_BODIES);
 
-    // Lowest element must not exceed the footer ceiling (y=1710)
+    // Lowest element must not exceed the TikTok Photo Mode footer ceiling (y=1555)
     expect(layout.arabicBodyBlock!.bottom).toBeLessThanOrEqual(SAFE_FOOTER_CEILING_Y);
   });
 
@@ -133,7 +133,7 @@ describe('Slide Layout Awareness Engine', () => {
     expect(layoutWithDrag.arabicBodyBlock!.bottom).toBeLessThanOrEqual(SAFE_FOOTER_CEILING_Y);
   });
 
-  it('handles CTA slide layout with non-overlapping emblem, headlines, and CTA button', () => {
+  it('handles CTA slide layout with non-overlapping emblem, headlines, and CTA button within safe ceiling', () => {
     const ctaSlide: SlideData = {
       type: 'cta',
       enTitle: 'Master Vector Architecture.',
@@ -154,5 +154,57 @@ describe('Slide Layout Awareness Engine', () => {
     expect(layout.arabicTitleBlock!.top).toBeGreaterThan(layout.titleBlock!.bottom);
     expect(layout.ctaButton!.y).toBeGreaterThan(layout.arabicTitleBlock!.bottom);
     expect(layout.attributionCard!.y).toBeGreaterThan(layout.ctaButton!.y);
+    expect(layout.attributionCard!.y + layout.attributionCard!.height / 2).toBeLessThanOrEqual(SAFE_FOOTER_CEILING_Y);
+  });
+
+  it('reflows non-overlapping layout across TikTok 9:16 and Instagram 4:5, 3:4, 1:1, and 9:16 presets', () => {
+    const presets: CanvasDimensionPreset[] = ['tiktok-9:16', 'ig-4:5', 'ig-3:4', 'ig-1:1', 'ig-9:16'];
+    const archetypes: SlideData['type'][] = ['hub', 'row', 'poster', 'cta'];
+
+    for (const preset of presets) {
+      const spec = getCanvasDimensionSpec(preset);
+      const mockCarousel: CarouselData = {
+        brand: '@MARROK',
+        category: 'SYSTEM DESIGN',
+        theme: 'cyber',
+        caption: 'Raft consensus architecture',
+        dimensionPreset: preset,
+        slides: [],
+      };
+
+      for (const type of archetypes) {
+        const slide: SlideData = {
+          type,
+          enTitle: 'Distributed Consensus Under Partition.',
+          arTitle: 'الإجماع الموزع تحت تقسيم الشبكة',
+          enBody: 'Raft elects a single leader per term and replicates log entries to a majority quorum.',
+          arBody: 'ينتخب بروتوكول Raft قائداً واحداً لكل دورة وينسخ السجلات للأغلبية.',
+          takeaways:
+            type === 'poster'
+              ? [
+                  { en: 'Leader election bounds split-brain.', ar: 'انتخاب القائد يمنع انقسام القرار.' },
+                  { en: 'Quorum intersection guarantees safety.', ar: 'تقاطع الأغلبية يضمن الأمان.' },
+                  { en: 'Log compaction bounds memory.', ar: 'ضغط السجل يحد من استهلاك الذاكرة.' },
+                ]
+              : undefined,
+        };
+
+        const layout = computeSlideLayoutAwareness(slide, mockCarousel);
+        expect(layout.graphicCard).toBeDefined();
+        expect(layout.titleBlock).toBeDefined();
+        expect(layout.titleBlock!.top).toBeGreaterThan(layout.graphicCard!.effectiveBottom);
+
+        if (type === 'cta') {
+          expect(layout.attributionCard).toBeDefined();
+          expect(layout.attributionCard!.y + layout.attributionCard!.height / 2).toBeLessThanOrEqual(
+            spec.safeFooterCeilingY + 20
+          );
+        } else {
+          expect(layout.arabicBodyBlock).toBeDefined();
+          expect(layout.arabicBodyBlock!.bottom).toBeLessThanOrEqual(spec.safeFooterCeilingY);
+        }
+      }
+    }
   });
 });
+

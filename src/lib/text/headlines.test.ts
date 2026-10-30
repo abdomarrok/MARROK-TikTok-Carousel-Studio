@@ -91,4 +91,17 @@ describe('extractCleanHeadline with filenames', () => {
     expect(headline).not.toContain('20760');
     expect(headline).not.toContain('png');
   });
+
+  it('preserves mid-headline colons on content slides while removing colons on hook/CTA slides', () => {
+    const contentHeadline = enforceHeadlineSpecRule('THE CATCH: APPROVAL IS NOT CONTROL', {
+      isHook: false,
+      isCta: false,
+    });
+    expect(contentHeadline).toBe('THE CATCH: APPROVAL IS NOT CONTROL.');
+
+    const hookHeadline = enforceHeadlineSpecRule('THE CATCH: APPROVAL IS NOT CONTROL', {
+      isHook: true,
+    });
+    expect(hookHeadline).toBe('THE CATCH APPROVAL IS NOT CONTROL.');
+  });
 });

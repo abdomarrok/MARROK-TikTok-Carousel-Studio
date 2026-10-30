@@ -37,8 +37,73 @@ const OVERLOAD_COOLDOWN_MS = 60_000;
 const NOT_FOUND_COOLDOWN_MS = 300_000;
 const modelCooldownUntil = new Map<string, number>();
 
+const GENERATION_CACHE_TTL_MS = 60_000;
+const MAX_GENERATION_CACHE_ENTRIES = 50;
+
+interface CachedGenerationEntry {
+  data: CarouselData;
+  engine: string;
+  model: string;
+  expiresAt: number;
+}
+
+const generationResponseCache = new Map<string, CachedGenerationEntry>();
+const inFlightGenerations = new Map<string, Promise<CachedGenerationEntry | null>>();
+
+export function resetGenerationCacheForTest(): void {
+  generationResponseCache.clear();
+  inFlightGenerations.clear();
+}
+
 export function resetModelCooldownsForTest(): void {
   modelCooldownUntil.clear();
+  resetGenerationCacheForTest();
+}
+
+function buildGenerationCacheKey(params: {
+  safePrompt: string;
+  safeInputMode: string;
+  safeCategoryHint: string;
+  postFormat: 'carousel' | 'single';
+  imagePayload: { mimeType: string; base64: string } | null;
+}): string {
+  const { safePrompt, safeInputMode, safeCategoryHint, postFormat, imagePayload } = params;
+  const imgFingerprint = imagePayload
+    ? `${imagePayload.mimeType}:${imagePayload.base64.length}:${imagePayload.base64.slice(0, 48)}:${imagePayload.base64.slice(-48)}`
+    : 'no-img';
+  return `${postFormat}|${safeInputMode}|${safeCategoryHint}|${imgFingerprint}|${safePrompt}`;
+}
+
+function getCachedGeneration(key: string): CachedGenerationEntry | null {
+  const existing = generationResponseCache.get(key);
+  if (!existing) return null;
+  if (Date.now() > existing.expiresAt) {
+    generationResponseCache.delete(key);
+    return null;
+  }
+  return {
+    ...existing,
+    data: JSON.parse(JSON.stringify(existing.data)) as CarouselData,
+  };
+}
+
+function storeCachedGeneration(key: string, entry: Omit<CachedGenerationEntry, 'expiresAt'>): CachedGenerationEntry {
+  const fullEntry: CachedGenerationEntry = {
+    data: JSON.parse(JSON.stringify(entry.data)) as CarouselData,
+    engine: entry.engine,
+    model: entry.model,
+    expiresAt: Date.now() + GENERATION_CACHE_TTL_MS,
+  };
+  if (generationResponseCache.has(key)) {
+    generationResponseCache.delete(key);
+  } else if (generationResponseCache.size >= MAX_GENERATION_CACHE_ENTRIES) {
+    const oldestKey = generationResponseCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      generationResponseCache.delete(oldestKey);
+    }
+  }
+  generationResponseCache.set(key, fullEntry);
+  return fullEntry;
 }
 
 function classifyModelError(err: unknown): 'overload' | 'not_found' | 'timeout' | 'other' {
@@ -361,6 +426,58 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
 
   const hasImage = Boolean(imagePayload);
   const isLongInput = safePrompt.length > 200;
+  const bypassCache =
+    Boolean(req.body?.forceRefresh) ||
+    req.headers['x-cache-bypass'] === 'true' ||
+    (process.env.VITEST === 'true' && req.body?.enableCache !== true);
+
+  const cacheKey = buildGenerationCacheKey({
+    safePrompt,
+    safeInputMode,
+    safeCategoryHint,
+    postFormat,
+    imagePayload,
+  });
+
+  if (!bypassCache) {
+    const cachedHit = getCachedGeneration(cacheKey);
+    if (cachedHit) {
+      res.setHeader('X-Marrok-Engine', cachedHit.engine);
+      if (cachedHit.model) res.setHeader('X-Marrok-Model', cachedHit.model);
+      res.setHeader('X-Marrok-Cache', 'HIT');
+      return res.json(cachedHit.data);
+    }
+
+    const existingInFlight = inFlightGenerations.get(cacheKey);
+    if (existingInFlight) {
+      try {
+        const coalesced = await existingInFlight;
+        if (coalesced) {
+          res.setHeader('X-Marrok-Engine', coalesced.engine);
+          if (coalesced.model) res.setHeader('X-Marrok-Model', coalesced.model);
+          res.setHeader('X-Marrok-Cache', 'COALESCED');
+          return res.json(JSON.parse(JSON.stringify(coalesced.data)));
+        }
+      } catch {
+        // Fall through to normal execution if in-flight promise rejected
+      }
+    }
+  }
+
+  let resolveInFlight: ((val: CachedGenerationEntry | null) => void) | null = null;
+  if (!bypassCache) {
+    const inFlightPromise = new Promise<CachedGenerationEntry | null>((resolve) => {
+      resolveInFlight = resolve;
+    });
+    inFlightGenerations.set(cacheKey, inFlightPromise);
+  }
+
+  const finalizeInFlight = (entry: CachedGenerationEntry | null) => {
+    if (!bypassCache) {
+      inFlightGenerations.delete(cacheKey);
+      resolveInFlight?.(entry);
+    }
+  };
 
   try {
     const parts: GeminiPart[] = [];
@@ -623,10 +740,23 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
 
       jsonResult = sanitizeFullCarousel(jsonResult);
 
+      if (!bypassCache) {
+        const stored = storeCachedGeneration(cacheKey, {
+          data: jsonResult,
+          engine: engineType,
+          model: successfulModel,
+        });
+        finalizeInFlight(stored);
+      } else {
+        finalizeInFlight(null);
+      }
+
       res.setHeader('X-Marrok-Engine', engineType);
       res.setHeader('X-Marrok-Model', successfulModel);
       return res.json(jsonResult);
     }
+
+    finalizeInFlight(null);
 
     // Offline Fallback Synthesizer
     console.info('[AI-Gateway] All AI keys & free backup tiers exhausted. Activating MARROK offline synthesizer.');
@@ -652,6 +782,7 @@ export async function handleGenerateCarousel(req: Request, res: Response) {
     res.setHeader('X-Marrok-Engine', 'offline');
     return res.json(synthesizedData);
   } catch (error: unknown) {
+    finalizeInFlight(null);
     console.info(
       '[AI-Gateway] Fallback synthesizer activated due to unexpected controller exception:',
       formatModelFallbackReason(error, customKey)

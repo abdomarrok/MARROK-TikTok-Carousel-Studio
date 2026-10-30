@@ -138,42 +138,42 @@ export function drawBrandIntroFrame(
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          460,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'GEOMETRIC_MATRIX // 01',
-          'SYS_BOOT',
-          spring(t, 180, 22)
+          '',
+          '',
+          1
         );
 
         const r = rng(99);
         const cols = 6;
         const rows = 4;
         const gridW = SAFE_WIDTH - 80;
-        const gridH = 340;
+        const gridH = 480;
         const cellW = gridW / cols;
         const cellH = gridH / rows;
 
         for (let idx = 0; idx < cols * rows; idx++) {
           const col = idx % cols;
           const row = Math.floor(idx / cols);
-          const delay = (col + row) * 0.04 + r() * 0.06;
+          const delay = (col + row) * 0.03 + r() * 0.04;
           const s = spring(t - delay, k, d);
           if (s <= 0) continue;
           const cx = SAFE_LEFT + 40 + col * cellW + cellW / 2;
-          const cy = 295 + row * cellH + cellH / 2;
+          const cy = 290 + row * cellH + cellH / 2;
           const sz = Math.min(cellW, cellH) * 0.55 * s;
 
           g.save();
           if ((col + row) % 4 === 0) {
             g.fillStyle = b.accentColor;
-            g.globalAlpha = clamp((t - delay) * 4);
+            g.globalAlpha = clamp((t - delay) * 5);
           } else {
             g.fillStyle = b.textColor;
-            g.globalAlpha = 0.14 * clamp((t - delay) * 4);
+            g.globalAlpha = 0.16 * clamp((t - delay) * 5);
           }
           const shape = r();
           if (shape > 0.6) {
@@ -190,109 +190,109 @@ export function drawBrandIntroFrame(
           g.restore();
         }
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 745);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       } else if (i === 1) {
         // Scene 2: Particle Scatter + Large Authentic MARROK Vector Logo Reveal
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          490,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'BRAND_REVEAL // 02',
-          b.name || 'MARROK',
-          spring(t, 180, 22)
+          '',
+          '',
+          1
         );
 
-        const logoS = spring(t - 0.08, k, d);
+        const logoS = spring(t - 0.04, k, d);
         g.save();
         g.shadowColor = b.accentColor;
         g.shadowBlur = 36;
         drawMarrokVectorBadge(
           g,
           SAFE_CENTER_X,
-          405,
-          Math.max(32, 164 * logoS),
+          445,
+          Math.max(32, 168 * logoS),
           b.accentColor,
           '#0B0C12'
         );
         g.restore();
 
-        const ls = spring(t - 0.22, k, d);
+        const ls = spring(t - 0.12, k, d);
         g.save();
         g.direction = 'ltr';
-        g.globalAlpha = clamp((t - 0.18) * 4);
+        g.globalAlpha = clamp((t - 0.08) * 5);
         g.fillStyle = b.textColor;
-        g.font = `800 84px "Plus Jakarta Sans", "${b.font}", sans-serif`;
+        g.font = `800 88px "Plus Jakarta Sans", "${b.font}", sans-serif`;
         g.textAlign = 'center';
-        g.translate(SAFE_CENTER_X, 625);
+        g.translate(SAFE_CENTER_X, 690);
         g.scale(0.95 + 0.05 * ls, 0.95 + 0.05 * ls);
         g.fillText(text || b.name, 0, 0, SAFE_WIDTH - 80);
         g.restore();
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 775);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       } else if (i === 2) {
         // Scene 3: Topic Tagline Sweep Card
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          450,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'DOMAIN_FOCUS // 03',
-          'VERIFIED',
-          spring(t, 180, 22)
+          '',
+          '',
+          1
         );
 
-        const bar = spring(t - 0.05, 160, 22);
+        const bar = spring(t - 0.04, 160, 22);
         g.save();
         g.fillStyle = b.accentColor;
-        g.fillRect(SAFE_LEFT + 60, 515, (SAFE_WIDTH - 120) * bar, 8);
+        g.fillRect(SAFE_LEFT + 60, 595, (SAFE_WIDTH - 120) * bar, 8);
         g.restore();
 
-        const ts = spring(t - 0.15, k, d);
+        const ts = spring(t - 0.08, k, d);
         g.save();
         g.direction = b.direction;
-        g.globalAlpha = clamp((t - 0.15) * 5);
+        g.globalAlpha = clamp((t - 0.06) * 5);
         g.fillStyle = b.textColor;
-        g.font = `800 64px "${b.font}", "Cairo", sans-serif`;
+        g.font = `800 66px "${b.font}", "Cairo", sans-serif`;
         g.textAlign = 'center';
-        g.translate(SAFE_CENTER_X, 455 + 60 * (1 - ts));
+        g.translate(SAFE_CENTER_X, 520 + 40 * (1 - ts));
         g.fillText(text, 0, 0, SAFE_WIDTH - 90);
         g.restore();
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 740);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       } else {
         // Scene 4: End Card Lockup with MARROK Vector Badge
         drawMarrokSurfaceCard(
           g,
           SAFE_LEFT,
-          220,
+          216,
           SAFE_WIDTH,
-          500,
+          640,
           b.accentColor,
           b.surfaceColor || '#12131C',
           b.surfaceBorder || '#252838',
-          'END_LOCKUP // 04',
-          `@${(b.name || 'MARROK').toUpperCase()}`,
-          spring(t, 180, 22)
+          '',
+          '',
+          1
         );
 
-        const s = spring(t - 0.08, k, d);
+        const s = spring(t - 0.04, k, d);
         g.save();
         g.shadowColor = b.accentColor;
         g.shadowBlur = 32;
         drawMarrokVectorBadge(
           g,
           SAFE_CENTER_X,
-          395,
-          Math.max(30, 140 * s),
+          440,
+          Math.max(32, 148 * s),
           b.accentColor,
           '#0B0C12'
         );
@@ -300,18 +300,18 @@ export function drawBrandIntroFrame(
 
         g.save();
         g.direction = 'ltr';
-        g.globalAlpha = clamp((t - 0.15) * 4);
+        g.globalAlpha = clamp((t - 0.08) * 5);
         g.fillStyle = b.textColor;
-        g.font = `800 82px "Plus Jakarta Sans", "${b.font}", sans-serif`;
+        g.font = `800 84px "Plus Jakarta Sans", "${b.font}", sans-serif`;
         g.textAlign = 'center';
-        g.fillText(text || b.name, SAFE_CENTER_X, 605, SAFE_WIDTH - 80);
+        g.fillText(text || b.name, SAFE_CENTER_X, 680, SAFE_WIDTH - 80);
 
-        const bar = spring(t - 0.25, 160, 22);
+        const bar = spring(t - 0.14, 160, 22);
         g.fillStyle = b.accentColor;
-        g.fillRect(SAFE_CENTER_X - 200 * bar, 645, 400 * bar, 6);
+        g.fillRect(SAFE_CENTER_X - 200 * bar, 725, 400 * bar, 6);
         g.restore();
 
-        drawAnimatedBilingualSlideCopy(g, sc, b, t, 785);
+        drawAnimatedBilingualSlideCopy(g, sc, b, t, 920);
       }
     });
   });

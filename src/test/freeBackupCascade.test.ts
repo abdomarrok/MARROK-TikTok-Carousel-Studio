@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Request, Response } from 'express';
 import { getServerConfig, resolveRequestGeminiKeys } from '../../api/config.ts';
-import { handleGenerateCarousel } from '../../api/controllers/generateController.ts';
+import { handleGenerateCarousel, resetGenerationCacheForTest } from '../../api/controllers/generateController.ts';
 import { handleGenerateImage } from '../../api/controllers/imageController.ts';
 
 function createMockRes() {
@@ -33,6 +33,7 @@ function createMockRes() {
 
 describe('Multi-Key Gemini Rotation & Zero-Key Free AI Backup Cascade', () => {
   afterEach(() => {
+    resetGenerationCacheForTest();
     vi.unstubAllGlobals();
   });
 
@@ -131,6 +132,80 @@ describe('Multi-Key Gemini Rotation & Zero-Key Free AI Backup Cascade', () => {
     expect(body.sourceMeta?.model).toBe('pollinations/openai');
     expect(getHeader('x-marrok-engine')).toBe('ungrounded');
     expect(getHeader('x-marrok-model')).toBe('pollinations/openai');
+  });
+
+  it('coalesces concurrent identical generation requests and serves TTL-cached responses', async () => {
+    const validPollinationsCarousel = {
+      brand: 'MARROK',
+      category: 'DISTRIBUTED SYSTEMS',
+      theme: 'teal',
+      caption: 'Cached carousel #SystemDesign',
+      slides: [
+        {
+          type: 'hub',
+          enTitle: 'Distributed Consensus Engine.',
+          arTitle: 'محرك الإجماع الموزع.',
+          enBody: 'Deterministic state replication across quorum nodes.',
+          arBody: 'نسخ الحالة بشكل حتمي عبر عقد النصاب.',
+        },
+        {
+          type: 'row',
+          enTitle: 'Leader Lease Renewal.',
+          arTitle: 'تجديد عقد القائد.',
+          enBody: 'Monotonic clocks prevent split-brain partitions.',
+          arBody: 'الساعات الرتيبة تمنع انقسام الشبكة.',
+        },
+        {
+          type: 'cta',
+          enTitle: 'Explore the Spec?',
+          arTitle: 'هل تستكشف المواصفات؟',
+          enBody: 'Follow MARROK for systems architecture.',
+          arBody: 'تابع ماروك لهندسة الأنظمة.',
+          ctaText: 'Join discussion',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: JSON.stringify(validPollinationsCarousel) } }],
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const makeReq = () =>
+      ({
+        headers: {},
+        body: {
+          prompt: 'Raft leader leases and monotonic clocks',
+          postFormat: 'carousel',
+          enableCache: true,
+        },
+      }) as unknown as Request;
+
+    const res1 = createMockRes();
+    const res2 = createMockRes();
+
+    await Promise.all([
+      handleGenerateCarousel(makeReq(), res1.res),
+      handleGenerateCarousel(makeReq(), res2.res),
+    ]);
+
+    const getPollinationsCalls = () =>
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('pollinations.ai'));
+
+    expect(getPollinationsCalls()).toHaveLength(1);
+    expect(res2.getHeader('x-marrok-cache')).toBe('COALESCED');
+
+    const res3 = createMockRes();
+    await handleGenerateCarousel(makeReq(), res3.res);
+    expect(getPollinationsCalls()).toHaveLength(1);
+    expect(res3.getHeader('x-marrok-cache')).toBe('HIT');
   });
 
   it('generates a 9:16 base64 data URL via zero-key Pollinations Flux when Gemini image models are unavailable', async () => {

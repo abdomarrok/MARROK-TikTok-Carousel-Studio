@@ -68,17 +68,17 @@ export async function drawTakeawaysBlock(
   ctx: CanvasRenderingContext2D,
   takeaways: SlideTakeawayItem[],
   theme: ThemePalette,
-  bounds: { top: number; bottom: number; height: number; dx?: number; dy?: number },
-  options?: VisualSystemOptions
+  bounds: { x?: number; width?: number; top: number; bottom: number; height: number; dx?: number; dy?: number },
+  _options?: VisualSystemOptions
 ): Promise<void> {
   if (!takeaways || takeaways.length === 0) return;
 
   const count = Math.min(3, takeaways.length);
-  const cardX = SAFE_MARGIN_LEFT + (bounds.dx || 0);
-  const cardW = SAFE_CONTENT_WIDTH;
+  const cardX = bounds.x !== undefined ? bounds.x : SAFE_MARGIN_LEFT + (bounds.dx || 0);
+  const cardW = bounds.width !== undefined ? bounds.width : SAFE_CONTENT_WIDTH;
   const totalH = bounds.height;
-  const gap = count > 1 ? 14 : 0;
-  const rowH = Math.max(76, Math.floor((totalH - (count - 1) * gap) / count));
+  const gap = count > 1 ? 12 : 0;
+  const rowH = Math.max(60, Math.floor((totalH - (count - 1) * gap) / count));
 
   ctx.save();
 

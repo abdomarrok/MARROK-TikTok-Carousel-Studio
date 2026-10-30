@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Copy, Trash2, ArrowLeft, ArrowRight } from 'lucide-react';
-import { CarouselData, HookVariant } from '../../types.ts';
+import { CanvasDimensionPreset, CarouselData, HookVariant } from '../../types.ts';
+import { CANVAS_DIMENSION_PRESET_LIST, getCanvasDimensionSpec } from '../../lib/canvas/constants.ts';
 import { StageOverlayMode } from './ViewportCanvas.tsx';
 
 interface SlideNavigatorProps {
@@ -10,6 +11,7 @@ interface SlideNavigatorProps {
   stageOverlayMode?: StageOverlayMode;
   onSetStageOverlayMode?: (mode: StageOverlayMode) => void;
   onToggleSafeZones?: () => void;
+  onSelectDimensionPreset?: (preset: CanvasDimensionPreset) => void;
   onSelectSlide: (index: number) => void;
   onAddSlide: () => void;
   onDuplicateSlide: () => void;
@@ -25,6 +27,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   stageOverlayMode,
   onSetStageOverlayMode,
   onToggleSafeZones,
+  onSelectDimensionPreset,
   onSelectSlide,
   onAddSlide,
   onDuplicateSlide,
@@ -34,6 +37,8 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   const isSinglePost = carousel.postFormat === 'single' || carousel.slides.length === 1;
   const activeSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
   const overlayMode: StageOverlayMode = stageOverlayMode || (showSafeZones ? 'safe' : 'clean');
+  const activeSpec = getCanvasDimensionSpec(carousel.dimensionPreset);
+  const isInstagram = activeSpec.platform === 'instagram';
 
   const handleSelectMode = (mode: StageOverlayMode) => {
     if (onSetStageOverlayMode) {
@@ -42,6 +47,40 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
       onToggleSafeZones();
     }
   };
+
+  const renderDimensionBar = () => (
+    <div
+      className="flex items-center justify-between gap-1 bg-black/60 border border-white/10 rounded-lg p-1 text-[11px] font-sans"
+      role="group"
+      aria-label="Canvas Dimension Preset"
+    >
+      <div className="flex items-center gap-0.5 flex-wrap">
+        {CANVAS_DIMENSION_PRESET_LIST.map((preset) => {
+          const isActive = activeSpec.id === preset.id;
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => onSelectDimensionPreset?.(preset.id)}
+              className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors font-semibold ${
+                isActive
+                  ? preset.platform === 'instagram'
+                    ? 'bg-pink-500/25 text-pink-200 border border-pink-500/40'
+                    : 'bg-emerald-500/25 text-emerald-200 border border-emerald-500/40'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+              }`}
+              title={`${preset.label} (${preset.width}×${preset.height})`}
+            >
+              {preset.shortLabel}
+            </button>
+          );
+        })}
+      </div>
+      <span className="text-[10px] font-mono text-slate-400 px-1 shrink-0 hidden sm:inline">
+        {activeSpec.width}×{activeSpec.height}
+      </span>
+    </div>
+  );
 
   const renderStageToggle = () => (
     <div className="flex items-center gap-0.5 bg-black/70 border border-white/10 rounded-lg p-0.5 text-xs font-sans">
@@ -63,7 +102,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
             ? 'bg-rose-500/25 text-rose-300 font-bold border border-rose-500/40'
             : 'text-slate-400 hover:text-white'
         }`}
-        title="Highlight TikTok safe zone margins"
+        title={`Highlight ${isInstagram ? 'Instagram' : 'TikTok'} safe zone margins`}
       >
         Safe zones
       </button>
@@ -75,31 +114,35 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
             ? 'bg-cyan-500/25 text-cyan-200 font-bold border border-cyan-500/40'
             : 'text-slate-400 hover:text-white'
         }`}
-        title="Simulate realistic TikTok feed icons and chrome"
+        title={`Simulate realistic ${isInstagram ? 'Instagram' : 'TikTok'} feed icons and chrome`}
       >
-        TikTok UI
+        {isInstagram ? 'IG UI' : 'TikTok UI'}
       </button>
     </div>
   );
 
   if (isSinglePost) {
     return (
-      <div className="w-full max-w-[360px] flex items-center justify-between gap-2 px-1 py-1 text-xs text-slate-300">
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <span className="text-white font-bold">Single Slide</span>
-          <span className="text-slate-500">·</span>
-          <span className="uppercase text-emerald-300 font-sans font-semibold">
-            {activeSlide?.type || 'poster'}
-          </span>
-        </div>
+      <div className="w-full max-w-[360px] space-y-1.5">
+        {onSelectDimensionPreset && renderDimensionBar()}
+        <div className="w-full flex items-center justify-between gap-2 px-1 py-1 text-xs text-slate-300">
+          <div className="flex items-center gap-2 font-mono text-xs">
+            <span className="text-white font-bold">Single Slide</span>
+            <span className="text-slate-500">·</span>
+            <span className="uppercase text-emerald-300 font-sans font-semibold">
+              {activeSlide?.type || 'poster'}
+            </span>
+          </div>
 
-        <div className="flex items-center gap-1.5">{renderStageToggle()}</div>
+          <div className="flex items-center gap-1.5">{renderStageToggle()}</div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-[360px] space-y-1.5">
+      {onSelectDimensionPreset && renderDimensionBar()}
       {/* Top Bar: Slide Count, Management Actions & Stage Mode Switcher */}
       <div className="flex items-center justify-between text-xs text-slate-400 px-0.5">
         <div className="flex items-center gap-2 font-mono tabular-nums">

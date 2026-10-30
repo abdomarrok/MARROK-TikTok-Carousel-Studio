@@ -86,6 +86,28 @@ export function convertCarouselToMotionReel(
     return ar || en || arFallback;
   };
 
+  const condenseReelBody = (raw?: string, maxChars = 110): string => {
+    const clean = (raw || '').replace(/\s+/g, ' ').trim();
+    if (!clean || clean.length <= maxChars) return clean;
+    // Prefer first complete sentence if it fits within maxChars
+    const firstSentence = clean.split(/(?<=[.?!।؟])\s+/)[0];
+    if (firstSentence && firstSentence.length >= 24 && firstSentence.length <= maxChars) {
+      return firstSentence;
+    }
+    // Otherwise trim cleanly at a clause or word boundary
+    const words = clean.split(' ');
+    let out = '';
+    for (const w of words) {
+      if ((out + ' ' + w).trim().length > maxChars - 1) break;
+      out = (out + ' ' + w).trim();
+    }
+    out = out.replace(/[,;:\-—–]+$/, '').trim();
+    if (!/[.?!؟]$/.test(out)) {
+      out += '.';
+    }
+    return out;
+  };
+
   const enrichSceneFromSlide = (
     baseScene: MotionSceneConfig,
     slide?: SlideData,
@@ -97,8 +119,8 @@ export function convertCarouselToMotionReel(
       slideType: baseScene.slideType || slide.type || 'hub',
       enTitle: cleanHeadline(slide.enTitle, baseScene.enTitle || baseScene.label),
       arTitle: cleanHeadline(slide.arTitle, baseScene.arTitle || baseScene.text),
-      enBody: (slide.enBody || '').trim(),
-      arBody: (slide.arBody || '').trim(),
+      enBody: condenseReelBody(slide.enBody, 110),
+      arBody: condenseReelBody(slide.arBody, 115),
       stepNumber: slide.stepNumber || String(stepIdx + 1).padStart(2, '0'),
       metricValue: slide.metricValue || baseScene.metricValue,
       metricLabel: slide.metricLabel || baseScene.metricLabel,
@@ -147,7 +169,7 @@ export function convertCarouselToMotionReel(
 
   if (templateId === 'marrok-slides') {
     if (slides.length === 1 && firstSlide) {
-      // Single-Slide Poster -> 4 animated MARROK slide scenes
+      // Single-Slide Poster -> 4 animated MARROK slide scenes (4.5s each = 18.0s)
       scenes = [
         enrichSceneFromSlide(
           {
@@ -156,7 +178,7 @@ export function convertCarouselToMotionReel(
             text: pickTitle(0, 'لماذا تفشل الأنظمة؟', 'Why Legacy Systems Fail'),
             slideType: firstSlide.type || 'hub',
             from: 0,
-            to: 3.5,
+            to: 4.5,
             springK: 220,
             springD: 20,
           },
@@ -172,8 +194,8 @@ export function convertCarouselToMotionReel(
           slideType: 'row',
           stepNumber: '02',
           nodes: extractSlideNodes(firstSlide),
-          from: 3.5,
-          to: 7.5,
+          from: 4.5,
+          to: 9.0,
           springK: 210,
           springD: 22,
         },
@@ -184,8 +206,8 @@ export function convertCarouselToMotionReel(
             text: metricText,
             slideType: firstSlide.codeSnippet ? 'code' : 'metric',
             metricValue: metricText,
-            from: 7.5,
-            to: 11.0,
+            from: 9.0,
+            to: 13.5,
             springK: 240,
             springD: 18,
           },
@@ -199,8 +221,8 @@ export function convertCarouselToMotionReel(
             text: `FOLLOW @${brandName}`,
             slideType: 'cta',
             ctaText: `FOLLOW @${brandName}`,
-            from: 11.0,
-            to: 14.5,
+            from: 13.5,
+            to: 18.0,
             springK: 220,
             springD: 20,
           },
@@ -209,9 +231,9 @@ export function convertCarouselToMotionReel(
         ),
       ];
     } else if (slides.length > 0) {
-      // Multi-slide Carousel -> Map slides 1:1 into animated MARROK slide scenes (up to 8 slides, ~3.2s each)
+      // Multi-slide Carousel -> Map slides 1:1 into animated MARROK slide scenes (4.5s per slide for comfortable bilingual reading)
       const targetSlides = slides.slice(0, 8);
-      const sceneDur = targetSlides.length >= 6 ? 3.0 : 3.5;
+      const sceneDur = 4.5;
       scenes = targetSlides.map((slide, idx) => {
         const from = Number((idx * sceneDur).toFixed(1));
         const to = Number(((idx + 1) * sceneDur).toFixed(1));
