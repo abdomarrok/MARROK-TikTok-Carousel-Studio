@@ -124,6 +124,15 @@ export async function drawImageSlide(
         dy = cardY + (cardH - dh) / 2;
       }
 
+      const zoom = Math.max(0.5, Math.min(3.0, slide.imageZoom ?? 1));
+      const panX = Math.max(-100, Math.min(100, slide.imagePanX ?? 0));
+      const panY = Math.max(-100, Math.min(100, slide.imagePanY ?? 0));
+
+      dw = dw * zoom;
+      dh = dh * zoom;
+      dx = cardX + (cardW - dw) / 2 + (panX / 100) * (cardW * 0.45);
+      dy = cardY + (cardH - dh) / 2 + (panY / 100) * (cardH * 0.45);
+
       ctx.save();
       if (filterMode === 'invert') {
         ctx.filter = 'invert(0.92) hue-rotate(180deg) contrast(1.2) brightness(0.95)';

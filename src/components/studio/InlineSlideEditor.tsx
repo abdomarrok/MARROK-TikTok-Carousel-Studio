@@ -151,6 +151,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           </div>
           <input
             type="text"
+            data-slide-editor-field="titleBlock"
             value={currentSlide.enTitle || ''}
             onFocus={() => onSelectElement?.('titleBlock')}
             onClick={() => onSelectElement?.('titleBlock')}
@@ -188,6 +189,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             dir="rtl"
             lang="ar"
             aria-label="Arabic Headline"
+            data-slide-editor-field="arabicTitleBlock"
             value={currentSlide.arTitle || ''}
             onFocus={() => onSelectElement?.('arabicTitleBlock')}
             onClick={() => onSelectElement?.('arabicTitleBlock')}
@@ -218,6 +220,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           </div>
           <input
             type="text"
+            data-slide-editor-field="ctaButton"
             value={currentSlide.ctaText || ''}
             onFocus={() => onSelectElement?.('ctaButton')}
             onClick={() => onSelectElement?.('ctaButton')}
@@ -255,6 +258,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
           </div>
           <textarea
             rows={3}
+            data-slide-editor-field="bodyBlock"
             value={currentSlide.enBody || ''}
             onFocus={() => onSelectElement?.('bodyBlock')}
             onClick={() => onSelectElement?.('bodyBlock')}
@@ -292,6 +296,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
             dir="rtl"
             lang="ar"
             aria-label="Arabic Body Text"
+            data-slide-editor-field="arabicBodyBlock"
             value={currentSlide.arBody || ''}
             onFocus={() => onSelectElement?.('arabicBodyBlock')}
             onClick={() => onSelectElement?.('arabicBodyBlock')}
@@ -394,6 +399,7 @@ export const InlineSlideEditor: React.FC<InlineSlideEditorProps> = ({
                     </div>
                     <input
                       type="text"
+                      data-slide-editor-field={tIdx === 0 ? 'takeawaysBlock' : undefined}
                       value={t.en || ''}
                       onFocus={() => onSelectElement?.('takeawaysBlock')}
                       onChange={(e) => {

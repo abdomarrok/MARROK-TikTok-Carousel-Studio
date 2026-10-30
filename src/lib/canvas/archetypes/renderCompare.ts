@@ -3,6 +3,7 @@ import { fitTextInBox } from '../textLayout.ts';
 import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
 import { SAFE_CONTENT_CENTER_X, SAFE_MARGIN_LEFT, SAFE_MARGIN_RIGHT } from '../constants.ts';
+import { resolveSmartSlideVisuals } from '../../synthesis/smartVisualDefaults.ts';
 
 /**
  * Archetype 5: Side-by-Side Comparison (Legacy vs Modern)
@@ -47,7 +48,8 @@ export async function drawCompareSlide(
   const xImg = await loadIconImage('xCircle', '#F43F5E');
   safeDrawImage(ctx, xImg, leftX + 34, cardY + 33, 26, 26);
 
-  const leftTitle = slide.compareLeftTitle || 'Legacy Method';
+  const smart = resolveSmartSlideVisuals(slide, 1, false);
+  const leftTitle = slide.compareLeftTitle || smart.compareLeftTitle || 'Legacy Method';
   ctx.save();
   const fitLeftTitle = fitTextInBox(ctx, `BEFORE · ${leftTitle}`.toUpperCase(), cardW - 100, 21, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13 });
   ctx.font = `800 ${fitLeftTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
@@ -58,7 +60,7 @@ export async function drawCompareSlide(
   ctx.restore();
 
   // Left Body Lines with crisp red ✖ bullets, 20px bold typography, and full card height distribution
-  const leftText = slide.compareLeftBody || '• Full repository clone\n• High disk footprint\n• Stalls CI pipelines';
+  const leftText = slide.compareLeftBody || smart.compareLeftBody;
   const leftLines = leftText.split('\n').filter((l) => l.trim().length > 0).slice(0, 5);
   ctx.save();
   ctx.textBaseline = 'alphabetic';
@@ -112,7 +114,7 @@ export async function drawCompareSlide(
   const checkImg = await loadIconImage('checkCircle', theme.accent);
   safeDrawImage(ctx, checkImg, rightX + 34, cardY + 33, 26, 26);
 
-  const rightTitle = slide.compareRightTitle || 'Modern Approach';
+  const rightTitle = slide.compareRightTitle || smart.compareRightTitle || 'Modern Approach';
   ctx.save();
   const fitRightTitle = fitTextInBox(ctx, `AFTER · ${rightTitle}`.toUpperCase(), cardW - 100, 21, '"Plus Jakarta Sans", sans-serif', '800', { minFontSize: 13 });
   ctx.font = `800 ${fitRightTitle.fontSize}px "Plus Jakarta Sans", sans-serif`;
@@ -123,7 +125,7 @@ export async function drawCompareSlide(
   ctx.restore();
 
   // Right Body Lines with crisp green ✔ bullets, 20px bold typography, and full card height distribution
-  const rightText = slide.compareRightBody || '• Virtualized file system\n• Instant sparse checkout\n• Zero local developer wait';
+  const rightText = slide.compareRightBody || smart.compareRightBody;
   const rightLines = rightText.split('\n').filter((l) => l.trim().length > 0).slice(0, 5);
   ctx.save();
   ctx.textBaseline = 'alphabetic';

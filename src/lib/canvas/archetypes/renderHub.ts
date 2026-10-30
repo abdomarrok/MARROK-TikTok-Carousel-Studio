@@ -2,6 +2,7 @@ import { SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts'
 import { fitTextInBox } from '../textLayout.ts';
 import { loadIconImage, drawTintedImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
+import { resolveSmartSlideVisuals } from '../../synthesis/smartVisualDefaults.ts';
 
 const DEFAULT_ICON_LABELS: Record<string, string> = {
   server: 'SERVICE POD',
@@ -38,8 +39,8 @@ export async function drawHubSlide(
   const cy = 600;
   const r = 325;
 
-  // Determine active satellite nodes (supports dynamic add/delete from 1 to 6 nodes)
-  const rawLabels = slide.satLabels && slide.satLabels.length > 0 ? slide.satLabels : null;
+  const smart = resolveSmartSlideVisuals(slide, 0, false);
+  const rawLabels = slide.satLabels && slide.satLabels.length > 0 ? slide.satLabels : smart.satLabels;
   const numNodes = rawLabels ? Math.min(6, Math.max(1, rawLabels.length)) : 6;
   const satAngles = Array.from({ length: numNodes }, (_, i) => -90 + (360 / numNodes) * i);
 
@@ -138,13 +139,13 @@ export async function drawHubSlide(
   ctx.restore();
 
   // Center Hub Icon: 130x130 in theme.accent
-  const centerIconName = slide.centerIcon || 'gitMerge';
+  const centerIconName = slide.centerIcon || smart.centerIcon || 'gitMerge';
   const centerImg = await loadIconImage(centerIconName, theme.accent);
   const iconSize = 130;
   drawTintedImage(ctx, centerImg, cx - iconSize / 2, cy - iconSize / 2 - 14, iconSize, iconSize, theme.accent);
 
   // Center Core Tag Pill at bottom of center box (auto-sized to content)
-  const centerText = (slide.centerTag || 'SYSTEM CORE').toUpperCase();
+  const centerText = (slide.centerTag || smart.centerTag || 'SYSTEM CORE').toUpperCase();
   ctx.save();
   ctx.font = '700 12px "JetBrains Mono", monospace';
   const tagMetrics = ctx.measureText(centerText);
@@ -157,9 +158,8 @@ export async function drawHubSlide(
   ctx.restore();
 
   // Satellite Badges with crisp technical label pills and spoke flow indicators
-  const defaultIcons = ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
-  const satIcons = slide.satIcons && slide.satIcons.length > 0 ? slide.satIcons : defaultIcons;
-  const satLabels = rawLabels || ['SERVICE POD', 'STORAGE', 'TELEMETRY', 'IDENTITY', 'AI AGENT', 'VCS ENGINE'];
+  const satIcons = slide.satIcons && slide.satIcons.length > 0 ? slide.satIcons : smart.satIcons;
+  const satLabels = rawLabels || smart.satLabels;
   const satW = 168;
   const satH = 120;
   const satIconSize = 50;

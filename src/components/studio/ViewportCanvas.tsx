@@ -1,11 +1,47 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Move, RotateCcw, X, Heart, MessageCircle, Bookmark, Share2, Music2, Search, Send, MoreHorizontal } from 'lucide-react';
-import { CarouselData, GraphicalElementId, ElementLayoutOverride, ThemePalette } from '../../types.ts';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Move,
+  RotateCcw,
+  X,
+  Heart,
+  MessageCircle,
+  Bookmark,
+  Share2,
+  Music2,
+  Search,
+  Send,
+  MoreHorizontal,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  ZoomIn,
+  ZoomOut,
+  EyeOff,
+  AlignHorizontalSpaceAround,
+} from 'lucide-react';
+import {
+  CarouselData,
+  GraphicalElementId,
+  ElementLayoutOverride,
+  ThemePalette,
+  TextAlignment,
+} from '../../types.ts';
 import { renderSlideToCanvas, getCanvasDimensionSpec } from '../../lib/canvasExporter.ts';
 import { computeSlideElementBounds, findSlideElementAtPoint, ElementBounds } from '../../lib/canvas/layoutBounds.ts';
 import { clampElementDrag } from '../../lib/canvas/layoutAwareness.ts';
 
 export type StageOverlayMode = 'clean' | 'safe' | 'tiktok';
+
+type ResizeCorner = 'nw' | 'ne' | 'sw' | 'se';
+
+const TEXT_ALIGNABLE_ELEMENTS: GraphicalElementId[] = [
+  'titleBlock',
+  'arabicTitleBlock',
+  'bodyBlock',
+  'arabicBodyBlock',
+];
 
 interface ViewportCanvasProps {
   stageOverlayMode?: StageOverlayMode;
@@ -21,6 +57,7 @@ interface ViewportCanvasProps {
   selectedElementId?: GraphicalElementId | null;
   onSelectElement?: (id: GraphicalElementId | null) => void;
   onUpdateLayoutOverride?: (id: GraphicalElementId, override: ElementLayoutOverride | null) => void;
+  onDoubleClickElement?: (id: GraphicalElementId) => void;
 }
 
 export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
@@ -35,21 +72,32 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   selectedElementId,
   onSelectElement,
   onUpdateLayoutOverride,
+  onDoubleClickElement,
 }) => {
   const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const activeCanvasRef = externalCanvasRef || internalCanvasRef;
 
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [isSnappedCenterX, setIsSnappedCenterX] = useState(false);
   const [hoveredElementId, setHoveredElementId] = useState<GraphicalElementId | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const initialOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const resizeStateRef = useRef<{
+    corner: ResizeCorner;
+    startX: number;
+    startY: number;
+    initialScale: number;
+  } | null>(null);
   const [mobileNudgeStep, setMobileNudgeStep] = useState<number>(5);
 
   const spec = getCanvasDimensionSpec(carousel.dimensionPreset);
   const prevIndexRef = useRef(currentSlideIndex);
   const prevArchetypeRef = useRef(carousel.slides[currentSlideIndex]?.type);
   const prevPresetRef = useRef(spec.id);
+  const prevLayoutSignatureRef = useRef<string>('');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
   const renderSequenceRef = useRef(0);
 
   const currentSlide = carousel.slides[currentSlideIndex];
@@ -58,6 +106,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   const currentOverride = (selectedElementId && currentSlide?.layoutOverrides?.[selectedElementId]) || null;
   const currentDx = currentOverride?.dx ?? 0;
   const currentDy = currentOverride?.dy ?? 0;
+  const currentScale = currentOverride?.scale ?? 1;
+  const currentAlign: TextAlignment = currentOverride?.align || 'center';
 
   // Dynamically compute exact layout bounds for every element on current slide
   const boundsMap = useMemo(() => {
@@ -67,6 +117,43 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
 
   const activeBounds = selectedElementId ? boundsMap[selectedElementId] : null;
   const hoveredBounds = hoveredElementId && hoveredElementId !== selectedElementId ? boundsMap[hoveredElementId] : null;
+
+  // Compute live vertical pixel gaps between visible stacked elements during drag/resize
+  const liveGapRulers = useMemo(() => {
+    if (!isDragging && !isResizing) return [];
+    const orderedIds: GraphicalElementId[] = [
+      'headerBadge',
+      'graphicCard',
+      'titleBlock',
+      'arabicTitleBlock',
+      'bodyBlock',
+      'arabicBodyBlock',
+      'takeawaysBlock',
+      'ctaButton',
+      'attributionCard',
+    ];
+    const visibleBoxes = orderedIds
+      .map((id) => boundsMap[id])
+      .filter((b): b is ElementBounds => Boolean(b && !b.hidden && b.height > 0))
+      .sort((a, b) => a.y - b.y);
+
+    const gaps: Array<{ id: string; topPct: string; heightPct: string; gapPx: number }> = [];
+    for (let i = 0; i < visibleBoxes.length - 1; i++) {
+      const upper = visibleBoxes[i];
+      const lower = visibleBoxes[i + 1];
+      const upperBottom = upper.y + upper.height;
+      const gapPx = Math.round(lower.y - upperBottom);
+      if (gapPx >= 4 && gapPx <= 260) {
+        gaps.push({
+          id: `${upper.id}-${lower.id}`,
+          topPct: `${((upperBottom / spec.height) * 100).toFixed(2)}%`,
+          heightPct: `${((gapPx / spec.height) * 100).toFixed(2)}%`,
+          gapPx,
+        });
+      }
+    }
+    return gaps;
+  }, [boundsMap, isDragging, isResizing, spec.height]);
 
   const handleNudge = (deltaX: number, deltaY: number) => {
     if (!selectedElementId || !onUpdateLayoutOverride || !currentSlide) return;
@@ -84,18 +171,67 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     });
   };
 
-  // Debounced canvas rendering
+  const handleQuickScale = (deltaScale: number) => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    const nextScale = Math.max(0.6, Math.min(1.5, Number((currentScale + deltaScale).toFixed(2))));
+    onUpdateLayoutOverride(selectedElementId, {
+      ...(currentOverride || {}),
+      scale: nextScale,
+    });
+  };
+
+  const handleQuickAlign = (align: TextAlignment) => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    onUpdateLayoutOverride(selectedElementId, {
+      ...(currentOverride || {}),
+      align,
+    });
+  };
+
+  const handleQuickCenter = () => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    onUpdateLayoutOverride(selectedElementId, {
+      ...(currentOverride || {}),
+      dx: 0,
+    });
+  };
+
+  const handleQuickHide = () => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    onUpdateLayoutOverride(selectedElementId, {
+      ...(currentOverride || {}),
+      hidden: !currentOverride?.hidden,
+    });
+  };
+
+  // Instant 60fps canvas rendering for layout/framing manipulation + 150ms debounce strictly for text typing
   useEffect(() => {
     let isMounted = true;
-    const currentSlide = carousel.slides[currentSlideIndex];
-    if (!currentSlide || !activeCanvasRef.current) return;
+    const slide = carousel.slides[currentSlideIndex];
+    if (!slide || !activeCanvasRef.current) return;
+
+    const layoutSignature = JSON.stringify({
+      overrides: slide.layoutOverrides,
+      compositionPreset: slide.compositionPreset,
+      freeMoveLayout: slide.freeMoveLayout,
+      imageZoom: slide.imageZoom,
+      imagePanX: slide.imagePanX,
+      imagePanY: slide.imagePanY,
+      imageFit: slide.imageFit,
+      imageFilter: slide.imageFilter,
+      themeId: theme.id,
+      visualOptions: carousel.visualOptions,
+    });
 
     const isIndexChange = prevIndexRef.current !== currentSlideIndex;
-    const isArchetypeChange = prevArchetypeRef.current !== currentSlide.type;
+    const isArchetypeChange = prevArchetypeRef.current !== slide.type;
     const isPresetChange = prevPresetRef.current !== spec.id;
+    const isLayoutChange = prevLayoutSignatureRef.current !== layoutSignature;
+
     prevIndexRef.current = currentSlideIndex;
-    prevArchetypeRef.current = currentSlide.type;
+    prevArchetypeRef.current = slide.type;
     prevPresetRef.current = spec.id;
+    prevLayoutSignatureRef.current = layoutSignature;
 
     const renderSequence = ++renderSequenceRef.current;
 
@@ -127,9 +263,12 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       }
     };
 
-    if (isIndexChange || isArchetypeChange || isPresetChange) {
+    if (isIndexChange || isArchetypeChange || isPresetChange || isLayoutChange || isDragging || isResizing) {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      executeRender();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        executeRender();
+      });
     } else {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(executeRender, 150);
@@ -138,8 +277,9 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     return () => {
       isMounted = false;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [carousel, currentSlideIndex, theme, activeCanvasRef, spec.id]);
+  }, [carousel, currentSlideIndex, theme, activeCanvasRef, spec.id, isDragging, isResizing]);
 
   // Accurate hit-testing on Canvas click
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -154,9 +294,24 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     onSelectElement(hitId);
   };
 
+  const handleCanvasDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!activeCanvasRef.current) return;
+    const rect = activeCanvasRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const canvasX = ((e.clientX - rect.left) / rect.width) * spec.width;
+    const canvasY = ((e.clientY - rect.top) / rect.height) * spec.height;
+
+    const hitId = findSlideElementAtPoint(canvasX, canvasY, boundsMap, currentSlide?.layoutOverrides);
+    if (hitId) {
+      onSelectElement?.(hitId);
+      onDoubleClickElement?.(hitId);
+    }
+  };
+
   // Hover detection for interactive feedback
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDragging || !activeCanvasRef.current) return;
+    if (isDragging || isResizing || !activeCanvasRef.current) return;
     const rect = activeCanvasRef.current.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
@@ -168,7 +323,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   };
 
   const handleCanvasMouseLeave = () => {
-    if (!isDragging) setHoveredElementId(null);
+    if (!isDragging && !isResizing) setHoveredElementId(null);
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -177,10 +332,30 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     initialOffsetRef.current = { dx: currentDx, dy: currentDy };
     setIsDragging(true);
+    setIsSnappedCenterX(false);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isResizing && resizeStateRef.current && selectedElementId && onUpdateLayoutOverride) {
+      e.stopPropagation();
+      const rect = activeCanvasRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0) return;
+      const { corner, startX, startY, initialScale } = resizeStateRef.current;
+      const signX = corner === 'ne' || corner === 'se' ? 1 : -1;
+      const signY = corner === 'sw' || corner === 'se' ? 1 : -1;
+      const dxNorm = ((e.clientX - startX) * signX) / (rect.width * 0.45);
+      const dyNorm = ((e.clientY - startY) * signY) / (rect.height * 0.45);
+      const scaleDelta = (dxNorm + dyNorm) * 0.65;
+      const nextScale = Math.max(0.6, Math.min(1.5, Number((initialScale + scaleDelta).toFixed(2))));
+
+      onUpdateLayoutOverride(selectedElementId, {
+        ...(currentOverride || {}),
+        scale: nextScale,
+      });
+      return;
+    }
+
     if (!isDragging || !dragStartRef.current || !selectedElementId || !onUpdateLayoutOverride || !currentSlide) return;
     e.stopPropagation();
     const rect = activeCanvasRef.current?.getBoundingClientRect();
@@ -192,10 +367,21 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
     const deltaX = Math.round((e.clientX - dragStartRef.current.x) * scaleX);
     const deltaY = Math.round((e.clientY - dragStartRef.current.y) * scaleY);
 
+    let desiredDx = initialOffsetRef.current.dx + deltaX;
+    const desiredDy = initialOffsetRef.current.dy + deltaY;
+
+    // Magnetic horizontal center snapping (unless Alt key is held)
+    if (!e.altKey && Math.abs(desiredDx) <= 8) {
+      desiredDx = 0;
+      setIsSnappedCenterX(true);
+    } else {
+      setIsSnappedCenterX(false);
+    }
+
     const { dx: newDx, dy: newDy } = clampElementDrag(
       selectedElementId,
-      initialOffsetRef.current.dx + deltaX,
-      initialOffsetRef.current.dy + deltaY,
+      desiredDx,
+      desiredDy,
       currentSlide,
       carousel
     );
@@ -208,13 +394,34 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
+    if (!isDragging && !isResizing) return;
     e.stopPropagation();
     setIsDragging(false);
+    setIsResizing(false);
+    setIsSnappedCenterX(false);
     dragStartRef.current = null;
+    resizeStateRef.current = null;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch (_) {}
+  };
+
+  const handleCornerResizeDown = (corner: ResizeCorner, e: React.PointerEvent<HTMLDivElement>) => {
+    if (!selectedElementId || !onUpdateLayoutOverride) return;
+    e.stopPropagation();
+    resizeStateRef.current = {
+      corner,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialScale: currentScale,
+    };
+    setIsResizing(true);
+    const parentBox = e.currentTarget.parentElement;
+    if (parentBox) {
+      try {
+        parentBox.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -257,6 +464,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
 
   // Check if HUD pill should render inside box or above
   const isPillInside = activeBounds && (activeBounds.y < 140 || selectedElementId === 'headerBadge');
+  const isToolbarAbove = activeBounds && activeBounds.y + activeBounds.height > spec.height - 220;
+  const isTextAlignable = Boolean(selectedElementId && TEXT_ALIGNABLE_ELEMENTS.includes(selectedElementId));
   const topSafePct = `${((spec.headerY / spec.height) * 100).toFixed(1)}%`;
   const bottomSafePct = `${(((spec.height - spec.safeFooterCeilingY) / spec.height) * 100).toFixed(1)}%`;
 
@@ -272,14 +481,43 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       <canvas
         ref={activeCanvasRef}
         onClick={handleCanvasClick}
+        onDoubleClick={handleCanvasDoubleClick}
         onMouseMove={handleCanvasMouseMove}
         onMouseLeave={handleCanvasMouseLeave}
         className={`w-full h-full object-contain ${hoveredElementId ? 'cursor-pointer' : 'cursor-crosshair'}`}
-        title={hoveredElementId ? `Click to select ${boundsMap[hoveredElementId]?.label}` : 'Click any element to select & edit'}
+        title={
+          hoveredElementId
+            ? `Click to select ${boundsMap[hoveredElementId]?.label} (Double-click to edit text)`
+            : 'Click any element to select & edit'
+        }
       />
 
+      {/* Magnetic Horizontal Center Snap Guide Line */}
+      {isDragging && isSnappedCenterX && (
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 border-l border-dashed border-cyan-400/90 pointer-events-none z-20">
+          <span className="absolute top-3 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded bg-cyan-400 text-slate-950 font-mono font-bold text-[8px] shadow">
+            CENTER X
+          </span>
+        </div>
+      )}
+
+      {/* Live Pixel Gap Rulers between stacked elements during drag/resize */}
+      {(isDragging || isResizing) &&
+        liveGapRulers.map((gap) => (
+          <div
+            key={gap.id}
+            style={{ top: gap.topPct, height: gap.heightPct }}
+            className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none z-20"
+          >
+            <div className="h-full border-l border-dotted border-amber-400/80" />
+            <span className="px-1.5 py-0.2 rounded bg-amber-400/95 text-slate-950 font-mono font-bold text-[8px] shadow whitespace-nowrap">
+              {gap.gapPx}px
+            </span>
+          </div>
+        ))}
+
       {/* Subtle Hover Outline preview when hovering over selectable element */}
-      {hoveredBounds && !isDragging && (
+      {hoveredBounds && !isDragging && !isResizing && (
         <div
           className="absolute pointer-events-none rounded-lg border border-dashed border-white/40 bg-white/[0.03] transition-all duration-75"
           style={{
@@ -295,13 +533,17 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
         </div>
       )}
 
-      {/* Selected Element Bounding Box (Direct Graphical Selection & Drag Feedback) */}
+      {/* Selected Element Bounding Box (Direct Graphical Selection, Drag & Corner Resize) */}
       {activeBounds && (
         <div
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (selectedElementId) onDoubleClickElement?.(selectedElementId);
+          }}
           className={`absolute transition-shadow duration-150 ${
             isDragging
               ? 'cursor-grabbing border-2 border-solid shadow-[0_0_24px_rgba(0,0,0,0.8)]'
@@ -313,12 +555,10 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
             width: activeBounds.widthPct,
             height: activeBounds.heightPct,
             borderColor: theme.accent,
-            backgroundColor: isDragging ? `${theme.accent}28` : `${theme.accent}12`,
-            transform: currentOverride?.scale && currentOverride.scale !== 1 ? `scale(${currentOverride.scale})` : undefined,
-            transformOrigin: 'center center',
+            backgroundColor: isDragging || isResizing ? `${theme.accent}28` : `${theme.accent}12`,
             touchAction: 'none',
           }}
-          title="Drag to reposition on canvas (or use keyboard arrow keys, Esc to deselect)"
+          title="Drag to reposition, drag corners to scale, or double-click to edit text"
         >
           {/* Smart Floating Element HUD Badge */}
           <div
@@ -329,12 +569,13 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
           >
             <Move className="w-2.5 h-2.5 stroke-[3]" />
             <span>{activeBounds.label}</span>
-            {(currentDx !== 0 || currentDy !== 0) && (
+            {(currentDx !== 0 || currentDy !== 0 || currentScale !== 1) && (
               <span className="bg-black/25 text-black px-1 rounded text-[8px] font-bold">
                 {currentDx >= 0 ? `+${currentDx}` : currentDx}x, {currentDy >= 0 ? `+${currentDy}` : currentDy}y
+                {currentScale !== 1 ? ` · ${Math.round(currentScale * 100)}%` : ''}
               </span>
             )}
-            {(currentDx !== 0 || currentDy !== 0) && (
+            {(currentDx !== 0 || currentDy !== 0 || currentScale !== 1) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -342,7 +583,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
                   onUpdateLayoutOverride?.(selectedElementId!, null);
                 }}
                 className="hover:opacity-75 p-0.5 cursor-pointer"
-                title="Reset element translation"
+                title="Reset element overrides"
               >
                 <RotateCcw className="w-2.5 h-2.5" />
               </button>
@@ -360,11 +601,130 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
             </button>
           </div>
 
-          {/* Corner Precision Handles */}
-          <div className="absolute -top-1.5 -left-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -bottom-1.5 -left-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
-          <div className="absolute -bottom-1.5 -right-1.5 w-2.5 h-2.5 rounded-sm border border-black shadow" style={{ backgroundColor: theme.accent }} />
+          {/* Interactive 4-Corner Resize Handles (NW, NE, SW, SE) */}
+          <div
+            onPointerDown={(e) => handleCornerResizeDown('nw', e)}
+            className="absolute -top-2 -left-2 w-3.5 h-3.5 rounded-sm border border-black shadow cursor-nwse-resize hover:scale-125 transition-transform z-30"
+            style={{ backgroundColor: theme.accent }}
+            title="Drag corner to scale element (60% - 150%)"
+          />
+          <div
+            onPointerDown={(e) => handleCornerResizeDown('ne', e)}
+            className="absolute -top-2 -right-2 w-3.5 h-3.5 rounded-sm border border-black shadow cursor-nesw-resize hover:scale-125 transition-transform z-30"
+            style={{ backgroundColor: theme.accent }}
+            title="Drag corner to scale element (60% - 150%)"
+          />
+          <div
+            onPointerDown={(e) => handleCornerResizeDown('sw', e)}
+            className="absolute -bottom-2 -left-2 w-3.5 h-3.5 rounded-sm border border-black shadow cursor-nesw-resize hover:scale-125 transition-transform z-30"
+            style={{ backgroundColor: theme.accent }}
+            title="Drag corner to scale element (60% - 150%)"
+          />
+          <div
+            onPointerDown={(e) => handleCornerResizeDown('se', e)}
+            className="absolute -bottom-2 -right-2 w-3.5 h-3.5 rounded-sm border border-black shadow cursor-nwse-resize hover:scale-125 transition-transform z-30"
+            style={{ backgroundColor: theme.accent }}
+            title="Drag corner to scale element (60% - 150%)"
+          />
+
+          {/* Floating Quick-Action Toolbar on Selected Element */}
+          {!isDragging && !isResizing && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              className={`hidden sm:flex absolute left-1/2 -translate-x-1/2 items-center gap-0.5 bg-[#0b1118]/95 backdrop-blur-md border border-white/20 rounded-xl px-1.5 py-1 shadow-2xl z-30 whitespace-nowrap ${
+                isToolbarAbove ? '-top-14' : '-bottom-10'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={handleQuickCenter}
+                className="p-1 rounded-lg hover:bg-white/15 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title="Center Horizontally (dx = 0)"
+              >
+                <AlignHorizontalSpaceAround className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickScale(-0.08)}
+                className="p-1 rounded-lg hover:bg-white/15 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title="Scale Down (-8%)"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="px-1 text-[9px] font-mono font-bold text-cyan-300">
+                {Math.round(currentScale * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => handleQuickScale(0.08)}
+                className="p-1 rounded-lg hover:bg-white/15 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title="Scale Up (+8%)"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+
+              {isTextAlignable && (
+                <>
+                  <div className="w-px h-3.5 bg-white/15 mx-0.5" />
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAlign('left')}
+                    className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                      currentAlign === 'left'
+                        ? 'bg-cyan-500/25 text-cyan-300'
+                        : 'hover:bg-white/15 text-slate-300 hover:text-white'
+                    }`}
+                    title="Align Text Left"
+                  >
+                    <AlignLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAlign('center')}
+                    className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                      currentAlign === 'center'
+                        ? 'bg-cyan-500/25 text-cyan-300'
+                        : 'hover:bg-white/15 text-slate-300 hover:text-white'
+                    }`}
+                    title="Align Text Center"
+                  >
+                    <AlignCenter className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAlign('right')}
+                    className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                      currentAlign === 'right'
+                        ? 'bg-cyan-500/25 text-cyan-300'
+                        : 'hover:bg-white/15 text-slate-300 hover:text-white'
+                    }`}
+                    title="Align Text Right"
+                  >
+                    <AlignRight className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+
+              <div className="w-px h-3.5 bg-white/15 mx-0.5" />
+              <button
+                type="button"
+                onClick={handleQuickHide}
+                className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 transition-colors cursor-pointer"
+                title="Hide Element on Slide"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateLayoutOverride?.(selectedElementId!, null)}
+                className="p-1 rounded-lg hover:bg-white/15 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title="Reset Element Layout"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -372,15 +732,15 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       {selectedElementId && (
         <div className="hidden sm:flex absolute top-2 right-2 bg-black/85 backdrop-blur-md border border-white/20 rounded-full px-2.5 py-0.5 text-[8px] font-mono text-slate-300 shadow-xl items-center gap-1.5 pointer-events-none whitespace-nowrap z-20">
           <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: theme.accent }} />
+          <span>Drag corners: scale</span>
+          <span className="text-slate-500">•</span>
           <span>Arrows: nudge</span>
           <span className="text-slate-500">•</span>
-          <span>Shift=10px</span>
-          <span className="text-slate-500">•</span>
-          <span>Esc: deselect</span>
+          <span>Dbl-click: edit</span>
         </div>
       )}
 
-      {/* Mobile Precision Nudge Bar */}
+      {/* Mobile Precision Nudge & Scale Bar */}
       {selectedElementId && (
         <div className="sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/90 backdrop-blur-md border border-white/25 rounded-2xl p-1 shadow-2xl z-30 touch-manipulation">
           <button
@@ -426,6 +786,28 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
             title="Nudge Right"
           >
             ▶
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleQuickScale(-0.08);
+            }}
+            className="w-7 h-7 rounded-xl bg-white/10 active:bg-white/30 text-white font-bold flex items-center justify-center text-xs cursor-pointer"
+            title="Scale Down"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleQuickScale(0.08);
+            }}
+            className="w-7 h-7 rounded-xl bg-white/10 active:bg-white/30 text-white font-bold flex items-center justify-center text-xs cursor-pointer"
+            title="Scale Up"
+          >
+            +
           </button>
           <button
             type="button"

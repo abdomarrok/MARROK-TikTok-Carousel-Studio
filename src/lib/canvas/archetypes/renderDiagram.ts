@@ -3,10 +3,11 @@ import { fitTextInBox } from '../textLayout.ts';
 import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
 import { SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT } from '../constants.ts';
+import { resolveSmartSlideVisuals } from '../../synthesis/smartVisualDefaults.ts';
 
 /**
  * Dynamically derives 3 semantic nodes from slide title and body when diagramNodes is missing.
- * Strictly guarantees ZERO fake ports ("Port 443") and ZERO generic networking slop ("Client Ingress").
+ * Synchronized 1:1 with the Visual Layout Inspector via `resolveSmartSlideVisuals`.
  */
 export function deriveDynamicSlideNodes(slide: SlideData): Array<{
   label: string;
@@ -14,72 +15,13 @@ export function deriveDynamicSlideNodes(slide: SlideData): Array<{
   status: string;
   icon: string;
 }> {
-  const dNodes = slide.diagramNodes || [];
-  if (
-    dNodes.length >= 3 &&
-    dNodes[0].label &&
-    !dNodes[0].label.toLowerCase().includes('client ingress')
-  ) {
-    return dNodes.map((n, i) => ({
-      label: n.label,
-      sublabel: n.sublabel || `Phase 0${i + 1} Pipeline`,
-      status: n.status || (i === 0 ? 'INPUT' : i === 1 ? 'PROCESSING' : 'VERIFIED'),
-      icon: n.icon || (i === 0 ? 'server' : i === 1 ? 'cpu' : 'database'),
-    }));
-  }
-
-  const text = `${slide.enTitle || ''} ${slide.enBody || ''}`.toLowerCase();
-
-  // Vector / Embeddings
-  if (/vector|embedding|semantic|cosine|similarity|ann\b/.test(text)) {
-    return [
-      { label: 'Embedding Model', sublabel: 'Dense Float Vector Array', status: 'ENCODED', icon: 'cpu' },
-      { label: 'Vector Index', sublabel: 'High-Dimensional Space', status: 'INDEXED', icon: 'database' },
-      { label: 'Cosine Search', sublabel: 'Nearest Neighbor Top-K', status: 'MATCHED', icon: 'search' },
-    ];
-  }
-
-  // HNSW / Graph / Skip-List
-  if (/hnsw|skip[- ]?list|graph|hierarchy|layer/.test(text)) {
-    return [
-      { label: 'Entry Node', sublabel: 'Top Sparse Layer 2', status: 'ENTRY', icon: 'network' },
-      { label: 'Skip Traversal', sublabel: 'Fast Long-Range Hops', status: 'ROUTED', icon: 'layers' },
-      { label: 'Target Neighbor', sublabel: 'Dense Base Layer 0', status: 'CONVERGED', icon: 'checkCircle' },
-    ];
-  }
-
-  // IVF / Clusters / Partition
-  if (/ivf|cluster|k-means|centroid|partition|shard/.test(text)) {
-    return [
-      { label: 'K-Means Centroid', sublabel: 'Space Partition Hub', status: 'PARTITIONED', icon: 'layers' },
-      { label: 'Target Cluster', sublabel: 'Shortlisted Vector Subset', status: 'SELECTED', icon: 'zap' },
-      { label: 'Inverted List', sublabel: 'Pruned Candidate Scan', status: 'SCANNED', icon: 'search' },
-    ];
-  }
-
-  // Hot / Cold Writes / Storage
-  if (/write|hot|cold|buffer|lsm|compaction|consistency/.test(text)) {
-    return [
-      { label: 'Hot Store', sublabel: 'Mutable RAM Write Buffer', status: 'FAST WRITE', icon: 'zap' },
-      { label: 'Async Compactor', sublabel: 'Batch Index Flusher', status: 'SYNCING', icon: 'arrowRightLeft' },
-      { label: 'Cold Store', sublabel: 'Immutable Vector Index', status: 'PERSISTED', icon: 'database' },
-    ];
-  }
-
-  // Fallback: Extract 3 key technical words from title
-  const words = (slide.enTitle || '')
-    .replace(/[.?!,:;]/g, '')
-    .split(/\s+/)
-    .filter((w) => w.length > 3 && !/this|that|with|from|what|when|where|which|about/i.test(w));
-  const w1 = words[0] ? words[0] : 'Input State';
-  const w2 = words[1] ? words[1] : 'Core Engine';
-  const w3 = words[2] ? words[2] : 'Target Output';
-
-  return [
-    { label: w1.charAt(0).toUpperCase() + w1.slice(1), sublabel: 'Input Stage', status: 'ACTIVE', icon: 'server' },
-    { label: w2.charAt(0).toUpperCase() + w2.slice(1), sublabel: 'Core Logic', status: 'ROUTED', icon: 'cpu' },
-    { label: w3.charAt(0).toUpperCase() + w3.slice(1), sublabel: 'Committed State', status: 'VERIFIED', icon: 'database' },
-  ];
+  const smart = resolveSmartSlideVisuals(slide, 1, false);
+  return smart.diagramNodes.map((n, i) => ({
+    label: n.label || `Stage 0${i + 1}`,
+    sublabel: n.sublabel || `Phase 0${i + 1} Pipeline`,
+    status: n.status || (i === 0 ? 'INPUT' : i === 1 ? 'PROCESSING' : 'VERIFIED'),
+    icon: n.icon || (i === 0 ? 'server' : i === 1 ? 'cpu' : 'database'),
+  }));
 }
 
 /**

@@ -12,18 +12,35 @@ import {
   Sparkles,
   Tag,
   LayoutTemplate,
+  Hash,
+  RotateCcw,
+  Globe,
+  ShieldCheck,
+  Wand2,
 } from 'lucide-react';
-import { SlideData, SlideType, ThemePalette, DiagramVariant, DiagramNode } from '../../types.ts';
-import { ICONS_REGISTRY } from '../../lib/icons.ts';
+import {
+  CarouselData,
+  SlideData,
+  SlideType,
+  ThemePalette,
+  DiagramVariant,
+  DiagramNode,
+} from '../../types.ts';
+import { resolveSmartSlideVisuals } from '../../lib/synthesis/smartVisualDefaults.ts';
 import { IconPickerPopover } from './IconPickerPopover.tsx';
 import { IconThumbnail, getIconDisplayName } from './IconThumbnail.tsx';
 
 interface ArchetypeControlsProps {
   currentSlide: SlideData;
+  currentSlideIndex?: number;
+  carousel?: CarouselData;
   theme: ThemePalette;
   isAdvancedCustomizerOpen: boolean;
   onSetSlideType: (type: SlideType) => void;
   onUpdateField: (field: keyof SlideData, value: any) => void;
+  onUpdateSlideFields?: (updates: Partial<SlideData>) => void;
+  onSmartMatchVisuals?: (useRecommendedArchetype?: boolean) => void;
+  onUpdateCarouselField?: (field: keyof CarouselData, value: any) => void;
   onUpdateSatLabel: (index: number, value: string) => void;
   onUpdateSatIcon?: (index: number, iconName: string) => void;
   onUpdateCenterIcon?: (iconName: string) => void;
@@ -41,12 +58,35 @@ const DIAGRAM_VARIANTS: { id: DiagramVariant; label: string }[] = [
   { id: 'stack', label: 'Layered Stack' },
   { id: 'isolation', label: 'Isolation Grid' },
   { id: 'takeaway', label: 'Key Takeaway' },
+  { id: 'scatter', label: 'Vector Scatter' },
+  { id: 'graph', label: 'HNSW Skip-Graph' },
+  { id: 'clusters', label: 'IVF Clusters' },
+  { id: 'split', label: 'Hot/Cold Split' },
+  { id: 'features', label: '3 Feature Cards' },
 ];
 
-const ARCHETYPES: { id: SlideType; label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }> }[] = [
+function normalizeDiagramVariant(raw?: string): DiagramVariant {
+  const v = (raw || 'topology').toLowerCase();
+  if (v === 'vectors' || v === 'scatter') return 'scatter';
+  if (v === 'hnsw' || v === 'hierarchy' || v === 'graph') return 'graph';
+  if (v === 'ivf' || v === 'partition' || v === 'clusters') return 'clusters';
+  if (v === 'hotcold' || v === 'buffer' || v === 'split') return 'split';
+  if (v === 'cards' || v === 'features') return 'features';
+  if (v === 'stack') return 'stack';
+  if (v === 'isolation') return 'isolation';
+  if (v === 'takeaway') return 'takeaway';
+  return 'topology';
+}
+
+const ARCHETYPES: {
+  id: SlideType;
+  label: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+}[] = [
   { id: 'poster', label: 'Poster', icon: LayoutTemplate },
   { id: 'hub', label: 'Hub', icon: Cpu },
   { id: 'row', label: 'Mechanism', icon: Layers },
+  { id: 'number', label: 'Number', icon: Hash },
   { id: 'image', label: 'Diagram / AI', icon: ImageIcon },
   { id: 'code', label: 'Code Diff', icon: Code },
   { id: 'metric', label: 'Metric', icon: Gauge },
@@ -56,10 +96,14 @@ const ARCHETYPES: { id: SlideType; label: string; icon: React.ComponentType<{ cl
 
 export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
   currentSlide,
+  currentSlideIndex = 0,
+  carousel,
   theme,
-  isAdvancedCustomizerOpen,
   onSetSlideType,
   onUpdateField,
+  onUpdateSlideFields,
+  onSmartMatchVisuals,
+  onUpdateCarouselField,
   onUpdateSatLabel,
   onUpdateSatIcon,
   onUpdateCenterIcon,
@@ -83,31 +127,181 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
     onSelect: () => {},
   });
 
-  const defaultSatIcons = ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
-  const satIcons = currentSlide.satIcons && currentSlide.satIcons.length > 0
-    ? currentSlide.satIcons
-    : defaultSatIcons;
+  const totalSlides = carousel?.slides?.length || 8;
+  const smart = resolveSmartSlideVisuals(currentSlide, currentSlideIndex, false);
+  const recommendedArchetype = smart.recommendedArchetype;
+  const recommendedVariant = smart.recommendedVariant;
 
-  const centerIconName = currentSlide.centerIcon || 'gitMerge';
+  const satIcons =
+    currentSlide.satIcons && currentSlide.satIcons.length > 0
+      ? currentSlide.satIcons
+      : smart.satIcons;
+
+  const satLabels =
+    currentSlide.satLabels && currentSlide.satLabels.length > 0
+      ? currentSlide.satLabels
+      : smart.satLabels;
+
+  const centerIconName = currentSlide.centerIcon || smart.centerIcon || 'cpu';
   const centerIconDisplayName = getIconDisplayName(centerIconName);
+
+  const numberIconName = currentSlide.centerIcon || currentSlide.icons?.[0]?.icon || smart.numberIcon || '';
+  const numberIconDisplayName = numberIconName ? getIconDisplayName(numberIconName) : 'None (Clean Line)';
+
+  const metricIconName = currentSlide.metricIcon || smart.metricIcon || 'zap';
+  const metricIconDisplayName = getIconDisplayName(metricIconName);
+
+  const activeDiagramVariant = normalizeDiagramVariant(currentSlide.diagramVariant || smart.diagramVariant);
+  const autoStepStr = String(currentSlideIndex + 1).padStart(2, '0');
+  const currentStepNumber = currentSlide.stepNumber || smart.stepNumber || autoStepStr;
+  const currentStepLabel = currentSlide.stepLabel || smart.stepLabel || `STEP ${currentStepNumber}`;
+
+  const handleSelectVariant = (variantId: DiagramVariant) => {
+    const nextSmart = resolveSmartSlideVisuals(
+      { ...currentSlide, diagramVariant: variantId },
+      currentSlideIndex,
+      true
+    );
+    if (onUpdateSlideFields) {
+      onUpdateSlideFields({
+        diagramVariant: variantId,
+        diagramNodes: nextSmart.diagramNodes,
+        diagramEdges: nextSmart.diagramEdges,
+        diagramFooter: nextSmart.diagramFooter,
+      });
+    } else {
+      onUpdateField('diagramVariant', variantId);
+    }
+  };
+
+  const handleTriggerSmartMatch = (switchArchetype: boolean = false) => {
+    if (onSmartMatchVisuals) {
+      onSmartMatchVisuals(switchArchetype);
+      return;
+    }
+    const targetType = switchArchetype ? recommendedArchetype : currentSlide.type;
+    const refreshed = resolveSmartSlideVisuals(
+      { ...currentSlide, type: targetType },
+      currentSlideIndex,
+      true
+    );
+    if (onUpdateSlideFields) {
+      onUpdateSlideFields({
+        type: targetType,
+        centerIcon: refreshed.centerIcon,
+        centerTag: refreshed.centerTag,
+        satLabels: refreshed.satLabels,
+        satIcons: refreshed.satIcons,
+        diagramVariant: refreshed.diagramVariant,
+        diagramNodes: refreshed.diagramNodes,
+        diagramEdges: refreshed.diagramEdges,
+        diagramFooter: refreshed.diagramFooter,
+        stepNumber: refreshed.stepNumber,
+        stepLabel: refreshed.stepLabel,
+        metricValue: refreshed.metricValue,
+        metricLabel: refreshed.metricLabel,
+        metricDiff: refreshed.metricDiff,
+        metricIcon: refreshed.metricIcon,
+        codeFileName: refreshed.codeFileName,
+        codeLanguage: refreshed.codeLanguage,
+        codeSnippet: refreshed.codeSnippet,
+        compareLeftTitle: refreshed.compareLeftTitle,
+        compareLeftBody: refreshed.compareLeftBody,
+        compareRightTitle: refreshed.compareRightTitle,
+        compareRightBody: refreshed.compareRightBody,
+      });
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {/* Slide 1 (Hub): Central Hero Box & Orbital Satellite Nodes Management */}
+      {/* 1. Always-On Top-Level Slide Layout Archetype Switcher + Smart Match Bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Slide Layout Archetype
+            </label>
+            <span className="text-[10px] font-mono text-slate-500">·</span>
+            <span className="text-[10px] font-mono text-slate-400">
+              Best Fit:{' '}
+              <strong className="uppercase" style={{ color: theme.accent }}>
+                {recommendedArchetype}
+              </strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {recommendedArchetype !== currentSlide.type &&
+              currentSlideIndex > 0 &&
+              currentSlideIndex < totalSlides - 1 && (
+                <button
+                  type="button"
+                  onClick={() => handleTriggerSmartMatch(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/15 border border-white/15 text-[11px] font-semibold text-white transition-colors cursor-pointer whitespace-nowrap"
+                  title={`Switch to recommended ${recommendedArchetype.toUpperCase()} layout based on slide text`}
+                >
+                  <Sparkles className="w-3 h-3" style={{ color: theme.accent }} />
+                  <span>Use Suggested ({recommendedArchetype.toUpperCase()})</span>
+                </button>
+              )}
+
+            <button
+              type="button"
+              onClick={() => handleTriggerSmartMatch(false)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/35 text-[11px] font-semibold text-cyan-200 transition-colors cursor-pointer whitespace-nowrap"
+              title="Re-extract icons, terms, metrics, and schematic nodes from current slide text"
+            >
+              <Wand2 className="w-3 h-3" />
+              <span>Smart Match to Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 bg-black/60 p-1.5 rounded-xl border border-white/10">
+          {ARCHETYPES.map((arch) => {
+            const Icon = arch.icon;
+            const isSelected = currentSlide.type === arch.id;
+            const isRecommended = recommendedArchetype === arch.id && !isSelected;
+            return (
+              <button
+                key={arch.id}
+                type="button"
+                onClick={() => onSetSlideType(arch.id)}
+                className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-white/20 text-white shadow-sm border border-white/25'
+                    : isRecommended
+                    ? 'bg-white/[0.05] text-slate-200 border border-cyan-500/35 hover:bg-white/10'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
+                }`}
+              >
+                <Icon
+                  className="w-3.5 h-3.5 shrink-0"
+                  style={{ color: isSelected || isRecommended ? theme.accent : undefined }}
+                />
+                <span className="truncate">{arch.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Contextual Archetype Visual Editors */}
+
+      {/* ARCHETYPE: HUB (Central Hero Box & Orbital Satellite Nodes) */}
       {currentSlide.type === 'hub' && (
         <div className="pt-3 border-t border-white/[0.08] space-y-4 animate-fade-in">
-          {/* Central Hub Hero Card Controls */}
           <div className="p-3 bg-black/60 border border-white/10 rounded-xl space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" style={{ color: theme.accent }} />
                 <span>Central Hub Hero Component</span>
               </label>
-              <span className="text-[10px] text-slate-400 font-mono">1080x1920 Anchor</span>
+              <span className="text-[10px] text-slate-400 font-mono">Orbital Core</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {/* Center Icon Selector Button */}
               <div>
                 <span className="text-[10px] text-slate-400 font-medium block mb-1">Center Hero Icon</span>
                 <button
@@ -143,25 +337,21 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                 </button>
               </div>
 
-              {/* Center Tag / Pill Input */}
               <div>
                 <span className="text-[10px] text-slate-400 font-medium block mb-1 flex items-center justify-between">
                   <span className="flex items-center gap-1">
                     <Tag className="w-3 h-3 text-slate-400" />
-                    <span>Center Tag Pill</span>
+                    <span>Center Tag Label</span>
                   </span>
-                  {!currentSlide.centerTag && (
-                    <span className="text-[9px] font-mono text-slate-500">Default: SYSTEM CORE</span>
-                  )}
                 </span>
                 <input
                   type="text"
-                  value={currentSlide.centerTag || ''}
+                  value={currentSlide.centerTag ?? smart.centerTag}
                   onChange={(e) => {
                     if (onUpdateCenterTag) onUpdateCenterTag(e.target.value);
                     else onUpdateField('centerTag', e.target.value);
                   }}
-                  placeholder="SYSTEM CORE (or custom label)"
+                  placeholder={smart.centerTag}
                   className="w-full bg-white/[0.03] border border-white/15 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none transition-all"
                 />
               </div>
@@ -175,19 +365,18 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                 <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5" style={{ color: theme.accent }} />
                   <span>
-                    Orbital Satellite Nodes (
-                    {currentSlide.satLabels ? currentSlide.satLabels.length : 6}/6)
+                    Orbital Satellite Nodes ({satLabels.length}/6)
                   </span>
                 </label>
                 <p className="text-[10px] text-slate-400">
-                  Customizable vector icons & dynamic orbital spacing radiating from center
+                  Smart-extracted from slide copy • Click any icon or label to customize
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={onAddSatNode}
-                  disabled={(currentSlide.satLabels ? currentSlide.satLabels.length : 6) >= 6}
+                  disabled={satLabels.length >= 6}
                   className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-white/15 bg-white/[0.04] hover:bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-all cursor-pointer"
                   title="Add Orbital Node (Max 6)"
                 >
@@ -198,71 +387,68 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {(currentSlide.satLabels || ['SERVICE POD', 'STORAGE', 'TELEMETRY', 'IDENTITY', 'AI AGENT', 'VCS ENGINE']).map(
-                (label, idx, arr) => {
-                  const nodeIconKey = satIcons[idx % satIcons.length] || 'gitMerge';
-                  const nodeIconLabel = getIconDisplayName(nodeIconKey);
+              {satLabels.map((label, idx, arr) => {
+                const nodeIconKey = satIcons[idx % satIcons.length] || 'cpu';
+                const nodeIconLabel = getIconDisplayName(nodeIconKey);
 
-                  return (
-                    <div
-                      key={idx}
-                      className="group relative flex items-center bg-black/60 border border-white/15 focus-within:border-white/40 rounded-xl overflow-hidden pl-2 pr-1.5 py-1.5 transition-all gap-1.5"
+                return (
+                  <div
+                    key={idx}
+                    className="group relative flex items-center bg-black/60 border border-white/15 focus-within:border-white/40 rounded-xl overflow-hidden pl-2 pr-1.5 py-1.5 transition-all gap-1.5"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIconPickerState({
+                          isOpen: true,
+                          title: `Select Node #${idx + 1} Icon`,
+                          currentIcon: nodeIconKey,
+                          onSelect: (icon) => {
+                            if (onUpdateSatIcon) {
+                              onUpdateSatIcon(idx, icon);
+                            } else {
+                              const nextIcons = [...satIcons];
+                              nextIcons[idx] = icon;
+                              onUpdateField('satIcons', nextIcons);
+                            }
+                          },
+                        })
+                      }
+                      className="w-7 h-7 rounded-lg flex items-center justify-center border shrink-0 transition-transform hover:scale-110 cursor-pointer"
+                      style={{
+                        borderColor: `${theme.accent}30`,
+                        backgroundColor: `${theme.accent}10`,
+                      }}
+                      title={`Change icon for Node #${idx + 1} (${nodeIconLabel})`}
                     >
-                      {/* Clickable Satellite Icon Button */}
+                      <IconThumbnail icon={nodeIconKey} theme={theme} className="w-4 h-4" />
+                    </button>
+
+                    <span className="text-[10px] font-mono text-slate-500 font-bold shrink-0">
+                      #{idx + 1}
+                    </span>
+
+                    <input
+                      type="text"
+                      value={label}
+                      onChange={(e) => onUpdateSatLabel(idx, e.target.value)}
+                      placeholder={`Node ${idx + 1}`}
+                      className="w-full bg-transparent text-xs text-white font-medium focus:outline-none min-w-0"
+                    />
+
+                    {arr.length > 2 && onDeleteSatNode && (
                       <button
                         type="button"
-                        onClick={() =>
-                          setIconPickerState({
-                            isOpen: true,
-                            title: `Select Node #${idx + 1} Icon`,
-                            currentIcon: nodeIconKey,
-                            onSelect: (icon) => {
-                              if (onUpdateSatIcon) {
-                                onUpdateSatIcon(idx, icon);
-                              } else {
-                                const nextIcons = [...satIcons];
-                                nextIcons[idx] = icon;
-                                onUpdateField('satIcons', nextIcons);
-                              }
-                            },
-                          })
-                        }
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border shrink-0 transition-transform hover:scale-110 cursor-pointer"
-                        style={{
-                          borderColor: `${theme.accent}30`,
-                          backgroundColor: `${theme.accent}10`,
-                        }}
-                        title={`Change icon for Node #${idx + 1} (${nodeIconLabel})`}
+                        onClick={() => onDeleteSatNode(idx)}
+                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-70 group-hover:opacity-100 shrink-0 cursor-pointer"
+                        title={`Delete Node #${idx + 1}`}
                       >
-                        <IconThumbnail icon={nodeIconKey} theme={theme} className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
-
-                      <span className="text-[10px] font-mono text-slate-500 font-bold shrink-0">
-                        #{idx + 1}
-                      </span>
-
-                      <input
-                        type="text"
-                        value={label}
-                        onChange={(e) => onUpdateSatLabel(idx, e.target.value)}
-                        placeholder={`Node ${idx + 1}`}
-                        className="w-full bg-transparent text-xs text-white font-medium focus:outline-none min-w-0"
-                      />
-
-                      {arr.length > 2 && onDeleteSatNode && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteSatNode(idx)}
-                          className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-70 group-hover:opacity-100 shrink-0 cursor-pointer"
-                          title={`Delete Node #${idx + 1}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                }
-              )}
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
@@ -273,34 +459,38 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
         </div>
       )}
 
-      {/* Mechanism & Poster Slides (Row / Poster Archetype) */}
+      {/* ARCHETYPE: MECHANISM & POSTER SLIDES (Row / Poster with All 9 Schematic Engines) */}
       {(currentSlide.type === 'row' || currentSlide.type === 'poster') && (
         <div className="pt-3 border-t border-white/[0.08] space-y-3.5 animate-fade-in">
-          {/* Diagram Layout Switcher */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                 <Cpu className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-                <span>Diagram Layout Switcher</span>
+                <span>Schematic Engine (9 Variants)</span>
               </label>
-              <span className="text-[10px] text-slate-400 font-mono">1-Click Schematic Flip</span>
+              <span className="text-[10px] text-slate-400 font-mono">
+                Best Fit: <strong className="text-white uppercase">{recommendedVariant}</strong>
+              </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 bg-black/60 p-1.5 rounded-xl border border-white/10">
               {DIAGRAM_VARIANTS.map((variant) => {
-                const isSelected = (currentSlide.diagramVariant || 'topology') === variant.id;
+                const isSelected = activeDiagramVariant === variant.id;
+                const isSuggested = recommendedVariant === variant.id && !isSelected;
                 return (
                   <button
                     key={variant.id}
                     type="button"
-                    onClick={() => onUpdateField('diagramVariant', variant.id)}
-                    className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    onClick={() => handleSelectVariant(variant.id)}
+                    className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                       isSelected
                         ? 'bg-white/20 text-white shadow-sm border border-white/30'
+                        : isSuggested
+                        ? 'bg-white/[0.05] text-slate-200 border border-cyan-500/35 hover:bg-white/10'
                         : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
                     }`}
                     style={isSelected ? { color: theme.accent } : undefined}
                   >
-                    <span>{variant.label}</span>
+                    <span className="truncate">{variant.label}</span>
                   </button>
                 );
               })}
@@ -313,17 +503,13 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
               <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                 <span>Schematic Nodes (3 Components)</span>
               </label>
-              <span className="text-[10px] text-slate-400 font-mono">Label / Sublabel / Status</span>
+              <span className="text-[10px] text-slate-400 font-mono">Icon · Status · Label · Spec</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {Array.from({ length: 3 }).map((_, nIdx) => {
-                const defaultNodes = [
-                  { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE', icon: 'server' },
-                  { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED', icon: 'cpu' },
-                  { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED', icon: 'database' },
-                ];
-                const node = currentSlide.diagramNodes?.[nIdx] || defaultNodes[nIdx];
-                const nodeIconKey = node.icon || defaultNodes[nIdx].icon || 'server';
+                const smartNode = smart.diagramNodes[nIdx];
+                const node = currentSlide.diagramNodes?.[nIdx] || smartNode;
+                const nodeIconKey = node?.icon || smartNode?.icon || 'cpu';
                 const nodeIconLabel = getIconDisplayName(nodeIconKey);
 
                 return (
@@ -355,7 +541,7 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                       </div>
                       <input
                         type="text"
-                        value={node.status || ''}
+                        value={node?.status || smartNode?.status || ''}
                         onChange={(e) => onUpdateDiagramNode(nIdx, 'status', e.target.value)}
                         placeholder="STATUS"
                         className="w-20 text-right bg-transparent border-b border-white/15 focus:border-white/40 text-[9px] font-mono text-emerald-400 uppercase focus:outline-none"
@@ -365,7 +551,7 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                     <div>
                       <input
                         type="text"
-                        value={node.label || ''}
+                        value={node?.label ?? smartNode?.label ?? ''}
                         onChange={(e) => onUpdateDiagramNode(nIdx, 'label', e.target.value)}
                         placeholder="Primary Label"
                         className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2 py-1 text-xs text-white font-semibold focus:outline-none"
@@ -374,7 +560,7 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
                     <div>
                       <input
                         type="text"
-                        value={node.sublabel || ''}
+                        value={node?.sublabel ?? smartNode?.sublabel ?? ''}
                         onChange={(e) => onUpdateDiagramNode(nIdx, 'sublabel', e.target.value)}
                         placeholder="Sublabel / Spec"
                         className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none"
@@ -394,9 +580,9 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
               </label>
               <input
                 type="text"
-                value={currentSlide.diagramEdges?.[0] ?? ''}
+                value={currentSlide.diagramEdges?.[0] ?? smart.diagramEdges[0]}
                 onChange={(e) => onUpdateDiagramEdge(0, e.target.value)}
-                placeholder="e.g. Mutual Auth"
+                placeholder={smart.diagramEdges[0]}
                 className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
               />
             </div>
@@ -406,9 +592,9 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
               </label>
               <input
                 type="text"
-                value={currentSlide.diagramEdges?.[1] ?? ''}
+                value={currentSlide.diagramEdges?.[1] ?? smart.diagramEdges[1]}
                 onChange={(e) => onUpdateDiagramEdge(1, e.target.value)}
-                placeholder="e.g. Encrypted Pipe"
+                placeholder={smart.diagramEdges[1]}
                 className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
               />
             </div>
@@ -418,9 +604,9 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
               </label>
               <input
                 type="text"
-                value={currentSlide.diagramFooter ?? ''}
+                value={currentSlide.diagramFooter ?? smart.diagramFooter}
                 onChange={(e) => onUpdateField('diagramFooter', e.target.value)}
-                placeholder="e.g. Telemetry metric"
+                placeholder={smart.diagramFooter}
                 className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none"
               />
             </div>
@@ -458,207 +644,442 @@ export const ArchetypeControls: React.FC<ArchetypeControlsProps> = ({
         </div>
       )}
 
-      {/* Expandable Advanced Customizer Drawer */}
-      {isAdvancedCustomizerOpen && (
-        <div className="pt-3 border-t border-white/[0.08] space-y-4 animate-fade-in">
-          {/* 1. Archetype Switcher */}
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-              Slide Layout Archetype
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-black/60 p-1 rounded-xl border border-white/10">
-              {ARCHETYPES.map((arch) => {
-                const Icon = arch.icon;
-                const isSelected = currentSlide.type === arch.id;
-                return (
-                  <button
-                    key={arch.id}
-                    type="button"
-                    onClick={() => onSetSlideType(arch.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-white/20 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-                    }`}
+      {/* ARCHETYPE: NUMBER (Step Numeral, Top Kicker Label & Divider Emblem Icon) */}
+      {currentSlide.type === 'number' && (
+        <div className="pt-3 border-t border-white/[0.08] space-y-3.5 animate-fade-in">
+          <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                <span>Step Counter & Accent Numeral</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateField('stepNumber', autoStepStr);
+                  onUpdateField('stepLabel', smart.stepLabel.replace(/^STEP\s*\d+/i, `STEP ${autoStepStr}`));
+                }}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/10 border border-white/10 text-[10px] font-mono text-slate-300 hover:text-white transition-colors cursor-pointer"
+                title="Sync numeral to current slide position"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Sync Slide #{currentSlideIndex + 1}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Giant Accent Numeral */}
+              <div>
+                <label className="text-[10px] text-slate-400 font-medium block mb-1">
+                  Big Accent Numeral
+                </label>
+                <input
+                  type="text"
+                  value={currentStepNumber}
+                  onChange={(e) => onUpdateField('stepNumber', e.target.value)}
+                  placeholder="01"
+                  maxLength={6}
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl px-3 py-2 text-sm text-white font-mono font-bold tabular-nums focus:outline-none"
+                />
+              </div>
+
+              {/* Top Kicker Badge */}
+              <div>
+                <label className="text-[10px] text-slate-400 font-medium block mb-1">
+                  Top Kicker Label
+                </label>
+                <input
+                  type="text"
+                  value={currentStepLabel}
+                  onChange={(e) => onUpdateField('stepLabel', e.target.value)}
+                  placeholder="STEP 01"
+                  className="w-full bg-black/60 border border-white/15 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white font-mono uppercase focus:outline-none"
+                />
+              </div>
+
+              {/* Optional Divider Emblem Icon */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-slate-400 font-medium">Divider Icon Badge</span>
+                  {numberIconName && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onUpdateCenterIcon) onUpdateCenterIcon('');
+                        else onUpdateField('centerIcon', '');
+                      }}
+                      className="text-[9px] font-mono text-slate-400 hover:text-rose-300 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIconPickerState({
+                      isOpen: true,
+                      title: 'Select Step Divider Emblem Icon',
+                      currentIcon: numberIconName || 'cpu',
+                      onSelect: (icon) => {
+                        if (onUpdateCenterIcon) onUpdateCenterIcon(icon);
+                        else onUpdateField('centerIcon', icon);
+                      },
+                    })
+                  }
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/15 hover:border-white/30 hover:bg-white/[0.07] text-left transition-all cursor-pointer"
+                >
+                  <div
+                    className="w-6 h-6 rounded-lg flex items-center justify-center p-1 border shrink-0"
+                    style={{
+                      borderColor: `${theme.accent}40`,
+                      backgroundColor: `${theme.accent}15`,
+                    }}
                   >
-                    <Icon className="w-3.5 h-3.5" style={{ color: isSelected ? theme.accent : undefined }} />
-                    <span>{arch.label}</span>
-                  </button>
-                );
-              })}
+                    <IconThumbnail icon={numberIconName || 'cpu'} theme={theme} className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-white truncate">
+                      {numberIconDisplayName}
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Step Presets */}
+            <div className="flex items-center gap-1.5 pt-1">
+              <span className="text-[10px] font-mono text-slate-400 mr-1">Quick Step:</span>
+              {['01', '02', '03', '04', '05', '06'].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => {
+                    onUpdateField('stepNumber', num);
+                    if (/^STEP\s*\d+/i.test(currentStepLabel.trim())) {
+                      onUpdateField(
+                        'stepLabel',
+                        currentStepLabel.trim().replace(/^STEP\s*\d+/i, `STEP ${num}`)
+                      );
+                    }
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer tabular-nums ${
+                    currentStepNumber === num
+                      ? 'bg-white/20 text-white border border-white/30'
+                      : 'bg-white/[0.03] text-slate-400 hover:text-white border border-white/10'
+                  }`}
+                  style={currentStepNumber === num ? { color: theme.accent } : undefined}
+                >
+                  {num}
+                </button>
+              ))}
             </div>
           </div>
+        </div>
+      )}
 
-          {/* 2. Archetype Specific Deep Editors */}
-          {/* Code Diff Archetype */}
-          {currentSlide.type === 'code' && (
-            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Code className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Code Diff & Terminal Controls</span>
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">File Name</label>
-                  <input
-                    type="text"
-                    value={currentSlide.codeFileName || 'sys_exec.sh'}
-                    onChange={(e) => onUpdateField('codeFileName', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Language</label>
-                  <input
-                    type="text"
-                    value={currentSlide.codeLanguage || 'bash'}
-                    onChange={(e) => onUpdateField('codeLanguage', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
-                  />
-                </div>
+      {/* ARCHETYPE: CODE DIFF */}
+      {currentSlide.type === 'code' && (
+        <div className="pt-3 border-t border-white/[0.08] animate-fade-in">
+          <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Code className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Code Diff & Terminal Controls</span>
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">File Name</label>
+                <input
+                  type="text"
+                  value={currentSlide.codeFileName ?? smart.codeFileName}
+                  onChange={(e) => onUpdateField('codeFileName', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+                />
               </div>
               <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Code Snippet (+ / - diff)</label>
-                <textarea
-                  rows={4}
-                  value={currentSlide.codeSnippet || ''}
-                  onChange={(e) => onUpdateField('codeSnippet', e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none"
+                <label className="text-[10px] text-slate-400 block mb-1">Language</label>
+                <input
+                  type="text"
+                  value={currentSlide.codeLanguage ?? smart.codeLanguage}
+                  onChange={(e) => onUpdateField('codeLanguage', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
                 />
               </div>
             </div>
-          )}
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Code Snippet (+ / - diff)</label>
+              <textarea
+                rows={4}
+                value={currentSlide.codeSnippet ?? smart.codeSnippet}
+                onChange={(e) => onUpdateField('codeSnippet', e.target.value)}
+                className="w-full bg-black/60 border border-white/10 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Metric Card Archetype */}
-          {currentSlide.type === 'metric' && (
-            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+      {/* ARCHETYPE: METRIC CARD */}
+      {currentSlide.type === 'metric' && (
+        <div className="pt-3 border-t border-white/[0.08] animate-fade-in">
+          <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-3">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Gauge className="w-3.5 h-3.5 text-amber-400" />
+              <span>Metric Benchmark Card</span>
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Badge Icon</label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIconPickerState({
+                      isOpen: true,
+                      title: 'Select Metric Badge Icon',
+                      currentIcon: metricIconName,
+                      onSelect: (icon) => onUpdateField('metricIcon', icon),
+                    })
+                  }
+                  className="w-full flex items-center gap-2 px-2.5 py-1 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-left transition-all cursor-pointer"
+                >
+                  <IconThumbnail icon={metricIconName} theme={theme} className="w-4 h-4 shrink-0" />
+                  <span className="text-xs text-white truncate">{metricIconDisplayName}</span>
+                </button>
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Metric Value</label>
+                <input
+                  type="text"
+                  value={currentSlide.metricValue ?? smart.metricValue}
+                  onChange={(e) => onUpdateField('metricValue', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono font-bold tabular-nums"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Label</label>
+                <input
+                  type="text"
+                  value={currentSlide.metricLabel ?? smart.metricLabel}
+                  onChange={(e) => onUpdateField('metricLabel', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Delta / Diff</label>
+                <input
+                  type="text"
+                  value={currentSlide.metricDiff ?? smart.metricDiff}
+                  onChange={(e) => onUpdateField('metricDiff', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-emerald-400 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ARCHETYPE: COMPARE */}
+      {currentSlide.type === 'compare' && (
+        <div className="pt-3 border-t border-white/[0.08] animate-fade-in">
+          <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Columns className="w-3.5 h-3.5 text-purple-400" />
+              <span>Before vs After Architecture Comparison</span>
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 block">Legacy / Baseline (Left)</label>
+                <input
+                  type="text"
+                  value={currentSlide.compareLeftTitle ?? smart.compareLeftTitle}
+                  onChange={(e) => onUpdateField('compareLeftTitle', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
+                />
+                <textarea
+                  rows={3}
+                  value={currentSlide.compareLeftBody ?? smart.compareLeftBody}
+                  onChange={(e) => onUpdateField('compareLeftBody', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 block">Optimized / Modern (Right)</label>
+                <input
+                  type="text"
+                  value={currentSlide.compareRightTitle ?? smart.compareRightTitle}
+                  onChange={(e) => onUpdateField('compareRightTitle', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
+                />
+                <textarea
+                  rows={3}
+                  value={currentSlide.compareRightBody ?? smart.compareRightBody}
+                  onChange={(e) => onUpdateField('compareRightBody', e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ARCHETYPE: IMAGE & AI DIAGRAM STUDIO */}
+      {currentSlide.type === 'image' && (
+        <div className="pt-3 border-t border-white/[0.08] animate-fade-in">
+          <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Gauge className="w-3.5 h-3.5 text-amber-400" />
-                <span>Metric Benchmark Card</span>
+                <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Visual Diagram & AI Studio</span>
               </span>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Metric Value</label>
-                  <input
-                    type="text"
-                    value={currentSlide.metricValue || '0.4ms'}
-                    onChange={(e) => onUpdateField('metricValue', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Label</label>
-                  <input
-                    type="text"
-                    value={currentSlide.metricLabel || 'p99 Latency'}
-                    onChange={(e) => onUpdateField('metricLabel', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Delta / Diff</label>
-                  <input
-                    type="text"
-                    value={currentSlide.metricDiff || '▲ 94% faster'}
-                    onChange={(e) => onUpdateField('metricDiff', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-emerald-400 font-mono"
-                  />
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={onOpenAiImageStudio}
+                  className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-200 border border-purple-500/40 text-xs font-semibold cursor-pointer"
+                >
+                  AI Diagram Studio
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenMediaSearch}
+                  className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 text-xs font-semibold cursor-pointer"
+                >
+                  Search Web
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="sm:col-span-2">
+                <label className="text-[10px] text-slate-400 block mb-1">Image URL / Path</label>
+                <input
+                  type="text"
+                  value={currentSlide.imageUrl || ''}
+                  onChange={(e) => onUpdateField('imageUrl', e.target.value)}
+                  placeholder="https://... or /generated/..."
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Image Fit Mode</label>
+                <div className="grid grid-cols-2 gap-1 bg-black/60 p-0.5 rounded-lg border border-white/10">
+                  {(['contain', 'cover'] as const).map((fitMode) => {
+                    const active = (currentSlide.imageFit || 'contain') === fitMode;
+                    return (
+                      <button
+                        key={fitMode}
+                        type="button"
+                        onClick={() => onUpdateField('imageFit', fitMode)}
+                        className={`py-1 rounded-md text-[11px] font-mono uppercase font-bold transition-colors cursor-pointer ${
+                          active ? 'bg-white/20 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {fitMode}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          )}
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Caption / Sub-title</label>
+              <input
+                type="text"
+                value={currentSlide.imageCaption || ''}
+                onChange={(e) => onUpdateField('imageCaption', e.target.value)}
+                placeholder="e.g. Distributed Consensus State Machine"
+                className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Compare Archetype */}
-          {currentSlide.type === 'compare' && (
-            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2.5">
+      {/* ARCHETYPE: CTA (Isometric Emblem, Action Pill, Website URL & Verified Attribution Card) */}
+      {currentSlide.type === 'cta' && (
+        <div className="pt-3 border-t border-white/[0.08] animate-fade-in">
+          <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Columns className="w-3.5 h-3.5 text-purple-400" />
-                <span>Before vs After Architecture Comparison</span>
+                <ShieldCheck className="w-3.5 h-3.5" style={{ color: theme.accent }} />
+                <span>CTA Closer Emblem & Attribution Card</span>
               </span>
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 block">Legacy (Left)</label>
-                  <input
-                    type="text"
-                    value={currentSlide.compareLeftTitle || 'Legacy Stack'}
-                    onChange={(e) => onUpdateField('compareLeftTitle', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
-                  />
-                  <textarea
-                    rows={3}
-                    value={currentSlide.compareLeftBody || ''}
-                    onChange={(e) => onUpdateField('compareLeftBody', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 block">Modern (Right)</label>
-                  <input
-                    type="text"
-                    value={currentSlide.compareRightTitle || 'Modern Engine'}
-                    onChange={(e) => onUpdateField('compareRightTitle', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white mb-1"
-                  />
-                  <textarea
-                    rows={3}
-                    value={currentSlide.compareRightBody || ''}
-                    onChange={(e) => onUpdateField('compareRightBody', e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg p-2 text-xs text-slate-300 resize-none"
-                  />
-                </div>
-              </div>
+              <span className="text-[10px] font-mono text-slate-400">Isometric Closer</span>
             </div>
-          )}
 
-          {/* Image & AI Diagram Studio */}
-          {currentSlide.type === 'image' && (
-            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Visual Diagram & AI Studio</span>
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={onOpenAiImageStudio}
-                    className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-200 border border-purple-500/40 text-xs font-semibold cursor-pointer"
-                  >
-                    AI Diagram Studio
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onOpenMediaSearch}
-                    className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 text-xs font-semibold cursor-pointer"
-                  >
-                    Search Web
-                  </button>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Emblem Brand Wordmark</label>
+                <input
+                  type="text"
+                  value={carousel?.brand || 'MARROK'}
+                  onChange={(e) => onUpdateCarouselField?.('brand', e.target.value)}
+                  placeholder="MARROK"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold"
+                />
               </div>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Image URL / Path</label>
-                  <input
-                    type="text"
-                    value={currentSlide.imageUrl || ''}
-                    onChange={(e) => onUpdateField('imageUrl', e.target.value)}
-                    placeholder="https://... or /generated/..."
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Caption / Sub-title</label>
-                  <input
-                    type="text"
-                    value={currentSlide.imageCaption || ''}
-                    onChange={(e) => onUpdateField('imageCaption', e.target.value)}
-                    placeholder="e.g. Distributed Consensus State Machine"
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white"
-                  />
-                </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Domain Category Badge</label>
+                <input
+                  type="text"
+                  value={carousel?.category || ''}
+                  onChange={(e) => onUpdateCarouselField?.('category', e.target.value)}
+                  placeholder="SOFTWARE ARCHITECTURE"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Action Pill CTA Button</label>
+                <input
+                  type="text"
+                  value={currentSlide.ctaText || ''}
+                  onChange={(e) => onUpdateField('ctaText', e.target.value)}
+                  placeholder="Join discussion  •  شارك برأيك"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-semibold"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 flex items-center gap-1 mb-1">
+                  <Globe className="w-3 h-3 text-slate-400" />
+                  <span>Website / Profile URL</span>
+                </label>
+                <input
+                  type="text"
+                  value={currentSlide.url ?? carousel?.brandUrl ?? 'marrok.org'}
+                  onChange={(e) => {
+                    onUpdateField('url', e.target.value);
+                    onUpdateCarouselField?.('brandUrl', e.target.value);
+                  }}
+                  placeholder="marrok.org"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">
+                  English Source Attribution Line
+                </label>
+                <input
+                  type="text"
+                  value={currentSlide.enCredit || ''}
+                  onChange={(e) => onUpdateField('enCredit', e.target.value)}
+                  placeholder="Technical Analysis // Engineering Architecture"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">
+                  Arabic Source Attribution Line (RTL)
+                </label>
+                <input
+                  type="text"
+                  dir="rtl"
+                  value={currentSlide.arCredit || ''}
+                  onChange={(e) => onUpdateField('arCredit', e.target.value)}
+                  placeholder="توثيق وتحليل تقني // هندسة الأنظمة"
+                  className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-arabic"
+                />
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 

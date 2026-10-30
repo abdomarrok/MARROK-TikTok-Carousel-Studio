@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeSlideLayoutAwareness,
   clampElementDrag,
+  applySlideCompositionPreset,
   MIN_GAP_GRAPHIC_TO_TITLE,
   MIN_GAP_TITLES,
   MIN_GAP_TITLE_TO_BODY,
@@ -218,6 +219,82 @@ describe('Slide Layout Awareness Engine', () => {
       }
     }
   });
+
+  it('supports headline-first composition preset with headlines above graphicCard and body below', () => {
+    const baseSlide: SlideData = {
+      type: 'image',
+      enTitle: 'What is the true financial impact?',
+      arTitle: 'ما قيمة الخسائر؟',
+      enBody: 'Crypto exchange disclosed a security breach allowing unauthorized withdrawals.',
+      arBody: 'أعلنت منصة تداول العملات المشفرة تعرضها لاختراق أمني أتاح تنفيذ عمليات سحب غير مصرح بها.',
+    };
+
+    const headlineFirstSlide = applySlideCompositionPreset(baseSlide, 'headline-first');
+    expect(headlineFirstSlide.compositionPreset).toBe('headline-first');
+
+    const layout = computeSlideLayoutAwareness(headlineFirstSlide);
+    expect(layout.titleBlock).toBeDefined();
+    expect(layout.arabicTitleBlock).toBeDefined();
+    expect(layout.graphicCard).toBeDefined();
+    expect(layout.bodyBlock).toBeDefined();
+    expect(layout.arabicBodyBlock).toBeDefined();
+
+    // In headline-first mode: titleBlock -> arabicTitleBlock -> graphicCard -> bodyBlock -> arabicBodyBlock
+    expect(layout.titleBlock!.top).toBeGreaterThanOrEqual(layout.headerBadge.y + layout.headerBadge.height);
+    expect(layout.arabicTitleBlock!.top).toBeGreaterThan(layout.titleBlock!.bottom);
+    expect(layout.graphicCard!.effectiveTop).toBeGreaterThan(layout.arabicTitleBlock!.bottom);
+    expect(layout.bodyBlock!.top).toBeGreaterThan(layout.graphicCard!.effectiveBottom);
+    expect(layout.arabicBodyBlock!.top).toBeGreaterThan(layout.bodyBlock!.bottom);
+    expect(layout.arabicBodyBlock!.bottom).toBeLessThanOrEqual(SAFE_FOOTER_CEILING_Y);
+  });
+
+  it('applies per-element scale, alignment, and hidden flags to text blocks', () => {
+    const baseSlide: SlideData = {
+      type: 'row',
+      enTitle: 'Zero-Trust Service Mesh.',
+      arTitle: 'شبكة الخدمات عديمة الثقة',
+      enBody: 'Mutual TLS and identity-based policy enforcement at every hop.',
+      arBody: 'تشفير متبادل وتطبيق السياسات المبنية على الهوية في كل نقطة.',
+    };
+
+    const normalLayout = computeSlideLayoutAwareness(baseSlide);
+    const customizedLayout = computeSlideLayoutAwareness({
+      ...baseSlide,
+      layoutOverrides: {
+        titleBlock: { scale: 1.25, align: 'left' },
+        bodyBlock: { scale: 0.85, align: 'right', hidden: true },
+      },
+    });
+
+    expect(customizedLayout.titleBlock!.fontSize).toBeGreaterThan(normalLayout.titleBlock!.fontSize);
+    expect(customizedLayout.titleBlock!.align).toBe('left');
+    expect(customizedLayout.bodyBlock!.align).toBe('right');
+    expect(customizedLayout.bodyBlock!.hidden).toBe(true);
+  });
+
+  it('allows independent vertical positioning in freeMoveLayout mode without cascading downward push', () => {
+    const baseSlide: SlideData = {
+      type: 'row',
+      enTitle: 'Independent Layer Positioning.',
+      arTitle: 'تحريك الطبقات بحرية',
+      enBody: 'Moving the English headline does not push the Arabic headline when Free Move is active.',
+      arBody: 'تحريك العنوان الإنجليزي لا يدفع العنوان العربي عند تفعيل التحريك الحر.',
+    };
+
+    const baselineFree = computeSlideLayoutAwareness({
+      ...baseSlide,
+      freeMoveLayout: true,
+    });
+    const movedTitleFree = computeSlideLayoutAwareness({
+      ...baseSlide,
+      freeMoveLayout: true,
+      layoutOverrides: {
+        titleBlock: { dy: -120 },
+      },
+    });
+
+    expect(movedTitleFree.titleBlock!.top).toBeLessThan(baselineFree.titleBlock!.top);
+    // Arabic title top stays anchored at its baseline position in freeMoveLayout mode
+    expect(movedTitleFree.arabicTitleBlock!.top).toBe(baselineFree.arabicTitleBlock!.top);
+  });
 });
-
-

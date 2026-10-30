@@ -73,6 +73,9 @@ export interface SlideData {
   imageFilter?: 'hud' | 'invert' | 'tint' | 'clean'; // Theme integration filter (hud = blueprint dark blend, invert = dark mode inversion, tint = accent wash, clean = original)
   imagePrompt?: string;       // Prompt used to generate or edit with gemini-nano-banana-2.1
   imageModel?: string;        // Model used (e.g. gemini-nano-banana-2.1)
+  imageZoom?: number;         // Image framing zoom inside card (1.0 to 2.5, default 1.0)
+  imagePanX?: number;         // Image horizontal pan percentage (-100 to +100, default 0)
+  imagePanY?: number;         // Image vertical pan percentage (-100 to +100, default 0)
   // Key Takeaway Bullets (Single-Slide & Dense Infographic Posters)
   takeaways?: SlideTakeawayItem[];
   // Titles & Body
@@ -84,7 +87,9 @@ export interface SlideData {
   url?: string;
   enCredit?: string;
   arCredit?: string;
-  // Direct Graphical Control Overrides (Spec §21)
+  // Slide composition & Direct Graphical Control Overrides (Spec §21)
+  compositionPreset?: SlideCompositionPreset;
+  freeMoveLayout?: boolean;
   layoutOverrides?: Partial<Record<GraphicalElementId, ElementLayoutOverride>>;
 }
 
@@ -99,11 +104,22 @@ export type GraphicalElementId =
   | 'ctaButton'
   | 'attributionCard';
 
+export type TextAlignment = 'left' | 'center' | 'right';
+
+export type SlideCompositionPreset =
+  | 'standard'
+  | 'headline-first'
+  | 'split-balanced'
+  | 'visual-hero'
+  | 'compact-editorial';
+
 export interface ElementLayoutOverride {
-  dx?: number;      // Horizontal offset in canvas pixels (-150 to +150)
-  dy?: number;      // Vertical offset in canvas pixels (-250 to +250)
-  scale?: number;   // Scale factor multiplier (0.7 to 1.3)
-  opacity?: number; // Opacity multiplier (0.1 to 1.0)
+  dx?: number;            // Horizontal offset in canvas pixels (-260 to +260)
+  dy?: number;            // Vertical offset in canvas pixels (-600 to +600)
+  scale?: number;         // Scale factor multiplier (0.6 to 1.5)
+  opacity?: number;       // Opacity multiplier (0.1 to 1.0)
+  align?: TextAlignment;  // Per-block horizontal text alignment ('left' | 'center' | 'right')
+  hidden?: boolean;       // Whether the element is hidden on the slide
 }
 
 export interface HookVariant {

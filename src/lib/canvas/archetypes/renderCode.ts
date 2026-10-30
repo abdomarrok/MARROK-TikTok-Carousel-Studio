@@ -2,6 +2,7 @@ import { SlideData, ThemePalette, VisualSystemOptions } from '../../../types.ts'
 import { drawRoundRect } from '../background.ts';
 import { fitTextInBox, truncateTextToWidth } from '../textLayout.ts';
 import { SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT } from '../constants.ts';
+import { resolveSmartSlideVisuals } from '../../synthesis/smartVisualDefaults.ts';
 
 /**
  * Archetype 4: Precision Silicon & Terminal Window
@@ -86,8 +87,9 @@ export async function drawCodeSlide(
   ctx.fill();
 
   // Top-Right Syntax Language Badge (BASH, RUST, TS, SQL, YAML)
-  const fileName = slide.codeFileName || (slide.codeLanguage ? `source.${slide.codeLanguage}` : 'terminal.sh');
-  let lang = (slide.codeLanguage || '').toUpperCase();
+  const smart = resolveSmartSlideVisuals(slide, 1, false);
+  const fileName = slide.codeFileName || smart.codeFileName || (slide.codeLanguage ? `source.${slide.codeLanguage}` : 'terminal.sh');
+  let lang = (slide.codeLanguage || smart.codeLanguage || '').toUpperCase();
   if (!lang) {
     if (fileName.endsWith('.sh') || fileName.includes('terminal')) lang = 'BASH';
     else if (fileName.endsWith('.rs')) lang = 'RUST';
@@ -148,7 +150,7 @@ export async function drawCodeSlide(
   ctx.stroke();
 
   // Code lines rendering with line-level diff highlights
-  const snippet = slide.codeSnippet || '$ git fetch --depth=1\n> Initializing lazy checkout...\n+ Fetched 100GB repository in 1.2s\n✔ Zero local disk stalls';
+  const snippet = slide.codeSnippet || smart.codeSnippet;
   const lines = snippet.split('\n').slice(0, 7);
   const lineSpacing = 48;
   let lineBaselineY = winY + titleBarH + 38;

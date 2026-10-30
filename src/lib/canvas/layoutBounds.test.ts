@@ -133,5 +133,34 @@ describe('computeSlideElementBounds & findSlideElementAtPoint', () => {
     expect(Math.abs(ig11GraphicCenter - 540)).toBeLessThanOrEqual(2);
     expect(ig11Bounds.graphicCard.y).toBeGreaterThanOrEqual(112);
   });
-});
 
+  it('skips hidden elements during hit-testing and reflects scaled graphicCard dimensions', () => {
+    const slide: SlideData = {
+      type: 'row',
+      enTitle: 'Hidden Title Test.',
+      arTitle: 'اختبار إخفاء العنوان',
+      enBody: 'Body text block.',
+      arBody: 'نص الفقرة.',
+      layoutOverrides: {
+        graphicCard: { scale: 1.2 },
+        titleBlock: { hidden: true },
+        arabicBodyBlock: { hidden: true },
+      },
+    };
+
+    const bounds = computeSlideElementBounds(slide);
+    expect(bounds.titleBlock.hidden).toBe(true);
+    expect(bounds.arabicBodyBlock.hidden).toBe(true);
+    expect(bounds.graphicCard.height).toBeGreaterThan(490);
+
+    // Clicking inside hidden titleBlock should never return titleBlock
+    const titleMidX = bounds.titleBlock.x + bounds.titleBlock.width / 2;
+    const titleMidY = bounds.titleBlock.y + bounds.titleBlock.height / 2;
+    expect(findSlideElementAtPoint(titleMidX, titleMidY, bounds)).not.toBe('titleBlock');
+
+    // Clicking inside hidden arabicBodyBlock (lowest block) should return null
+    const arBodyMidX = bounds.arabicBodyBlock.x + bounds.arabicBodyBlock.width / 2;
+    const arBodyMidY = bounds.arabicBodyBlock.y + bounds.arabicBodyBlock.height / 2;
+    expect(findSlideElementAtPoint(arBodyMidX, arBodyMidY, bounds)).toBeNull();
+  });
+});

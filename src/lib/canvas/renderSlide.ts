@@ -82,18 +82,28 @@ export async function renderSlideToCanvas(
     drawCadReticles(ctx, theme, spec);
   }
 
+  // Pre-compute layout awareness once for the slide
+  const layout = computeSlideLayoutAwareness(slide, carousel);
+
   // 4. Header: Top-Left Authentic MARROK Vector Badge + Brand Wordmark + Category Tag
   const headerOverride = slide.layoutOverrides?.headerBadge;
-  if (headerOverride) {
+  if (!layout.headerBadge.hidden) {
     ctx.save();
-    ctx.translate(headerOverride.dx || 0, headerOverride.dy || 0);
-    if (headerOverride.scale && headerOverride.scale !== 1) {
-      ctx.scale(headerOverride.scale, headerOverride.scale);
+    if (headerOverride) {
+      const hCx = layout.headerBadge.x + layout.headerBadge.width / 2;
+      const hCy = layout.headerBadge.y + layout.headerBadge.height / 2;
+      ctx.translate(headerOverride.dx || 0, headerOverride.dy || 0);
+      if (headerOverride.scale && headerOverride.scale !== 1) {
+        ctx.translate(hCx, hCy);
+        ctx.scale(headerOverride.scale, headerOverride.scale);
+        ctx.translate(-hCx, -hCy);
+      }
+      if (headerOverride.opacity !== undefined) {
+        ctx.globalAlpha *= Math.max(0.1, Math.min(1, headerOverride.opacity));
+      }
     }
     drawHeader(ctx, carousel, theme, categoryTag, spec);
     ctx.restore();
-  } else {
-    drawHeader(ctx, carousel, theme, categoryTag, spec);
   }
 
   // 5. Render Archetype Specific Graphics & Layouts
@@ -103,32 +113,27 @@ export async function renderSlideToCanvas(
 
   if (slide.type === 'cta') {
     ctx.save();
-    if (graphicOverride) {
-      const cx = spec.safeTextCenterX;
-      const cy = graphicTransform.cardY + graphicTransform.cardH / 2;
-      ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
-      const s = graphicOverride.scale ?? 1;
-      ctx.scale(s, s);
-      ctx.translate(-cx, -cy);
-      if (graphicOverride.opacity !== undefined) {
-        ctx.globalAlpha *= Math.max(0, Math.min(1, graphicOverride.opacity));
-      }
-    }
     yGraphicEnd = await drawCtaSlide(ctx, slide, carousel, theme, options, themeMode);
     ctx.restore();
-  } else {
+  } else if (!layout.graphicCard?.hidden) {
     ctx.save();
-    if (graphicOverride) {
-      const cx = spec.safeTextCenterX;
-      const cy = graphicTransform.cardY + graphicTransform.cardH / 2;
-      ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
-      const s = graphicOverride.scale ?? 1;
-      ctx.scale(s, s);
+    const cx = spec.safeTextCenterX;
+    const cy = graphicTransform.cardY + graphicTransform.cardH / 2;
+    const cardShiftX = graphicOverride?.dx || 0;
+    const cardShiftY = layout.graphicCard
+      ? layout.graphicCard.y - graphicTransform.cardY
+      : graphicOverride?.dy || 0;
+    const cardScale = layout.graphicCard?.scale ?? graphicOverride?.scale ?? 1;
+
+    if (cardShiftX !== 0 || cardShiftY !== 0 || cardScale !== 1) {
+      ctx.translate(cx + cardShiftX, cy + cardShiftY);
+      ctx.scale(cardScale, cardScale);
       ctx.translate(-cx, -cy);
-      if (graphicOverride.opacity !== undefined) {
-        ctx.globalAlpha *= Math.max(0, Math.min(1, graphicOverride.opacity));
-      }
     }
+    if (graphicOverride?.opacity !== undefined) {
+      ctx.globalAlpha *= Math.max(0.1, Math.min(1, graphicOverride.opacity));
+    }
+
     if (
       graphicTransform.scale !== 1 ||
       graphicTransform.translateX !== 0 ||
@@ -162,87 +167,117 @@ export async function renderSlideToCanvas(
 
   // 6. Non-Overlapping Layout-Aware Text Rendering (for hub, row, number, metric, code, compare, image, poster)
   if (slide.type !== 'cta') {
-    const layout = computeSlideLayoutAwareness(slide, carousel);
-    const graphicBottom = layout.graphicCard ? layout.graphicCard.effectiveBottom : yGraphicEnd;
+    const graphicBottom =
+      layout.graphicCard && !layout.graphicCard.hidden ? layout.graphicCard.effectiveBottom : yGraphicEnd;
     const ceilingY = spec.safeFooterCeilingY;
-    const textCenterX = spec.safeTextCenterX;
+
+    const minTextTop = Math.min(
+      layout.titleBlock && !layout.titleBlock.hidden ? layout.titleBlock.top : ceilingY,
+      layout.arabicTitleBlock && !layout.arabicTitleBlock.hidden ? layout.arabicTitleBlock.top : ceilingY,
+      layout.bodyBlock && !layout.bodyBlock.hidden ? layout.bodyBlock.top : ceilingY,
+      layout.arabicBodyBlock && !layout.arabicBodyBlock.hidden ? layout.arabicBodyBlock.top : ceilingY,
+      graphicBottom
+    );
+    const clipTop = Math.max(110, minTextTop - 20);
+
+    const resolveAlignX = (align: 'left' | 'center' | 'right' = 'center', dx: number = 0) => {
+      if (align === 'left') return { x: spec.safeMarginLeft + dx, textAlign: 'left' as CanvasTextAlign };
+      if (align === 'right') return { x: spec.safeMarginRight + dx, textAlign: 'right' as CanvasTextAlign };
+      return { x: spec.safeTextCenterX + dx, textAlign: 'center' as CanvasTextAlign };
+    };
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(
-      spec.safeMarginLeft - 24,
-      graphicBottom,
-      spec.safeContentWidth + 48,
-      Math.max(0, ceilingY - graphicBottom + 12)
+      spec.safeMarginLeft - 36,
+      clipTop,
+      spec.safeContentWidth + 72,
+      Math.max(0, ceilingY - clipTop + 16)
     );
     ctx.clip();
 
-    // 6c. Render English Headline (Layout Aware, zero overlap with graphic card)
-    if (layout.titleBlock && layout.titleBlock.lines.length > 0) {
+    // 6c. Render English Headline
+    if (layout.titleBlock && !layout.titleBlock.hidden && layout.titleBlock.lines.length > 0) {
       const tb = layout.titleBlock;
+      const { x, textAlign } = resolveAlignX(tb.align, tb.dx);
       ctx.save();
+      if (tb.opacity !== undefined && tb.opacity < 1) {
+        ctx.globalAlpha *= Math.max(0.1, Math.min(1, tb.opacity));
+      }
       ctx.font = `800 ${tb.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textWhite;
-      ctx.textAlign = 'center';
+      ctx.textAlign = textAlign;
       ctx.textBaseline = 'alphabetic';
       let lineY = tb.firstBaselineY;
       for (const line of tb.lines) {
         if (lineY + tb.lineHeight * 0.7 > ceilingY + 8) break;
-        ctx.fillText(line, textCenterX + tb.dx, lineY);
+        ctx.fillText(line, x, lineY);
         lineY += tb.lineHeight;
       }
       ctx.restore();
     }
 
-    // 6d. Render Arabic Headline (Strictly flows below English headline)
-    if (layout.arabicTitleBlock && layout.arabicTitleBlock.lines.length > 0) {
+    // 6d. Render Arabic Headline
+    if (layout.arabicTitleBlock && !layout.arabicTitleBlock.hidden && layout.arabicTitleBlock.lines.length > 0) {
       const atb = layout.arabicTitleBlock;
+      const { x, textAlign } = resolveAlignX(atb.align, atb.dx);
       ctx.save();
+      if (atb.opacity !== undefined && atb.opacity < 1) {
+        ctx.globalAlpha *= Math.max(0.1, Math.min(1, atb.opacity));
+      }
       ctx.font = `800 ${atb.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.accent;
-      ctx.textAlign = 'center';
+      ctx.textAlign = textAlign;
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       let lineY = atb.firstBaselineY;
       for (const line of atb.lines) {
         if (lineY + atb.lineHeight * 0.7 > ceilingY + 8) break;
-        ctx.fillText(line, textCenterX + atb.dx, lineY);
+        ctx.fillText(line, x, lineY);
         lineY += atb.lineHeight;
       }
       ctx.restore();
     }
 
-    // 6e. Render English Body Copy (Strictly flows below headlines)
-    if (layout.bodyBlock && layout.bodyBlock.lines.length > 0) {
+    // 6e. Render English Body Copy
+    if (layout.bodyBlock && !layout.bodyBlock.hidden && layout.bodyBlock.lines.length > 0) {
       const bb = layout.bodyBlock;
+      const { x, textAlign } = resolveAlignX(bb.align, bb.dx);
       ctx.save();
+      if (bb.opacity !== undefined && bb.opacity < 1) {
+        ctx.globalAlpha *= Math.max(0.1, Math.min(1, bb.opacity));
+      }
       ctx.font = `400 ${bb.fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = theme.textEnBody;
-      ctx.textAlign = 'center';
+      ctx.textAlign = textAlign;
       ctx.direction = 'ltr';
       ctx.textBaseline = 'alphabetic';
       let lineY = bb.firstBaselineY;
       for (const line of bb.lines) {
         if (lineY + bb.lineHeight * 0.7 > ceilingY + 8) break;
-        ctx.fillText(line, textCenterX + bb.dx, lineY);
+        ctx.fillText(line, x, lineY);
         lineY += bb.lineHeight;
       }
       ctx.restore();
     }
 
-    // 6f. Render Arabic Body Copy (Strictly flows below English body with RTL alignment)
-    if (layout.arabicBodyBlock && layout.arabicBodyBlock.lines.length > 0) {
+    // 6f. Render Arabic Body Copy
+    if (layout.arabicBodyBlock && !layout.arabicBodyBlock.hidden && layout.arabicBodyBlock.lines.length > 0) {
       const abb = layout.arabicBodyBlock;
+      const { x, textAlign } = resolveAlignX(abb.align, abb.dx);
       ctx.save();
+      if (abb.opacity !== undefined && abb.opacity < 1) {
+        ctx.globalAlpha *= Math.max(0.1, Math.min(1, abb.opacity));
+      }
       ctx.font = `400 ${abb.fontSize}px "Cairo", sans-serif`;
       ctx.fillStyle = theme.textArBody;
-      ctx.textAlign = 'center';
+      ctx.textAlign = textAlign;
       ctx.direction = 'rtl';
       ctx.textBaseline = 'alphabetic';
       let lineY = abb.firstBaselineY;
       for (const line of abb.lines) {
         if (lineY + abb.lineHeight * 0.7 > ceilingY + 8) break;
-        ctx.fillText(line, textCenterX + abb.dx, lineY);
+        ctx.fillText(line, x, lineY);
         lineY += abb.lineHeight;
       }
       ctx.restore();
@@ -251,8 +286,18 @@ export async function renderSlideToCanvas(
     ctx.restore();
 
     // 6g. Render Key Takeaways Block (Single-slide Infographic Posters & Enriched Slides)
-    if (layout.takeawaysBlock && slide.takeaways && slide.takeaways.length > 0) {
+    if (
+      layout.takeawaysBlock &&
+      !layout.takeawaysBlock.hidden &&
+      slide.takeaways &&
+      slide.takeaways.length > 0
+    ) {
+      ctx.save();
+      if (layout.takeawaysBlock.opacity !== undefined && layout.takeawaysBlock.opacity < 1) {
+        ctx.globalAlpha *= Math.max(0.1, Math.min(1, layout.takeawaysBlock.opacity));
+      }
       await drawTakeawaysBlock(ctx, slide.takeaways, theme, layout.takeawaysBlock, options);
+      ctx.restore();
     }
   }
 

@@ -3,6 +3,7 @@ import { loadIconImage, drawTintedImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
 import { fitTextInBox } from '../textLayout.ts';
 import { SAFE_CONTENT_CENTER_X, SAFE_CONTENT_WIDTH, SAFE_MARGIN_LEFT } from '../constants.ts';
+import { resolveSmartSlideVisuals } from '../../synthesis/smartVisualDefaults.ts';
 
 /**
  * Archetype 3: Metric Card (Benchmark, Speedup, Resource ROI)
@@ -50,16 +51,17 @@ export async function drawMetricSlide(
   ctx.restore();
 
   // 4. Header Row: Metric Icon Badge + Category Label
+  const smart = resolveSmartSlideVisuals(slide, 1, false);
   const iconBadgeSize = 48;
   const iconBadgeX = cardX + 36;
   const iconBadgeY = cardY + 28;
   drawRoundRect(ctx, iconBadgeX, iconBadgeY, iconBadgeSize, iconBadgeSize, 14, `${theme.accent}22`, `${theme.accent}55`, 1.5);
 
-  const mIcon = slide.metricIcon || 'zap';
+  const mIcon = slide.metricIcon || smart.metricIcon || 'zap';
   const iconImg = await loadIconImage(mIcon, theme.accent);
   drawTintedImage(ctx, iconImg, iconBadgeX + 10, iconBadgeY + 10, 28, 28, theme.accent);
 
-  const metricLabel = (slide.metricLabel || 'KEY PERFORMANCE METRIC').toUpperCase();
+  const metricLabel = (slide.metricLabel || smart.metricLabel || 'KEY PERFORMANCE METRIC').toUpperCase();
   const metricLabelX = iconBadgeX + iconBadgeSize + 16;
   ctx.save();
   const fitMetricLabel = fitTextInBox(
@@ -80,7 +82,7 @@ export async function drawMetricSlide(
   ctx.restore();
 
   // 5. Giant Hero Metric Value with restrained glow
-  const metricVal = slide.metricValue || '10x';
+  const metricVal = slide.metricValue || smart.metricValue || '10x';
   ctx.save();
   const valFontSize = metricVal.length > 8 ? 86 : metricVal.length > 5 ? 104 : 124;
   const fitMetricVal = fitTextInBox(
@@ -196,7 +198,7 @@ export async function drawMetricSlide(
   }
 
   // 7. Paired Delta Pill (▲ Emerald / ▼ Crimson / Accent)
-  const diffText = slide.metricDiff || '▲ Measurable architectural speedup';
+  const diffText = slide.metricDiff || smart.metricDiff || '▲ Measurable architectural speedup';
   const isPositive =
     /[▲+]|faster|speedup|drop|gain|reduction|reduced|boost|zero|0\s*(unauthenticated|vulnerabilit|breach|downtime|unauthorized|exploit|error|packet|leak|fail)|mitigat|eliminat|filter|secur|protect|sub-m/i.test(diffText);
   const isNegative =

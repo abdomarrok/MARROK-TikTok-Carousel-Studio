@@ -53,7 +53,13 @@ import {
 } from '../lib/canvasExporter.ts';
 import { runAutonomousPipeline, enrichAndPaceCarousel } from '../lib/autonomousPipeline.ts';
 import { sanitizeSlide } from '../lib/textSanitizer.ts';
-import { seedSlideArchetypeData, synthesizeCarousel, condenseCarouselToSingleSlide } from '../lib/synthesizer.ts';
+import {
+  seedSlideArchetypeData,
+  synthesizeCarousel,
+  condenseCarouselToSingleSlide,
+  resolveSmartSlideVisuals,
+  inferBestSlideArchetype,
+} from '../lib/synthesizer.ts';
 import { runQAChecks, CHAR_LIMITS } from '../lib/qaChecks.ts';
 import { runPlatformRiskChecks } from '../lib/riskChecks.ts';
 import { autoPolishHeadline, autoFitTextToLimits } from '../lib/text/headlines.ts';
@@ -419,6 +425,15 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   // Direct Graphical Layout Override Handlers
+  const isDefaultLayoutOverride = (override: ElementLayoutOverride | null | undefined): boolean =>
+    !override ||
+    ((override.dx === 0 || override.dx === undefined) &&
+      (override.dy === 0 || override.dy === undefined) &&
+      (override.scale === 1 || override.scale === undefined) &&
+      (override.opacity === 1 || override.opacity === undefined) &&
+      (override.align === 'center' || override.align === undefined) &&
+      !override.hidden);
+
   const handleUpdateElementLayoutOverride = (
     elementId: GraphicalElementId,
     override: ElementLayoutOverride | null
@@ -428,15 +443,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       if (targetIndex < 0 || !prev.slides[targetIndex]) return prev;
       const current = prev.slides[targetIndex];
       const existingOverrides = { ...(current.layoutOverrides || {}) };
-      if (
-        !override ||
-        ((override.dx === 0 || override.dx === undefined) &&
-          (override.dy === 0 || override.dy === undefined) &&
-          (override.scale === 1 || override.scale === undefined) &&
-          override.opacity === undefined)
-      ) {
+      if (isDefaultLayoutOverride(override)) {
         delete existingOverrides[elementId];
-      } else {
+      } else if (override) {
         existingOverrides[elementId] = override;
       }
       const newSlides = [...prev.slides];
@@ -448,6 +457,27 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     });
   };
 
+  const handleUpdateSlideFields = (updates: Partial<SlideData>) => {
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      if (targetIndex < 0 || !prev.slides[targetIndex]) return prev;
+      const newSlides = [...prev.slides];
+      newSlides[targetIndex] = sanitizeSlide(
+        {
+          ...newSlides[targetIndex],
+          ...updates,
+        },
+        targetIndex,
+        prev.slides.length
+      );
+      return {
+        ...prev,
+        slides: newSlides,
+        sourceMeta: prev.sourceMeta ? { ...prev.sourceMeta } : undefined,
+      };
+    });
+  };
+
   const handleResetSlideLayoutOverrides = () => {
     applyDeckUpdate((prev) => {
       const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
@@ -456,6 +486,11 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       newSlides[targetIndex] = {
         ...newSlides[targetIndex],
         layoutOverrides: undefined,
+        compositionPreset: 'standard',
+        freeMoveLayout: false,
+        imageZoom: undefined,
+        imagePanX: undefined,
+        imagePanY: undefined,
       };
       return { ...prev, slides: newSlides };
     });
@@ -469,15 +504,9 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     applyDeckUpdate((prev) => {
       const newSlides = prev.slides.map((s) => {
         const existingOverrides = { ...(s.layoutOverrides || {}) };
-        if (
-          !override ||
-          ((override.dx === 0 || override.dx === undefined) &&
-            (override.dy === 0 || override.dy === undefined) &&
-            (override.scale === 1 || override.scale === undefined) &&
-            override.opacity === undefined)
-        ) {
+        if (isDefaultLayoutOverride(override)) {
           delete existingOverrides[elementId];
-        } else {
+        } else if (override) {
           existingOverrides[elementId] = { ...override };
         }
         return {
@@ -488,6 +517,50 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       return { ...prev, slides: newSlides };
     });
     onShowToast(`Applied ${elementId} layout to all ${carousel.slides.length} slides`);
+  };
+
+  const handleApplySlideLayoutToAllSlides = () => {
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const sourceSlide = prev.slides[targetIndex];
+      if (!sourceSlide) return prev;
+      const clonedOverrides = sourceSlide.layoutOverrides
+        ? JSON.parse(JSON.stringify(sourceSlide.layoutOverrides))
+        : undefined;
+      const newSlides = prev.slides.map((s, idx) => {
+        if (idx === targetIndex) return s;
+        // Preserve CTA slide layout unless source is also CTA
+        if (s.type === 'cta' && sourceSlide.type !== 'cta') return s;
+        return {
+          ...s,
+          compositionPreset: sourceSlide.compositionPreset,
+          freeMoveLayout: sourceSlide.freeMoveLayout,
+          layoutOverrides: clonedOverrides ? JSON.parse(JSON.stringify(clonedOverrides)) : undefined,
+        };
+      });
+      return { ...prev, slides: newSlides };
+    });
+    onShowToast(`Synced slide layout & composition across deck`);
+  };
+
+  const handleDoubleClickCanvasElement = (elementId: GraphicalElementId) => {
+    setSelectedElementId(elementId);
+    if (elementId === 'graphicCard') {
+      setInspectorTab('visual');
+      return;
+    }
+    if (elementId === 'headerBadge' || elementId === 'attributionCard') {
+      setInspectorTab('position');
+      return;
+    }
+    setInspectorTab('copy');
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-slide-editor-field="${elementId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+    }, 50);
   };
 
   // Smart Dock Text input with auto-expansion when pasting or typing long material (> 200 chars)
@@ -821,7 +894,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       const current = prev.slides[targetIndex];
       if (!current) return prev;
 
-      const seeded = seedSlideArchetypeData(current, newType);
+      const seeded = seedSlideArchetypeData(current, newType, targetIndex, false);
       const newSlides = [...prev.slides];
       newSlides[targetIndex] = sanitizeSlide(seeded, targetIndex, prev.slides.length);
 
@@ -832,6 +905,37 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       };
     });
     onShowToast(`Switched layout to ${newType.toUpperCase()}`);
+  };
+
+  // 1-Click Smart Match Visuals to Slide Copy
+  const handleSmartMatchVisuals = (useRecommendedArchetype = false) => {
+    let matchedTypeLabel = '';
+    applyDeckUpdate((prev) => {
+      const targetIndex = Math.min(currentSlideIndex, prev.slides.length - 1);
+      const current = prev.slides[targetIndex];
+      if (!current) return prev;
+
+      const recommendedArchetype = inferBestSlideArchetype(current, targetIndex, prev.slides.length);
+      const targetType: SlideType = useRecommendedArchetype
+        ? recommendedArchetype
+        : current.type;
+      matchedTypeLabel = targetType.toUpperCase();
+
+      const seeded = seedSlideArchetypeData(current, targetType, targetIndex, true);
+      const newSlides = [...prev.slides];
+      newSlides[targetIndex] = sanitizeSlide(seeded, targetIndex, prev.slides.length);
+
+      return {
+        ...prev,
+        slides: newSlides,
+        sourceMeta: prev.sourceMeta ? { ...prev.sourceMeta } : undefined,
+      };
+    });
+    onShowToast(
+      useRecommendedArchetype
+        ? `Smart-matched slide copy & switched to ${matchedTypeLabel}`
+        : `Smart-matched ${matchedTypeLabel} visual elements to slide copy`
+    );
   };
 
   // Explicit confirmation: Creator confirms draft review (advisory status)
@@ -853,15 +957,15 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
 
   // Slide Management Handlers
   const handleAddSlide = () => {
-    const newSlide: SlideData = {
+    const targetIdx = Math.min(currentSlideIndex + 1, carousel.slides.length);
+    const baseSlide: SlideData = {
       type: 'row',
-      icons: [{ icon: 'cpu', label: 'Mechanism' }],
       enTitle: 'Core technical mechanism.',
       arTitle: 'آلية العمل التقنية.',
       enBody: 'Direct architectural explanation of how the system executes under the hood.',
       arBody: 'شرح معماري مباشر لكيفية عمل النظام في الخلفية.',
     };
-    const targetIdx = Math.min(currentSlideIndex + 1, carousel.slides.length);
+    const newSlide = seedSlideArchetypeData(baseSlide, 'row', targetIdx, true);
     const nextLength = carousel.slides.length + 1;
     applyDeckUpdate((prev) => {
       const insertAt = Math.min(currentSlideIndex + 1, prev.slides.length);
@@ -1079,20 +1183,16 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const currentSlide = carousel.slides[currentSlideIndex] || carousel.slides[0];
+  const smartCurrentVisuals = resolveSmartSlideVisuals(currentSlide, currentSlideIndex, false);
 
   const handleUpdateSatLabel = (index: number, value: string) => {
-    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length > 0
-      ? [...currentSlide.satLabels]
-      : ['Service Pod', 'Storage', 'Telemetry', 'Identity', 'AI Agent', 'VCS Engine'];
+    const currentLabels = [...smartCurrentVisuals.satLabels];
     currentLabels[index] = value;
     handleUpdateCurrentSlide('satLabels', currentLabels);
   };
 
   const handleUpdateSatIcon = (index: number, iconName: string) => {
-    const defaultIcons = ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
-    const currentIcons = currentSlide.satIcons && currentSlide.satIcons.length > 0
-      ? [...currentSlide.satIcons]
-      : defaultIcons;
+    const currentIcons = [...smartCurrentVisuals.satIcons];
     currentIcons[index] = iconName;
     handleUpdateCurrentSlide('satIcons', currentIcons);
     onShowToast(`Updated node #${index + 1} icon to ${iconName}`);
@@ -1108,9 +1208,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const handleAddSatNode = () => {
-    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length > 0
-      ? [...currentSlide.satLabels]
-      : ['Service Pod', 'Storage', 'Telemetry', 'Identity', 'AI Agent', 'VCS Engine'];
+    const currentLabels = [...smartCurrentVisuals.satLabels];
     if (currentLabels.length >= 6) {
       onShowToast('Maximum 6 orbital nodes reached');
       return;
@@ -1119,9 +1217,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
     const newLabel = defaultAdditions[currentLabels.length] || `Node ${currentLabels.length + 1}`;
     const newLabels = [...currentLabels, newLabel];
 
-    const currentIcons = currentSlide.satIcons && currentSlide.satIcons.length > 0
-      ? [...currentSlide.satIcons]
-      : ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
+    const currentIcons = [...smartCurrentVisuals.satIcons];
     const iconPool = ['zap', 'hardDrive', 'lock', 'terminal', 'cloud', 'activity', 'cpu', 'box'];
     const newIcons = [...currentIcons, iconPool[currentLabels.length % iconPool.length]];
 
@@ -1140,17 +1236,13 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const handleDeleteSatNode = (indexToDelete: number) => {
-    const currentLabels = currentSlide.satLabels && currentSlide.satLabels.length > 0
-      ? [...currentSlide.satLabels]
-      : ['Service Pod', 'Storage', 'Telemetry', 'Identity', 'AI Agent', 'VCS Engine'];
+    const currentLabels = [...smartCurrentVisuals.satLabels];
     if (currentLabels.length <= 2) {
       onShowToast('Hub diagram requires at least 2 orbital nodes');
       return;
     }
     const newLabels = currentLabels.filter((_, idx) => idx !== indexToDelete);
-    const currentIcons = currentSlide.satIcons && currentSlide.satIcons.length > 0
-      ? [...currentSlide.satIcons]
-      : ['server', 'database', 'gauge', 'users', 'robot', 'gitMerge'];
+    const currentIcons = [...smartCurrentVisuals.satIcons];
     const newIcons = currentIcons.filter((_, idx) => idx !== indexToDelete);
 
     applyDeckUpdate((prev) => {
@@ -1168,14 +1260,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const handleUpdateDiagramNode = (nodeIndex: number, field: keyof DiagramNode, value: string) => {
-    const defaultNodes: DiagramNode[] = [
-      { label: 'Client Ingress', sublabel: 'Port 443', status: 'ACTIVE', icon: 'server' },
-      { label: 'Control Plane', sublabel: 'Policy Engine', status: 'VERIFIED', icon: 'cpu' },
-      { label: 'Target Service', sublabel: 'Encrypted Pipe', status: 'SECURED', icon: 'database' },
-    ];
-    const existing = currentSlide.diagramNodes && currentSlide.diagramNodes.length >= 3
-      ? currentSlide.diagramNodes.map((n) => ({ ...n }))
-      : defaultNodes;
+    const existing = smartCurrentVisuals.diagramNodes.map((n) => ({ ...n }));
     existing[nodeIndex] = {
       ...existing[nodeIndex],
       [field]: value,
@@ -1184,9 +1269,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
   };
 
   const handleUpdateDiagramEdge = (edgeIndex: number, value: string) => {
-    const currentEdges = currentSlide.diagramEdges && currentSlide.diagramEdges.length >= 2
-      ? [...currentSlide.diagramEdges]
-      : ['Mutual Auth', 'Encrypted Pipe'];
+    const currentEdges = [...smartCurrentVisuals.diagramEdges];
     currentEdges[edgeIndex] = value;
     handleUpdateCurrentSlide('diagramEdges', currentEdges);
   };
@@ -1749,8 +1832,17 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                   selectedElementId={selectedElementId}
                   onSelectElement={(id) => {
                     setSelectedElementId(id);
+                    if (!id) return;
+                    if (id === 'graphicCard' || id === 'attributionCard') {
+                      setInspectorTab('visual');
+                    } else if (id === 'headerBadge') {
+                      setInspectorTab('position');
+                    } else {
+                      setInspectorTab('copy');
+                    }
                   }}
                   onUpdateLayoutOverride={handleUpdateElementLayoutOverride}
+                  onDoubleClickElement={handleDoubleClickCanvasElement}
                 />
               </div>
 
@@ -2018,10 +2110,20 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
               <div className="space-y-4">
                 <ArchetypeControls
                   currentSlide={currentSlide}
+                  currentSlideIndex={currentSlideIndex}
+                  carousel={carousel}
                   theme={theme}
                   isAdvancedCustomizerOpen={true}
                   onSetSlideType={handleSetSlideType}
                   onUpdateField={handleUpdateCurrentSlide}
+                  onUpdateSlideFields={handleUpdateSlideFields}
+                  onSmartMatchVisuals={handleSmartMatchVisuals}
+                  onUpdateCarouselField={(field, value) =>
+                    applyDeckUpdate((prev) => ({
+                      ...prev,
+                      [field]: value,
+                    }))
+                  }
                   onUpdateSatLabel={handleUpdateSatLabel}
                   onUpdateSatIcon={handleUpdateSatIcon}
                   onUpdateCenterIcon={handleUpdateCenterIcon}
@@ -2085,6 +2187,8 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
                 onUpdateOverride={handleUpdateElementLayoutOverride}
                 onResetOverrides={handleResetSlideLayoutOverrides}
                 onApplyToAllSlides={handleApplyOverrideToAllSlides}
+                onApplySlideLayoutToAllSlides={handleApplySlideLayoutToAllSlides}
+                onUpdateSlideFields={handleUpdateSlideFields}
               />
             )}
 

@@ -1,4 +1,4 @@
-import type { CarouselData, GraphicalElementId, SlideData } from '../../types.ts';
+import type { CarouselData, GraphicalElementId, SlideData, TextAlignment } from '../../types.ts';
 import { getCanvasDimensionSpec } from './constants.ts';
 import { computeSlideLayoutAwareness } from './layoutAwareness.ts';
 
@@ -13,6 +13,9 @@ export interface ElementBounds {
   leftPct: string;
   widthPct: string;
   heightPct: string;
+  scale?: number;
+  align?: TextAlignment;
+  hidden?: boolean;
 }
 
 /**
@@ -36,7 +39,8 @@ export function computeSlideElementBounds(
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
+    extra?: { scale?: number; align?: TextAlignment; hidden?: boolean }
   ): ElementBounds => ({
     id,
     label,
@@ -48,6 +52,7 @@ export function computeSlideElementBounds(
     topPct: toPct(y, spec.height),
     widthPct: toPct(width, spec.width),
     heightPct: toPct(height, spec.height),
+    ...extra,
   });
 
   // 1. Header Badge
@@ -57,10 +62,14 @@ export function computeSlideElementBounds(
     layout.headerBadge.x,
     layout.headerBadge.y,
     layout.headerBadge.width,
-    layout.headerBadge.height
+    layout.headerBadge.height,
+    {
+      scale: layout.headerBadge.scale,
+      hidden: layout.headerBadge.hidden,
+    }
   );
 
-  // 2. Graphic Card
+  // 2. Graphic Card (incorporates scale around card center)
   if (layout.graphicCard) {
     const cardLabel =
       slide.type === 'hub'
@@ -77,13 +86,23 @@ export function computeSlideElementBounds(
         ? 'Architecture Image Canvas'
         : 'Technical Diagram Card';
 
+    const gScale = layout.graphicCard.scale ?? 1;
+    const scaledW = layout.graphicCard.width * gScale;
+    const scaledH = layout.graphicCard.height * gScale;
+    const scaledX = layout.graphicCard.x + (layout.graphicCard.width - scaledW) / 2;
+    const scaledY = layout.graphicCard.effectiveTop;
+
     bounds.graphicCard = makeBound(
       'graphicCard',
       cardLabel,
-      layout.graphicCard.x,
-      layout.graphicCard.y,
-      layout.graphicCard.width,
-      layout.graphicCard.height
+      scaledX,
+      scaledY,
+      scaledW,
+      scaledH,
+      {
+        scale: gScale,
+        hidden: layout.graphicCard.hidden,
+      }
     );
   }
 
@@ -95,7 +114,11 @@ export function computeSlideElementBounds(
       layout.ctaButton.x,
       layout.ctaButton.y,
       layout.ctaButton.width,
-      layout.ctaButton.height
+      layout.ctaButton.height,
+      {
+        scale: layout.ctaButton.scale,
+        hidden: layout.ctaButton.hidden,
+      }
     );
   }
   if (layout.attributionCard) {
@@ -105,19 +128,34 @@ export function computeSlideElementBounds(
       layout.attributionCard.x,
       layout.attributionCard.y,
       layout.attributionCard.width,
-      layout.attributionCard.height
+      layout.attributionCard.height,
+      {
+        scale: layout.attributionCard.scale,
+        hidden: layout.attributionCard.hidden,
+      }
     );
   }
 
-  // 4. Content Text Blocks
+  const resolveTextBoxX = (width: number, dx: number, align: TextAlignment = 'center') => {
+    if (align === 'left') return spec.safeMarginLeft + dx;
+    if (align === 'right') return spec.safeMarginRight - width + dx;
+    return spec.safeTextCenterX - width / 2 + dx;
+  };
+
+  // 4. Content Text Blocks (heights already reflect per-element scale from layoutAwareness)
   if (layout.titleBlock) {
     bounds.titleBlock = makeBound(
       'titleBlock',
       'English Headline',
-      spec.safeTextCenterX - spec.safeTextWidthTitle / 2 + layout.titleBlock.dx,
+      resolveTextBoxX(spec.safeTextWidthTitle, layout.titleBlock.dx, layout.titleBlock.align),
       layout.titleBlock.top,
       spec.safeTextWidthTitle,
-      layout.titleBlock.height
+      layout.titleBlock.height,
+      {
+        scale: layout.titleBlock.scale,
+        align: layout.titleBlock.align,
+        hidden: layout.titleBlock.hidden,
+      }
     );
   }
 
@@ -125,10 +163,15 @@ export function computeSlideElementBounds(
     bounds.arabicTitleBlock = makeBound(
       'arabicTitleBlock',
       'Arabic Headline',
-      spec.safeTextCenterX - spec.safeTextWidthTitle / 2 + layout.arabicTitleBlock.dx,
+      resolveTextBoxX(spec.safeTextWidthTitle, layout.arabicTitleBlock.dx, layout.arabicTitleBlock.align),
       layout.arabicTitleBlock.top,
       spec.safeTextWidthTitle,
-      layout.arabicTitleBlock.height
+      layout.arabicTitleBlock.height,
+      {
+        scale: layout.arabicTitleBlock.scale,
+        align: layout.arabicTitleBlock.align,
+        hidden: layout.arabicTitleBlock.hidden,
+      }
     );
   }
 
@@ -136,10 +179,15 @@ export function computeSlideElementBounds(
     bounds.bodyBlock = makeBound(
       'bodyBlock',
       'English Technical Details',
-      spec.safeTextCenterX - spec.safeTextWidthBody / 2 + layout.bodyBlock.dx,
+      resolveTextBoxX(spec.safeTextWidthBody, layout.bodyBlock.dx, layout.bodyBlock.align),
       layout.bodyBlock.top,
       spec.safeTextWidthBody,
-      layout.bodyBlock.height
+      layout.bodyBlock.height,
+      {
+        scale: layout.bodyBlock.scale,
+        align: layout.bodyBlock.align,
+        hidden: layout.bodyBlock.hidden,
+      }
     );
   }
 
@@ -147,10 +195,15 @@ export function computeSlideElementBounds(
     bounds.arabicBodyBlock = makeBound(
       'arabicBodyBlock',
       'Arabic Technical Details',
-      spec.safeTextCenterX - spec.safeTextWidthBody / 2 + layout.arabicBodyBlock.dx,
+      resolveTextBoxX(spec.safeTextWidthBody, layout.arabicBodyBlock.dx, layout.arabicBodyBlock.align),
       layout.arabicBodyBlock.top,
       spec.safeTextWidthBody,
-      layout.arabicBodyBlock.height
+      layout.arabicBodyBlock.height,
+      {
+        scale: layout.arabicBodyBlock.scale,
+        align: layout.arabicBodyBlock.align,
+        hidden: layout.arabicBodyBlock.hidden,
+      }
     );
   }
 
@@ -161,7 +214,11 @@ export function computeSlideElementBounds(
       layout.takeawaysBlock.x,
       layout.takeawaysBlock.y,
       layout.takeawaysBlock.width,
-      layout.takeawaysBlock.height
+      layout.takeawaysBlock.height,
+      {
+        scale: layout.takeawaysBlock.scale,
+        hidden: layout.takeawaysBlock.hidden,
+      }
     );
   }
 
@@ -175,7 +232,7 @@ export function findSlideElementAtPoint(
   canvasX: number,
   canvasY: number,
   boundsMap: Record<GraphicalElementId, ElementBounds>,
-  _overrides?: Record<string, { dx?: number; dy?: number; scale?: number }>
+  _overrides?: Record<string, { dx?: number; dy?: number; scale?: number; hidden?: boolean }>
 ): GraphicalElementId | null {
   const pad = 14;
 
@@ -194,15 +251,13 @@ export function findSlideElementAtPoint(
 
   for (const id of priorityOrder) {
     const bound = boundsMap[id];
-    if (!bound) continue;
+    if (!bound || bound.hidden || _overrides?.[id]?.hidden) continue;
 
-    const scale = _overrides?.[id]?.scale ?? 1;
-
-    // Bounds from computeSlideLayoutAwareness already incorporate dx and dy for text & cards
-    const left = bound.x - (bound.width * (scale - 1)) / 2 - pad;
-    const right = bound.x + bound.width + (bound.width * (scale - 1)) / 2 + pad;
-    const top = bound.y - (bound.height * (scale - 1)) / 2 - pad;
-    const bottom = bound.y + bound.height + (bound.height * (scale - 1)) / 2 + pad;
+    // Bounds from computeSlideElementBounds already incorporate dx, dy, and scale
+    const left = bound.x - pad;
+    const right = bound.x + bound.width + pad;
+    const top = bound.y - pad;
+    const bottom = bound.y + bound.height + pad;
 
     if (canvasX >= left && canvasX <= right && canvasY >= top && canvasY <= bottom) {
       return id;

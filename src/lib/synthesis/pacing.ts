@@ -1,4 +1,5 @@
 import type { DiagramNode, DiagramVariant, SlideData } from '../../types.ts';
+import { resolveSmartSlideVisuals } from './smartVisualDefaults.ts';
 
 /**
  * Visual Pacing & Anti-Repetition Balancer
@@ -32,15 +33,17 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
   };
 
   return slides.map((slide, idx) => {
+    const smart = resolveSmartSlideVisuals(slide, idx, false);
+
     // Hub Slide (Slide 1)
     if (idx === 0 || slide.type === 'hub') {
-      const satLabels = slide.satLabels && slide.satLabels.length >= 2
-        ? slide.satLabels
-        : ['INGRESS', 'RUNTIME', 'EXECUTION', 'STORAGE', 'TELEMETRY', 'CORE API'];
       return {
         ...slide,
         type: 'hub',
-        satLabels,
+        centerIcon: slide.centerIcon || smart.centerIcon,
+        centerTag: slide.centerTag || smart.centerTag,
+        satLabels: smart.satLabels,
+        satIcons: slide.satIcons && slide.satIcons.length > 0 ? slide.satIcons : smart.satIcons,
       };
     }
 
@@ -59,38 +62,38 @@ export function balanceCarouselVisualPacing(slides: SlideData[]): SlideData[] {
     if (slide.type === 'code') {
       return {
         ...slide,
-        codeFileName: slide.codeFileName || 'system_core.rs',
-        codeLanguage: slide.codeLanguage || 'rust',
-        codeSnippet: slide.codeSnippet || `// Architecture execution engine\n+ pub async fn execute_pipeline() -> Result<()> {\n+     let node = Engine::spawn().await?;\n+     node.commit_state().await\n+ }`,
+        codeFileName: smart.codeFileName,
+        codeLanguage: smart.codeLanguage,
+        codeSnippet: smart.codeSnippet,
       };
     }
 
     if (slide.type === 'metric') {
       return {
         ...slide,
-        metricValue: slide.metricValue || '10x',
-        metricLabel: slide.metricLabel || 'THROUGHPUT MULTIPLIER',
-        metricDiff: slide.metricDiff || '▲ 94% faster vs legacy baseline',
-        metricIcon: slide.metricIcon || 'zap',
+        metricValue: smart.metricValue,
+        metricLabel: smart.metricLabel,
+        metricDiff: smart.metricDiff,
+        metricIcon: smart.metricIcon,
       };
     }
 
     if (slide.type === 'compare') {
       return {
         ...slide,
-        compareLeftTitle: slide.compareLeftTitle || 'Legacy Baseline',
-        compareLeftBody: slide.compareLeftBody || '• Monolithic bottlenecks\n• High memory drift\n• Unindexed state scans',
-        compareRightTitle: slide.compareRightTitle || 'Modern Engine',
-        compareRightBody: slide.compareRightBody || '• Zero-copy dataflow\n• Deterministic execution\n• Sub-millisecond latency',
+        compareLeftTitle: smart.compareLeftTitle,
+        compareLeftBody: smart.compareLeftBody,
+        compareRightTitle: smart.compareRightTitle,
+        compareRightBody: smart.compareRightBody,
       };
     }
 
     if (slide.type === 'number') {
-      const stepStr = slide.stepNumber || String(idx + 1).padStart(2, '0');
       return {
         ...slide,
-        stepNumber: stepStr,
-        stepLabel: slide.stepLabel || `STEP ${stepStr}`,
+        stepNumber: smart.stepNumber,
+        stepLabel: smart.stepLabel,
+        centerIcon: slide.centerIcon || smart.numberIcon,
       };
     }
 
