@@ -285,7 +285,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
       ...prev,
       dimensionPreset: preset,
     }));
-    onShowToast(`Switched canvas to ${nextSpec.label} (${nextSpec.width}×${nextSpec.height})`);
+    onShowToast(`Switched canvas to ${nextSpec.label}`);
   };
 
   const activeReelConfig: MotionReelData =
@@ -1734,7 +1734,7 @@ export const AutonomousStudio: React.FC<AutonomousStudioProps> = ({
             />
           ) : (
             <>
-              <div className="flex-1 min-h-0 flex items-center justify-center w-full">
+              <div className="flex-1 min-h-0 flex items-center justify-center w-full pt-1 sm:pt-0">
                 <ViewportCanvas
                   carousel={carousel}
                   currentSlideIndex={currentSlideIndex}

@@ -3,7 +3,7 @@ import { fitTextInBox } from '../textLayout.ts';
 import { loadIconImage, safeDrawImage } from '../imageLoader.ts';
 import { drawRoundRect } from '../background.ts';
 import { drawMarrokVectorBadge } from '../../icons.ts';
-import { getCanvasDimensionSpec } from '../constants.ts';
+import { getCanvasDimensionSpec, getArchetypeGraphicTransform } from '../constants.ts';
 import { computeSlideLayoutAwareness } from '../layoutAwareness.ts';
 
 /**
@@ -23,12 +23,17 @@ export async function drawCtaSlide(
   const spec = getCanvasDimensionSpec(carousel?.dimensionPreset);
   const layout = computeSlideLayoutAwareness(slide, carousel);
   const centerX = spec.safeTextCenterX;
+  const ctaTransform = getArchetypeGraphicTransform(spec, 'cta');
 
   // Render Upper Emblem & Brand Header inside scaled graphic space
   ctx.save();
-  if (spec.graphicScale !== 1 || spec.graphicOffsetX !== 0 || spec.graphicOffsetY !== 0) {
-    ctx.translate(spec.graphicOffsetX, spec.graphicOffsetY);
-    ctx.scale(spec.graphicScale, spec.graphicScale);
+  if (
+    ctaTransform.scale !== 1 ||
+    ctaTransform.translateX !== 0 ||
+    ctaTransform.translateY !== 0
+  ) {
+    ctx.translate(ctaTransform.translateX, ctaTransform.translateY);
+    ctx.scale(ctaTransform.scale, ctaTransform.scale);
   }
 
   const emblemX = 518;

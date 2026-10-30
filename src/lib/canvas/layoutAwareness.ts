@@ -6,15 +6,13 @@ import type {
   ElementLayoutOverride,
 } from '../../types.ts';
 import {
-  CANVAS_WIDTH,
-  SAFE_MARGIN_LEFT,
-  SAFE_CONTENT_WIDTH,
   FONT_TITLE_EN,
   FONT_TITLE_AR,
   FONT_BODY_EN,
   FONT_BODY_AR,
   CanvasDimensionSpec,
   getCanvasDimensionSpec,
+  getArchetypeGraphicTransform,
 } from './constants.ts';
 import { fitTextInBox } from './textLayout.ts';
 
@@ -211,23 +209,7 @@ export function computeSlideLayoutAwareness(
   const gDy = graphicOverride?.dy || 0;
   const gScale = graphicOverride?.scale ?? 1;
 
-  let baseCardY = 240;
-  let baseCardH = 490;
-  if (slide.type === 'hub') {
-    baseCardY = 190;
-    baseCardH = 790;
-  } else if (slide.type === 'poster') {
-    baseCardY = 200;
-    baseCardH = 430;
-  } else if (slide.type === 'number') {
-    baseCardY = 240;
-    baseCardH = 430;
-  }
-
-  const cardY = Math.round(baseCardY * spec.graphicScale + spec.graphicOffsetY);
-  const cardH = Math.round(baseCardH * spec.graphicScale);
-  const cardW = Math.round(SAFE_CONTENT_WIDTH * spec.graphicScale);
-  const cardX = Math.round(SAFE_MARGIN_LEFT * spec.graphicScale + spec.graphicOffsetX);
+  const { cardX, cardY, cardW, cardH } = getArchetypeGraphicTransform(spec, slide.type);
 
   const cy = cardY + cardH / 2;
   const effectiveTop = cy - (cardH / 2) * gScale + gDy;
@@ -379,9 +361,9 @@ export function computeSlideLayoutAwareness(
   }
 
   // 5. Layout Awareness: Guaranteed Non-Overlapping Stacking
-  // Top cushion for optical vertical balance
+  // Top cushion for optical vertical balance (keeps headlines in the upper-middle sweet spot above TikTok's lower-right rail)
   const remainingCushion = Math.max(0, totalAvailableHeight - measured.totalStackHeight);
-  const naturalTopCushion = Math.min(Math.max(remainingCushion * 0.44, gapGraphicToTitle), 220);
+  const naturalTopCushion = Math.min(Math.max(remainingCushion * 0.24, gapGraphicToTitle), 88);
 
   // Base starting Y position (ensures top of headline is strictly >= graphicCard.effectiveBottom + gapGraphicToTitle)
   const baseTitleTop = textCeilingY + naturalTopCushion;
@@ -577,11 +559,8 @@ function computeCtaSlideLayout(
   const gDy = gOverride?.dy || 0;
   const gScale = gOverride?.scale ?? 1;
 
-  // Graphic Emblem on CTA slide: y=250..640 on 9:16, scaled cleanly on shorter aspect ratios
-  const baseCardY = Math.round(250 * spec.graphicScale + spec.graphicOffsetY);
-  const baseCardH = Math.round(390 * spec.graphicScale);
-  const cardW = Math.round(SAFE_CONTENT_WIDTH * spec.graphicScale);
-  const cardX = Math.round(SAFE_MARGIN_LEFT * spec.graphicScale + spec.graphicOffsetX);
+  // Graphic Emblem on CTA slide: y=250..640 on 9:16, center-locked and scaled cleanly on shorter aspect ratios
+  const { cardX, cardY: baseCardY, cardW, cardH: baseCardH } = getArchetypeGraphicTransform(spec, 'cta');
   const cy = baseCardY + baseCardH / 2;
   const effectiveTop = cy - (baseCardH / 2) * gScale + gDy;
   const effectiveBottom = cy + (baseCardH / 2) * gScale + gDy;
@@ -641,7 +620,7 @@ function computeCtaSlideLayout(
   const titleOverride = overrides.titleBlock;
   const tDx = titleOverride?.dx || 0;
   const tDy = titleOverride?.dy || 0;
-  const minTitleStart = Math.round(680 * spec.graphicScale + spec.graphicOffsetY);
+  const minTitleStart = baseCardY + baseCardH + Math.round(40 * ctaFontScale);
   const actualTitleTop = Math.max(effectiveBottom + Math.round(28 * ctaFontScale), minTitleStart + tDy);
   const titleFirstBaselineY = actualTitleTop + enFontSize * 0.82;
   const actualTitleBottom = actualTitleTop + enTitleH;

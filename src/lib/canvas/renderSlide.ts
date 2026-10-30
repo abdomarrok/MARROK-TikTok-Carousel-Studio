@@ -1,6 +1,6 @@
 import { CarouselData, DEFAULT_PALETTES, THEME_CONFIGS, ThemePalette, VisualSystemOptions } from '../../types.ts';
 import { seedSlideArchetypeData } from '../synthesis/archetypes.ts';
-import { getCanvasDimensionSpec } from './constants.ts';
+import { getCanvasDimensionSpec, getArchetypeGraphicTransform } from './constants.ts';
 import { computeSlideLayoutAwareness } from './layoutAwareness.ts';
 import {
   drawBaseBackground,
@@ -97,14 +97,15 @@ export async function renderSlideToCanvas(
   }
 
   // 5. Render Archetype Specific Graphics & Layouts
-  let yGraphicEnd = Math.round(670 * spec.graphicScale + spec.graphicOffsetY);
+  const graphicTransform = getArchetypeGraphicTransform(spec, slide.type);
+  let yGraphicEnd = graphicTransform.cardY + graphicTransform.cardH;
   const graphicOverride = slide.layoutOverrides?.graphicCard;
 
   if (slide.type === 'cta') {
     ctx.save();
     if (graphicOverride) {
-      const cx = spec.width / 2;
-      const cy = Math.round(420 * spec.graphicScale + spec.graphicOffsetY);
+      const cx = spec.safeTextCenterX;
+      const cy = graphicTransform.cardY + graphicTransform.cardH / 2;
       ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
       const s = graphicOverride.scale ?? 1;
       ctx.scale(s, s);
@@ -118,8 +119,8 @@ export async function renderSlideToCanvas(
   } else {
     ctx.save();
     if (graphicOverride) {
-      const cx = spec.width / 2;
-      const cy = Math.round(460 * spec.graphicScale + spec.graphicOffsetY);
+      const cx = spec.safeTextCenterX;
+      const cy = graphicTransform.cardY + graphicTransform.cardH / 2;
       ctx.translate(cx + (graphicOverride.dx || 0), cy + (graphicOverride.dy || 0));
       const s = graphicOverride.scale ?? 1;
       ctx.scale(s, s);
@@ -128,9 +129,13 @@ export async function renderSlideToCanvas(
         ctx.globalAlpha *= Math.max(0, Math.min(1, graphicOverride.opacity));
       }
     }
-    if (spec.graphicScale !== 1 || spec.graphicOffsetX !== 0 || spec.graphicOffsetY !== 0) {
-      ctx.translate(spec.graphicOffsetX, spec.graphicOffsetY);
-      ctx.scale(spec.graphicScale, spec.graphicScale);
+    if (
+      graphicTransform.scale !== 1 ||
+      graphicTransform.translateX !== 0 ||
+      graphicTransform.translateY !== 0
+    ) {
+      ctx.translate(graphicTransform.translateX, graphicTransform.translateY);
+      ctx.scale(graphicTransform.scale, graphicTransform.scale);
     }
 
     let rawGraphicEnd = 670;
@@ -151,7 +156,7 @@ export async function renderSlideToCanvas(
     } else if (slide.type === 'poster') {
       rawGraphicEnd = await drawPosterSlide(ctx, slide, theme, options);
     }
-    yGraphicEnd = Math.round(rawGraphicEnd * spec.graphicScale + spec.graphicOffsetY);
+    yGraphicEnd = Math.round(rawGraphicEnd * graphicTransform.scale + graphicTransform.translateY);
     ctx.restore();
   }
 

@@ -267,7 +267,7 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       data-testid="viewport-stage-container"
       data-dimension-preset={spec.id}
       style={{ aspectRatio: `${spec.width} / ${spec.height}` }}
-      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-w-[min(380px,92vw)] max-h-[min(480px,calc(100vh-255px))] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none group transition-all duration-200"
+      className="relative rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl w-auto max-w-[min(380px,92vw)] max-h-[min(450px,calc(100dvh-280px))] sm:max-h-[min(490px,calc(100vh-250px))] shrink-0 outline-none focus:ring-1 focus:ring-cyan-500/40 select-none group transition-all duration-200"
     >
       <canvas
         ref={activeCanvasRef}
@@ -457,8 +457,8 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-mono text-[9px] select-none">
           {/* Top Safe Zone */}
           <div
-            style={{ height: topSafePct }}
-            className="bg-rose-500/20 border-b border-rose-500/40 flex items-center justify-between px-3 text-rose-300"
+            style={{ height: topSafePct, minHeight: '22px' }}
+            className="bg-rose-500/20 border-b border-rose-500/40 flex items-center justify-between px-2.5 text-rose-200 whitespace-nowrap"
           >
             <span>TOP {spec.headerY}px SAFE</span>
             <span>{spec.shortLabel} ({spec.width}×{spec.height})</span>
@@ -470,10 +470,10 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
               {spec.safeMarginLeft}px..{spec.safeMarginRight}px SAFE
             </span>
 
-            {/* 3:4 Profile Grid Crop Indicator on IG 4:5 */}
+            {/* 3:4 Profile Grid Crop Indicator on IG 4:5 (anchored at bottom to avoid MARROK header overlap) */}
             {spec.id === 'ig-4:5' && (
-              <div className="absolute inset-y-0 left-[3.5%] right-[3.5%] border-x border-dotted border-amber-400/40 flex items-start justify-center pt-1">
-                <span className="text-[7px] text-amber-300/80 bg-black/60 px-1 rounded">
+              <div className="absolute inset-y-0 left-[3.5%] right-[3.5%] border-x border-dotted border-amber-400/40 flex items-end justify-center pb-1.5">
+                <span className="text-[7px] text-amber-300/90 bg-black/75 border border-amber-400/30 px-1.5 py-0.5 rounded">
                   IG 3:4 Grid Crop Safe
                 </span>
               </div>
@@ -481,11 +481,11 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
 
             {/* Right-side Interaction Rail Indicator (for 9:16 TikTok / IG Reels) */}
             {spec.aspectRatioLabel === '9:16' && (
-              <div className="h-full flex flex-col justify-end items-center gap-2 text-rose-300/80 pr-1 pb-2 text-[10px]">
-                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">♥</div>
-                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">💬</div>
-                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">★</div>
-                <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">↗</div>
+              <div className="h-full flex flex-col justify-end items-center gap-1.5 text-rose-300/80 pr-0.5 pb-1 text-[9px]">
+                <div className="w-4 h-4 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">♥</div>
+                <div className="w-4 h-4 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">💬</div>
+                <div className="w-4 h-4 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">★</div>
+                <div className="w-4 h-4 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center">↗</div>
               </div>
             )}
           </div>
@@ -493,13 +493,13 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
           {/* Bottom Safe Zone */}
           <div
             style={{ height: bottomSafePct }}
-            className="bg-rose-500/20 border-t border-rose-500/40 flex flex-col justify-center px-3 text-rose-300 space-y-0.5"
+            className="bg-rose-500/20 border-t border-rose-500/40 flex flex-col justify-center px-2.5 text-rose-200 space-y-0.5"
           >
             <div className="flex justify-between">
               <span>CEILING y≤{spec.safeFooterCeilingY}px</span>
               <span>@{creatorHandle}</span>
             </div>
-            <span className="text-[8px] text-rose-400/80">
+            <span className="text-[8px] text-rose-400/80 truncate">
               {spec.platform === 'tiktok'
                 ? 'TikTok Photo Mode Dots, Caption & Sound Drawer'
                 : spec.id === 'ig-9:16'
@@ -514,80 +514,86 @@ export const ViewportCanvas: React.FC<ViewportCanvasProps> = ({
       {overlayMode === 'tiktok' && spec.platform === 'tiktok' && (
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between font-sans select-none overflow-hidden">
           {/* Top TikTok Navigation Bar + Photo Mode Counter Pill */}
-          <div className="pt-2.5 px-3 space-y-1.5 z-10">
+          <div className="pt-2 px-3 space-y-1 z-10 bg-gradient-to-b from-black/55 to-transparent pb-1">
             <div className="flex items-center justify-between text-white/90 drop-shadow-md">
-              <span className="text-[11px] font-semibold text-white/50">LIVE</span>
-              <div className="flex items-center gap-3 text-xs font-bold">
+              <span className="text-[10px] font-semibold text-white/60">LIVE</span>
+              <div className="flex items-center gap-2.5 text-[11px] font-bold">
+                <span className="text-white/50">Community</span>
                 <span className="text-white/60">Following</span>
                 <span className="text-white border-b-2 border-white pb-0.5">For You</span>
               </div>
-              <Search className="w-4 h-4 text-white" />
+              <Search className="w-3.5 h-3.5 text-white" />
             </div>
             {carousel.slides.length > 1 && (
               <div className="flex justify-end">
-                <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-[9px] font-mono font-bold text-white/90 border border-white/15">
-                  {currentSlideIndex + 1}/{carousel.slides.length}
+                <span className="px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-xs text-[9px] font-mono font-bold text-white/90 border border-white/15">
+                  {currentSlideIndex + 1} / {carousel.slides.length}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Center Bounding Area */}
-          <div className="flex-1 mx-2 flex items-end justify-end p-1">
-            {/* Right-Side TikTok Action Column */}
-            <div className="flex flex-col items-center gap-2 text-white pr-0.5 pb-1 z-10">
-              <div className="relative mb-1">
-                <div className="w-8 h-8 rounded-full bg-slate-800 border-2 border-white overflow-hidden flex items-center justify-center">
-                  <span className="font-bold text-[10px] text-cyan-300">
+          {/* Center Bounding Area: Lower-Right TikTok Engagement Column */}
+          <div className="flex-1 mx-1.5 flex items-end justify-end p-1">
+            <div className="flex flex-col items-center gap-1.5 text-white pr-0.5 pb-0.5 z-10">
+              <div className="relative mb-0.5">
+                <div className="w-7 h-7 rounded-full bg-slate-800 border-2 border-rose-500 overflow-hidden flex items-center justify-center shadow">
+                  <span className="font-bold text-[9px] text-cyan-300">
                     {(carousel.brand || 'M')[0].toUpperCase()}
                   </span>
                 </div>
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center leading-none">
                   +
                 </div>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
-                  <Heart className="w-4 h-4 fill-white text-white" />
-                </div>
-                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">38.4K</span>
+                <Heart className="w-4 h-4 fill-white text-white drop-shadow" />
+                <span className="text-[8px] font-bold text-white drop-shadow">38.4K</span>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
-                  <MessageCircle className="w-4 h-4 fill-white text-white" />
-                </div>
-                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">482</span>
+                <MessageCircle className="w-4 h-4 fill-white text-white drop-shadow" />
+                <span className="text-[8px] font-bold text-white drop-shadow">482</span>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
-                  <Bookmark className="w-4 h-4 fill-white text-white" />
-                </div>
-                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">1.9K</span>
+                <Bookmark className="w-4 h-4 fill-white text-white drop-shadow" />
+                <span className="text-[8px] font-bold text-white drop-shadow">1.9K</span>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-xs">
-                  <Share2 className="w-4 h-4 fill-white text-white" />
-                </div>
-                <span className="text-[9px] font-bold text-white shadow-sm mt-0.5">924</span>
-              </div>
-              <div className="w-7 h-7 rounded-full bg-slate-900 border-2 border-slate-700 flex items-center justify-center mt-0.5 animate-spin" style={{ animationDuration: '6s' }}>
-                <Music2 className="w-3.5 h-3.5 text-white" />
+                <Share2 className="w-4 h-4 fill-white text-white drop-shadow" />
+                <span className="text-[8px] font-bold text-white drop-shadow">924</span>
               </div>
             </div>
           </div>
 
           {/* Bottom TikTok Photo Mode Dots + Caption & Sound Drawer */}
-          <div className="p-3 pt-2 bg-gradient-to-t from-black/95 via-black/70 to-transparent text-white space-y-1 z-10">
+          <div className="px-3 pb-2.5 pt-2 bg-gradient-to-t from-black/95 via-black/80 to-transparent text-white space-y-1 z-10">
+            {carousel.slides.length > 1 && (
+              <div className="flex items-center justify-center gap-1 pb-0.5">
+                {carousel.slides.map((_, dotIdx) => (
+                  <span
+                    key={dotIdx}
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      dotIdx === currentSlideIndex ? 'bg-white' : 'bg-white/35'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-xs tracking-tight">@{creatorHandle}</span>
-              <span className="px-1.5 py-0.2 rounded bg-white/15 text-[8px] font-semibold text-white/85">Photo</span>
+              <span className="font-bold text-[11px] tracking-tight">@{creatorHandle}</span>
+              <span className="px-1.5 py-0.2 rounded bg-white/15 text-[8px] font-semibold text-white/90">Photo</span>
             </div>
-            <p className="text-[10px] text-white/90 line-clamp-2 leading-snug font-sans">
+            <p className="text-[9.5px] text-white/90 line-clamp-2 leading-snug font-sans pr-8">
               {carousel.slides[currentSlideIndex]?.enTitle || carousel.caption?.slice(0, 60) || 'MARROK engineering breakdown...'}
             </p>
-            <div className="flex items-center gap-1.5 text-[9px] text-white/75 font-mono">
-              <Music2 className="w-3 h-3 text-white" />
-              <span>original sound - @{creatorHandle}</span>
+            <div className="flex items-center justify-between text-[8.5px] text-white/75 font-mono pt-0.5">
+              <div className="flex items-center gap-1 truncate">
+                <Music2 className="w-2.5 h-2.5 text-white shrink-0" />
+                <span className="truncate">original sound - @{creatorHandle}</span>
+              </div>
+              <div className="w-5 h-5 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center shrink-0 animate-spin" style={{ animationDuration: '6s' }}>
+                <Music2 className="w-2.5 h-2.5 text-cyan-300" />
+              </div>
             </div>
           </div>
         </div>

@@ -157,9 +157,9 @@ describe('Slide Layout Awareness Engine', () => {
     expect(layout.attributionCard!.y + layout.attributionCard!.height / 2).toBeLessThanOrEqual(SAFE_FOOTER_CEILING_Y);
   });
 
-  it('reflows non-overlapping layout across TikTok 9:16 and Instagram 4:5, 3:4, 1:1, and 9:16 presets', () => {
+  it('reflows non-overlapping, center-locked, header-safe layout across TikTok 9:16 and Instagram 4:5, 3:4, 1:1, and 9:16 presets', () => {
     const presets: CanvasDimensionPreset[] = ['tiktok-9:16', 'ig-4:5', 'ig-3:4', 'ig-1:1', 'ig-9:16'];
-    const archetypes: SlideData['type'][] = ['hub', 'row', 'poster', 'cta'];
+    const archetypes: SlideData['type'][] = ['hub', 'row', 'number', 'poster', 'cta'];
 
     for (const preset of presets) {
       const spec = getCanvasDimensionSpec(preset);
@@ -194,6 +194,18 @@ describe('Slide Layout Awareness Engine', () => {
         expect(layout.titleBlock).toBeDefined();
         expect(layout.titleBlock!.top).toBeGreaterThan(layout.graphicCard!.effectiveBottom);
 
+        // Graphic card must be horizontally coaxial with spec.safeTextCenterX
+        const graphicCenterX = layout.graphicCard!.x + layout.graphicCard!.width / 2;
+        expect(Math.abs(graphicCenterX - spec.safeTextCenterX)).toBeLessThanOrEqual(2);
+
+        // Graphic card top must start below the MARROK header badge without collision
+        expect(layout.graphicCard!.y).toBeGreaterThanOrEqual(layout.headerBadge.y + layout.headerBadge.height);
+
+        // Top text cushion must remain tight so headlines never drift into the lower-right icon zone
+        if (type !== 'cta') {
+          expect(layout.titleBlock!.top - layout.graphicCard!.effectiveBottom).toBeLessThanOrEqual(90);
+        }
+
         if (type === 'cta') {
           expect(layout.attributionCard).toBeDefined();
           expect(layout.attributionCard!.y + layout.attributionCard!.height / 2).toBeLessThanOrEqual(
@@ -207,4 +219,5 @@ describe('Slide Layout Awareness Engine', () => {
     }
   });
 });
+
 

@@ -98,4 +98,40 @@ describe('computeSlideElementBounds & findSlideElementAtPoint', () => {
     const hitEmpty = findSlideElementAtPoint(100, 1850, bounds);
     expect(hitEmpty).toBeNull();
   });
+
+  it('centers graphicCard and text blocks horizontally on Instagram 4:5 and 1:1 presets', () => {
+    const hubSlide: SlideData = {
+      type: 'hub',
+      enTitle: 'Is your approved AI becoming a threat?',
+      arTitle: 'هل أدوات الذكاء الاصطناعي المعتمدة آمنة؟',
+      enBody: 'Approved AI tools can evolve beyond their original scope, creating new security risks.',
+      arBody: 'الأدوات المعتمدة قد تتجاوز نطاق عملها الأصلي، مما يخلق مخاطر أمنية جديدة.',
+    };
+
+    const ig45Bounds = computeSlideElementBounds(hubSlide, {
+      brand: 'MARROK',
+      category: 'AI SECURITY & GOVERNANCE',
+      theme: 'cyber',
+      caption: 'AI Security',
+      dimensionPreset: 'ig-4:5',
+      slides: [hubSlide],
+    });
+    const ig45GraphicCenter = ig45Bounds.graphicCard.x + ig45Bounds.graphicCard.width / 2;
+    const ig45TitleCenter = ig45Bounds.titleBlock.x + ig45Bounds.titleBlock.width / 2;
+    expect(Math.abs(ig45GraphicCenter - 540)).toBeLessThanOrEqual(2);
+    expect(Math.abs(ig45TitleCenter - 540)).toBeLessThanOrEqual(2);
+
+    const ig11Bounds = computeSlideElementBounds(hubSlide, {
+      brand: 'MARROK',
+      category: 'AI SECURITY & GOVERNANCE',
+      theme: 'cyber',
+      caption: 'AI Security',
+      dimensionPreset: 'ig-1:1',
+      slides: [hubSlide],
+    });
+    const ig11GraphicCenter = ig11Bounds.graphicCard.x + ig11Bounds.graphicCard.width / 2;
+    expect(Math.abs(ig11GraphicCenter - 540)).toBeLessThanOrEqual(2);
+    expect(ig11Bounds.graphicCard.y).toBeGreaterThanOrEqual(112);
+  });
 });
+

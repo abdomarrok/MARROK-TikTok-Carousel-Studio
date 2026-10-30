@@ -83,11 +83,11 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   );
 
   const renderStageToggle = () => (
-    <div className="flex items-center gap-0.5 bg-black/70 border border-white/10 rounded-lg p-0.5 text-xs font-sans">
+    <div className="flex items-center gap-0.5 bg-black/70 border border-white/10 rounded-lg p-0.5 text-[11px] font-sans shrink-0">
       <button
         type="button"
         onClick={() => handleSelectMode('clean')}
-        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors whitespace-nowrap ${
           overlayMode === 'clean' ? 'bg-white/20 text-white font-bold' : 'text-slate-400 hover:text-white'
         }`}
         title="Clean preview without overlay"
@@ -97,7 +97,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
       <button
         type="button"
         onClick={() => handleSelectMode('safe')}
-        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors whitespace-nowrap ${
           overlayMode === 'safe'
             ? 'bg-rose-500/25 text-rose-300 font-bold border border-rose-500/40'
             : 'text-slate-400 hover:text-white'
@@ -109,7 +109,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
       <button
         type="button"
         onClick={() => handleSelectMode('tiktok')}
-        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors whitespace-nowrap ${
           overlayMode === 'tiktok'
             ? 'bg-cyan-500/25 text-cyan-200 font-bold border border-cyan-500/40'
             : 'text-slate-400 hover:text-white'
@@ -123,7 +123,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
 
   if (isSinglePost) {
     return (
-      <div className="w-full max-w-[360px] space-y-1.5">
+      <div className="w-full max-w-[380px] space-y-1.5">
         {onSelectDimensionPreset && renderDimensionBar()}
         <div className="w-full flex items-center justify-between gap-2 px-1 py-1 text-xs text-slate-300">
           <div className="flex items-center gap-2 font-mono text-xs">
@@ -141,19 +141,19 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
   }
 
   return (
-    <div className="w-full max-w-[360px] space-y-1.5">
+    <div className="w-full max-w-[380px] space-y-1.5">
       {onSelectDimensionPreset && renderDimensionBar()}
       {/* Top Bar: Slide Count, Management Actions & Stage Mode Switcher */}
-      <div className="flex items-center justify-between text-xs text-slate-400 px-0.5">
-        <div className="flex items-center gap-2 font-mono tabular-nums">
-          <span className="text-xs">
+      <div className="flex items-center justify-between gap-1 text-xs text-slate-400 px-0.5">
+        <div className="flex items-center gap-1.5 font-mono tabular-nums min-w-0">
+          <span className="text-[11px] whitespace-nowrap shrink-0">
             Slide <span className="text-white font-bold">{currentSlideIndex + 1}</span>/{carousel.slides.length}
           </span>
-          <div className="flex items-center gap-0.5 bg-white/[0.04] border border-white/10 rounded-lg p-0.5">
+          <div className="flex items-center gap-0.5 bg-white/[0.04] border border-white/10 rounded-lg p-0.5 shrink-0">
             <button
               type="button"
               onClick={onAddSlide}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-sans font-semibold text-slate-200 hover:bg-white/10 transition-colors cursor-pointer"
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-sans font-semibold text-slate-200 hover:bg-white/10 transition-colors cursor-pointer whitespace-nowrap"
               title="Add new slide after this one"
             >
               <Plus className="w-3 h-3 text-emerald-400" />
@@ -162,11 +162,11 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
             <button
               type="button"
               onClick={onDuplicateSlide}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-sans font-semibold text-slate-200 hover:bg-white/10 transition-colors cursor-pointer"
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-sans font-semibold text-slate-200 hover:bg-white/10 transition-colors cursor-pointer whitespace-nowrap"
               title="Duplicate this slide" aria-label="Duplicate current slide"
             >
               <Copy className="w-3 h-3 text-cyan-400" />
-              <span>Duplicate</span>
+              <span className="hidden sm:inline">Duplicate</span>
             </button>
             <button
               type="button"
@@ -199,7 +199,7 @@ export const SlideNavigator: React.FC<SlideNavigatorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1">{renderStageToggle()}</div>
+        <div className="flex items-center gap-1 shrink-0">{renderStageToggle()}</div>
       </div>
 
       {/* Storyboard Strip */}

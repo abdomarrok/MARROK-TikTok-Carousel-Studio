@@ -1,4 +1,4 @@
-import type { CanvasDimensionPreset } from '../../types.ts';
+import type { CanvasDimensionPreset, SlideData } from '../../types.ts';
 
 /**
  * Canvas Dimensions & Safe Zone Constants
@@ -6,7 +6,7 @@ import type { CanvasDimensionPreset } from '../../types.ts';
  * - Top header safe area: y >= 112px (clears TikTok LIVE / Following / For You / Search bar)
  * - Right safe margin: x <= 930px on TikTok (150px right clearance for avatar/like/comment/save/share icons)
  * - Left safe margin: x >= 84px
- * - Optical text & card ceiling on TikTok: y <= 1555px (clears 315px+ bottom caption, photo dots & sound drawer)
+ * - Optical text & card ceiling on TikTok: y <= 1555px (clears 365px bottom photo dots, caption & sound drawer)
  * - Pagination dots on TikTok: y = 1605px (sits cleanly above caption block)
  */
 export const CANVAS_WIDTH = 1080;
@@ -57,6 +57,16 @@ export interface CanvasDimensionSpec {
   cadRefLabel: string;
 }
 
+export interface ArchetypeGraphicTransform {
+  scale: number;
+  translateX: number;
+  translateY: number;
+  cardX: number;
+  cardY: number;
+  cardW: number;
+  cardH: number;
+}
+
 export const CANVAS_DIMENSION_PRESETS: Record<CanvasDimensionPreset, CanvasDimensionSpec> = {
   'tiktok-9:16': {
     id: 'tiktok-9:16',
@@ -96,7 +106,7 @@ export const CANVAS_DIMENSION_PRESETS: Record<CanvasDimensionPreset, CanvasDimen
     safeTextWidthBody: 850,
     headerY: 64,
     graphicScale: 0.72,
-    graphicOffsetX: 24,
+    graphicOffsetX: 151,
     graphicOffsetY: 16,
     safeFooterCeilingY: 1245,
     paginationDotY: 1295,
@@ -118,7 +128,7 @@ export const CANVAS_DIMENSION_PRESETS: Record<CanvasDimensionPreset, CanvasDimen
     safeTextWidthBody: 850,
     headerY: 72,
     graphicScale: 0.76,
-    graphicOffsetX: 21,
+    graphicOffsetX: 130,
     graphicOffsetY: 18,
     safeFooterCeilingY: 1330,
     paginationDotY: 1382,
@@ -139,8 +149,8 @@ export const CANVAS_DIMENSION_PRESETS: Record<CanvasDimensionPreset, CanvasDimen
     safeTextWidthTitle: 890,
     safeTextWidthBody: 860,
     headerY: 52,
-    graphicScale: 0.56,
-    graphicOffsetX: 29,
+    graphicScale: 0.54,
+    graphicOffsetX: 248,
     graphicOffsetY: 22,
     safeFooterCeilingY: 990,
     paginationDotY: 1036,
@@ -184,4 +194,95 @@ export function getCanvasDimensionSpec(preset?: CanvasDimensionPreset): CanvasDi
   }
   return CANVAS_DIMENSION_PRESETS['tiktok-9:16'];
 }
+
+/**
+ * Computes center-locked, header-safe graphic transform and bounding box for a given dimension preset and archetype.
+ * - Preserves exact 1:1 native coordinates on `tiktok-9:16`.
+ * - Horizontally aligns the archetype's visual center (`540` for hub/number, `518` for cta, `507` for card archetypes)
+ *   directly onto `spec.safeTextCenterX` on all Instagram presets so graphics never drift left.
+ * - Anchors top Y below the MARROK header + SYS_REF line on compact aspect ratios (`4:5`, `3:4`, `1:1`).
+ */
+export function getArchetypeGraphicTransform(
+  spec: CanvasDimensionSpec,
+  slideType: SlideData['type'] = 'row'
+): ArchetypeGraphicTransform {
+  let baseCardY = 240;
+  let baseCardH = 490;
+  let nativeCenterX = SAFE_CONTENT_CENTER_X; // 507 for standard cards drawn at x=84, w=846
+
+  if (slideType === 'hub') {
+    baseCardY = 190;
+    baseCardH = 790;
+    nativeCenterX = 540;
+  } else if (slideType === 'poster') {
+    baseCardY = 200;
+    baseCardH = 430;
+    nativeCenterX = SAFE_CONTENT_CENTER_X;
+  } else if (slideType === 'number') {
+    baseCardY = 240;
+    baseCardH = 430;
+    nativeCenterX = 540;
+  } else if (slideType === 'cta') {
+    baseCardY = 250;
+    baseCardH = 390;
+    nativeCenterX = 518;
+  }
+
+  // Native 1:1 path for default TikTok 9:16 preset
+  if (spec.id === 'tiktok-9:16') {
+    return {
+      scale: 1,
+      translateX: 0,
+      translateY: 0,
+      cardX: SAFE_MARGIN_LEFT,
+      cardY: baseCardY,
+      cardW: SAFE_CONTENT_WIDTH,
+      cardH: baseCardH,
+    };
+  }
+
+  // On 1920px height (e.g. ig-9:16), keep full scale and center on safeTextCenterX
+  if (spec.height >= 1920) {
+    const translateX = Math.round(spec.safeTextCenterX - nativeCenterX);
+    const cardW = SAFE_CONTENT_WIDTH;
+    const cardX = Math.round(spec.safeTextCenterX - cardW / 2);
+    return {
+      scale: 1,
+      translateX,
+      translateY: spec.graphicOffsetY,
+      cardX,
+      cardY: baseCardY + spec.graphicOffsetY,
+      cardW,
+      cardH: baseCardH,
+    };
+  }
+
+  // Compact aspect ratios (ig-4:5, ig-3:4, ig-1:1):
+  // Use spec.graphicScale for tall Hub/Poster/CTA slides, and a slightly fuller scale for standard 490px cards
+  const isTallOrDense = slideType === 'hub' || slideType === 'poster' || slideType === 'cta';
+  const scale = isTallOrDense
+    ? spec.graphicScale
+    : Number(Math.min(0.86, spec.graphicScale * 1.14).toFixed(3));
+
+  const headerClearance = slideType === 'hub' ? 72 : 82;
+  const targetTopY = spec.headerY + headerClearance;
+  const translateX = Math.round(spec.safeTextCenterX - nativeCenterX * scale);
+  const translateY = Math.round(targetTopY - baseCardY * scale);
+
+  const cardW = Math.round(SAFE_CONTENT_WIDTH * scale);
+  const cardH = Math.round(baseCardH * scale);
+  const cardX = Math.round(spec.safeTextCenterX - cardW / 2);
+  const cardY = targetTopY;
+
+  return {
+    scale,
+    translateX,
+    translateY,
+    cardX,
+    cardY,
+    cardW,
+    cardH,
+  };
+}
+
 
