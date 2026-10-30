@@ -25,7 +25,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`MARROK TikTok Carousel Studio listening on http://0.0.0.0:${PORT} (${isDev ? 'development' : 'production'})`);
+    console.log(`MARROK Content Studio listening on http://0.0.0.0:${PORT} (${isDev ? 'development' : 'production'})`);
   });
 }
 

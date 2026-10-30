@@ -1,4 +1,17 @@
-# Changelog — MARROK TikTok Carousel Studio
+# Changelog — MARROK Content Studio
+
+## [1.2.0] — MARROK Content Studio Rename & Multi-Platform Viewport Engine
+
+### 1. Rebrand to MARROK Content Studio (`marrok-content-studio`)
+- Renamed application and package identity from `MARROK TikTok Carousel Studio` (`marrok-carousel-studio`) to **MARROK Content Studio** (`marrok-content-studio`) across `package.json`, `metadata.json`, `index.html`, `server.ts`, `AutonomousStudio.tsx`, `ContactSheetModal.tsx`, `exporter.ts`, and project documentation to reflect its evolution into a multi-format, multi-platform content engine.
+
+### 2. Multi-Platform Canvas Dimensions & Uniform Aspect Scaling (`src/lib/canvas/dimensions.ts`, `src/lib/canvas/layoutAwareness.ts`)
+- **5 Platform Presets (`CanvasDimensionId`):** Added `tiktok-9:16` (`1080×1920`), `ig-4:5` (`1080×1350`), `ig-3:4` (`1080×1440`), `ig-1:1` (`1080×1080`), and `ig-reels-9:16` (`1080×1920`) with dedicated safe-zone ceilings, top headers, side margins, and `SYS_REF` CAD reticles.
+- **TikTok Photo Mode 3:4 Active Viewport:** Calibrated `tiktok-9:16` default graphic/copy ceiling to `y <= 1510` (`contentTop = 180`) so slides sit cleanly inside TikTok Photo Mode's `1080×1440` active stage above the caption shelf and action rail.
+- **Aspect-Aware Graphic & Font Scaling:** Updated `computeSlideLayoutAwareness()` and `renderSlideToCanvas()` so compact dimensions (`ig-1:1`, `ig-4:5`, `ig-3:4`) proportionally scale schematic cards and typography, preventing cramped overlaps or clipped footers.
+- **Viewport Safe-Zone & Mobile UX Polish:** Fixed clipped top safe-zone labels, overlapping IG 3:4 grid crop guides, duplicate dimension strings in toast notifications, and responsive header layout across desktop and mobile viewports.
+
+---
 
 ## [1.1.0] — Multi-Format Studio: 1-Slide Poster, 9:16 Motion Reel & Multi-Key AI Failover
 

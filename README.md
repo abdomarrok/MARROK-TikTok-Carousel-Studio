@@ -1,4 +1,4 @@
-# MARROK TikTok Carousel & Bilingual Caption Engine
+# MARROK Content Studio
 
 <div align="center">
 
@@ -10,7 +10,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 <p align="center">
-  <strong>Multimodal content engine converting complex engineering breakthroughs, screenshots, code diffs, architecture diagrams, and transcripts into 1080×1920 TikTok Carousels, 1-Slide Infographic Posters, 9:16 Motion Reels, and bilingual (English + Arabic) viral captions.</strong>
+  <strong>Multimodal content studio converting complex engineering breakthroughs, screenshots, code diffs, architecture diagrams, and transcripts into TikTok & Instagram Carousels (9:16, 4:5, 3:4, 1:1), 1-Slide Infographic Posters, 9:16 Motion Reels, and bilingual (English + Arabic) captions.</strong>
 </p>
 
 [Architecture](specs/architecture.md) • [Log Steps](specs/logsteps.md) • [Design System](specs/archetypes-and-design-system.md) • [API Specs](specs/api-and-schemas.md)

@@ -1,7 +1,7 @@
-# MARROK TikTok Carousel Studio — UX & Product Audit: Duplication & Confusion
+# MARROK Content Studio — UX & Product Audit: Duplication & Confusion
 
 **Product Goal Benchmark:**
-A creator provides **ONE input** (topic, text, screenshot, or link) and produces a bilingual (EN+AR) `1080×1920` TikTok carousel, caption, and ZIP of JPGs.
+A creator provides **ONE input** (topic, text, screenshot, or link) and produces a bilingual (EN+AR) social media carousel (`tiktok-9:16`, `ig-4:5`, `ig-3:4`, `ig-1:1`, `ig-reels-9:16`), 1-slide infographic poster, or 9:16 motion reel, plus caption and ZIP of JPGs.
 **Target Happy Path:** `Input → Generate → Review/Fix → Pass Checks → Export → (Optionally) Save as Posted` — completable by a first-time user without help on both desktop and mobile (`390px`).
 
 ---

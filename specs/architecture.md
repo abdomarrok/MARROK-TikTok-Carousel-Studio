@@ -1,8 +1,8 @@
-# MARROK Architecture & Engineering Specification
+# MARROK Content Studio — Architecture & Engineering Specification
 
 ## 1. Executive Summary
 
-**MARROK TikTok Carousel Studio** is an agentic multimodal content generation engine that converts complex engineering materials (technical architecture screenshots, code snippets, GitHub repositories, YouTube transcripts, and engineering post-mortems) into high-impact, bilingual (English + Arabic) 1080×1920 TikTok carousels and algorithmic captions.
+**MARROK Content Studio** is an agentic multimodal content generation engine that converts complex engineering materials (technical architecture screenshots, code snippets, GitHub repositories, YouTube transcripts, and engineering post-mortems) into high-impact, bilingual (English + Arabic) TikTok & Instagram carousels (`1080×1920`, `1080×1350`, `1080×1440`, `1080×1080`), 1-Slide Infographic Posters, 9:16 Motion Reels, and algorithmic captions.
 
 The system is engineered for zero-latency mobile workflows, high availability during upstream AI service spikes, autonomous 1-input generation with silent QA auto-fixing, server-side 9:16 AI architecture diagram generation (`gemini-nano-banana-2.1`), and strict adherence to the proprietary **MARROK 8-Archetype Visual System**.
 

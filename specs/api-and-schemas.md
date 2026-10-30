@@ -206,7 +206,12 @@ export interface CaptionVariant {
   caption: string;
 }
 
+export type PostFormat = 'carousel' | 'single' | 'reel';
+export type CanvasDimensionId = 'tiktok-9:16' | 'ig-4:5' | 'ig-3:4' | 'ig-1:1' | 'ig-reels-9:16';
+
 export interface CarouselData {
+  postFormat?: PostFormat;
+  dimension?: CanvasDimensionId;
   theme: string;
   category: string;
   caption: string;

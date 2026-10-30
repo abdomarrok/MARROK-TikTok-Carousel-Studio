@@ -1,4 +1,4 @@
-# MARROK TikTok Carousel Studio — Architecture Guide
+# MARROK Content Studio — Architecture Guide
 
 ## 1. System Topology Diagram
 
@@ -10,7 +10,8 @@
 │  │ AutonomousStudio.tsx (Fixed Zero-Scroll Shell — 3 Post Formats)      │  │
 │  │  ├─ Command Bar + Overlay Ingestion Drawer (Text / YouTube / OCR)    │  │
 │  │  ├─ Format Switcher: Carousel (8-Slide) | 1-Slide Poster | Reel      │  │
-│  │  ├─ Left 9:16 Stage: ViewportCanvas OR MotionReelViewport + Transport│  │
+│  │  ├─ Dimension Switcher: TikTok 9:16 | IG 4:5 | IG 3:4 | IG 1:1 | 9:16│  │
+│  │  ├─ Left Stage: ViewportCanvas OR MotionReelViewport + Transport     │  │
 │  │  └─ Right Inspector: Slide Editor / MotionReelInspector / Caption QA │  │
 │  └───────┬──────────────────────────┬───────────────────────────┬───────┘  │
 │          │                          │                           │          │
@@ -18,10 +19,10 @@
 │  ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────┐  │
 │  │ Autonomous Pipeline  │  │ Static Slide Canvas  │  │ Motion Reel Eng. │  │
 │  │ (autonomousPipeline) │  │ (src/lib/canvas/*)   │  │ (src/lib/motion) │  │
-│  │  ├─ parseCarousel    │  │  ├─ layoutAwareness  │  │  ├─ marrokChrome │  │
-│  │  ├─ sanitizeCarousel │  │  ├─ layoutBounds     │  │  ├─ marrokSlides │  │
-│  │  ├─ condenseSingle   │  │  ├─ renderSlide      │  │  ├─ sfxSynth 48k │  │
-│  │  └─ QA & Risk Gates  │  │  └─ exporter (JPG)   │  │  └─ videoExporter│  │
+│  │  ├─ parseCarousel    │  │  ├─ dimensions.ts    │  │  ├─ marrokChrome │  │
+│  │  ├─ sanitizeCarousel │  │  ├─ layoutAwareness  │  │  ├─ marrokSlides │  │
+│  │  ├─ condenseSingle   │  │  ├─ layoutBounds     │  │  ├─ sfxSynth 48k │  │
+│  │  └─ QA & Risk Gates  │  │  ├─ renderSlide      │  │  └─ videoExporter│  │
 │  └──────────┬───────────┘  └──────────────────────┘  └──────────────────┘  │
 └─────────────┼──────────────────────────────────────────────────────────────┘
               │ HTTP JSON (4.5 MB limit, AbortSignal, Multi-Key Headers)
@@ -53,8 +54,9 @@
 | `api/freeAiFallback.ts` | Zero-key Pollinations AI text (`openai`/`mistral`) and 9:16 `flux` image fallback when Gemini keys are exhausted |
 | `api/controllers/generateController.ts` | Bilingual deck synthesis (Carousel & 1-Slide), Google Search `groundingSupports` fact mapping, multi-key & free AI cascade |
 | `api/controllers/proxyController.ts` | SSRF-hardened HTTPS image proxy with DNS resolution check, 2 MB cap, and SVG sanitization |
-| `src/lib/canvas/layoutAwareness.ts` | Pure mathematical layout engine enforcing vertical clearances and anti-collision drag clamping |
-| `src/lib/canvas/renderSlide.ts` | Pure 1080×1920 2D canvas projection for Carousel slides and 1-Slide Infographic Posters |
+| `src/lib/canvas/dimensions.ts` | Platform dimension presets (`tiktok-9:16`, `ig-4:5`, `ig-3:4`, `ig-1:1`, `ig-reels-9:16`), safe zones, and TikTok Photo Mode 3:4 viewport bounds |
+| `src/lib/canvas/layoutAwareness.ts` | Pure mathematical layout engine enforcing vertical clearances, dynamic dimension scaling, and anti-collision drag clamping |
+| `src/lib/canvas/renderSlide.ts` | Pure 2D canvas projection across all supported dimensions for Carousel slides and 1-Slide Infographic Posters |
 | `src/lib/canvas/exporter.ts` | Single JPG Q95 download, clipboard copy, Contact Sheet JPG, and Metricool ZIP bundle |
 | `src/lib/synthesis/singleSlideCondenser.ts` | Condenses an 8-slide carousel into a 1-slide infographic poster with 3 bilingual takeaways |
 | `src/lib/motion/marrokSlideChrome.ts` | Shared MARROK slide environment for Motion Reels (radial glow, 108px grid, CAD reticles, `drawMarrokVectorBadge` header, surface cards, bilingual spring copy, pagination footer) |

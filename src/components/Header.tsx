@@ -73,12 +73,15 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 sm:gap-8">
         {/* Zone 1: Brand Wordmark */}
         <div className="flex items-center gap-2 shrink-0">
-          <a href="#" className="flex items-center gap-2 group whitespace-nowrap shrink-0">
+          <a href="#" title="MARROK Content Studio" className="flex items-center gap-2 group whitespace-nowrap shrink-0">
             <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15 bg-[#0D0D0D] flex items-center justify-center shadow-sm group-hover:border-white/30 transition-all shrink-0">
               <img src="/marrok-logo.svg" alt="M" className="w-full h-full object-contain" />
             </div>
             <span className="text-lg sm:text-xl font-extrabold tracking-tight text-white font-jakarta whitespace-nowrap">
               MARROK
+            </span>
+            <span className="hidden lg:inline-block text-[10px] font-mono uppercase tracking-widest text-slate-400 border border-white/10 bg-white/[0.03] px-1.5 py-0.5 rounded-md">
+              Content Studio
             </span>
           </a>
         </div>

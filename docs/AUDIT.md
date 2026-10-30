@@ -1,4 +1,4 @@
-# MARROK TikTok Carousel Studio — Staff Engineering Codebase Audit (`Phase 0`)
+# MARROK Content Studio — Staff Engineering Codebase Audit (`Phase 0`)
 
 **Date:** 2026-10-27  
 **Scope:** Full-stack architecture, security, reliability, code quality, product safety gates, testing, and developer handoff readiness.

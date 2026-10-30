@@ -1,9 +1,9 @@
 # AGENTS.md
 
 ## Quick facts
-- React 19 + TypeScript, Vite 8, Tailwind CSS v4, Express (`server.ts` + `api/index.ts`), `@google/genai`; single package (package name `marrok-tiktok-carousel-studio`), no workspaces.
+- React 19 + TypeScript, Vite 8, Tailwind CSS v4, Express (`server.ts` + `api/index.ts`), `@google/genai`; single package (package name `marrok-content-studio`), no workspaces.
 - Path alias `@/*` -> repo root (tsconfig + vite). Entry flow: `server.ts` -> `api/index.ts` + Vite middleware/static; `src/main.tsx` -> `src/App.tsx` -> `src/components/AutonomousStudio.tsx`.
-- Shared domain types live in `src/types.ts`; theme tokens in `src/lib/theme/palettes.ts`. Canvas output is 1080x1920 (9:16) across three first-class post formats (`PostFormat = 'carousel' | 'single' | 'reel'`).
+- Shared domain types live in `src/types.ts`; theme tokens in `src/lib/theme/palettes.ts`. Canvas output supports TikTok & Instagram dimensions (`tiktok-9:16`, `ig-4:5`, `ig-3:4`, `ig-1:1`, `ig-reels-9:16`) across three first-class post formats (`PostFormat = 'carousel' | 'single' | 'reel'`).
 
 ## Commands
 - `npm run dev` — Express + Vite on `http://localhost:3000` (`PORT` overrides).

@@ -209,7 +209,7 @@ export async function downloadAllSlidesZip(
       terminalScanlines: true,
     },
     exportedAt: new Date().toISOString(),
-    generator: 'MARROK TikTok & Instagram Carousel Studio',
+    generator: 'MARROK Content Studio',
     targetPlatform:
       exportMode === 'dual'
         ? 'Metricool Dual Pack (TikTok 9:16 + Instagram 4:5)'
@@ -262,7 +262,7 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
   // Structured Post Metadata JSON
   const metadata = {
     exportedAt: new Date().toISOString(),
-    generator: 'MARROK TikTok & Instagram Carousel Studio',
+    generator: 'MARROK Content Studio',
     category: carousel.category,
     theme: carousel.theme,
     dimensionPreset: spec.id,
@@ -292,8 +292,8 @@ ${(carousel.sourceMeta?.groundingSources || []).map((s) => `• ${s.title}: ${s.
   zip.file('post_metadata.json', JSON.stringify(metadata, null, 2));
 
   // Quick Creator Publishing Guide
-  const readme = `MARROK TIKTOK, INSTAGRAM & METRICOOL PUBLISHING BUNDLE
-=======================================================
+  const readme = `MARROK CONTENT STUDIO · TIKTOK, INSTAGRAM & METRICOOL PUBLISHING BUNDLE
+=======================================================================
 Deck: ${carousel.category} (${carousel.slides.length} slides)
 Theme: ${carousel.theme}
 Dimension Preset: ${spec.label}${exportMode === 'dual' ? ' + Dual Pack (TikTok 9:16 & Instagram 4:5)' : ''}
@@ -367,7 +367,7 @@ export async function downloadContactSheetJpg(
   // Header banner
   mctx.fillStyle = '#ffffff';
   mctx.font = '800 36px "Plus Jakarta Sans", sans-serif';
-  mctx.fillText('MARROK STUDIO · VISUAL QA CONTACT SHEET', pad, pad + 38);
+  mctx.fillText('MARROK CONTENT STUDIO · VISUAL QA CONTACT SHEET', pad, pad + 38);
 
   mctx.fillStyle = '#9BA5AB';
   mctx.font = '500 20px "Plus Jakarta Sans", monospace';

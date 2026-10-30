@@ -144,11 +144,12 @@ The MARROK visual system provides 8 core archetypes tailored for high-density mo
 
 ---
 
-## 5. TikTok 9:16 Viewport Safe Zones
+## 5. Multi-Platform Viewport Dimensions & Safe Zones (`src/lib/canvas/dimensions.ts`)
 
-To prevent TikTok interface elements (profile picture, like/comment buttons, caption box, and search bar) from obscuring critical content, the 1080×1920 canvas enforces strict safe zones:
+To prevent TikTok and Instagram interface elements (profile avatars, like/comment buttons, caption drawers, and feed crop boundaries) from obscuring critical content, the canvas engine supports 5 platform presets with aspect-aware scaling:
 
-- **Top Safe Zone (180px):** Cleared for TikTok search bar, sound ticker, and live tags.
-- **Bottom Safe Zone (320px):** Cleared for TikTok creator handle, sound name, and multi-line caption overlay.
-- **Right Margin Safe Zone (120px):** Cleared for like, bookmark, comment, and share icon column.
-- **Safe Content Box:** 840px width × 1420px height, centered at `x = 120px, y = 180px`.
+- **TikTok 9:16 (`tiktok-9:16` — `1080×1920`):** Calibrated to TikTok Photo Mode's active 3:4 stage (`1080×1440`), enforcing `contentTop = 180px`, `safeZoneBottomY = 1510px` (hard ceiling `1710px`), and right safe margin `x <= 920px`.
+- **Instagram 4:5 (`ig-4:5` — `1080×1350`):** Portrait feed carousel preset with `safeZoneBottomY = 1245px` and optional 3:4 profile grid crop guide (`x = 44..1036`).
+- **Instagram 3:4 (`ig-3:4` — `1080×1440`):** Modern 2025/2026 Instagram grid-native portrait preset with `safeZoneBottomY = 1330px`.
+- **Instagram 1:1 (`ig-1:1` — `1080×1080`):** Classic square carousel preset with compact schematic and typography scaling (`safeZoneBottomY = 990px`).
+- **Instagram Reels / Stories 9:16 (`ig-reels-9:16` — `1080×1920`):** Full-bleed vertical preset with `safeZoneBottomY = 1620px` and right safe margin `x <= 945px`.
